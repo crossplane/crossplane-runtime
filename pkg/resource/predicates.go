@@ -17,15 +17,11 @@ limitations under the License.
 package resource
 
 import (
-	"time"
-
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
-
-const predicateTimeout = 1 * time.Minute
 
 // A PredicateFn returns true if the supplied object should be reconciled.
 type PredicateFn func(obj runtime.Object) bool

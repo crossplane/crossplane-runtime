@@ -12,12 +12,6 @@ PLATFORMS ?= linux_amd64 linux_arm64
 -include build/makelib/common.mk
 
 # ====================================================================================
-# Setup Output
-
-S3_BUCKET ?= crossplane-runtime.releases
--include build/makelib/output.mk
-
-# ====================================================================================
 # Setup Go
 
 # Set a sane default so that the nprocs calculation below is less noisy on the initial
@@ -29,22 +23,9 @@ NPROCS ?= 1
 # to half the number of CPU cores.
 GO_TEST_PARALLEL := $(shell echo $$(( $(NPROCS) / 2 )))
 
-GO_STATIC_PACKAGES = $(GO_PROJECT)/cmd/crossplane-runtime
 GO_LDFLAGS += -X $(GO_PROJECT)/pkg/version.Version=$(VERSION)
 GO_SUBDIRS += pkg apis
 -include build/makelib/golang.mk
-
-# ====================================================================================
-# Setup Kubebuilder
-
--include build/makelib/kubebuilder.mk
-
-# ====================================================================================
-# Setup Images
-
-DOCKER_REGISTRY = crossplane
-IMAGES = crossplane-runtime
--include build/makelib/image.mk
 
 # ====================================================================================
 # Targets
@@ -59,8 +40,6 @@ IMAGES = crossplane-runtime
 fallthrough: submodules
 	@echo Initial setup complete. Running make again . . .
 	@make
-
-go.test.unit: $(KUBEBUILDER)
 
 # Generate a coverage report for cobertura applying exclusions on
 # - generated file
