@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/crossplaneio/crossplane/pkg/test"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 )
 
 type envvars struct {

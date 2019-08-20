@@ -24,7 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplaneio/crossplane/pkg/util"
+	"github.com/crossplaneio/crossplane-runtime/pkg/util"
 )
 
 // A PublisherChain chains multiple ManagedPublishers.

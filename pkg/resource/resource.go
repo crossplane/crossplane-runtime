@@ -24,8 +24,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/meta"
+	"github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 )
 
 // A ConnectionSecretOwner may create and manage a connection secret.

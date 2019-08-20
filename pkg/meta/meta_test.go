@@ -26,7 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/crossplaneio/crossplane/pkg/test"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 )
 
 const (

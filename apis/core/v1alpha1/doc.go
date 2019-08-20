@@ -14,5 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// +kubebuilder:object:generate=true
+// +groupName=core.crossplane.io
+// +versionName=v1alpha1
+
 // Package v1alpha1 contains API Schema definitions for the crossplane core v1alpha1 API group
 package v1alpha1

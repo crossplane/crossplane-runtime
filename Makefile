@@ -1,7 +1,7 @@
 # ====================================================================================
 # Setup Project
 
-PROJECT_NAME := crossplane
+PROJECT_NAME := crossplane-runtime
 PROJECT_REPO := github.com/crossplaneio/$(PROJECT_NAME)
 
 PLATFORMS ?= linux_amd64 linux_arm64
@@ -14,7 +14,7 @@ PLATFORMS ?= linux_amd64 linux_arm64
 # ====================================================================================
 # Setup Output
 
-S3_BUCKET ?= crossplane.releases
+S3_BUCKET ?= crossplane-runtime.releases
 -include build/makelib/output.mk
 
 # ====================================================================================
@@ -29,19 +29,10 @@ NPROCS ?= 1
 # to half the number of CPU cores.
 GO_TEST_PARALLEL := $(shell echo $$(( $(NPROCS) / 2 )))
 
-GO_STATIC_PACKAGES = $(GO_PROJECT)/cmd/crossplane
+GO_STATIC_PACKAGES = $(GO_PROJECT)/cmd/crossplane-runtime
 GO_LDFLAGS += -X $(GO_PROJECT)/pkg/version.Version=$(VERSION)
-GO_SUBDIRS += cmd pkg apis aws azure gcp
+GO_SUBDIRS += pkg apis
 -include build/makelib/golang.mk
-
-# ====================================================================================
-# Setup Helm
-
-HELM_BASE_URL = https://charts.crossplane.io
-HELM_S3_BUCKET = crossplane.charts
-HELM_CHARTS = crossplane
-HELM_CHART_LINT_ARGS_crossplane = --set nameOverride='',imagePullSecrets=''
--include build/makelib/helm.mk
 
 # ====================================================================================
 # Setup Kubebuilder
@@ -49,24 +40,11 @@ HELM_CHART_LINT_ARGS_crossplane = --set nameOverride='',imagePullSecrets=''
 -include build/makelib/kubebuilder.mk
 
 # ====================================================================================
-# Setup Kubernetes tools
-
--include build/makelib/k8s_tools.mk
-
-# ====================================================================================
 # Setup Images
 
 DOCKER_REGISTRY = crossplane
-IMAGES = crossplane
+IMAGES = crossplane-runtime
 -include build/makelib/image.mk
-
-# ====================================================================================
-# Setup Docs
-
-SOURCE_DOCS_DIR = docs
-DEST_DOCS_DIR = docs
-DOCS_GIT_REPO = https://$(GIT_API_TOKEN)@github.com/crossplaneio/crossplaneio.github.io.git
--include build/makelib/docs.mk
 
 # ====================================================================================
 # Targets
@@ -84,15 +62,6 @@ fallthrough: submodules
 
 go.test.unit: $(KUBEBUILDER)
 
-# Generate manifests e.g. CRD, RBAC etc.
-manifests: vendor
-	@$(INFO) Generating CRD manifests
-	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./aws/... output:dir=cluster/charts/crossplane/crds/aws
-	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./azure/... output:dir=cluster/charts/crossplane/crds/azure
-	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./gcp/... output:dir=cluster/charts/crossplane/crds/gcp
-	go run vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go crd:trivialVersions=true paths=./apis/... output:dir=cluster/charts/crossplane/crds
-	@$(OK) Generating CRD manifests
-
 # Generate a coverage report for cobertura applying exclusions on
 # - generated file
 cobertura:
@@ -101,40 +70,31 @@ cobertura:
 		$(GOCOVER_COBERTURA) > $(GO_TEST_OUTPUT)/cobertura-coverage.xml
 
 # Ensure a PR is ready for review.
-reviewable: vendor generate manifests lint
-
-# integration tests
-e2e.run: test-integration
-
-# Run integration tests.
-test-integration: $(KIND) $(KUBECTL) $(HELM)
-	@$(INFO) running integration tests using kind $(KIND_VERSION)
-	@$(ROOT_DIR)/cluster/local/integration_tests.sh || $(FAIL)
-	@$(OK) integration tests passed
+reviewable: vendor generate lint
 
 # Update the submodules, such as the common build scripts.
 submodules:
 	@git submodule sync
 	@git submodule update --init --recursive
 
-.PHONY: manifests cobertura reviewable submodules fallthrough test-integration
+.PHONY: cobertura reviewable submodules fallthrough
 
 # ====================================================================================
 # Special Targets
 
-define CROSSPLANE_HELP
-Crossplane Targets:
+define CROSSPLANE_RUNTIME_HELP
+Crossplane Runtime Targets:
     manifests          Generate manifests e.g. CRD, RBAC etc.
     cobertura          Generate a coverage report for cobertura applying exclusions on generated files.
     reviewable         Ensure a PR is ready for review.
     submodules         Update the submodules, such as the common build scripts.
 
 endef
-export CROSSPLANE_HELP
+export CROSSPLANE_RUNTIME_HELP
 
-crossplane.help:
-	@echo "$$CROSSPLANE_HELP"
+crossplane-runtime.help:
+	@echo "$$CROSSPLANE_RUNTIME_HELP"
 
-help-special: crossplane.help
+help-special: crossplane-runtime.help
 
-.PHONY: crossplane.help help-special
+.PHONY: crossplane-runtime.help help-special

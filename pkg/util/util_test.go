@@ -34,7 +34,7 @@ import (
 	ting "k8s.io/client-go/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplaneio/crossplane/pkg/test"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 )
 
 // TestApplySecretError applying a secret and return error

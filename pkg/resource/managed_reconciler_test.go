@@ -31,8 +31,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplaneio/crossplane/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane/pkg/test"
+	"github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 )
 
 var _ reconcile.Reconciler = &ManagedReconciler{}

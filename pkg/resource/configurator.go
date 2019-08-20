@@ -25,7 +25,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/crossplaneio/crossplane/pkg/meta"
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 )
 
 // A ConfiguratorChain chains multiple configurators.

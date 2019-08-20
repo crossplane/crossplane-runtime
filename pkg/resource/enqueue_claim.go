@@ -22,7 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplaneio/crossplane/pkg/meta"
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 )
 
 // EnqueueRequestForClaim enqueues a reconcile.Request for the NamespacedName

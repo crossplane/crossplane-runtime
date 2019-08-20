@@ -24,10 +24,10 @@
 #  version = "2.4.0"
 
 ignored = [
-    "github.com/crossplaneio/crossplane/.cache",
-    "github.com/crossplaneio/crossplane/.work",
-    "github.com/crossplaneio/crossplane/_output",
-    "github.com/crossplaneio/crossplane/build",
+    "github.com/crossplaneio/crossplane-runtime/.cache",
+    "github.com/crossplaneio/crossplane-runtime/.work",
+    "github.com/crossplaneio/crossplane-runtime/_output",
+    "github.com/crossplaneio/crossplane-runtime/build",
     ]
 
 required = [
@@ -39,20 +39,6 @@ required = [
 [prune]
   go-tests = true
   unused-packages = true
-
-[[constraint]]
-  name="sigs.k8s.io/controller-runtime"
-  version="v0.2.0-beta.5"
-
-# The fork is based on v0.2.0-beta.5. See https://github.com/kubernetes-sigs/controller-tools/issues/301
-[[override]]
-  name="sigs.k8s.io/controller-tools"
-  source = "https://github.com/muvaf/controller-tools.git"
-  revision = "301a879da11105676f319f9080278a54b956d07f"
-
-[[override]]
-  name = "contrib.go.opencensus.io/exporter/ocagent"
-  version = "v0.2.0"
 
 # For dependency below: Refer to issue https://github.com/golang/dep/issues/1799
 [[override]]

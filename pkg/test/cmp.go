@@ -22,7 +22,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
-	corev1alpha1 "github.com/crossplaneio/crossplane/apis/core/v1alpha1"
+	corev1alpha1 "github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 )
 
 // TODO(negz): Replace this if a similar option is added to cmpopts per
