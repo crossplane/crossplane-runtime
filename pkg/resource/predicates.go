@@ -17,18 +17,12 @@ limitations under the License.
 package resource
 
 import (
-	"context"
-	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-
-	"github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 )
 
 const predicateTimeout = 1 * time.Minute
@@ -46,39 +40,6 @@ func NewPredicates(fn PredicateFn) predicate.Funcs {
 		GenericFunc: func(e event.GenericEvent) bool { return fn(e.Object) },
 	}
 }
-
-// ObjectHasProvisioner returns a PredicateFn implemented by HasProvisioner.
-func ObjectHasProvisioner(c client.Client, provisioner string) PredicateFn {
-	return func(obj runtime.Object) bool {
-		cr, ok := obj.(ClassReferencer)
-		if !ok {
-			return false
-		}
-		return HasProvisioner(c, cr, provisioner)
-	}
-}
-
-// HasProvisioner looks up the supplied ClassReferencer's resource class using
-// the supplied Client, returning true if the resource class uses the supplied
-// provisioner.
-func HasProvisioner(c client.Client, cr ClassReferencer, provisioner string) bool {
-	if cr.GetClassReference() == nil {
-		return false
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), predicateTimeout)
-	defer cancel()
-
-	cs := &v1alpha1.ResourceClass{}
-	if err := c.Get(ctx, meta.NamespacedNameOf(cr.GetClassReference()), cs); err != nil {
-		return false
-	}
-
-	return strings.EqualFold(cs.Provisioner, provisioner)
-}
-
-// NOTE(hasheddan): HasClassReferenceKind should eventually replace ObjectHasProvisioner
-// when strongly typed resource classes are implemented
 
 // HasClassReferenceKind accepts ResourceClaims that reference the correct kind of resourceclass
 func HasClassReferenceKind(k ClassKind) PredicateFn {
