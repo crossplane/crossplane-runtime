@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
@@ -37,11 +36,6 @@ import (
 const (
 	defaultNamespace            = "default"
 	testAssetUseExistingCluster = "USE_EXISTING_CLUSTER"
-)
-
-var (
-	_, b, _, _ = runtime.Caller(0)
-	crds       = filepath.Join(filepath.Dir(filepath.Dir(filepath.Dir(b))), "cluster", "charts", "crossplane", "crds")
 )
 
 // Env - wrapper for controller-runtime envtest with additional functionality
@@ -194,9 +188,4 @@ func Expand(path string) ([]string, error) {
 		rs = append(rs, path)
 	}
 	return rs, nil
-}
-
-// CRDs path to project crds location
-func CRDs() string {
-	return crds
 }

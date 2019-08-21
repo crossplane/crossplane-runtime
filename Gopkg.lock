@@ -502,17 +502,6 @@
   version = "v2.0.0"
 
 [[projects]]
-  digest = "1:644c39381fddd4c04a9cca20ab57264f6a9690cf86a68df45add305659ba5fcb"
-  name = "google.golang.org/api"
-  packages = [
-    "googleapi",
-    "googleapi/internal/uritemplates",
-  ]
-  pruneopts = "UT"
-  revision = "02490b97dff7cfde1995bd77de808fd27053bc87"
-  version = "v0.7.0"
-
-[[projects]]
   digest = "1:6eb6e3b6d9fffb62958cf7f7d88dbbe1dd6839436b0802e194c590667a40412a"
   name = "google.golang.org/appengine"
   packages = [
@@ -934,7 +923,6 @@
     "github.com/onsi/gomega",
     "github.com/pkg/errors",
     "golang.org/x/tools/cmd/stringer",
-    "google.golang.org/api/googleapi",
     "k8s.io/api/apps/v1",
     "k8s.io/api/core/v1",
     "k8s.io/apimachinery/pkg/api/errors",
