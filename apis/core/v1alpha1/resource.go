@@ -20,6 +20,23 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+const (
+	// ResourceCredentialsSecretEndpointKey is the key inside a connection secret for the connection endpoint
+	ResourceCredentialsSecretEndpointKey = "endpoint"
+	// ResourceCredentialsSecretUserKey is the key inside a connection secret for the connection user
+	ResourceCredentialsSecretUserKey = "username"
+	// ResourceCredentialsSecretPasswordKey is the key inside a connection secret for the connection password
+	ResourceCredentialsSecretPasswordKey = "password"
+	// ResourceCredentialsSecretCAKey is the key inside a connection secret for the server CA certificate
+	ResourceCredentialsSecretCAKey = "clusterCA"
+	// ResourceCredentialsSecretClientCertKey is the key inside a connection secret for the client certificate
+	ResourceCredentialsSecretClientCertKey = "clientCert"
+	// ResourceCredentialsSecretClientKeyKey is the key inside a connection secret for the client key
+	ResourceCredentialsSecretClientKeyKey = "clientKey"
+	// ResourceCredentialsTokenKey is the key inside a connection secret for the bearer token value
+	ResourceCredentialsTokenKey = "token"
+)
+
 // ResourceClaimSpec contains standard fields that all resource claims should
 // include in their spec. Unlike ResourceClaimStatus, ResourceClaimSpec should
 // typically be embedded in a claim specific struct.
