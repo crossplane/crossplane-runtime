@@ -20,6 +20,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -83,10 +85,31 @@ func Apply(ctx context.Context, kube client.Client, o runtime.Object) error {
 }
 
 // SecretData returns secret data value for a given secret/key combination or error if secret or key is not found
+// Deprecated: Use GetDataFromSecret that takes controller-runtime client in order to standardize our interaction
+// with api-server
 func SecretData(client kubernetes.Interface, namespace string, ks corev1.SecretKeySelector) ([]byte, error) {
 	// find secret
 	secret, err := client.CoreV1().Secrets(namespace).Get(ks.Name, metav1.GetOptions{})
 	if err != nil {
+		return nil, err
+	}
+	// retrieve data
+	data, ok := secret.Data[ks.Key]
+	if !ok {
+		return nil, fmt.Errorf("secret data is not found for key [%s]", ks.Key)
+	}
+
+	return data, nil
+}
+
+// GetDataFromSecret returns secret data value for a given secret/key combination or error if secret or key is not found
+func GetDataFromSecret(client client.Client, namespace string, ks corev1.SecretKeySelector) ([]byte, error) {
+	secret := &corev1.Secret{}
+	name := meta.NamespacedNameOf(&corev1.ObjectReference{
+		Name:      ks.Name,
+		Namespace: namespace,
+	})
+	if err := client.Get(context.TODO(), name, secret); err != nil {
 		return nil, err
 	}
 	// retrieve data

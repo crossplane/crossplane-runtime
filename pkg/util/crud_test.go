@@ -42,9 +42,8 @@ const (
 var (
 	ctx       = context.Background()
 	errorBoom = errors.New("boom")
-	meta      = metav1.ObjectMeta{Namespace: namespace, Name: name, UID: uid}
 	service   = &corev1.Service{
-		ObjectMeta: meta,
+		ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name, UID: uid},
 		Spec:       corev1.ServiceSpec{Type: corev1.ServiceTypeLoadBalancer},
 	}
 )

@@ -144,6 +144,67 @@ func TestSecretData(t *testing.T) {
 	g.Expect(err).To(HaveOccurred())
 }
 
+func TestGetDataFromSecret(t *testing.T) {
+	g := NewGomegaWithT(t)
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "bar",
+		},
+		Data: map[string][]byte{
+			"test-testKeySelector": []byte("test-data"),
+		},
+	}
+
+	mockClient := test.NewMockClient()
+
+	// test data testKeySelector is found
+	testKeySelector := corev1.SecretKeySelector{
+		Key: "test-testKeySelector",
+		LocalObjectReference: corev1.LocalObjectReference{
+			Name: secret.Name,
+		},
+	}
+	mockClient.MockGet = func(ctx context.Context, secretRef client.ObjectKey, obj runtime.Object) error {
+		s, ok := obj.(*corev1.Secret)
+		if !ok {
+			return fmt.Errorf("not a secret")
+		}
+		if secretRef.Name == secret.Name &&
+			secretRef.Namespace == secret.Namespace {
+			secret.DeepCopyInto(s)
+			return nil
+		}
+		return fmt.Errorf("secretRef not defined")
+	}
+	data, err := GetDataFromSecret(mockClient, secret.Namespace, testKeySelector)
+	g.Expect(data).To(Equal(secret.Data["test-testKeySelector"]))
+	g.Expect(err).NotTo(HaveOccurred())
+
+	// test data testKeySelector is not found
+	testKeySelector = corev1.SecretKeySelector{
+		Key: "test-testKeySelector-bad",
+		LocalObjectReference: corev1.LocalObjectReference{
+			Name: secret.Name,
+		},
+	}
+	data, err = GetDataFromSecret(mockClient, secret.Namespace, testKeySelector)
+	g.Expect(data).To(BeNil())
+	g.Expect(err).To(HaveOccurred())
+
+	// test secret is not found
+	testKeySelector = corev1.SecretKeySelector{
+		Key: "test-testKeySelector",
+		LocalObjectReference: corev1.LocalObjectReference{
+			Name: "wrong-secret-name",
+		},
+	}
+	data, err = GetDataFromSecret(mockClient, secret.Namespace, testKeySelector)
+	g.Expect(data).To(BeNil())
+	g.Expect(err).To(HaveOccurred())
+}
+
 func TestIfEmptyString(t *testing.T) {
 	g := NewGomegaWithT(t)
 	g.Expect(IfEmptyString("", "foo")).To(Equal("foo"))
