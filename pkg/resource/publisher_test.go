@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 )
 
@@ -157,7 +158,7 @@ func TestAPISecretPublisher(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				mg: &MockManaged{
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: mgcsname}},
+					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: v1alpha1.RequiredLocalObjectReference{Name: mgcsname}},
 				},
 				c: ConnectionDetails{},
 			},
@@ -177,7 +178,7 @@ func TestAPISecretPublisher(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				mg: &MockManaged{
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: mgcsname}},
+					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: v1alpha1.RequiredLocalObjectReference{Name: mgcsname}},
 				},
 				c: ConnectionDetails{},
 			},
@@ -209,7 +210,7 @@ func TestAPISecretPublisher(t *testing.T) {
 				ctx: context.Background(),
 				mg: &MockManaged{
 					ObjectMeta:                   metav1.ObjectMeta{Name: mgname},
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: mgcsname}},
+					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: v1alpha1.RequiredLocalObjectReference{Name: mgcsname}},
 				},
 				c: ConnectionDetails(cddata),
 			},
@@ -252,7 +253,7 @@ func TestAPISecretPublisher(t *testing.T) {
 				ctx: context.Background(),
 				mg: &MockManaged{
 					ObjectMeta:                   metav1.ObjectMeta{Name: mgname},
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: mgcsname}},
+					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: v1alpha1.RequiredLocalObjectReference{Name: mgcsname}},
 				},
 				c: ConnectionDetails(cddata),
 			},
@@ -300,7 +301,7 @@ func TestAPISecretPublisher(t *testing.T) {
 				ctx: context.Background(),
 				mg: &MockManaged{
 					ObjectMeta:                   metav1.ObjectMeta{Name: mgname},
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: mgcsname}},
+					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: v1alpha1.RequiredLocalObjectReference{Name: mgcsname}},
 				},
 				c: ConnectionDetails(cddata),
 			},

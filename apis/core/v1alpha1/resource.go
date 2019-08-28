@@ -37,11 +37,18 @@ const (
 	ResourceCredentialsTokenKey = "token"
 )
 
+// A RequiredLocalObjectReference contains enough information to let you locate
+// the referenced object inside the same namespace. It is identical to
+// corev1.LocalObjectReference, but requires the object's Name be specified.
+type RequiredLocalObjectReference struct {
+	Name string `json:"name"`
+}
+
 // ResourceClaimSpec contains standard fields that all resource claims should
 // include in their spec. Unlike ResourceClaimStatus, ResourceClaimSpec should
 // typically be embedded in a claim specific struct.
 type ResourceClaimSpec struct {
-	WriteConnectionSecretToReference corev1.LocalObjectReference `json:"writeConnectionSecretToRef,omitempty"`
+	WriteConnectionSecretToReference RequiredLocalObjectReference `json:"writeConnectionSecretToRef"`
 
 	// TODO(negz): Make the below references immutable once set? Doing so means
 	// we don't have to track what provisioner was used to create a resource.
@@ -61,7 +68,7 @@ type ResourceClaimStatus struct {
 // include in their spec. ResourceSpec should typically be embedded in a
 // resource specific struct.
 type ResourceSpec struct {
-	WriteConnectionSecretToReference corev1.LocalObjectReference `json:"writeConnectionSecretToRef,omitempty"`
+	WriteConnectionSecretToReference RequiredLocalObjectReference `json:"writeConnectionSecretToRef"`
 
 	ClaimReference    *corev1.ObjectReference `json:"claimRef,omitempty"`
 	ClassReference    *corev1.ObjectReference `json:"classRef,omitempty"`

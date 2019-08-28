@@ -180,26 +180,6 @@ func TestPropagateConnection(t *testing.T) {
 		args   args
 		want   error
 	}{
-		"ClaimDoesNotWantConnectionSecret": {
-			args: args{
-				ctx: context.Background(),
-				cm:  &MockClaim{},
-				mg: &MockManaged{
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: mgcsname}},
-				},
-			},
-			want: nil,
-		},
-		"ManagedDoesNotExposeConnectionSecret": {
-			args: args{
-				ctx: context.Background(),
-				cm: &MockClaim{
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: mgcsname}},
-				},
-				mg: &MockManaged{},
-			},
-			want: nil,
-		},
 		"GetManagedSecretError": {
 			fields: fields{
 				client: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
@@ -207,10 +187,10 @@ func TestPropagateConnection(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				cm: &MockClaim{
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: cmcsname}},
+					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: v1alpha1.RequiredLocalObjectReference{Name: cmcsname}},
 				},
 				mg: &MockManaged{
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: mgcsname}},
+					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: v1alpha1.RequiredLocalObjectReference{Name: mgcsname}},
 				},
 			},
 			want: errors.Wrap(errBoom, errGetSecret),
@@ -235,11 +215,11 @@ func TestPropagateConnection(t *testing.T) {
 				ctx: context.Background(),
 				cm: &MockClaim{
 					ObjectMeta:                   metav1.ObjectMeta{Name: cmname},
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: cmcsname}},
+					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: v1alpha1.RequiredLocalObjectReference{Name: cmcsname}},
 				},
 				mg: &MockManaged{
 					ObjectMeta:                   metav1.ObjectMeta{Name: mgname},
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: mgcsname}},
+					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: v1alpha1.RequiredLocalObjectReference{Name: mgcsname}},
 				},
 			},
 			want: errors.Wrap(errors.Wrap(errors.New(errSecretConflict), "could not mutate object for update"), errCreateOrUpdateSecret),
@@ -260,11 +240,11 @@ func TestPropagateConnection(t *testing.T) {
 				ctx: context.Background(),
 				cm: &MockClaim{
 					ObjectMeta:                   metav1.ObjectMeta{Name: cmname},
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: cmcsname}},
+					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: v1alpha1.RequiredLocalObjectReference{Name: cmcsname}},
 				},
 				mg: &MockManaged{
 					ObjectMeta:                   metav1.ObjectMeta{Name: mgname},
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: mgcsname}},
+					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: v1alpha1.RequiredLocalObjectReference{Name: mgcsname}},
 				},
 			},
 			want: errors.Wrap(errors.Wrap(errors.New(errSecretConflict), "could not mutate object for update"), errCreateOrUpdateSecret),
@@ -300,11 +280,11 @@ func TestPropagateConnection(t *testing.T) {
 				ctx: context.Background(),
 				cm: &MockClaim{
 					ObjectMeta:                   metav1.ObjectMeta{Name: cmname},
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: cmcsname}},
+					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: v1alpha1.RequiredLocalObjectReference{Name: cmcsname}},
 				},
 				mg: &MockManaged{
 					ObjectMeta:                   metav1.ObjectMeta{Name: mgname},
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: mgcsname}},
+					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: v1alpha1.RequiredLocalObjectReference{Name: mgcsname}},
 				},
 			},
 			want: nil,

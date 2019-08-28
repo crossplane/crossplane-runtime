@@ -88,12 +88,6 @@ func NewAPIManagedConnectionPropagator(c client.Client, t runtime.ObjectTyper) *
 
 // PropagateConnection details from the supplied resource to the supplied claim.
 func (a *APIManagedConnectionPropagator) PropagateConnection(ctx context.Context, cm Claim, mg Managed) error {
-	// Either this resourace does not expose a connection secret, or this claim
-	// does not want one.
-	if mg.GetWriteConnectionSecretToReference().Name == "" || cm.GetWriteConnectionSecretToReference().Name == "" {
-		return nil
-	}
-
 	n := types.NamespacedName{Namespace: mg.GetNamespace(), Name: mg.GetWriteConnectionSecretToReference().Name}
 	mgcs := &corev1.Secret{}
 	if err := a.client.Get(ctx, n, mgcs); err != nil {
