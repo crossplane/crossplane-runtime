@@ -662,6 +662,47 @@ func TestManagedReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
 		},
+		"ResourceUpToDate": {
+			args: args{
+				m: &MockManager{
+					c: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+							want := &MockManaged{}
+							want.SetConditions(v1alpha1.ReconcileSuccess())
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+					s: MockSchemeWith(&MockManaged{}),
+				},
+				mg: ManagedKind(MockGVK(&MockManaged{})),
+				e: &ExternalClientFns{
+					ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
+						return ExternalObservation{
+							ResourceExists:    true,
+							ResourceUpToDate:  true,
+							ConnectionDetails: testConnectionDetails,
+						}, nil
+					},
+					UpdateFn: func(_ context.Context, _ Managed) (ExternalUpdate, error) {
+						return ExternalUpdate{}, errBoom
+					},
+				},
+				o: []ManagedReconcilerOption{
+					func(r *ManagedReconciler) {
+						r.managed.ManagedConnectionPublisher = ManagedConnectionPublisherFns{
+							PublishConnectionFn: func(_ context.Context, _ Managed, _ ConnectionDetails) error {
+								return nil
+							},
+						}
+					},
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultManagedLongWait}},
+		},
 	}
 
 	for name, tc := range cases {

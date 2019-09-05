@@ -114,16 +114,17 @@ type ExternalClient interface {
 	Observe(ctx context.Context, mg Managed) (ExternalObservation, error)
 
 	// Create an external resource per the specifications of the supplied
-	// Managed resource.
+	// Managed resource. Called when Observe reports that the associated
+	// external resource does not exist.
 	Create(ctx context.Context, mg Managed) (ExternalCreation, error)
 
 	// Update the external resource represented by the supplied Managed
-	// resource, if necessary. Update implementations must handle the case in
-	// which no update is necessary.
+	// resource, if necessary. Called unless Observe reports that the
+	// associated external resource is up to date.
 	Update(ctx context.Context, mg Managed) (ExternalUpdate, error)
 
 	// Delete the external resource upon deletion of its associated Managed
-	// resource.
+	// resource. Called when the managed resource has been deleted.
 	Delete(ctx context.Context, mg Managed) error
 }
 
@@ -186,6 +187,7 @@ func (c *NopClient) Delete(ctx context.Context, mg Managed) error { return nil }
 // resource.
 type ExternalObservation struct {
 	ResourceExists    bool
+	ResourceUpToDate  bool
 	ConnectionDetails ConnectionDetails
 }
 
@@ -432,6 +434,16 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
+	if observation.ResourceUpToDate {
+		// We did not need to create, update, or delete our external resource.
+		// Per the below issue nothing will notify us if and when the external
+		// resource we manage changes, so we requeue a speculative reconcile
+		// after a long wait in order to observe it and react accordingly.
+		// https://github.com/crossplaneio/crossplane/issues/289
+		managed.SetConditions(v1alpha1.ReconcileSuccess())
+		return reconcile.Result{RequeueAfter: r.longWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+	}
+
 	update, err := external.Update(ctx, managed)
 	if err != nil {
 		// We'll hit this condition if we can't update our external resource,
@@ -451,10 +463,10 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
-	// We've successfully attempted to update our external resource. This will
-	// often be a no-op. Per the below issue nothing will notify us if and when
-	// the external resource we manage changes, so we requeue a speculative
-	// reconcile after a long wait in order to observe it and react accordingly.
+	// We've successfully updated our external resource. Per the below issue
+	// nothing will notify us if and when the external resource we manage
+	// changes, so we requeue a speculative reconcile after a long wait in order
+	// to observe it and react accordingly.
 	// https://github.com/crossplaneio/crossplane/issues/289
 	managed.SetConditions(v1alpha1.ReconcileSuccess())
 	return reconcile.Result{RequeueAfter: r.longWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
