@@ -68,6 +68,11 @@ func NewAPISecretPublisher(c client.Client, ot runtime.ObjectTyper) *APISecretPu
 // the supplied Managed resource. Applying is a no-op if the secret already
 // exists with the supplied ConnectionDetails.
 func (a *APISecretPublisher) PublishConnection(ctx context.Context, mg Managed, c ConnectionDetails) error {
+	// This resource does not want to expose a connection secret.
+	if mg.GetWriteConnectionSecretToReference().Name == "" {
+		return nil
+	}
+
 	s := ConnectionSecretFor(mg, MustGetKind(mg, a.typer))
 
 	err := util.CreateOrUpdate(ctx, a.client, s, func() error {

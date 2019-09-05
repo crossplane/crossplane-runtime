@@ -138,6 +138,12 @@ func TestAPISecretPublisher(t *testing.T) {
 		args   args
 		want   error
 	}{
+		"ResourceDoesNotPublishSecret": {
+			args: args{
+				ctx: context.Background(),
+				mg:  &MockManaged{},
+			},
+		},
 		"ManagedSecretConflictError": {
 			fields: fields{
 				client: &test.MockClient{
