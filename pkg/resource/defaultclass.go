@@ -59,6 +59,7 @@ type PortableClassKind struct {
 type DefaultClassReconciler struct {
 	client                client.Client
 	converter             runtime.ObjectConvertor
+	labels                map[string]string
 	portableClassKind     schema.GroupVersionKind
 	portableClassListKind schema.GroupVersionKind
 	newClaim              func() Claim
@@ -86,9 +87,12 @@ func NewDefaultClassReconciler(m manager.Manager, of ClaimKind, by PortableClass
 	// not been registered with our controller manager's scheme.
 	_, _, _ = nc(), np(), npl()
 
+	labels := map[string]string{"default": "true"}
+
 	r := &DefaultClassReconciler{
 		client:                m.GetClient(),
 		converter:             m.GetScheme(),
+		labels:                labels,
 		portableClassKind:     by.Singular,
 		portableClassListKind: by.Plural,
 		newClaim:              nc,
@@ -119,8 +123,7 @@ func (r *DefaultClassReconciler) Reconcile(req reconcile.Request) (reconcile.Res
 	// Get policies for claim kind in claim's namespace
 	portables := &unstructured.UnstructuredList{}
 	portables.SetGroupVersionKind(r.portableClassListKind)
-	options := client.InNamespace(req.Namespace)
-	if err := r.client.List(ctx, portables, options); err != nil {
+	if err := r.client.List(ctx, portables, client.InNamespace(req.Namespace), client.MatchingLabels(r.labels)); err != nil {
 		// If this is the first time we encounter listing error we'll be
 		// requeued implicitly due to the status update. If not, we don't
 		// care to requeue because list parameters will not change.
