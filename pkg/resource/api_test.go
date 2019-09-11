@@ -108,7 +108,7 @@ func TestCreate(t *testing.T) {
 							APIVersion: MockGVK(&MockClaim{}).GroupVersion().String(),
 							Kind:       MockGVK(&MockClaim{}).Kind,
 						})
-						want.SetClassReference(&corev1.ObjectReference{
+						want.SetNonPortableClassReference(&corev1.ObjectReference{
 							Name:       csname,
 							APIVersion: MockGVK(&MockClass{}).GroupVersion().String(),
 							Kind:       MockGVK(&MockClass{}).Kind,

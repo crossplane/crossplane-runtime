@@ -265,7 +265,7 @@ func NewClaimReconciler(m manager.Manager, of ClaimKind, using ClassKinds, with 
 
 	// Panic early if we've been asked to reconcile a claim or resource kind
 	// that has not been registered with our controller manager's scheme.
-	_, _, _ = nc(), ns(), nr()
+	_, _, _, _ = nc(), ns(), np(), nr()
 
 	r := &ClaimReconciler{
 		client:           m.GetClient(),
@@ -350,7 +350,6 @@ func (r *ClaimReconciler) Reconcile(req reconcile.Request) (reconcile.Result, er
 			// implicitly due to the status update. Otherwise we want to retry
 			// after a brief wait, in case this was a transient error or the
 			// portable class is (re)created.
-			claim.SetClassReference(portable.GetClassReference())
 			claim.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(err))
 			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, claim), errUpdateClaimStatus)
 		}
@@ -358,7 +357,7 @@ func (r *ClaimReconciler) Reconcile(req reconcile.Request) (reconcile.Result, er
 		class := r.newClass()
 		// Class reference should always be set by the time we get this far; we
 		// set it on last reconciliation.
-		if err := r.client.Get(ctx, meta.NamespacedNameOf(claim.GetClassReference()), class); err != nil {
+		if err := r.client.Get(ctx, meta.NamespacedNameOf(portable.GetNonPortableClassReference()), class); err != nil {
 			// If we didn't hit this error last time we'll be requeued
 			// implicitly due to the status update. Otherwise we want to retry
 			// after a brief wait, in case this was a transient error or the

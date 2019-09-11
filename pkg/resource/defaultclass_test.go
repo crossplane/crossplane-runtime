@@ -17,6 +17,7 @@ limitations under the License.
 package resource
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -74,9 +75,14 @@ func TestDefaultClassReconcile(t *testing.T) {
 		Namespace: "default-namespace",
 	}
 	portable := MockPortableClass{}
-	portable.SetClassReference(classRef)
-	convPortable, _ := runtime.DefaultUnstructuredConverter.ToUnstructured(&portable)
-	unPortable := unstructured.Unstructured{Object: convPortable}
+	portable.SetNonPortableClassReference(classRef)
+	portableList := []PortableClass{
+		&MockPortableClass{},
+	}
+	portableListTooMany := []PortableClass{
+		&MockPortableClass{},
+		&MockPortableClass{},
+	}
 
 	cases := map[string]struct {
 		args args
@@ -138,8 +144,8 @@ func TestDefaultClassReconcile(t *testing.T) {
 						}),
 						MockList: test.NewMockListFn(nil, func(o runtime.Object) error {
 							switch o := o.(type) {
-							case *unstructured.UnstructuredList:
-								*o = unstructured.UnstructuredList{}
+							case *MockPortableClassList:
+								*o = MockPortableClassList{}
 								return nil
 							default:
 								return errUnexpected
@@ -161,7 +167,7 @@ func TestDefaultClassReconcile(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultClassWait}},
 		},
-		"MultipleDefaultClassPolicies": {
+		"MultipleDefaultClasses": {
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{
@@ -176,13 +182,10 @@ func TestDefaultClassReconcile(t *testing.T) {
 						}),
 						MockList: test.NewMockListFn(nil, func(o runtime.Object) error {
 							switch o := o.(type) {
-							case *unstructured.UnstructuredList:
-								cm := &unstructured.UnstructuredList{}
-								cm.Items = []unstructured.Unstructured{
-									{},
-									{},
-								}
-								*o = *cm
+							case *MockPortableClassList:
+								pl := &MockPortableClassList{}
+								pl.SetPortableClassItems(portableListTooMany)
+								*o = *pl
 								return nil
 							default:
 								return errUnexpected
@@ -219,12 +222,10 @@ func TestDefaultClassReconcile(t *testing.T) {
 						}),
 						MockList: test.NewMockListFn(nil, func(o runtime.Object) error {
 							switch o := o.(type) {
-							case *unstructured.UnstructuredList:
-								cm := &unstructured.UnstructuredList{}
-								cm.Items = []unstructured.Unstructured{
-									unPortable,
-								}
-								*o = *cm
+							case *MockPortableClassList:
+								pl := &MockPortableClassList{}
+								pl.SetPortableClassItems(portableList)
+								*o = *pl
 								return nil
 							default:
 								return errUnexpected
@@ -232,7 +233,7 @@ func TestDefaultClassReconcile(t *testing.T) {
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil, func(got runtime.Object) error {
 							want := &MockClaim{}
-							want.SetClassReference(portable.GetClassReference())
+							want.SetPortableClassReference(&corev1.LocalObjectReference{Name: portable.GetName()})
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
@@ -252,6 +253,7 @@ func TestDefaultClassReconcile(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewDefaultClassReconciler(tc.args.m, tc.args.of, tc.args.by, tc.args.o...)
+			fmt.Println(name)
 			got, err := r.Reconcile(reconcile.Request{})
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {

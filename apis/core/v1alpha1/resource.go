@@ -46,8 +46,9 @@ type ResourceClaimSpec struct {
 	// TODO(negz): Make the below references immutable once set? Doing so means
 	// we don't have to track what provisioner was used to create a resource.
 
-	ClassReference    *corev1.ObjectReference `json:"classRef,omitempty"`
-	ResourceReference *corev1.ObjectReference `json:"resourceRef,omitempty"`
+	// PortableClassReference must reference a portable class by name
+	PortableClassReference *corev1.LocalObjectReference `json:"classRef,omitempty"`
+	ResourceReference      *corev1.ObjectReference      `json:"resourceRef,omitempty"`
 }
 
 // ResourceClaimStatus represents the status of a resource claim. Claims should
@@ -63,9 +64,11 @@ type ResourceClaimStatus struct {
 type ResourceSpec struct {
 	WriteConnectionSecretToReference corev1.LocalObjectReference `json:"writeConnectionSecretToRef,omitempty"`
 
-	ClaimReference    *corev1.ObjectReference `json:"claimRef,omitempty"`
-	ClassReference    *corev1.ObjectReference `json:"classRef,omitempty"`
-	ProviderReference *corev1.ObjectReference `json:"providerRef"`
+	ClaimReference *corev1.ObjectReference `json:"claimRef,omitempty"`
+
+	// NonPortableClassReference must reference a non-portable class by GVK
+	NonPortableClassReference *corev1.ObjectReference `json:"classRef,omitempty"`
+	ProviderReference         *corev1.ObjectReference `json:"providerRef"`
 
 	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
@@ -90,15 +93,17 @@ type ResourceStatus struct {
 // PortableClass contains standard fields that all portable classes should include. Class
 // should typically be embedded in a specific portable class.
 type PortableClass struct {
-	ClassReference *corev1.ObjectReference `json:"classRef,omitempty"`
+
+	// NonPortableClassReference must reference a non-portable class by GVK
+	NonPortableClassReference *corev1.ObjectReference `json:"classRef,omitempty"`
 }
 
-// SetClassReference of this Class
-func (c *PortableClass) SetClassReference(r *corev1.ObjectReference) {
-	c.ClassReference = r
+// SetNonPortableClassReference of this Class
+func (c *PortableClass) SetNonPortableClassReference(r *corev1.ObjectReference) {
+	c.NonPortableClassReference = r
 }
 
-// GetClassReference of this Class
-func (c *PortableClass) GetClassReference() *corev1.ObjectReference {
-	return c.ClassReference
+// GetNonPortableClassReference of this Class
+func (c *PortableClass) GetNonPortableClassReference() *corev1.ObjectReference {
+	return c.NonPortableClassReference
 }

@@ -319,12 +319,11 @@ func TestClaimReconciler(t *testing.T) {
 							case *MockClaim:
 								cm := &MockClaim{}
 								cm.SetPortableClassReference(&corev1.LocalObjectReference{})
-								cm.SetClassReference(&corev1.ObjectReference{})
 								*o = *cm
 								return nil
 							case *MockPortableClass:
 								pc := &MockPortableClass{}
-								pc.SetClassReference(&corev1.ObjectReference{})
+								pc.SetNonPortableClassReference(&corev1.ObjectReference{})
 								*o = *pc
 								return nil
 							case *MockClass:
@@ -336,7 +335,6 @@ func TestClaimReconciler(t *testing.T) {
 						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
 							want := &MockClaim{}
 							want.SetPortableClassReference(&corev1.LocalObjectReference{})
-							want.SetClassReference(&corev1.ObjectReference{})
 							want.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -361,12 +359,11 @@ func TestClaimReconciler(t *testing.T) {
 							case *MockClaim:
 								cm := &MockClaim{}
 								cm.SetPortableClassReference(&corev1.LocalObjectReference{})
-								cm.SetClassReference(&corev1.ObjectReference{})
 								*o = *cm
 								return nil
 							case *MockPortableClass:
 								pc := &MockPortableClass{}
-								pc.SetClassReference(&corev1.ObjectReference{})
+								pc.SetNonPortableClassReference(&corev1.ObjectReference{})
 								*o = *pc
 								return nil
 							case *MockClass:
@@ -378,7 +375,6 @@ func TestClaimReconciler(t *testing.T) {
 						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
 							want := &MockClaim{}
 							want.SetPortableClassReference(&corev1.LocalObjectReference{})
-							want.SetClassReference(&corev1.ObjectReference{})
 							want.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -406,12 +402,11 @@ func TestClaimReconciler(t *testing.T) {
 							case *MockClaim:
 								cm := &MockClaim{}
 								cm.SetPortableClassReference(&corev1.LocalObjectReference{})
-								cm.SetClassReference(&corev1.ObjectReference{})
 								*o = *cm
 								return nil
 							case *MockPortableClass:
 								pc := &MockPortableClass{}
-								pc.SetClassReference(&corev1.ObjectReference{})
+								pc.SetNonPortableClassReference(&corev1.ObjectReference{})
 								*o = *pc
 								return nil
 							case *MockClass:
@@ -423,7 +418,6 @@ func TestClaimReconciler(t *testing.T) {
 						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
 							want := &MockClaim{}
 							want.SetPortableClassReference(&corev1.LocalObjectReference{})
-							want.SetClassReference(&corev1.ObjectReference{})
 							want.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)

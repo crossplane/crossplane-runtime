@@ -44,10 +44,10 @@ type ClaimReferencer interface {
 	GetClaimReference() *corev1.ObjectReference
 }
 
-// A ClassReferencer may reference a resource class.
-type ClassReferencer interface {
-	SetClassReference(r *corev1.ObjectReference)
-	GetClassReference() *corev1.ObjectReference
+// A NonPortableClassReferencer may reference a non-portable resource class.
+type NonPortableClassReferencer interface {
+	SetNonPortableClassReference(r *corev1.ObjectReference)
+	GetNonPortableClassReference() *corev1.ObjectReference
 }
 
 // A PortableClassReferencer may reference a local portable class.
@@ -74,6 +74,12 @@ type Reclaimer interface {
 	GetReclaimPolicy() v1alpha1.ReclaimPolicy
 }
 
+// A PortableClassItemer may contain a list of portable classes.
+type PortableClassItemer interface {
+	SetPortableClassItems(i []PortableClass)
+	GetPortableClassItems() []PortableClass
+}
+
 // A Claim is a Kubernetes object representing an abstract resource claim (e.g.
 // an SQL database) that may be bound to a concrete managed resource (e.g. a
 // CloudSQL instance).
@@ -81,7 +87,6 @@ type Claim interface {
 	runtime.Object
 	metav1.Object
 
-	ClassReferencer
 	PortableClassReferencer
 	ManagedResourceReferencer
 	ConnectionSecretWriterTo
@@ -105,7 +110,7 @@ type Managed interface {
 	runtime.Object
 	metav1.Object
 
-	ClassReferencer
+	NonPortableClassReferencer
 	ClaimReferencer
 	ConnectionSecretWriterTo
 	Reclaimer
@@ -120,7 +125,7 @@ type PortableClass interface {
 	runtime.Object
 	metav1.Object
 
-	ClassReferencer
+	NonPortableClassReferencer
 }
 
 // A PortableClassList is a Kubernetes object representing representing
@@ -128,4 +133,6 @@ type PortableClass interface {
 type PortableClassList interface {
 	runtime.Object
 	metav1.ListInterface
+
+	PortableClassItemer
 }

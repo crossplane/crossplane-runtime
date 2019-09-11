@@ -38,10 +38,14 @@ type MockClaimReferencer struct{ Ref *corev1.ObjectReference }
 func (m *MockClaimReferencer) SetClaimReference(r *corev1.ObjectReference) { m.Ref = r }
 func (m *MockClaimReferencer) GetClaimReference() *corev1.ObjectReference  { return m.Ref }
 
-type MockClassReferencer struct{ Ref *corev1.ObjectReference }
+type MockNonPortableClassReferencer struct{ Ref *corev1.ObjectReference }
 
-func (m *MockClassReferencer) SetClassReference(r *corev1.ObjectReference) { m.Ref = r }
-func (m *MockClassReferencer) GetClassReference() *corev1.ObjectReference  { return m.Ref }
+func (m *MockNonPortableClassReferencer) SetNonPortableClassReference(r *corev1.ObjectReference) {
+	m.Ref = r
+}
+func (m *MockNonPortableClassReferencer) GetNonPortableClassReference() *corev1.ObjectReference {
+	return m.Ref
+}
 
 type MockPortableClassReferencer struct{ Ref *corev1.LocalObjectReference }
 
@@ -71,13 +75,17 @@ type MockReclaimer struct{ Policy v1alpha1.ReclaimPolicy }
 func (m *MockReclaimer) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) { m.Policy = p }
 func (m *MockReclaimer) GetReclaimPolicy() v1alpha1.ReclaimPolicy  { return m.Policy }
 
+type MockPortableClassItemer struct{ Items []PortableClass }
+
+func (m *MockPortableClassItemer) SetPortableClassItems(i []PortableClass) { m.Items = i }
+func (m *MockPortableClassItemer) GetPortableClassItems() []PortableClass  { return m.Items }
+
 var _ Claim = &MockClaim{}
 
 type MockClaim struct {
 	runtime.Object
 
 	metav1.ObjectMeta
-	MockClassReferencer
 	MockPortableClassReferencer
 	MockManagedResourceReferencer
 	MockConnectionSecretWriterTo
@@ -100,7 +108,7 @@ type MockManaged struct {
 	runtime.Object
 
 	metav1.ObjectMeta
-	MockClassReferencer
+	MockNonPortableClassReferencer
 	MockClaimReferencer
 	MockConnectionSecretWriterTo
 	MockReclaimer
@@ -114,7 +122,7 @@ type MockPortableClass struct {
 	runtime.Object
 
 	metav1.ObjectMeta
-	MockClassReferencer
+	MockNonPortableClassReferencer
 }
 
 var _ PortableClassList = &MockPortableClassList{}
@@ -123,4 +131,5 @@ type MockPortableClassList struct {
 	runtime.Object
 
 	metav1.ListInterface
+	MockPortableClassItemer
 }

@@ -63,7 +63,7 @@ func (a *APIManagedCreator) Create(ctx context.Context, cm Claim, cs Class, mg M
 	mgr := meta.ReferenceTo(mg, MustGetKind(mg, a.typer))
 
 	mg.SetClaimReference(cmr)
-	mg.SetClassReference(csr)
+	mg.SetNonPortableClassReference(csr)
 	if err := a.client.Create(ctx, mg); err != nil {
 		return errors.Wrap(err, errCreateManaged)
 	}
