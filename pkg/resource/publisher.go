@@ -23,8 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/crossplaneio/crossplane-runtime/pkg/util"
+	util "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 // A PublisherChain chains multiple ManagedPublishers.
@@ -75,7 +74,7 @@ func (a *APISecretPublisher) PublishConnection(ctx context.Context, mg Managed, 
 
 	s := ConnectionSecretFor(mg, MustGetKind(mg, a.typer))
 
-	err := util.CreateOrUpdate(ctx, a.client, s, func() error {
+	_, err := util.CreateOrUpdate(ctx, a.client, s, func() error {
 		// Inside this anonymous function s could either be unchanged (if it
 		// does not exist in the API server) or updated to reflect its current
 		// state according to the API server.

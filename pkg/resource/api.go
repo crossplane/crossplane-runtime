@@ -25,10 +25,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	util "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
-	"github.com/crossplaneio/crossplane-runtime/pkg/util"
 )
 
 // Error strings.
@@ -101,7 +101,7 @@ func (a *APIManagedConnectionPropagator) PropagateConnection(ctx context.Context
 	}
 
 	cmcs := ConnectionSecretFor(cm, MustGetKind(cm, a.typer))
-	err := util.CreateOrUpdate(ctx, a.client, cmcs, func() error {
+	_, err := util.CreateOrUpdate(ctx, a.client, cmcs, func() error {
 		// Inside this anonymous function cmcs could either be unchanged (if
 		// it does not exist in the API server) or updated to reflect its
 		// current state according to the API server.
