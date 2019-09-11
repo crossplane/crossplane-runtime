@@ -43,10 +43,14 @@ type MockClassReferencer struct{ Ref *corev1.ObjectReference }
 func (m *MockClassReferencer) SetClassReference(r *corev1.ObjectReference) { m.Ref = r }
 func (m *MockClassReferencer) GetClassReference() *corev1.ObjectReference  { return m.Ref }
 
-type MockDefaultClassReferencer struct{ Ref *corev1.ObjectReference }
+type MockPortableClassReferencer struct{ Ref *corev1.LocalObjectReference }
 
-func (m *MockDefaultClassReferencer) SetDefaultClassReference(r *corev1.ObjectReference) { m.Ref = r }
-func (m *MockDefaultClassReferencer) GetDefaultClassReference() *corev1.ObjectReference  { return m.Ref }
+func (m *MockPortableClassReferencer) SetPortableClassReference(r *corev1.LocalObjectReference) {
+	m.Ref = r
+}
+func (m *MockPortableClassReferencer) GetPortableClassReference() *corev1.LocalObjectReference {
+	return m.Ref
+}
 
 type MockManagedResourceReferencer struct{ Ref *corev1.ObjectReference }
 
@@ -74,6 +78,7 @@ type MockClaim struct {
 
 	metav1.ObjectMeta
 	MockClassReferencer
+	MockPortableClassReferencer
 	MockManagedResourceReferencer
 	MockConnectionSecretWriterTo
 	MockConditionSetter
@@ -103,18 +108,18 @@ type MockManaged struct {
 	MockBindable
 }
 
-var _ Policy = &MockPolicy{}
+var _ PortableClass = &MockPortableClass{}
 
-type MockPolicy struct {
+type MockPortableClass struct {
 	runtime.Object
 
 	metav1.ObjectMeta
-	MockDefaultClassReferencer
+	MockClassReferencer
 }
 
-var _ PolicyList = &MockPolicyList{}
+var _ PortableClassList = &MockPortableClassList{}
 
-type MockPolicyList struct {
+type MockPortableClassList struct {
 	runtime.Object
 
 	metav1.ListInterface

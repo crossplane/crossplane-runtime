@@ -43,9 +43,9 @@ func (m *MockObjectConvertor) Convert(in, out, context interface{}) error {
 	if !inok {
 		return errors.Errorf("expected conversion input to be of type %s", reflect.TypeOf(unstructured.Unstructured{}).String())
 	}
-	_, outok := out.(*MockPolicy)
+	_, outok := out.(*MockPortableClass)
 	if !outok {
-		return errors.Errorf("expected conversion input to be of type %s", reflect.TypeOf(MockPolicy{}).String())
+		return errors.Errorf("expected conversion input to be of type %s", reflect.TypeOf(MockPortableClass{}).String())
 	}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(i.Object, out); err != nil {
 		return err
@@ -57,7 +57,7 @@ func TestDefaultClassReconcile(t *testing.T) {
 	type args struct {
 		m  manager.Manager
 		of ClaimKind
-		by PolicyKind
+		by PortableClassKind
 		o  []DefaultClassReconcilerOption
 	}
 
@@ -69,14 +69,14 @@ func TestDefaultClassReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
 	errUnexpected := errors.New("unexpected object type")
 
-	defClassRef := &corev1.ObjectReference{
+	classRef := &corev1.ObjectReference{
 		Name:      "default-class",
 		Namespace: "default-namespace",
 	}
-	policy := MockPolicy{}
-	policy.SetDefaultClassReference(defClassRef)
-	convPolicy, _ := runtime.DefaultUnstructuredConverter.ToUnstructured(&policy)
-	unPolicy := unstructured.Unstructured{Object: convPolicy}
+	portable := MockPortableClass{}
+	portable.SetClassReference(classRef)
+	convPortable, _ := runtime.DefaultUnstructuredConverter.ToUnstructured(&portable)
+	unPortable := unstructured.Unstructured{Object: convPortable}
 
 	cases := map[string]struct {
 		args args
@@ -86,10 +86,10 @@ func TestDefaultClassReconcile(t *testing.T) {
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
-					s: MockSchemeWith(&MockClaim{}, &MockPolicy{}, &MockPolicyList{}),
+					s: MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockPortableClassList{}),
 				},
 				of: ClaimKind(MockGVK(&MockClaim{})),
-				by: PolicyKind{Singular: MockGVK(&MockPolicy{}), Plural: MockGVK(&MockPolicyList{})},
+				by: PortableClassKind{Singular: MockGVK(&MockPortableClass{}), Plural: MockGVK(&MockPortableClassList{})},
 			},
 			want: want{err: errors.Wrap(errBoom, errGetClaim)},
 		},
@@ -116,10 +116,10 @@ func TestDefaultClassReconcile(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockPolicy{}, &MockPolicyList{}),
+					s: MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockPortableClassList{}),
 				},
 				of: ClaimKind(MockGVK(&MockClaim{})),
-				by: PolicyKind{Singular: MockGVK(&MockPolicy{}), Plural: MockGVK(&MockPolicyList{})},
+				by: PortableClassKind{Singular: MockGVK(&MockPortableClass{}), Plural: MockGVK(&MockPortableClassList{})},
 			},
 			want: want{result: reconcile.Result{}},
 		},
@@ -147,17 +147,17 @@ func TestDefaultClassReconcile(t *testing.T) {
 						}),
 						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
 							want := &MockClaim{}
-							want.SetConditions(v1alpha1.ReconcileError(errors.New(errNoPolicies)))
+							want.SetConditions(v1alpha1.ReconcileError(errors.New(errNoPortableClass)))
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockPolicy{}, &MockPolicyList{}),
+					s: MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockPortableClassList{}),
 				},
 				of: ClaimKind(MockGVK(&MockClaim{})),
-				by: PolicyKind{Singular: MockGVK(&MockPolicy{}), Plural: MockGVK(&MockPolicyList{})},
+				by: PortableClassKind{Singular: MockGVK(&MockPortableClass{}), Plural: MockGVK(&MockPortableClassList{})},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultClassWait}},
 		},
@@ -190,17 +190,17 @@ func TestDefaultClassReconcile(t *testing.T) {
 						}),
 						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
 							want := &MockClaim{}
-							want.SetConditions(v1alpha1.ReconcileError(errors.New(errMultiplePolicies)))
+							want.SetConditions(v1alpha1.ReconcileError(errors.New(errMultiplePortableClasses)))
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockPolicy{}, &MockPolicyList{}),
+					s: MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockPortableClassList{}),
 				},
 				of: ClaimKind(MockGVK(&MockClaim{})),
-				by: PolicyKind{Singular: MockGVK(&MockPolicy{}), Plural: MockGVK(&MockPolicyList{})},
+				by: PortableClassKind{Singular: MockGVK(&MockPortableClass{}), Plural: MockGVK(&MockPortableClassList{})},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultClassWait}},
 		},
@@ -222,7 +222,7 @@ func TestDefaultClassReconcile(t *testing.T) {
 							case *unstructured.UnstructuredList:
 								cm := &unstructured.UnstructuredList{}
 								cm.Items = []unstructured.Unstructured{
-									unPolicy,
+									unPortable,
 								}
 								*o = *cm
 								return nil
@@ -232,17 +232,17 @@ func TestDefaultClassReconcile(t *testing.T) {
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil, func(got runtime.Object) error {
 							want := &MockClaim{}
-							want.SetClassReference(policy.GetDefaultClassReference())
+							want.SetClassReference(portable.GetClassReference())
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockPolicy{}, &MockPolicyList{}),
+					s: MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockPortableClassList{}),
 				},
 				of: ClaimKind(MockGVK(&MockClaim{})),
-				by: PolicyKind{Singular: MockGVK(&MockPolicy{}), Plural: MockGVK(&MockPolicyList{})},
+				by: PortableClassKind{Singular: MockGVK(&MockPortableClass{}), Plural: MockGVK(&MockPortableClassList{})},
 				o:  []DefaultClassReconcilerOption{WithObjectConverter(&MockObjectConvertor{})},
 			},
 			want: want{result: reconcile.Result{Requeue: false}},

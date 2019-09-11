@@ -20,9 +20,12 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+
+	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 )
 
 type mockObject struct{ runtime.Object }
@@ -44,30 +47,89 @@ func (r *mockManagedResourceReferencer) GetResourceReference() *corev1.ObjectRef
 func (r *mockManagedResourceReferencer) SetResourceReference(_ *corev1.ObjectReference) {}
 
 func TestHasClassReferenceKind(t *testing.T) {
-	ck := ClassKind(MockGVK(&MockClass{}))
+	errBoom := errors.New("boom")
+	errUnexpected := errors.New("unexpected object type")
+	ck := ClassKinds{Portable: MockGVK(&MockPortableClass{}), NonPortable: MockGVK(&MockClass{})}
+
+	mockClaimWithRef := MockClaim{}
+	mockClaimWithRef.SetPortableClassReference(&corev1.LocalObjectReference{Name: "cool-portable"})
 
 	cases := map[string]struct {
 		obj  runtime.Object
-		kind ClassKind
+		m    manager.Manager
+		kind ClassKinds
 		want bool
 	}{
-		"NotAClassReferencer": {
+		"NotAClaim": {
+			m:    &MockManager{},
 			obj:  &mockObject{},
 			kind: ck,
 			want: false,
 		},
-		"NoClassReference": {
-			obj:  &mockClassReferencer{},
+		"NoPortableClassReference": {
+			m:    &MockManager{},
+			obj:  &MockClaim{},
 			kind: ck,
 			want: false,
 		},
-		"HasClassReferenceIncorrectKind": {
-			obj:  &mockClassReferencer{ref: &corev1.ObjectReference{}},
+		"GetPortableClassError": {
+			m: &MockManager{
+				c: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
+				s: MockSchemeWith(&MockClaim{},
+					&MockPortableClass{},
+					&MockClass{}),
+			},
+			obj:  &mockClaimWithRef,
 			kind: ck,
 			want: false,
 		},
-		"HasClassReferenceCorrectKind": {
-			obj:  &mockClassReferencer{ref: &corev1.ObjectReference{Kind: ck.Kind, APIVersion: schema.GroupVersion{Group: ck.Group, Version: ck.Version}.String()}},
+		"PortableClassHasReferenceIncorrectKind": {
+			m: &MockManager{
+				c: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+						switch o := o.(type) {
+						case *MockPortableClass:
+							pc := &MockPortableClass{}
+							pc.SetClassReference(&corev1.ObjectReference{})
+							*o = *pc
+							return nil
+						default:
+							return errUnexpected
+						}
+					}),
+				},
+				s: MockSchemeWith(&MockClaim{},
+					&MockPortableClass{},
+					&MockClass{}),
+			},
+			obj:  &mockClaimWithRef,
+			kind: ck,
+			want: false,
+		},
+		"HasCorrect": {
+			m: &MockManager{
+				c: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+						switch o := o.(type) {
+						case *MockPortableClass:
+							pc := &MockPortableClass{}
+							version, kind := MockGVK(&MockClass{}).ToAPIVersionAndKind()
+							pc.SetClassReference(&corev1.ObjectReference{
+								Kind:       kind,
+								APIVersion: version,
+							})
+							*o = *pc
+							return nil
+						default:
+							return errUnexpected
+						}
+					}),
+				},
+				s: MockSchemeWith(&MockClaim{},
+					&MockPortableClass{},
+					&MockClass{}),
+			},
+			obj:  &mockClaimWithRef,
 			kind: ck,
 			want: true,
 		},
@@ -75,7 +137,7 @@ func TestHasClassReferenceKind(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			fn := HasClassReferenceKind(tc.kind)
+			fn := HasClassReferenceKind(tc.m, tc.kind)
 			got := fn(tc.obj)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("HasClassReferenceKind(...): -want, +got:\n%s", diff)
@@ -105,7 +167,7 @@ func TestNoClassReference(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			fn := NoClassReference()
+			fn := NoPortableClassReference()
 			got := fn(tc.obj)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("NoClassReference(...): -want, +got:\n%s", diff)

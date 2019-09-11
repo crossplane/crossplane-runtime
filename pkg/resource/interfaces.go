@@ -50,6 +50,12 @@ type ClassReferencer interface {
 	GetClassReference() *corev1.ObjectReference
 }
 
+// A PortableClassReferencer may reference a local portable class.
+type PortableClassReferencer interface {
+	SetPortableClassReference(r *corev1.LocalObjectReference)
+	GetPortableClassReference() *corev1.LocalObjectReference
+}
+
 // A ManagedResourceReferencer may reference a concrete managed resource.
 type ManagedResourceReferencer interface {
 	SetResourceReference(r *corev1.ObjectReference)
@@ -68,12 +74,6 @@ type Reclaimer interface {
 	GetReclaimPolicy() v1alpha1.ReclaimPolicy
 }
 
-// A DefaultClassReferencer may reference a default resource class.
-type DefaultClassReferencer interface {
-	SetDefaultClassReference(r *corev1.ObjectReference)
-	GetDefaultClassReference() *corev1.ObjectReference
-}
-
 // A Claim is a Kubernetes object representing an abstract resource claim (e.g.
 // an SQL database) that may be bound to a concrete managed resource (e.g. a
 // CloudSQL instance).
@@ -82,6 +82,7 @@ type Claim interface {
 	metav1.Object
 
 	ClassReferencer
+	PortableClassReferencer
 	ManagedResourceReferencer
 	ConnectionSecretWriterTo
 
@@ -113,18 +114,18 @@ type Managed interface {
 	Bindable
 }
 
-// A Policy is a Kubernetes object representing a default
+// A PortableClass is a Kubernetes object representing a default
 // behavior for a given claim kind.
-type Policy interface {
+type PortableClass interface {
 	runtime.Object
 	metav1.Object
 
-	DefaultClassReferencer
+	ClassReferencer
 }
 
-// A PolicyList is a Kubernetes object representing representing
-// a list of policies.
-type PolicyList interface {
+// A PortableClassList is a Kubernetes object representing representing
+// a list of portable classes.
+type PortableClassList interface {
 	runtime.Object
 	metav1.ListInterface
 }

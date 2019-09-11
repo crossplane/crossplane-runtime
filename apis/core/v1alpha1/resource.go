@@ -87,18 +87,18 @@ type ResourceStatus struct {
 	BindingStatus     `json:",inline"`
 }
 
-// Policy contains standard fields that all policies should include. Policy
-// should typically be embedded in a specific resource claim policy.
-type Policy struct {
-	DefaultClassReference *corev1.ObjectReference `json:"defaultClassRef,omitempty"`
+// PortableClass contains standard fields that all portable classes should include. Class
+// should typically be embedded in a specific portable class.
+type PortableClass struct {
+	ClassReference *corev1.ObjectReference `json:"classRef,omitempty"`
 }
 
-// SetDefaultClassReference of this Policy
-func (p *Policy) SetDefaultClassReference(r *corev1.ObjectReference) {
-	p.DefaultClassReference = r
+// SetClassReference of this Class
+func (c *PortableClass) SetClassReference(r *corev1.ObjectReference) {
+	c.ClassReference = r
 }
 
-// GetDefaultClassReference of this Policy
-func (p *Policy) GetDefaultClassReference() *corev1.ObjectReference {
-	return p.DefaultClassReference
+// GetClassReference of this Class
+func (c *PortableClass) GetClassReference() *corev1.ObjectReference {
+	return c.ClassReference
 }
