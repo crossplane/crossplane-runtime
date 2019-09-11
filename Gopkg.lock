@@ -838,7 +838,7 @@
   revision = "581e00157fb1a0435d4fac54a52d1ca1e481d60e"
 
 [[projects]]
-  digest = "1:3776f55b8c6422deeb16062233b3c9a9910641f3670d1d47bf35e08a93ebec75"
+  digest = "1:17128a8b8ad758f567eaf89104ef8e36fa0b611fc10852cbfe63699c741a7618"
   name = "sigs.k8s.io/controller-runtime"
   packages = [
     "pkg/cache",
@@ -847,6 +847,7 @@
     "pkg/client/apiutil",
     "pkg/client/config",
     "pkg/client/fake",
+    "pkg/controller/controllerutil",
     "pkg/envtest",
     "pkg/envtest/printer",
     "pkg/event",
@@ -942,6 +943,7 @@
     "k8s.io/code-generator/cmd/deepcopy-gen",
     "sigs.k8s.io/controller-runtime/pkg/client",
     "sigs.k8s.io/controller-runtime/pkg/client/fake",
+    "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil",
     "sigs.k8s.io/controller-runtime/pkg/envtest",
     "sigs.k8s.io/controller-runtime/pkg/event",
     "sigs.k8s.io/controller-runtime/pkg/handler",
