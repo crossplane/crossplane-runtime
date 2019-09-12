@@ -44,10 +44,16 @@ type ClaimReferencer interface {
 	GetClaimReference() *corev1.ObjectReference
 }
 
-// A ClassReferencer may reference a resource class.
-type ClassReferencer interface {
-	SetClassReference(r *corev1.ObjectReference)
-	GetClassReference() *corev1.ObjectReference
+// A NonPortableClassReferencer may reference a non-portable resource class.
+type NonPortableClassReferencer interface {
+	SetNonPortableClassReference(r *corev1.ObjectReference)
+	GetNonPortableClassReference() *corev1.ObjectReference
+}
+
+// A PortableClassReferencer may reference a local portable class.
+type PortableClassReferencer interface {
+	SetPortableClassReference(r *corev1.LocalObjectReference)
+	GetPortableClassReference() *corev1.LocalObjectReference
 }
 
 // A ManagedResourceReferencer may reference a concrete managed resource.
@@ -68,10 +74,10 @@ type Reclaimer interface {
 	GetReclaimPolicy() v1alpha1.ReclaimPolicy
 }
 
-// A DefaultClassReferencer may reference a default resource class.
-type DefaultClassReferencer interface {
-	SetDefaultClassReference(r *corev1.ObjectReference)
-	GetDefaultClassReference() *corev1.ObjectReference
+// A PortableClassLister may contain a list of portable classes.
+type PortableClassLister interface {
+	SetPortableClassItems(i []PortableClass)
+	GetPortableClassItems() []PortableClass
 }
 
 // A Claim is a Kubernetes object representing an abstract resource claim (e.g.
@@ -81,7 +87,7 @@ type Claim interface {
 	runtime.Object
 	metav1.Object
 
-	ClassReferencer
+	PortableClassReferencer
 	ManagedResourceReferencer
 	ConnectionSecretWriterTo
 
@@ -89,9 +95,9 @@ type Claim interface {
 	Bindable
 }
 
-// A Class is a Kubernetes object representing configuration
+// A NonPortableClass is a Kubernetes object representing configuration
 // specifications for a manged resource.
-type Class interface {
+type NonPortableClass interface {
 	runtime.Object
 	metav1.Object
 
@@ -104,7 +110,7 @@ type Managed interface {
 	runtime.Object
 	metav1.Object
 
-	ClassReferencer
+	NonPortableClassReferencer
 	ClaimReferencer
 	ConnectionSecretWriterTo
 	Reclaimer
@@ -113,18 +119,20 @@ type Managed interface {
 	Bindable
 }
 
-// A Policy is a Kubernetes object representing a default
+// A PortableClass is a Kubernetes object representing a default
 // behavior for a given claim kind.
-type Policy interface {
+type PortableClass interface {
 	runtime.Object
 	metav1.Object
 
-	DefaultClassReferencer
+	NonPortableClassReferencer
 }
 
-// A PolicyList is a Kubernetes object representing representing
-// a list of policies.
-type PolicyList interface {
+// A PortableClassList is a Kubernetes object representing representing
+// a list of portable classes.
+type PortableClassList interface {
 	runtime.Object
 	metav1.ListInterface
+
+	PortableClassLister
 }

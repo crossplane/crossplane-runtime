@@ -17,8 +17,11 @@ limitations under the License.
 package resource
 
 import (
+	"context"
+
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
@@ -37,33 +40,50 @@ func NewPredicates(fn PredicateFn) predicate.Funcs {
 	}
 }
 
-// HasClassReferenceKind accepts ResourceClaims that reference the correct kind of resourceclass
-func HasClassReferenceKind(k ClassKind) PredicateFn {
+// HasClassReferenceKinds accepts ResourceClaims that reference the correct kind of resourceclass
+func HasClassReferenceKinds(c client.Client, oc runtime.ObjectCreater, k ClassKinds) PredicateFn {
 	return func(obj runtime.Object) bool {
-		cr, ok := obj.(ClassReferencer)
+		claim, ok := obj.(Claim)
 		if !ok {
 			return false
 		}
 
-		ref := cr.GetClassReference()
-		if ref == nil {
+		pr := claim.GetPortableClassReference()
+		if pr == nil {
 			return false
 		}
 
-		gvk := ref.GroupVersionKind()
+		ctx, cancel := context.WithTimeout(context.Background(), claimReconcileTimeout)
+		defer cancel()
 
-		return gvk == schema.GroupVersionKind(k)
+		portable := MustCreateObject(k.Portable, oc).(PortableClass)
+		p := types.NamespacedName{
+			Namespace: claim.GetNamespace(),
+			Name:      pr.Name,
+		}
+		if err := c.Get(ctx, p, portable); err != nil {
+			return false
+		}
+
+		cr := portable.GetNonPortableClassReference()
+		if cr == nil {
+			return false
+		}
+
+		gvk := cr.GroupVersionKind()
+
+		return gvk == k.NonPortable
 	}
 }
 
-// NoClassReference accepts ResourceClaims that do not reference a specific ResourceClass
-func NoClassReference() PredicateFn {
+// NoPortableClassReference accepts ResourceClaims that do not reference a specific portable class
+func NoPortableClassReference() PredicateFn {
 	return func(obj runtime.Object) bool {
-		cr, ok := obj.(ClassReferencer)
+		cr, ok := obj.(PortableClassReferencer)
 		if !ok {
 			return false
 		}
-		return cr.GetClassReference() == nil
+		return cr.GetPortableClassReference() == nil
 	}
 }
 

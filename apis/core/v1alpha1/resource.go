@@ -46,8 +46,9 @@ type ResourceClaimSpec struct {
 	// TODO(negz): Make the below references immutable once set? Doing so means
 	// we don't have to track what provisioner was used to create a resource.
 
-	ClassReference    *corev1.ObjectReference `json:"classRef,omitempty"`
-	ResourceReference *corev1.ObjectReference `json:"resourceRef,omitempty"`
+	// PortableClassReference is a reference to a portable class by name.
+	PortableClassReference *corev1.LocalObjectReference `json:"classRef,omitempty"`
+	ResourceReference      *corev1.ObjectReference      `json:"resourceRef,omitempty"`
 }
 
 // ResourceClaimStatus represents the status of a resource claim. Claims should
@@ -63,17 +64,19 @@ type ResourceClaimStatus struct {
 type ResourceSpec struct {
 	WriteConnectionSecretToReference corev1.LocalObjectReference `json:"writeConnectionSecretToRef,omitempty"`
 
-	ClaimReference    *corev1.ObjectReference `json:"claimRef,omitempty"`
-	ClassReference    *corev1.ObjectReference `json:"classRef,omitempty"`
-	ProviderReference *corev1.ObjectReference `json:"providerRef"`
+	ClaimReference *corev1.ObjectReference `json:"claimRef,omitempty"`
+
+	// NonPortableClassReference is a reference to a non-portable class.
+	NonPortableClassReference *corev1.ObjectReference `json:"classRef,omitempty"`
+	ProviderReference         *corev1.ObjectReference `json:"providerRef"`
 
 	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
-// ResourceClassSpecTemplate contains standard fields that all resource classes should
-// include in their spec template. ResourceClassSpecTemplate should typically be embedded in a
-// resource class specific struct.
-type ResourceClassSpecTemplate struct {
+// NonPortableClassSpecTemplate contains standard fields that all non-portable classes should
+// include in their spec template. NonPortableClassSpecTemplate should typically be embedded in a
+// non-portable class specific struct.
+type NonPortableClassSpecTemplate struct {
 	ProviderReference *corev1.ObjectReference `json:"providerRef"`
 
 	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
@@ -87,18 +90,20 @@ type ResourceStatus struct {
 	BindingStatus     `json:",inline"`
 }
 
-// Policy contains standard fields that all policies should include. Policy
-// should typically be embedded in a specific resource claim policy.
-type Policy struct {
-	DefaultClassReference *corev1.ObjectReference `json:"defaultClassRef,omitempty"`
+// PortableClass contains standard fields that all portable classes should include. Class
+// should typically be embedded in a specific portable class.
+type PortableClass struct {
+
+	// NonPortableClassReference is a reference to a non-portable class.
+	NonPortableClassReference *corev1.ObjectReference `json:"classRef,omitempty"`
 }
 
-// SetDefaultClassReference of this Policy
-func (p *Policy) SetDefaultClassReference(r *corev1.ObjectReference) {
-	p.DefaultClassReference = r
+// SetNonPortableClassReference of this Class
+func (c *PortableClass) SetNonPortableClassReference(r *corev1.ObjectReference) {
+	c.NonPortableClassReference = r
 }
 
-// GetDefaultClassReference of this Policy
-func (p *Policy) GetDefaultClassReference() *corev1.ObjectReference {
-	return p.DefaultClassReference
+// GetNonPortableClassReference of this Class
+func (c *PortableClass) GetNonPortableClassReference() *corev1.ObjectReference {
+	return c.NonPortableClassReference
 }

@@ -21,7 +21,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -38,31 +38,36 @@ const (
 	defaultClassReconcileTimeout = 1 * time.Minute
 )
 
-// Error strings
+// Label values for listing default portable classes
 const (
-	errFailedList             = "unable to list policies for claim kind"
-	errFailedPolicyConversion = "unable to convert located policy to correct kind"
-	errNoPolicies             = "unable to locate a policy that specifies a default class for claim kind"
-	errMultiplePolicies       = "multiple policies that specify a default class defined for claim kind"
+	LabelKeyDefaultClass = "default"
+	LabelValueTrue       = "true"
 )
 
-// A PolicyKind contains the type metadata for a kind of policy.
-type PolicyKind struct {
+// Error strings
+const (
+	errFailedList              = "unable to list portable classes for claim kind"
+	errNoPortableClass         = "unable to locate a portable class that specifies a default class for claim kind"
+	errMultiplePortableClasses = "multiple portable classes that specify a default class defined for claim kind"
+)
+
+// A PortableClassKind contains the type metadata for a kind of portable class.
+type PortableClassKind struct {
 	Singular schema.GroupVersionKind
 	Plural   schema.GroupVersionKind
 }
 
 // DefaultClassReconciler reconciles resource claims to the
 // default resource class for their given kind according to existing
-// policies. Predicates ensure that only claims with no resource class
+// portable classes. Predicates ensure that only claims with no resource class
 // reference are reconciled.
 type DefaultClassReconciler struct {
-	client         client.Client
-	converter      runtime.ObjectConvertor
-	policyKind     schema.GroupVersionKind
-	policyListKind schema.GroupVersionKind
-	newClaim       func() Claim
-	newPolicy      func() Policy
+	client               client.Client
+	converter            runtime.ObjectConvertor
+	labels               map[string]string
+	newClaim             func() Claim
+	newPortableClass     func() PortableClass
+	newPortableClassList func() PortableClassList
 }
 
 // A DefaultClassReconcilerOption configures a DefaultClassReconciler.
@@ -76,23 +81,33 @@ func WithObjectConverter(oc runtime.ObjectConvertor) DefaultClassReconcilerOptio
 	}
 }
 
-// NewDefaultClassReconciler creates a new DefaultReconciler for the claim kind.
-func NewDefaultClassReconciler(m manager.Manager, of ClaimKind, by PolicyKind, o ...DefaultClassReconcilerOption) *DefaultClassReconciler {
-	nc := func() Claim { return MustCreateObject(schema.GroupVersionKind(of), m.GetScheme()).(Claim) }
-	np := func() Policy { return MustCreateObject(by.Singular, m.GetScheme()).(Policy) }
-	npl := func() PolicyList { return MustCreateObject(by.Plural, m.GetScheme()).(PolicyList) }
+// WithLabels specifies how the DefaultClassReconciler should search
+// for a default class
+func WithLabels(labels map[string]string) DefaultClassReconcilerOption {
+	return func(r *DefaultClassReconciler) {
+		r.labels = labels
+	}
+}
 
-	// Panic early if we've been asked to reconcile a claim, policy, or policy list that has
+// NewDefaultClassReconciler creates a new DefaultReconciler for the claim kind.
+func NewDefaultClassReconciler(m manager.Manager, of ClaimKind, by PortableClassKind, o ...DefaultClassReconcilerOption) *DefaultClassReconciler {
+	nc := func() Claim { return MustCreateObject(schema.GroupVersionKind(of), m.GetScheme()).(Claim) }
+	np := func() PortableClass { return MustCreateObject(by.Singular, m.GetScheme()).(PortableClass) }
+	npl := func() PortableClassList { return MustCreateObject(by.Plural, m.GetScheme()).(PortableClassList) }
+
+	// Panic early if we've been asked to reconcile a claim, portable class, or portable class list that has
 	// not been registered with our controller manager's scheme.
 	_, _, _ = nc(), np(), npl()
 
+	labels := map[string]string{LabelKeyDefaultClass: LabelValueTrue}
+
 	r := &DefaultClassReconciler{
-		client:         m.GetClient(),
-		converter:      m.GetScheme(),
-		policyKind:     by.Singular,
-		policyListKind: by.Plural,
-		newClaim:       nc,
-		newPolicy:      np,
+		client:               m.GetClient(),
+		converter:            m.GetScheme(),
+		labels:               labels,
+		newClaim:             nc,
+		newPortableClass:     np,
+		newPortableClassList: npl,
 	}
 
 	for _, ro := range o {
@@ -116,11 +131,9 @@ func (r *DefaultClassReconciler) Reconcile(req reconcile.Request) (reconcile.Res
 		return reconcile.Result{}, errors.Wrap(IgnoreNotFound(err), errGetClaim)
 	}
 
-	// Get policies for claim kind in claim's namespace
-	policies := &unstructured.UnstructuredList{}
-	policies.SetGroupVersionKind(r.policyListKind)
-	options := client.InNamespace(req.Namespace)
-	if err := r.client.List(ctx, policies, options); err != nil {
+	// Get portable classes for claim kind in claim's namespace
+	portables := r.newPortableClassList()
+	if err := r.client.List(ctx, portables, client.InNamespace(req.Namespace), client.MatchingLabels(r.labels)); err != nil {
 		// If this is the first time we encounter listing error we'll be
 		// requeued implicitly due to the status update. If not, we don't
 		// care to requeue because list parameters will not change.
@@ -128,38 +141,28 @@ func (r *DefaultClassReconciler) Reconcile(req reconcile.Request) (reconcile.Res
 		return reconcile.Result{}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, claim)), errUpdateClaimStatus)
 	}
 
+	items := portables.GetPortableClassItems()
 	// Check to see if no defaults defined for claim kind.
-	if len(policies.Items) == 0 {
-		// If this is the first time we encounter no policies we'll be
+	if len(items) == 0 {
+		// If this is the first time we encounter no default portable classes we'll be
 		// requeued implicitly due to the status update. If not, we will requeue
-		// after a time to see if a policy has been created.
-		claim.SetConditions(corev1alpha1.ReconcileError(errors.New(errNoPolicies)))
+		// after a time to see if a default portable class has been created.
+		claim.SetConditions(corev1alpha1.ReconcileError(errors.New(errNoPortableClass)))
 		return reconcile.Result{RequeueAfter: defaultClassWait}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, claim)), errUpdateClaimStatus)
 	}
 
-	// Check to see if multiple policies defined for claim kind.
-	if len(policies.Items) > 1 {
-		// If this is the first time we encounter multiple policies we'll be
+	// Check to see if multiple defaults defined for claim kind.
+	if len(items) > 1 {
+		// If this is the first time we encounter multiple default portable classes we'll be
 		// requeued implicitly due to the status update. If not, we will requeue
-		// after a time to see if only one policy class exists.
-		claim.SetConditions(corev1alpha1.ReconcileError(errors.New(errMultiplePolicies)))
+		// after a time to see if only one default portable class exists.
+		claim.SetConditions(corev1alpha1.ReconcileError(errors.New(errMultiplePortableClasses)))
 		return reconcile.Result{RequeueAfter: defaultClassWait}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, claim)), errUpdateClaimStatus)
 	}
 
-	// Make sure single item is of correct policy kind.
-	policy := r.newPolicy()
-	p := policies.Items[0]
-	p.SetGroupVersionKind(r.policyKind)
-	if err := r.converter.Convert(&p, policy, ctx); err != nil {
-		// If this is the first time we encounter conversion error we'll be
-		// requeued implicitly due to the status update. If not, we don't
-		// care to requeue because conversion will likely not change.
-		claim.SetConditions(corev1alpha1.ReconcileError(errors.New(errFailedPolicyConversion)))
-		return reconcile.Result{}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, claim)), errUpdateClaimStatus)
-	}
-
-	// Set class reference on claim to default resource class.
-	claim.SetClassReference(policy.GetDefaultClassReference())
+	// Set portable class reference on claim to default portable class.
+	portable := items[0]
+	claim.SetPortableClassReference(&corev1.LocalObjectReference{Name: portable.GetName()})
 
 	// Do not requeue, claim controller will see update and claim
 	// with class reference set will pass predicates.

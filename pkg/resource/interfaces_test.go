@@ -38,15 +38,23 @@ type MockClaimReferencer struct{ Ref *corev1.ObjectReference }
 func (m *MockClaimReferencer) SetClaimReference(r *corev1.ObjectReference) { m.Ref = r }
 func (m *MockClaimReferencer) GetClaimReference() *corev1.ObjectReference  { return m.Ref }
 
-type MockClassReferencer struct{ Ref *corev1.ObjectReference }
+type MockNonPortableClassReferencer struct{ Ref *corev1.ObjectReference }
 
-func (m *MockClassReferencer) SetClassReference(r *corev1.ObjectReference) { m.Ref = r }
-func (m *MockClassReferencer) GetClassReference() *corev1.ObjectReference  { return m.Ref }
+func (m *MockNonPortableClassReferencer) SetNonPortableClassReference(r *corev1.ObjectReference) {
+	m.Ref = r
+}
+func (m *MockNonPortableClassReferencer) GetNonPortableClassReference() *corev1.ObjectReference {
+	return m.Ref
+}
 
-type MockDefaultClassReferencer struct{ Ref *corev1.ObjectReference }
+type MockPortableClassReferencer struct{ Ref *corev1.LocalObjectReference }
 
-func (m *MockDefaultClassReferencer) SetDefaultClassReference(r *corev1.ObjectReference) { m.Ref = r }
-func (m *MockDefaultClassReferencer) GetDefaultClassReference() *corev1.ObjectReference  { return m.Ref }
+func (m *MockPortableClassReferencer) SetPortableClassReference(r *corev1.LocalObjectReference) {
+	m.Ref = r
+}
+func (m *MockPortableClassReferencer) GetPortableClassReference() *corev1.LocalObjectReference {
+	return m.Ref
+}
 
 type MockManagedResourceReferencer struct{ Ref *corev1.ObjectReference }
 
@@ -67,22 +75,27 @@ type MockReclaimer struct{ Policy v1alpha1.ReclaimPolicy }
 func (m *MockReclaimer) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) { m.Policy = p }
 func (m *MockReclaimer) GetReclaimPolicy() v1alpha1.ReclaimPolicy  { return m.Policy }
 
+type MockPortableClassLister struct{ Items []PortableClass }
+
+func (m *MockPortableClassLister) SetPortableClassItems(i []PortableClass) { m.Items = i }
+func (m *MockPortableClassLister) GetPortableClassItems() []PortableClass  { return m.Items }
+
 var _ Claim = &MockClaim{}
 
 type MockClaim struct {
 	runtime.Object
 
 	metav1.ObjectMeta
-	MockClassReferencer
+	MockPortableClassReferencer
 	MockManagedResourceReferencer
 	MockConnectionSecretWriterTo
 	MockConditionSetter
 	MockBindable
 }
 
-var _ Class = &MockClass{}
+var _ NonPortableClass = &MockNonPortableClass{}
 
-type MockClass struct {
+type MockNonPortableClass struct {
 	runtime.Object
 
 	metav1.ObjectMeta
@@ -95,7 +108,7 @@ type MockManaged struct {
 	runtime.Object
 
 	metav1.ObjectMeta
-	MockClassReferencer
+	MockNonPortableClassReferencer
 	MockClaimReferencer
 	MockConnectionSecretWriterTo
 	MockReclaimer
@@ -103,19 +116,20 @@ type MockManaged struct {
 	MockBindable
 }
 
-var _ Policy = &MockPolicy{}
+var _ PortableClass = &MockPortableClass{}
 
-type MockPolicy struct {
+type MockPortableClass struct {
 	runtime.Object
 
 	metav1.ObjectMeta
-	MockDefaultClassReferencer
+	MockNonPortableClassReferencer
 }
 
-var _ PolicyList = &MockPolicyList{}
+var _ PortableClassList = &MockPortableClassList{}
 
-type MockPolicyList struct {
+type MockPortableClassList struct {
 	runtime.Object
 
 	metav1.ListInterface
+	MockPortableClassLister
 }

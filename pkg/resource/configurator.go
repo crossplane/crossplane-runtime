@@ -33,7 +33,7 @@ type ConfiguratorChain []ManagedConfigurator
 
 // Configure calls each ManagedConfigurator serially. It returns the first
 // error it encounters, if any.
-func (cc ConfiguratorChain) Configure(ctx context.Context, cm Claim, cs Class, mg Managed) error {
+func (cc ConfiguratorChain) Configure(ctx context.Context, cm Claim, cs NonPortableClass, mg Managed) error {
 	for _, c := range cc {
 		if err := c.Configure(ctx, cm, cs, mg); err != nil {
 			return err
@@ -54,7 +54,7 @@ func NewObjectMetaConfigurator(t runtime.ObjectTyper) *ObjectMetaConfigurator {
 }
 
 // Configure the supplied Managed resource's object metadata.
-func (c *ObjectMetaConfigurator) Configure(_ context.Context, cm Claim, cs Class, mg Managed) error {
+func (c *ObjectMetaConfigurator) Configure(_ context.Context, cm Claim, cs NonPortableClass, mg Managed) error {
 	mg.SetNamespace(cs.GetNamespace())
 	mg.SetName(fmt.Sprintf("%s-%s", kindish(cm), cm.GetUID()))
 
