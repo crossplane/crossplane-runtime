@@ -52,7 +52,7 @@ func TestCreate(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		cm  Claim
-		cs  Class
+		cs  NonPortableClass
 		mg  Managed
 	}
 
@@ -71,12 +71,12 @@ func TestCreate(t *testing.T) {
 				client: &test.MockClient{
 					MockCreate: test.NewMockCreateFn(errBoom),
 				},
-				typer: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
+				typer: MockSchemeWith(&MockClaim{}, &MockNonPortableClass{}, &MockManaged{}),
 			},
 			args: args{
 				ctx: context.Background(),
 				cm:  &MockClaim{},
-				cs:  &MockClass{},
+				cs:  &MockNonPortableClass{},
 				mg:  &MockManaged{},
 			},
 			want: errors.Wrap(errBoom, errCreateManaged),
@@ -87,12 +87,12 @@ func TestCreate(t *testing.T) {
 					MockCreate: test.NewMockCreateFn(nil),
 					MockUpdate: test.NewMockUpdateFn(errBoom),
 				},
-				typer: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
+				typer: MockSchemeWith(&MockClaim{}, &MockNonPortableClass{}, &MockManaged{}),
 			},
 			args: args{
 				ctx: context.Background(),
 				cm:  &MockClaim{},
-				cs:  &MockClass{},
+				cs:  &MockNonPortableClass{},
 				mg:  &MockManaged{},
 			},
 			want: errors.Wrap(errBoom, errUpdateClaim),
@@ -110,8 +110,8 @@ func TestCreate(t *testing.T) {
 						})
 						want.SetNonPortableClassReference(&corev1.ObjectReference{
 							Name:       csname,
-							APIVersion: MockGVK(&MockClass{}).GroupVersion().String(),
-							Kind:       MockGVK(&MockClass{}).Kind,
+							APIVersion: MockGVK(&MockNonPortableClass{}).GroupVersion().String(),
+							Kind:       MockGVK(&MockNonPortableClass{}).Kind,
 						})
 						if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 							t.Errorf("-want, +got:\n%s", diff)
@@ -133,12 +133,12 @@ func TestCreate(t *testing.T) {
 						return nil
 					}),
 				},
-				typer: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
+				typer: MockSchemeWith(&MockClaim{}, &MockNonPortableClass{}, &MockManaged{}),
 			},
 			args: args{
 				ctx: context.Background(),
 				cm:  &MockClaim{ObjectMeta: metav1.ObjectMeta{Name: cmname}},
-				cs:  &MockClass{ObjectMeta: metav1.ObjectMeta{Name: csname}},
+				cs:  &MockNonPortableClass{ObjectMeta: metav1.ObjectMeta{Name: csname}},
 				mg:  &MockManaged{ObjectMeta: metav1.ObjectMeta{Name: mgname}},
 			},
 			want: nil,

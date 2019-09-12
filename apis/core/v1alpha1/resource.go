@@ -46,7 +46,7 @@ type ResourceClaimSpec struct {
 	// TODO(negz): Make the below references immutable once set? Doing so means
 	// we don't have to track what provisioner was used to create a resource.
 
-	// PortableClassReference must reference a portable class by name
+	// PortableClassReference is a reference to a portable class by name.
 	PortableClassReference *corev1.LocalObjectReference `json:"classRef,omitempty"`
 	ResourceReference      *corev1.ObjectReference      `json:"resourceRef,omitempty"`
 }
@@ -66,17 +66,17 @@ type ResourceSpec struct {
 
 	ClaimReference *corev1.ObjectReference `json:"claimRef,omitempty"`
 
-	// NonPortableClassReference must reference a non-portable class by GVK
+	// NonPortableClassReference is a reference to a non-portable class.
 	NonPortableClassReference *corev1.ObjectReference `json:"classRef,omitempty"`
 	ProviderReference         *corev1.ObjectReference `json:"providerRef"`
 
 	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
-// ResourceClassSpecTemplate contains standard fields that all resource classes should
-// include in their spec template. ResourceClassSpecTemplate should typically be embedded in a
-// resource class specific struct.
-type ResourceClassSpecTemplate struct {
+// NonPortableClassSpecTemplate contains standard fields that all non-portable classes should
+// include in their spec template. NonPortableClassSpecTemplate should typically be embedded in a
+// non-portable class specific struct.
+type NonPortableClassSpecTemplate struct {
 	ProviderReference *corev1.ObjectReference `json:"providerRef"`
 
 	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
@@ -94,7 +94,7 @@ type ResourceStatus struct {
 // should typically be embedded in a specific portable class.
 type PortableClass struct {
 
-	// NonPortableClassReference must reference a non-portable class by GVK
+	// NonPortableClassReference is a reference to a non-portable class.
 	NonPortableClassReference *corev1.ObjectReference `json:"classRef,omitempty"`
 }
 

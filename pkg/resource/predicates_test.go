@@ -51,7 +51,7 @@ func (r *mockManagedResourceReferencer) SetResourceReference(_ *corev1.ObjectRef
 func TestHasClassReferenceKinds(t *testing.T) {
 	errBoom := errors.New("boom")
 	errUnexpected := errors.New("unexpected object type")
-	ck := ClassKinds{Portable: MockGVK(&MockPortableClass{}), NonPortable: MockGVK(&MockClass{})}
+	ck := ClassKinds{Portable: MockGVK(&MockPortableClass{}), NonPortable: MockGVK(&MockNonPortableClass{})}
 
 	mockClaimWithRef := MockClaim{}
 	mockClaimWithRef.SetPortableClassReference(&corev1.LocalObjectReference{Name: "cool-portable"})
@@ -65,21 +65,21 @@ func TestHasClassReferenceKinds(t *testing.T) {
 	}{
 		"NotAClaim": {
 			c:    &test.MockClient{},
-			s:    MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockClass{}),
+			s:    MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}),
 			obj:  &mockObject{},
 			kind: ck,
 			want: false,
 		},
 		"NoPortableClassReference": {
 			c:    &test.MockClient{},
-			s:    MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockClass{}),
+			s:    MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}),
 			obj:  &MockClaim{},
 			kind: ck,
 			want: false,
 		},
 		"GetPortableClassError": {
 			c:    &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
-			s:    MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockClass{}),
+			s:    MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}),
 			obj:  &mockClaimWithRef,
 			kind: ck,
 			want: false,
@@ -98,7 +98,7 @@ func TestHasClassReferenceKinds(t *testing.T) {
 					}
 				}),
 			},
-			s:    MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockClass{}),
+			s:    MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}),
 			obj:  &mockClaimWithRef,
 			kind: ck,
 			want: false,
@@ -109,7 +109,7 @@ func TestHasClassReferenceKinds(t *testing.T) {
 					switch o := o.(type) {
 					case *MockPortableClass:
 						pc := &MockPortableClass{}
-						version, kind := MockGVK(&MockClass{}).ToAPIVersionAndKind()
+						version, kind := MockGVK(&MockNonPortableClass{}).ToAPIVersionAndKind()
 						pc.SetNonPortableClassReference(&corev1.ObjectReference{
 							Kind:       kind,
 							APIVersion: version,
@@ -121,7 +121,7 @@ func TestHasClassReferenceKinds(t *testing.T) {
 					}
 				}),
 			},
-			s:    MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockClass{}),
+			s:    MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}),
 			obj:  &mockClaimWithRef,
 			kind: ck,
 			want: true,

@@ -75,10 +75,10 @@ type MockReclaimer struct{ Policy v1alpha1.ReclaimPolicy }
 func (m *MockReclaimer) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) { m.Policy = p }
 func (m *MockReclaimer) GetReclaimPolicy() v1alpha1.ReclaimPolicy  { return m.Policy }
 
-type MockPortableClassItemer struct{ Items []PortableClass }
+type MockPortableClassLister struct{ Items []PortableClass }
 
-func (m *MockPortableClassItemer) SetPortableClassItems(i []PortableClass) { m.Items = i }
-func (m *MockPortableClassItemer) GetPortableClassItems() []PortableClass  { return m.Items }
+func (m *MockPortableClassLister) SetPortableClassItems(i []PortableClass) { m.Items = i }
+func (m *MockPortableClassLister) GetPortableClassItems() []PortableClass  { return m.Items }
 
 var _ Claim = &MockClaim{}
 
@@ -93,9 +93,9 @@ type MockClaim struct {
 	MockBindable
 }
 
-var _ Class = &MockClass{}
+var _ NonPortableClass = &MockNonPortableClass{}
 
-type MockClass struct {
+type MockNonPortableClass struct {
 	runtime.Object
 
 	metav1.ObjectMeta
@@ -131,5 +131,5 @@ type MockPortableClassList struct {
 	runtime.Object
 
 	metav1.ListInterface
-	MockPortableClassItemer
+	MockPortableClassLister
 }

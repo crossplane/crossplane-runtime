@@ -17,7 +17,6 @@ limitations under the License.
 package resource
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -253,7 +252,6 @@ func TestDefaultClassReconcile(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewDefaultClassReconciler(tc.args.m, tc.args.of, tc.args.by, tc.args.o...)
-			fmt.Println(name)
 			got, err := r.Reconcile(reconcile.Request{})
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {

@@ -74,8 +74,8 @@ type Reclaimer interface {
 	GetReclaimPolicy() v1alpha1.ReclaimPolicy
 }
 
-// A PortableClassItemer may contain a list of portable classes.
-type PortableClassItemer interface {
+// A PortableClassLister may contain a list of portable classes.
+type PortableClassLister interface {
 	SetPortableClassItems(i []PortableClass)
 	GetPortableClassItems() []PortableClass
 }
@@ -95,9 +95,9 @@ type Claim interface {
 	Bindable
 }
 
-// A Class is a Kubernetes object representing configuration
+// A NonPortableClass is a Kubernetes object representing configuration
 // specifications for a manged resource.
-type Class interface {
+type NonPortableClass interface {
 	runtime.Object
 	metav1.Object
 
@@ -134,5 +134,5 @@ type PortableClassList interface {
 	runtime.Object
 	metav1.ListInterface
 
-	PortableClassItemer
+	PortableClassLister
 }
