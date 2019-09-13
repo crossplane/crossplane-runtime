@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -40,8 +41,39 @@ func NewPredicates(fn PredicateFn) predicate.Funcs {
 	}
 }
 
-// HasClassReferenceKinds accepts ResourceClaims that reference the correct kind of resourceclass
+// TODO(negz): Use separate predicates for resource claims and managed
+// resources once controller-runtime supports this.
+// https://github.com/kubernetes-sigs/controller-runtime/issues/572
+
+// HasClassReferenceKinds accepts objects that reference the supplied
+// non-portable class kind, either directly or indirectly via a portable class
+// kind.
 func HasClassReferenceKinds(c client.Client, oc runtime.ObjectCreater, k ClassKinds) PredicateFn {
+	return func(obj runtime.Object) bool {
+		if _, ok := obj.(NonPortableClassReferencer); ok {
+			return HasDirectClassReferenceKind(NonPortableClassKind(k.NonPortable))(obj)
+		}
+
+		return HasIndirectClassReferenceKind(c, oc, k)(obj)
+	}
+}
+
+// HasDirectClassReferenceKind accepts objects that reference the supplied
+// non-portable class kind directly.
+func HasDirectClassReferenceKind(k NonPortableClassKind) PredicateFn {
+	return func(obj runtime.Object) bool {
+		r, ok := obj.(NonPortableClassReferencer)
+		if !ok {
+			return false
+		}
+
+		return r.GetNonPortableClassReference().GroupVersionKind() == schema.GroupVersionKind(k)
+	}
+}
+
+// HasIndirectClassReferenceKind accepts namespaced objects that reference the
+// supplied non-portable class kind via the supplied portable class kind.
+func HasIndirectClassReferenceKind(c client.Client, oc runtime.ObjectCreater, k ClassKinds) PredicateFn {
 	return func(obj runtime.Object) bool {
 		pcr, ok := obj.(PortableClassReferencer)
 		if !ok {

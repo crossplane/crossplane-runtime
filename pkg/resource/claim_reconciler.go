@@ -57,6 +57,10 @@ var log = logging.Logger.WithName("controller")
 // A ClaimKind contains the type metadata for a kind of resource claim.
 type ClaimKind schema.GroupVersionKind
 
+// A NonPortableClassKind contains the type metadata for a kind of
+// non-portable resource class.
+type NonPortableClassKind schema.GroupVersionKind
+
 // A ClassKinds contains the type metadata for a kind of resource class.
 type ClassKinds struct {
 	Portable    schema.GroupVersionKind
