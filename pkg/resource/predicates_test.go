@@ -30,6 +30,11 @@ import (
 
 type mockObject struct{ runtime.Object }
 
+type mockReferencer struct {
+	runtime.Object
+	*MockPortableClassReferencer
+}
+
 type mockPortableClassReferencer struct {
 	runtime.Object
 	ref *corev1.LocalObjectReference
@@ -56,6 +61,13 @@ func TestHasClassReferenceKinds(t *testing.T) {
 	mockClaimWithRef := MockClaim{}
 	mockClaimWithRef.SetPortableClassReference(&corev1.LocalObjectReference{Name: "cool-portable"})
 
+	mockManagedWithRef := MockManaged{}
+	mockManagedWithRef.SetNonPortableClassReference(&corev1.ObjectReference{
+		APIVersion: MockGVK(&MockNonPortableClass{}).GroupVersion().String(),
+		Kind:       MockGVK(&MockNonPortableClass{}).Kind,
+		Name:       "cool-nonportable",
+	})
+
 	cases := map[string]struct {
 		obj  runtime.Object
 		c    client.Client
@@ -63,10 +75,17 @@ func TestHasClassReferenceKinds(t *testing.T) {
 		kind ClassKinds
 		want bool
 	}{
-		"NotAClaim": {
+		"NotAClassReferencer": {
 			c:    &test.MockClient{},
 			s:    MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}),
 			obj:  &mockObject{},
+			kind: ck,
+			want: false,
+		},
+		"NotANamespacer": {
+			c:    &test.MockClient{},
+			s:    MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}),
+			obj:  &mockReferencer{MockPortableClassReferencer: &MockPortableClassReferencer{Ref: &corev1.LocalObjectReference{}}},
 			kind: ck,
 			want: false,
 		},
@@ -103,7 +122,7 @@ func TestHasClassReferenceKinds(t *testing.T) {
 			kind: ck,
 			want: false,
 		},
-		"HasCorrect": {
+		"HasCorrectIndirectClass": {
 			c: &test.MockClient{
 				MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 					switch o := o.(type) {
@@ -123,6 +142,12 @@ func TestHasClassReferenceKinds(t *testing.T) {
 			},
 			s:    MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}),
 			obj:  &mockClaimWithRef,
+			kind: ck,
+			want: true,
+		},
+		"HasCorrectDirectClass": {
+			s:    MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}),
+			obj:  &mockManagedWithRef,
 			kind: ck,
 			want: true,
 		},
