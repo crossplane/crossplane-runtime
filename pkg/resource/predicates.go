@@ -43,13 +43,18 @@ func NewPredicates(fn PredicateFn) predicate.Funcs {
 // HasClassReferenceKinds accepts ResourceClaims that reference the correct kind of resourceclass
 func HasClassReferenceKinds(c client.Client, oc runtime.ObjectCreater, k ClassKinds) PredicateFn {
 	return func(obj runtime.Object) bool {
-		claim, ok := obj.(Claim)
+		pcr, ok := obj.(PortableClassReferencer)
 		if !ok {
 			return false
 		}
 
-		pr := claim.GetPortableClassReference()
+		pr := pcr.GetPortableClassReference()
 		if pr == nil {
+			return false
+		}
+
+		n, ok := obj.(interface{ GetNamespace() string })
+		if !ok {
 			return false
 		}
 
@@ -58,7 +63,7 @@ func HasClassReferenceKinds(c client.Client, oc runtime.ObjectCreater, k ClassKi
 
 		portable := MustCreateObject(k.Portable, oc).(PortableClass)
 		p := types.NamespacedName{
-			Namespace: claim.GetNamespace(),
+			Namespace: n.GetNamespace(),
 			Name:      pr.Name,
 		}
 		if err := c.Get(ctx, p, portable); err != nil {

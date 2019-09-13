@@ -30,6 +30,11 @@ import (
 
 type mockObject struct{ runtime.Object }
 
+type mockReferencer struct {
+	runtime.Object
+	*MockPortableClassReferencer
+}
+
 type mockPortableClassReferencer struct {
 	runtime.Object
 	ref *corev1.LocalObjectReference
@@ -63,10 +68,17 @@ func TestHasClassReferenceKinds(t *testing.T) {
 		kind ClassKinds
 		want bool
 	}{
-		"NotAClaim": {
+		"NotAClassReferencer": {
 			c:    &test.MockClient{},
 			s:    MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}),
 			obj:  &mockObject{},
+			kind: ck,
+			want: false,
+		},
+		"NotANamespacer": {
+			c:    &test.MockClient{},
+			s:    MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}),
+			obj:  &mockReferencer{MockPortableClassReferencer: &MockPortableClassReferencer{Ref: &corev1.LocalObjectReference{}}},
 			kind: ck,
 			want: false,
 		},
