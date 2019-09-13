@@ -167,7 +167,7 @@ func TestAPISecretPublisher(t *testing.T) {
 				},
 				c: ConnectionDetails{},
 			},
-			want: errors.Wrap(errors.Wrap(errors.New(errSecretConflict), "could not mutate object for update"), errCreateOrUpdateSecret),
+			want: errors.Wrap(errors.New(errSecretConflict), errCreateOrUpdateSecret),
 		},
 		"ManagedSecretUncontrolledError": {
 			fields: fields{
@@ -187,7 +187,7 @@ func TestAPISecretPublisher(t *testing.T) {
 				},
 				c: ConnectionDetails{},
 			},
-			want: errors.Wrap(errors.Wrap(errors.New(errSecretConflict), "could not mutate object for update"), errCreateOrUpdateSecret),
+			want: errors.Wrap(errors.New(errSecretConflict), errCreateOrUpdateSecret),
 		},
 		"SuccessfulCreate": {
 			fields: fields{
