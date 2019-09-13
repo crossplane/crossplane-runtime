@@ -242,7 +242,7 @@ func TestPropagateConnection(t *testing.T) {
 					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: mgcsname}},
 				},
 			},
-			want: errors.Wrap(errors.Wrap(errors.New(errSecretConflict), "could not mutate object for update"), errCreateOrUpdateSecret),
+			want: errors.Wrap(errors.New(errSecretConflict), errCreateOrUpdateSecret),
 		},
 		"ClaimSecretUncontrolledError": {
 			fields: fields{
@@ -267,7 +267,7 @@ func TestPropagateConnection(t *testing.T) {
 					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: mgcsname}},
 				},
 			},
-			want: errors.Wrap(errors.Wrap(errors.New(errSecretConflict), "could not mutate object for update"), errCreateOrUpdateSecret),
+			want: errors.Wrap(errors.New(errSecretConflict), errCreateOrUpdateSecret),
 		},
 		"Successful": {
 			fields: fields{
