@@ -56,7 +56,7 @@ const (
 // A Condition that may apply to a managed resource.
 type Condition struct {
 	// Type of this condition. At most one of each condition type may apply to
-	// a managed resource at any point in time.
+	// a resource at any point in time.
 	Type ConditionType `json:"type"`
 
 	// Status of this condition; is it currently True, False, or Unknown?
@@ -71,6 +71,7 @@ type Condition struct {
 
 	// A Message containing details about this condition's last transition from
 	// one status to another, if any.
+	// +optional
 	Message string `json:"message,omitempty"`
 }
 
@@ -88,11 +89,13 @@ func (c Condition) Equal(other Condition) bool {
 // marshalled to a JSON array, but doing so confuses the CRD schema generator.
 // https://github.com/kubernetes/community/blob/9bf8cd/contributors/devel/sig-architecture/api-conventions.md#lists-of-named-subobjects-preferred-over-maps
 
+// NOTE(negz): Do not manipulate Conditions directly. Use the Set method.
+
 // A ConditionedStatus reflects the observed status of a managed resource. Only
-// one condition of each type may exist. Do not manipulate Conditions directly -
-// use the Set method.
+// one condition of each type may exist.
 type ConditionedStatus struct {
-	// Conditions of the managed resource.
+	// Conditions of the resource.
+	// +optional
 	Conditions []Condition `json:"conditions,omitempty"`
 }
 
