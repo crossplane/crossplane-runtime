@@ -61,13 +61,6 @@ func TestHasClassReferenceKinds(t *testing.T) {
 	mockClaimWithRef := MockClaim{}
 	mockClaimWithRef.SetPortableClassReference(&corev1.LocalObjectReference{Name: "cool-portable"})
 
-	mockManagedWithRef := MockManaged{}
-	mockManagedWithRef.SetNonPortableClassReference(&corev1.ObjectReference{
-		APIVersion: MockGVK(&MockNonPortableClass{}).GroupVersion().String(),
-		Kind:       MockGVK(&MockNonPortableClass{}).Kind,
-		Name:       "cool-nonportable",
-	})
-
 	cases := map[string]struct {
 		obj  runtime.Object
 		c    client.Client
@@ -145,9 +138,23 @@ func TestHasClassReferenceKinds(t *testing.T) {
 			kind: ck,
 			want: true,
 		},
-		"HasCorrectDirectClass": {
+		"HasNoDirectClass": {
 			s:    MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}),
-			obj:  &mockManagedWithRef,
+			obj:  &MockManaged{},
+			kind: ck,
+			want: false,
+		},
+		"HasCorrectDirectClass": {
+			s: MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}),
+			obj: &MockManaged{
+				MockNonPortableClassReferencer: MockNonPortableClassReferencer{
+					Ref: &corev1.ObjectReference{
+						APIVersion: MockGVK(&MockNonPortableClass{}).GroupVersion().String(),
+						Kind:       MockGVK(&MockNonPortableClass{}).Kind,
+						Name:       "cool-nonportable",
+					},
+				},
+			},
 			kind: ck,
 			want: true,
 		},

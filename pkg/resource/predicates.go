@@ -67,6 +67,10 @@ func HasDirectClassReferenceKind(k NonPortableClassKind) PredicateFn {
 			return false
 		}
 
+		if r.GetNonPortableClassReference() == nil {
+			return false
+		}
+
 		return r.GetNonPortableClassReference().GroupVersionKind() == schema.GroupVersionKind(k)
 	}
 }
