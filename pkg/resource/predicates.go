@@ -126,9 +126,9 @@ func HasIndirectClassReferenceKind(c client.Client, oc runtime.ObjectCreater, k 
 	}
 }
 
-// NoPortableClassReference accepts ResourceClaims that do not reference a
+// HasNoPortableClassReference accepts ResourceClaims that do not reference a
 // specific portable class
-func NoPortableClassReference() PredicateFn {
+func HasNoPortableClassReference() PredicateFn {
 	return func(obj runtime.Object) bool {
 		cr, ok := obj.(PortableClassReferencer)
 		if !ok {
@@ -138,9 +138,9 @@ func NoPortableClassReference() PredicateFn {
 	}
 }
 
-// NoManagedResourceReference accepts ResourceClaims that do not reference a
+// HasNoManagedResourceReference accepts ResourceClaims that do not reference a
 // specific Managed Resource
-func NoManagedResourceReference() PredicateFn {
+func HasNoManagedResourceReference() PredicateFn {
 	return func(obj runtime.Object) bool {
 		cr, ok := obj.(ManagedResourceReferencer)
 		if !ok {

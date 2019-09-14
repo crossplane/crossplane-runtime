@@ -242,7 +242,7 @@ func TestHasIndirectClassReferenceKind(t *testing.T) {
 	}
 }
 
-func TestNoPortableClassReference(t *testing.T) {
+func TestHasNoPortableClassReference(t *testing.T) {
 	cases := map[string]struct {
 		obj  runtime.Object
 		want bool
@@ -262,7 +262,7 @@ func TestNoPortableClassReference(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := NoPortableClassReference()(tc.obj)
+			got := HasNoPortableClassReference()(tc.obj)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("NoClassReference(...): -want, +got:\n%s", diff)
 			}
@@ -270,7 +270,7 @@ func TestNoPortableClassReference(t *testing.T) {
 	}
 }
 
-func TestNoMangedResourceReference(t *testing.T) {
+func TestHasNoMangedResourceReference(t *testing.T) {
 	cases := map[string]struct {
 		obj  runtime.Object
 		want bool
@@ -290,7 +290,7 @@ func TestNoMangedResourceReference(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := NoManagedResourceReference()(tc.obj)
+			got := HasNoManagedResourceReference()(tc.obj)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("NoManagedResourecReference(...): -want, +got:\n%s", diff)
 			}
