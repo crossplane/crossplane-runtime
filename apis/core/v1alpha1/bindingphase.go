@@ -38,9 +38,14 @@ const (
 	BindingPhaseBound BindingPhase = "Bound"
 )
 
-// A BindingStatus represents the bindability and binding of a resource.
+// A BindingStatus represents the bindability and binding status of a resource.
 type BindingStatus struct {
-	// Phase represents the binding phase of the resource.
+	// Phase represents the binding phase of a managed resource or claim.
+	// Unbindable resources cannot be bound, typically because they are
+	// currently unavailable, or still being created. Unbound resource are
+	// available for binding, and Bound resources have successfully bound to
+	// another resource.
+	// +optional
 	// +kubebuilder:validation:Enum=Unbindable;Unbound;Bound
 	Phase BindingPhase `json:"bindingPhase,omitempty"`
 }

@@ -37,64 +37,121 @@ const (
 	ResourceCredentialsTokenKey = "token"
 )
 
-// ResourceClaimSpec contains standard fields that all resource claims should
-// include in their spec. Unlike ResourceClaimStatus, ResourceClaimSpec should
-// typically be embedded in a claim specific struct.
+// A ResourceClaimSpec defines the desired state of a resource claim.
 type ResourceClaimSpec struct {
+	// WriteConnectionSecretToReference specifies the name of a Secret, in the
+	// same namespace as this resource claim, to which any connection details
+	// for this resource claim should be written. Connection details frequently
+	// include the endpoint, username, and password required to connect to the
+	// managed resource bound to this resource claim.
+	// +optional
 	WriteConnectionSecretToReference corev1.LocalObjectReference `json:"writeConnectionSecretToRef,omitempty"`
 
 	// TODO(negz): Make the below references immutable once set? Doing so means
 	// we don't have to track what provisioner was used to create a resource.
 
-	// PortableClassReference is a reference to a portable class by name.
+	// A PortableClassReference specifies the name of a portable resource class,
+	// in the same namespace as this resource claim, that will be used to
+	// dynamically provision a managed resource when the resource claim is
+	// created. The specified class kind must be aligned with the resource
+	// claim; e.g. a MySQLInstance kind resource claim always refers to a
+	// MySQLInstanceClass kind portable resource class. Omit the portable class
+	// reference if you wish to bind to a specific managed resource (known as
+	// static binding), or to use the default portable class for the resource
+	// claim's namespace (if any).
+	// +optional
 	PortableClassReference *corev1.LocalObjectReference `json:"classRef,omitempty"`
-	ResourceReference      *corev1.ObjectReference      `json:"resourceRef,omitempty"`
+
+	// A ResourceReference specifies an existing managed resource, in any
+	// namespace, to which this resource claim should attempt to bind. Omit the
+	// resource reference to enable dynamic provisioning using a portable
+	// resource class; the resource reference will be automatically populated by
+	// Crossplane.
+	// +optional
+	ResourceReference *corev1.ObjectReference `json:"resourceRef,omitempty"`
 }
 
-// ResourceClaimStatus represents the status of a resource claim. Claims should
-// typically use this struct as their status.
+// A ResourceClaimStatus represents the observed status of a resource claim.
 type ResourceClaimStatus struct {
 	ConditionedStatus `json:",inline"`
 	BindingStatus     `json:",inline"`
 }
 
-// ResourceSpec contains standard fields that all resources should
-// include in their spec. ResourceSpec should typically be embedded in a
-// resource specific struct.
+// TODO(negz): Rename Resource* to Managed* to clarify that they enable the
+// resource.Managed interface.
+
+// A ResourceSpec defines the desired state of a managed resource.
 type ResourceSpec struct {
+	// WriteConnectionSecretToReference specifies the name of a Secret, in the
+	// same namespace as this managed resource, to which any connection details
+	// for this managed resource should be written. Connection details
+	// frequently include the endpoint, username, and password required to
+	// connect to the managed resource.
+	// +optional
 	WriteConnectionSecretToReference corev1.LocalObjectReference `json:"writeConnectionSecretToRef,omitempty"`
 
+	// ClaimReference specifies the resource claim to which this managed
+	// resource will be bound. ClaimReference is set automatically during
+	// dynamic provisioning. Crossplane does not currently support setting this
+	// field manually, per https://github.com/crossplaneio/crossplane-runtime/issues/19
+	// +optional
 	ClaimReference *corev1.ObjectReference `json:"claimRef,omitempty"`
 
-	// NonPortableClassReference is a reference to a non-portable class.
+	// NonPortableClassReference specifies the non-portable resource class that
+	// was used to dynamically provision this managed resource, if any.
+	// Crossplane does not currently support setting this field manually, per
+	// https://github.com/crossplaneio/crossplane-runtime/issues/20
+	// +optional
 	NonPortableClassReference *corev1.ObjectReference `json:"classRef,omitempty"`
-	ProviderReference         *corev1.ObjectReference `json:"providerRef"`
 
-	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
-}
-
-// NonPortableClassSpecTemplate contains standard fields that all non-portable classes should
-// include in their spec template. NonPortableClassSpecTemplate should typically be embedded in a
-// non-portable class specific struct.
-type NonPortableClassSpecTemplate struct {
+	// ProviderReference specifies the provider that will be used to create,
+	// observe, update, and delete this managed resource.
 	ProviderReference *corev1.ObjectReference `json:"providerRef"`
 
+	// ReclaimPolicy specifies what will happen to the external resource this
+	// managed resource manages when the managed resource is deleted. "Delete"
+	// deletes the external resource, while "Retain" (the default) does not.
+	// Note this behaviour is subtly different from other uses of the
+	// ReclaimPolicy concept within the Kubernetes ecosystem per
+	// https://github.com/crossplaneio/crossplane-runtime/issues/21
+	// +optional
 	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
-// ResourceStatus contains standard fields that all resources should
-// include in their status. ResourceStatus should typically be embedded in a
-// resource specific status.
+// ResourceStatus represents the observed state of a managed resource.
 type ResourceStatus struct {
 	ConditionedStatus `json:",inline"`
 	BindingStatus     `json:",inline"`
 }
 
+// NonPortableClassSpecTemplate defines a template that will be used to create
+// the specifications of managed resources dynamically provisioned using a
+// resource class.
+type NonPortableClassSpecTemplate struct {
+	// ProviderReference specifies the provider that will be used to create,
+	// observe, update, and delete managed resources that are dynamically
+	// provisioned using this resource class.
+	ProviderReference *corev1.ObjectReference `json:"providerRef"`
+
+	// ReclaimPolicy specifies what will happen to external resources when
+	// managed resources dynamically provisioned using this resource class are
+	// deleted. "Delete" deletes the external resource, while "Retain" (the
+	// default) does not. Note this behaviour is subtly different from other
+	// uses of the ReclaimPolicy concept within the Kubernetes ecosystem per
+	// https://github.com/crossplaneio/crossplane-runtime/issues/21
+	// +optional
+	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
+}
+
 // PortableClass contains standard fields that all portable classes should include. Class
 // should typically be embedded in a specific portable class.
+
+// A PortableClass connects a portable resource claim to a non-portable resource
+// class used for dynamic provisioning.
 type PortableClass struct {
 
-	// NonPortableClassReference is a reference to a non-portable class.
+	// NonPortableClassReference is a reference to a resource class kind that is
+	// not portable across cloud providers, such as an RDSInstanceClass.
 	NonPortableClassReference *corev1.ObjectReference `json:"classRef,omitempty"`
 }
 
