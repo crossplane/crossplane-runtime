@@ -41,20 +41,32 @@ func NewPredicates(fn PredicateFn) predicate.Funcs {
 	}
 }
 
-// TODO(negz): Use separate predicates for resource claims and managed
-// resources once controller-runtime supports this.
-// https://github.com/kubernetes-sigs/controller-runtime/issues/572
-
-// HasClassReferenceKinds accepts objects that reference the supplied
-// non-portable class kind, either directly or indirectly via a portable class
-// kind.
-func HasClassReferenceKinds(c client.Client, oc runtime.ObjectCreater, k ClassKinds) PredicateFn {
+// AnyOf accepts objects that pass any of the supplied predicate functions.
+func AnyOf(fn ...PredicateFn) PredicateFn {
 	return func(obj runtime.Object) bool {
-		if _, ok := obj.(NonPortableClassReferencer); ok {
-			return HasDirectClassReferenceKind(NonPortableClassKind(k.NonPortable))(obj)
+		for _, f := range fn {
+			if f(obj) {
+				return true
+			}
+		}
+		return false
+	}
+}
+
+// HasManagedResourceReferenceKind accepts objects that reference the supplied
+// managed resource kind.
+func HasManagedResourceReferenceKind(k ManagedKind) PredicateFn {
+	return func(obj runtime.Object) bool {
+		r, ok := obj.(ManagedResourceReferencer)
+		if !ok {
+			return false
 		}
 
-		return HasIndirectClassReferenceKind(c, oc, k)(obj)
+		if r.GetResourceReference() == nil {
+			return false
+		}
+
+		return r.GetResourceReference().GroupVersionKind() == schema.GroupVersionKind(k)
 	}
 }
 
@@ -64,6 +76,10 @@ func HasDirectClassReferenceKind(k NonPortableClassKind) PredicateFn {
 	return func(obj runtime.Object) bool {
 		r, ok := obj.(NonPortableClassReferencer)
 		if !ok {
+			return false
+		}
+
+		if r.GetNonPortableClassReference() == nil {
 			return false
 		}
 
@@ -94,10 +110,7 @@ func HasIndirectClassReferenceKind(c client.Client, oc runtime.ObjectCreater, k 
 		defer cancel()
 
 		portable := MustCreateObject(k.Portable, oc).(PortableClass)
-		p := types.NamespacedName{
-			Namespace: n.GetNamespace(),
-			Name:      pr.Name,
-		}
+		p := types.NamespacedName{Namespace: n.GetNamespace(), Name: pr.Name}
 		if err := c.Get(ctx, p, portable); err != nil {
 			return false
 		}
@@ -113,8 +126,9 @@ func HasIndirectClassReferenceKind(c client.Client, oc runtime.ObjectCreater, k 
 	}
 }
 
-// NoPortableClassReference accepts ResourceClaims that do not reference a specific portable class
-func NoPortableClassReference() PredicateFn {
+// HasNoPortableClassReference accepts ResourceClaims that do not reference a
+// specific portable class
+func HasNoPortableClassReference() PredicateFn {
 	return func(obj runtime.Object) bool {
 		cr, ok := obj.(PortableClassReferencer)
 		if !ok {
@@ -124,8 +138,9 @@ func NoPortableClassReference() PredicateFn {
 	}
 }
 
-// NoManagedResourceReference accepts ResourceClaims that do not reference a specific Managed Resource
-func NoManagedResourceReference() PredicateFn {
+// HasNoManagedResourceReference accepts ResourceClaims that do not reference a
+// specific Managed Resource
+func HasNoManagedResourceReference() PredicateFn {
 	return func(obj runtime.Object) bool {
 		cr, ok := obj.(ManagedResourceReferencer)
 		if !ok {
