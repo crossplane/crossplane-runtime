@@ -101,6 +101,91 @@ func TestConnectionSecretFor(t *testing.T) {
 	}
 }
 
+type MockTyper struct {
+	GVKs        []schema.GroupVersionKind
+	Unversioned bool
+	Error       error
+}
+
+func (t MockTyper) ObjectKinds(_ runtime.Object) ([]schema.GroupVersionKind, bool, error) {
+	return t.GVKs, t.Unversioned, t.Error
+}
+
+func (t MockTyper) Recognizes(_ schema.GroupVersionKind) bool { return true }
+
+func TestGetKind(t *testing.T) {
+	type args struct {
+		obj runtime.Object
+		ot  runtime.ObjectTyper
+	}
+	type want struct {
+		kind schema.GroupVersionKind
+		err  error
+	}
+
+	errBoom := errors.New("boom")
+
+	cases := map[string]struct {
+		args args
+		want want
+	}{
+		"KindFound": {
+			args: args{
+				ot: MockTyper{GVKs: []schema.GroupVersionKind{MockGVK(&MockManaged{})}},
+			},
+			want: want{
+				kind: MockGVK(&MockManaged{}),
+			},
+		},
+		"KindError": {
+			args: args{
+				ot: MockTyper{Error: errBoom},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, "cannot get kind of supplied object"),
+			},
+		},
+		"KindIsUnversioned": {
+			args: args{
+				ot: MockTyper{Unversioned: true},
+			},
+			want: want{
+				err: errors.New("supplied object is unversioned"),
+			},
+		},
+		"NotEnoughKinds": {
+			args: args{
+				ot: MockTyper{},
+			},
+			want: want{
+				err: errors.New("supplied object does not have exactly one kind"),
+			},
+		},
+		"TooManyKinds": {
+			args: args{
+				ot: MockTyper{GVKs: []schema.GroupVersionKind{
+					MockGVK(&MockClaim{}),
+					MockGVK(&MockManaged{}),
+				}},
+			},
+			want: want{
+				err: errors.New("supplied object does not have exactly one kind"),
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got, err := GetKind(tc.args.obj, tc.args.ot)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("GetKind(...): -want error, +got error:\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.want.kind, got); diff != "" {
+				t.Errorf("GetKind(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
 func TestMustCreateObject(t *testing.T) {
 	type args struct {
 		kind schema.GroupVersionKind

@@ -23,6 +23,7 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
@@ -104,6 +105,41 @@ func TestHasManagedResourceReferenceKind(t *testing.T) {
 		})
 	}
 }
+
+func TestIsManagedKind(t *testing.T) {
+	cases := map[string]struct {
+		kind ManagedKind
+		ot   runtime.ObjectTyper
+		obj  runtime.Object
+		want bool
+	}{
+		"IsKind": {
+			kind: ManagedKind(MockGVK(&MockManaged{})),
+			ot:   MockTyper{GVKs: []schema.GroupVersionKind{MockGVK(&MockManaged{})}},
+			want: true,
+		},
+		"IsNotKind": {
+			kind: ManagedKind(MockGVK(&MockManaged{})),
+			ot:   MockTyper{GVKs: []schema.GroupVersionKind{MockGVK(&MockClaim{})}},
+			want: false,
+		},
+		"ErrorDeterminingKind": {
+			kind: ManagedKind(MockGVK(&MockManaged{})),
+			ot:   MockTyper{Error: errors.New("boom")},
+			want: false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := IsManagedKind(tc.kind, tc.ot)(tc.obj)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("IsManagedKind(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestHasDirectClassReferenceKind(t *testing.T) {
 	cases := map[string]struct {
 		obj  runtime.Object
