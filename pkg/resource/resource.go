@@ -57,21 +57,32 @@ func MustCreateObject(kind schema.GroupVersionKind, oc runtime.ObjectCreater) ru
 	return obj
 }
 
+// GetKind returns the GroupVersionKind of the supplied object. It return an
+// error if the object is unknown to the supplied ObjectTyper, the object is
+// unversioned, or the object does not have exactly one registered kind.
+func GetKind(obj runtime.Object, ot runtime.ObjectTyper) (schema.GroupVersionKind, error) {
+	kinds, unversioned, err := ot.ObjectKinds(obj)
+	if err != nil {
+		return schema.GroupVersionKind{}, errors.Wrap(err, "cannot get kind of supplied object")
+	}
+	if unversioned {
+		return schema.GroupVersionKind{}, errors.New("supplied object is unversioned")
+	}
+	if len(kinds) != 1 {
+		return schema.GroupVersionKind{}, errors.New("supplied object does not have exactly one kind")
+	}
+	return kinds[0], nil
+}
+
 // MustGetKind returns the GroupVersionKind of the supplied object. It panics if
 // the object is unknown to the supplied ObjectTyper, the object is unversioned,
 // or the object does not have exactly one registered kind.
 func MustGetKind(obj runtime.Object, ot runtime.ObjectTyper) schema.GroupVersionKind {
-	kinds, unversioned, err := ot.ObjectKinds(obj)
-	if unversioned {
-		panic("supplied object is unversioned")
-	}
+	gvk, err := GetKind(obj, ot)
 	if err != nil {
 		panic(err)
 	}
-	if len(kinds) != 1 {
-		panic("supplied ")
-	}
-	return kinds[0]
+	return gvk
 }
 
 // An ErrorIs function returns true if an error satisfies a particular condition.

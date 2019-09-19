@@ -70,8 +70,20 @@ func HasManagedResourceReferenceKind(k ManagedKind) PredicateFn {
 	}
 }
 
+// IsManagedKind accepts objects that are of the supplied managed resource kind.
+func IsManagedKind(k ManagedKind, ot runtime.ObjectTyper) PredicateFn {
+	return func(obj runtime.Object) bool {
+		gvk, err := GetKind(obj, ot)
+		if err != nil {
+			return false
+		}
+		return gvk == schema.GroupVersionKind(k)
+	}
+}
+
 // HasDirectClassReferenceKind accepts objects that reference the supplied
-// non-portable class kind directly.
+// non-portable class kind directly. It is deprecated - use IsManagedKind
+// instead.
 func HasDirectClassReferenceKind(k NonPortableClassKind) PredicateFn {
 	return func(obj runtime.Object) bool {
 		r, ok := obj.(NonPortableClassReferencer)
