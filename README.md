@@ -1,44 +1,60 @@
-# Crossplane-Runtime
+# crossplane-runtime [![Godoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/github.com/crossplaneio/crossplane-runtime)
 
 ## Overview
 
-Crossplane-Runtime is a set of go libraries used to build Kubernetes controllers in Crossplane and its related stacks.
-
-## Getting Started and Documentation
-
-For getting started guides, installation, deployment, and administration, see our [Documentation](https://crossplane.io/docs/latest).
+crossplane-runtime is a set of go libraries used to build Kubernetes controllers
+in Crossplane and its related stacks. Take a look at our [developer guide] and
+[API documentation] for help getting started with crossplane-runtime.
 
 ## Contributing
 
-Crossplane-Runtime is a community driven project and we welcome contributions. See the Crossplane [Contributing](https://github.com/crossplaneio/crossplane/blob/master/CONTRIBUTING.md) guidelines to get started.
+crossplane-runtime is a community driven project and we welcome contributions.
+See the Crossplane [contributing] guidelines to get started.
 
 ## Report a Bug
 
-For filing bugs, suggesting improvements, or requesting new features, please open an [issue](https://github.com/crossplaneio/crossplane-runtime/issues).
+For filing bugs, suggesting improvements, or requesting new features, please
+open an [issue].
 
 ## Contact
 
 Please use the following to reach members of the community:
 
-- Slack: Join our [slack channel](https://slack.crossplane.io)
-- Forums: [crossplane-dev](https://groups.google.com/forum/#!forum/crossplane-dev)
-- Twitter: [@crossplane_io](https://twitter.com/crossplane_io)
-- Email: [info@crossplane.io](mailto:info@crossplane.io)
+- Slack: Join our [slack channel]
+- Forums: [crossplane-dev]
+- Twitter: [@crossplane_io]
+- Email: [info@crossplane.io]
 
 ## Roadmap
 
-Crossplane-Runtime goals and milestones are currently tracked in the Crossplane repository. More information can be found in [ROADMAP.md](https://github.com/crossplaneio/crossplane/blob/master/ROADMAP.md).
+crossplane-runtime goals and milestones are currently tracked in Crossplane's
+[roadmap].
 
 ## Governance and Owners
 
-Crossplane-Runtime is run according to the same [Governance](https://github.com/crossplaneio/crossplane/blob/master/GOVERNANCE.md) and [Ownership](https://github.com/crossplaneio/crossplane/blob/master/OWNERS.md) structure as the core Crossplane project.
+crossplane-runtime is run according to the same [governance] and [ownership]
+structure as the core Crossplane project.
 
 ## Code of Conduct
 
-Crossplane-Runtime adheres to the same [Code of Conduct](https://github.com/crossplaneio/crossplane/blob/master/CODE_OF_CONDUCT.md) as the core Crossplane project. 
+crossplane-runtime adheres to the same [code of conduct] as the core Crossplane
+project.
 
 ## Licensing
 
-Crossplane-Runtime is under the Apache 2.0 license.
+crossplane-runtime is under the Apache 2.0 license.
 
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fcrossplaneio%2Fcrossplane-runtime.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fcrossplaneio%2Fcrossplane-runtime?ref=badge_large)
+
+[developer guide]: https://crossplane.io/docs/master/developer-guide.html
+[API documentation]: https://godoc.org/github.com/crossplaneio/crossplane-runtime
+[contributing]: https://github.com/crossplaneio/crossplane/blob/master/CONTRIBUTING.md
+[issue]: https://github.com/crossplaneio/crossplane-runtime/issues
+[slack channel]: https://slack.crossplane.io
+[crossplane-dev]: https://groups.google.com/forum/#!forum/crossplane-dev
+[@crossplane_io]: https://twitter.com/crossplane_io
+[info@crossplane.io]: mailto:info@crossplane.io
+[roadmap]: https://github.com/crossplaneio/crossplane/blob/master/ROADMAP.md
+[governance]: https://github.com/crossplaneio/crossplane/blob/master/GOVERNANCE.md
+[ownership]: https://github.com/crossplaneio/crossplane/blob/master/OWNERS.md
+[code of conduct]: https://github.com/crossplaneio/crossplane/blob/master/CODE_OF_CONDUCT.md
