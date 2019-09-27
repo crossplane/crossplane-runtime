@@ -81,24 +81,6 @@ func IsManagedKind(k ManagedKind, ot runtime.ObjectTyper) PredicateFn {
 	}
 }
 
-// HasDirectClassReferenceKind accepts objects that reference the supplied
-// non-portable class kind directly. It is deprecated - use IsManagedKind
-// instead.
-func HasDirectClassReferenceKind(k NonPortableClassKind) PredicateFn {
-	return func(obj runtime.Object) bool {
-		r, ok := obj.(NonPortableClassReferencer)
-		if !ok {
-			return false
-		}
-
-		if r.GetNonPortableClassReference() == nil {
-			return false
-		}
-
-		return r.GetNonPortableClassReference().GroupVersionKind() == schema.GroupVersionKind(k)
-	}
-}
-
 // HasIndirectClassReferenceKind accepts namespaced objects that reference the
 // supplied non-portable class kind via the supplied portable class kind.
 func HasIndirectClassReferenceKind(c client.Client, oc runtime.ObjectCreater, k ClassKinds) PredicateFn {
