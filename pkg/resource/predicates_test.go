@@ -140,51 +140,6 @@ func TestIsManagedKind(t *testing.T) {
 	}
 }
 
-func TestHasDirectClassReferenceKind(t *testing.T) {
-	cases := map[string]struct {
-		obj  runtime.Object
-		c    client.Client
-		s    runtime.ObjectCreater
-		kind NonPortableClassKind
-		want bool
-	}{
-		"NotAClassReferencer": {
-			c:    &test.MockClient{},
-			s:    MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}),
-			kind: NonPortableClassKind(MockGVK(&MockNonPortableClass{})),
-			want: false,
-		},
-		"HasNoDirectClass": {
-			s:    MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}),
-			obj:  &MockManaged{},
-			kind: NonPortableClassKind(MockGVK(&MockNonPortableClass{})),
-			want: false,
-		},
-		"HasCorrectDirectClass": {
-			s: MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}),
-			obj: &MockManaged{
-				MockNonPortableClassReferencer: MockNonPortableClassReferencer{
-					Ref: &corev1.ObjectReference{
-						APIVersion: MockGVK(&MockNonPortableClass{}).GroupVersion().String(),
-						Kind:       MockGVK(&MockNonPortableClass{}).Kind,
-					},
-				},
-			},
-			kind: NonPortableClassKind(MockGVK(&MockNonPortableClass{})),
-			want: true,
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			got := HasDirectClassReferenceKind(tc.kind)(tc.obj)
-			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("HasDirectClassReferenceKind(...): -want, +got:\n%s", diff)
-			}
-		})
-	}
-}
-
 func TestHasIndirectClassReferenceKind(t *testing.T) {
 	errUnexpected := errors.New("unexpected object type")
 
