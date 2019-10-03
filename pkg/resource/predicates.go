@@ -19,6 +19,7 @@ package resource
 import (
 	"context"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -78,6 +79,70 @@ func IsManagedKind(k ManagedKind, ot runtime.ObjectTyper) PredicateFn {
 			return false
 		}
 		return gvk == schema.GroupVersionKind(k)
+	}
+}
+
+// IsControlledByKind accepts objects that are controlled by a resource of the
+// supplied kind.
+func IsControlledByKind(k schema.GroupVersionKind) PredicateFn {
+	return func(obj runtime.Object) bool {
+		mo, ok := obj.(metav1.Object)
+		if !ok {
+			return false
+		}
+
+		ref := metav1.GetControllerOf(mo)
+		if ref == nil {
+			return false
+		}
+
+		return ref.APIVersion == k.GroupVersion().String() && ref.Kind == k.Kind
+	}
+}
+
+// IsPropagator accepts objects that request to be partially or fully propagated
+// to another object of the same kind.
+func IsPropagator() PredicateFn {
+	return func(obj runtime.Object) bool {
+		ao, ok := obj.(annotated)
+		if !ok {
+			return false
+		}
+
+		a := ao.GetAnnotations()
+		switch {
+		case a[AnnotationKeyPropagateToNamespace] == "":
+			return false
+		case a[AnnotationKeyPropagateToName] == "":
+			return false
+		case a[AnnotationKeyPropagateToUID] == "":
+			return false
+		default:
+			return true
+		}
+	}
+}
+
+// IsPropagated accepts objects that consent to be partially or fully propagated
+// from another object of the same kind.
+func IsPropagated() PredicateFn {
+	return func(obj runtime.Object) bool {
+		ao, ok := obj.(annotated)
+		if !ok {
+			return false
+		}
+
+		a := ao.GetAnnotations()
+		switch {
+		case a[AnnotationKeyPropagateFromNamespace] == "":
+			return false
+		case a[AnnotationKeyPropagateFromName] == "":
+			return false
+		case a[AnnotationKeyPropagateFromUID] == "":
+			return false
+		default:
+			return true
+		}
 	}
 }
 

@@ -169,6 +169,7 @@ func TestPropagateConnection(t *testing.T) {
 
 	cmname := "coolclaim"
 	mgname := "coolmanaged"
+	uid := types.UID("definitely-a-uuid")
 	cmcsname := "coolclaimsecret"
 	mgcsname := "coolmanagedsecret"
 	mgcsdata := map[string][]byte{"cool": []byte("data")}
@@ -219,12 +220,24 @@ func TestPropagateConnection(t *testing.T) {
 			fields: fields{
 				client: &test.MockClient{
 					MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
-						s := &corev1.Secret{}
-						s.SetOwnerReferences([]metav1.OwnerReference{{
-							UID:        types.UID("some-other-uuid"),
-							Controller: &controller,
-						}})
-						*o.(*corev1.Secret) = *s
+						switch n.Name {
+						case cmcsname:
+							s := &corev1.Secret{}
+							s.SetOwnerReferences([]metav1.OwnerReference{{
+								UID:        types.UID("some-other-uuid"),
+								Controller: &controller,
+							}})
+							*o.(*corev1.Secret) = *s
+						case mgcsname:
+							s := &corev1.Secret{}
+							s.SetOwnerReferences([]metav1.OwnerReference{{
+								UID:        uid,
+								Controller: &controller,
+							}})
+							*o.(*corev1.Secret) = *s
+						default:
+							return errors.New("unexpected secret name")
+						}
 						return nil
 					},
 					MockUpdate: test.NewMockUpdateFn(nil),
@@ -238,7 +251,7 @@ func TestPropagateConnection(t *testing.T) {
 					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: cmcsname}},
 				},
 				mg: &MockManaged{
-					ObjectMeta:                   metav1.ObjectMeta{Name: mgname},
+					ObjectMeta:                   metav1.ObjectMeta{Name: mgname, UID: uid},
 					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: mgcsname}},
 				},
 			},
@@ -248,8 +261,20 @@ func TestPropagateConnection(t *testing.T) {
 			fields: fields{
 				client: &test.MockClient{
 					MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
-						s := &corev1.Secret{}
-						*o.(*corev1.Secret) = *s
+						switch n.Name {
+						case mgcsname:
+							s := &corev1.Secret{}
+							s.SetOwnerReferences([]metav1.OwnerReference{{
+								UID:        uid,
+								Controller: &controller,
+							}})
+							*o.(*corev1.Secret) = *s
+						case cmcsname:
+							// A secret without any owner references.
+							*o.(*corev1.Secret) = corev1.Secret{}
+						default:
+							return errors.New("unexpected secret name")
+						}
 						return nil
 					},
 					MockUpdate: test.NewMockUpdateFn(nil),
@@ -263,33 +288,39 @@ func TestPropagateConnection(t *testing.T) {
 					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: cmcsname}},
 				},
 				mg: &MockManaged{
-					ObjectMeta:                   metav1.ObjectMeta{Name: mgname},
+					ObjectMeta:                   metav1.ObjectMeta{Name: mgname, UID: uid},
 					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: mgcsname}},
 				},
 			},
 			want: errors.Wrap(errors.New(errSecretConflict), errCreateOrUpdateSecret),
 		},
-		"Successful": {
+		"ManagedSecretUpdateError": {
 			fields: fields{
 				client: &test.MockClient{
 					MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
-						if n.Name == mgcsname {
-							*o.(*corev1.Secret) = corev1.Secret{Data: mgcsdata}
+
+						switch n.Name {
+						case mgcsname:
+							s := corev1.Secret{}
+							s.SetNamespace(namespace)
+							s.SetUID(uid)
+							s.SetOwnerReferences([]metav1.OwnerReference{{UID: uid, Controller: &controller}})
+							s.SetName(mgcsname)
+							s.Data = mgcsdata
+							*o.(*corev1.Secret) = s
+						case cmcsname:
+						default:
+							return errors.New("unexpected secret name")
 						}
 						return nil
 					},
 					MockUpdate: test.NewMockUpdateFn(nil, func(got runtime.Object) error {
-						want := &corev1.Secret{}
-						want.SetName(cmcsname)
-						want.SetOwnerReferences([]metav1.OwnerReference{{
-							Name:       cmname,
-							APIVersion: MockGVK(&MockClaim{}).GroupVersion().String(),
-							Kind:       MockGVK(&MockClaim{}).Kind,
-							Controller: &controller,
-						}})
-						want.Data = mgcsdata
-						if diff := cmp.Diff(want, got); diff != "" {
-							t.Errorf("-want, +got:\n%s", diff)
+						switch got.(metav1.Object).GetName() {
+						case cmcsname:
+						case mgcsname:
+							return errBoom
+						default:
+							return errors.New("unexpected secret name")
 						}
 						return nil
 					}),
@@ -303,7 +334,78 @@ func TestPropagateConnection(t *testing.T) {
 					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: cmcsname}},
 				},
 				mg: &MockManaged{
-					ObjectMeta:                   metav1.ObjectMeta{Name: mgname},
+					ObjectMeta:                   metav1.ObjectMeta{Name: mgname, UID: uid},
+					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: mgcsname}},
+				},
+			},
+			want: errors.Wrap(errBoom, errUpdateSecret),
+		},
+		"Successful": {
+			fields: fields{
+				client: &test.MockClient{
+					MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
+						s := corev1.Secret{}
+						s.SetNamespace(namespace)
+						s.SetUID(uid)
+						s.SetOwnerReferences([]metav1.OwnerReference{{UID: uid, Controller: &controller}})
+
+						switch n.Name {
+						case mgcsname:
+							s.SetName(mgcsname)
+							s.Data = mgcsdata
+							*o.(*corev1.Secret) = s
+						case cmcsname:
+							s.SetName(cmcsname)
+							*o.(*corev1.Secret) = s
+						default:
+							return errors.New("unexpected secret name")
+						}
+						return nil
+					},
+					MockUpdate: test.NewMockUpdateFn(nil, func(got runtime.Object) error {
+						want := &corev1.Secret{}
+						want.SetNamespace(namespace)
+						want.SetUID(uid)
+						want.SetOwnerReferences([]metav1.OwnerReference{{UID: uid, Controller: &controller}})
+						want.Data = mgcsdata
+
+						switch got.(metav1.Object).GetName() {
+						case cmcsname:
+							want.SetName(cmcsname)
+							want.SetAnnotations(map[string]string{
+								AnnotationKeyPropagateFromNamespace: namespace,
+								AnnotationKeyPropagateFromName:      mgcsname,
+								AnnotationKeyPropagateFromUID:       string(uid),
+							})
+							if diff := cmp.Diff(want, got); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+						case mgcsname:
+							want.SetName(mgcsname)
+							want.SetAnnotations(map[string]string{
+								AnnotationKeyPropagateToNamespace: namespace,
+								AnnotationKeyPropagateToName:      cmcsname,
+								AnnotationKeyPropagateToUID:       string(uid),
+							})
+							if diff := cmp.Diff(want, got); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+						default:
+							return errors.New("unexpected secret name")
+						}
+						return nil
+					}),
+				},
+				typer: MockSchemeWith(&MockClaim{}, &MockManaged{}),
+			},
+			args: args{
+				ctx: context.Background(),
+				cm: &MockClaim{
+					ObjectMeta:                   metav1.ObjectMeta{Namespace: namespace, Name: cmname, UID: uid},
+					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: cmcsname}},
+				},
+				mg: &MockManaged{
+					ObjectMeta:                   metav1.ObjectMeta{Name: mgname, UID: uid},
 					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: mgcsname}},
 				},
 			},
