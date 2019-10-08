@@ -207,6 +207,21 @@ func Unavailable() Condition {
 	}
 }
 
+// UnavailableWithMessage returns a condition that indicates the managed
+// resource is not currently available for use and contains the message returned
+// by the API. Unavailable should be set only when Crossplane expects the managed
+// resource to be available but knows it is not, for example because its API
+// reports it is unhealthy.
+func UnavailableWithMessage(msg string) Condition {
+	return Condition{
+		Type:               TypeReady,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonUnavailable,
+		Message:            msg,
+	}
+}
+
 // ReconcileSuccess returns a condition indicating that Crossplane successfully
 // completed the most recent reconciliation of the managed resource.
 func ReconcileSuccess() Condition {
