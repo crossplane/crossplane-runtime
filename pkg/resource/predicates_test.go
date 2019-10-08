@@ -59,7 +59,45 @@ func TestAnyOf(t *testing.T) {
 			}
 		})
 	}
+}
 
+func TestAllOf(t *testing.T) {
+	cases := map[string]struct {
+		fns  []PredicateFn
+		obj  runtime.Object
+		want bool
+	}{
+		"AllPredicatesPass": {
+			fns: []PredicateFn{
+				func(obj runtime.Object) bool { return true },
+				func(obj runtime.Object) bool { return true },
+			},
+			want: true,
+		},
+		"NoPredicatesPass": {
+			fns: []PredicateFn{
+				func(obj runtime.Object) bool { return false },
+				func(obj runtime.Object) bool { return false },
+			},
+			want: false,
+		},
+		"SomePredicatesPass": {
+			fns: []PredicateFn{
+				func(obj runtime.Object) bool { return false },
+				func(obj runtime.Object) bool { return true },
+			},
+			want: false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := AllOf(tc.fns...)(tc.obj)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("AllOf(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
 }
 
 func TestHasManagedResourceReferenceKind(t *testing.T) {

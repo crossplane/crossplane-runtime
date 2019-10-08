@@ -54,6 +54,18 @@ func AnyOf(fn ...PredicateFn) PredicateFn {
 	}
 }
 
+// AllOf accepts objects that pass all of the supplied predicate functions.
+func AllOf(fn ...PredicateFn) PredicateFn {
+	return func(obj runtime.Object) bool {
+		for _, f := range fn {
+			if !f(obj) {
+				return false
+			}
+		}
+		return true
+	}
+}
+
 // HasManagedResourceReferenceKind accepts objects that reference the supplied
 // managed resource kind.
 func HasManagedResourceReferenceKind(k ManagedKind) PredicateFn {
