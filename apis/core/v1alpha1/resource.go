@@ -37,6 +37,12 @@ const (
 	ResourceCredentialsTokenKey = "token"
 )
 
+const (
+	// ExternalNameAnnotationKey is the key in the annotations of a managed resource for the name of the resource
+	// as it appears on provider's systems.
+	ExternalNameAnnotationKey = "crossplane.io/external-name"
+)
+
 // A ResourceClaimSpec defines the desired state of a resource claim.
 type ResourceClaimSpec struct {
 	// WriteConnectionSecretToReference specifies the name of a Secret, in the

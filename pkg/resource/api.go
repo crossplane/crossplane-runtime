@@ -154,6 +154,11 @@ func NewAPIManagedBinder(c client.Client) *APIManagedBinder {
 // Bind the supplied resource to the supplied claim.
 func (a *APIManagedBinder) Bind(ctx context.Context, cm Claim, mg Managed) error {
 	cm.SetBindingPhase(v1alpha1.BindingPhaseBound)
+	// Propagate back the final name of the external resource to the claim.
+	if mg.GetAnnotations() != nil {
+		meta.AddAnnotations(cm,
+			map[string]string{v1alpha1.ExternalNameAnnotationKey: mg.GetAnnotations()[v1alpha1.ExternalNameAnnotationKey]})
+	}
 	mg.SetBindingPhase(v1alpha1.BindingPhaseBound)
 	if err := a.client.Update(ctx, mg); err != nil {
 		return errors.Wrap(err, errUpdateManaged)
@@ -177,6 +182,11 @@ func NewAPIManagedStatusBinder(c client.Client) *APIManagedStatusBinder {
 // Bind the supplied resource to the supplied claim.
 func (a *APIManagedStatusBinder) Bind(ctx context.Context, cm Claim, mg Managed) error {
 	cm.SetBindingPhase(v1alpha1.BindingPhaseBound)
+	// Propagate back the final name of the external resource to the claim.
+	if mg.GetAnnotations() != nil {
+		meta.AddAnnotations(cm,
+			map[string]string{v1alpha1.ExternalNameAnnotationKey: mg.GetAnnotations()[v1alpha1.ExternalNameAnnotationKey]})
+	}
 	mg.SetBindingPhase(v1alpha1.BindingPhaseBound)
 	if err := a.client.Status().Update(ctx, mg); err != nil {
 		return errors.Wrap(err, errUpdateManagedStatus)
@@ -275,5 +285,38 @@ func NewAPIManagedFinalizerAdder(c client.Client) *APIManagedFinalizerAdder {
 // Establish ownership of the supplied Managed resource.
 func (a *APIManagedFinalizerAdder) Establish(ctx context.Context, mg Managed) error {
 	meta.AddFinalizer(mg, managedFinalizerName)
+	return errors.Wrap(a.client.Update(ctx, mg), errUpdateManaged)
+}
+
+// A InitializerChain chains multiple managed initializers.
+type InitializerChain []ManagedInitializer
+
+// Initialize calls each ManagedInitializer serially. It returns the first
+// error it encounters, if any.
+func (cc InitializerChain) Initialize(ctx context.Context, mg Managed) error {
+	for _, c := range cc {
+		if err := c.Initialize(ctx, mg); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ManagedNameAsExternalName writes the name of the managed resource to
+// the external name annotation field in order to be used as name of
+// the external resource in provider.
+type ManagedNameAsExternalName struct{ client client.Client }
+
+// NewManagedNameAsExternalName returns a new ManagedNameAsExternalName.
+func NewManagedNameAsExternalName(c client.Client) *ManagedNameAsExternalName {
+	return &ManagedNameAsExternalName{client: c}
+}
+
+// Initialize the given managed resource.
+func (a *ManagedNameAsExternalName) Initialize(ctx context.Context, mg Managed) error {
+	if mg.GetAnnotations() != nil && mg.GetAnnotations()[v1alpha1.ExternalNameAnnotationKey] == mg.GetName() {
+		return nil
+	}
+	meta.AddAnnotations(mg, map[string]string{v1alpha1.ExternalNameAnnotationKey: mg.GetName()})
 	return errors.Wrap(a.client.Update(ctx, mg), errUpdateManaged)
 }
