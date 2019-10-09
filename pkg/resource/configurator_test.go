@@ -18,8 +18,6 @@ package resource
 
 import (
 	"context"
-	"reflect"
-	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -103,6 +101,8 @@ func TestConfiguratorChain(t *testing.T) {
 
 func TestConfigureObjectMeta(t *testing.T) {
 	ns := "namespace"
+	claimName := "myclaim"
+	claimNS := "myclaimns"
 	uid := types.UID("definitely-a-uuid")
 
 	type args struct {
@@ -126,18 +126,19 @@ func TestConfigureObjectMeta(t *testing.T) {
 			typer: MockSchemeWith(&MockClaim{}),
 			args: args{
 				ctx: context.Background(),
-				cm:  &MockClaim{ObjectMeta: metav1.ObjectMeta{UID: uid}},
+				cm:  &MockClaim{ObjectMeta: metav1.ObjectMeta{Name: claimName, Namespace: claimNS, UID: uid}},
 				cs:  &MockNonPortableClass{ObjectMeta: metav1.ObjectMeta{Namespace: ns}},
 				mg:  &MockManaged{},
 			},
 			want: want{
 				mg: &MockManaged{ObjectMeta: metav1.ObjectMeta{
-					Namespace: ns,
-					Name:      strings.ToLower(reflect.TypeOf(MockClaim{}).Name() + "-" + string(uid)),
+					Namespace:    ns,
+					GenerateName: claimNS + "-" + claimName + "-",
 					OwnerReferences: []metav1.OwnerReference{{
 						APIVersion: MockGVK(&MockClaim{}).GroupVersion().String(),
 						Kind:       MockGVK(&MockClaim{}).Kind,
 						UID:        uid,
+						Name:       claimName,
 					}},
 				}},
 			},

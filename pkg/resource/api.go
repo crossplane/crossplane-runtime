@@ -60,16 +60,18 @@ func NewAPIManagedCreator(c client.Client, t runtime.ObjectTyper) *APIManagedCre
 func (a *APIManagedCreator) Create(ctx context.Context, cm Claim, cs NonPortableClass, mg Managed) error {
 	cmr := meta.ReferenceTo(cm, MustGetKind(cm, a.typer))
 	csr := meta.ReferenceTo(cs, MustGetKind(cs, a.typer))
-	mgr := meta.ReferenceTo(mg, MustGetKind(mg, a.typer))
 
 	mg.SetClaimReference(cmr)
 	mg.SetNonPortableClassReference(csr)
 	if err := a.client.Create(ctx, mg); err != nil {
 		return errors.Wrap(err, errCreateManaged)
 	}
-
-	meta.AddFinalizer(cm, claimFinalizerName)
+	// Since we use GenerateName feature of ObjectMeta, final name of the
+	// resource is calculated during the creation of the resource. So, we
+	// can generate a complete reference only after the creation.
+	mgr := meta.ReferenceTo(mg, MustGetKind(mg, a.typer))
 	cm.SetResourceReference(mgr)
+	meta.AddFinalizer(cm, claimFinalizerName)
 
 	return errors.Wrap(a.client.Update(ctx, cm), errUpdateClaim)
 }

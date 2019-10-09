@@ -19,8 +19,6 @@ package resource
 import (
 	"context"
 	"fmt"
-	"reflect"
-	"strings"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -56,7 +54,7 @@ func NewObjectMetaConfigurator(t runtime.ObjectTyper) *ObjectMetaConfigurator {
 // Configure the supplied Managed resource's object metadata.
 func (c *ObjectMetaConfigurator) Configure(_ context.Context, cm Claim, cs NonPortableClass, mg Managed) error {
 	mg.SetNamespace(cs.GetNamespace())
-	mg.SetName(fmt.Sprintf("%s-%s", kindish(cm), cm.GetUID()))
+	mg.SetGenerateName(fmt.Sprintf("%s-%s-", cm.GetNamespace(), cm.GetName()))
 
 	// TODO(negz): Don't set this potentially cross-namespace owner reference.
 	// We probably want to use the resource's reclaim policy, not Kubernetes
@@ -65,13 +63,4 @@ func (c *ObjectMetaConfigurator) Configure(_ context.Context, cm Claim, cs NonPo
 	mg.SetOwnerReferences([]v1.OwnerReference{meta.AsOwner(meta.ReferenceTo(cm, MustGetKind(cm, c.typer)))})
 
 	return nil
-}
-
-// kindish tries to return the name of the Claim interface's underlying type,
-// e.g. rediscluster, or mysqlinstance. Fall back to simply "claim".
-func kindish(obj runtime.Object) string {
-	if reflect.ValueOf(obj).Type().Kind() != reflect.Ptr {
-		return "claim"
-	}
-	return strings.ToLower(reflect.TypeOf(obj).Elem().Name())
 }
