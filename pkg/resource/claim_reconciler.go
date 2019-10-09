@@ -76,7 +76,7 @@ type ManagedConfigurator interface {
 	Configure(ctx context.Context, cm Claim, cs NonPortableClass, mg Managed) error
 }
 
-// A ManagedConfiguratorFn is a function that sastisfies the
+// A ManagedConfiguratorFn is a function that satisfies the
 // ManagedConfigurator interface.
 type ManagedConfiguratorFn func(ctx context.Context, cm Claim, cs NonPortableClass, mg Managed) error
 
@@ -93,7 +93,7 @@ type ManagedCreator interface {
 	Create(ctx context.Context, cm Claim, cs NonPortableClass, mg Managed) error
 }
 
-// A ManagedCreatorFn is a function that sastisfies the ManagedCreator interface.
+// A ManagedCreatorFn is a function that satisfies the ManagedCreator interface.
 type ManagedCreatorFn func(ctx context.Context, cm Claim, cs NonPortableClass, mg Managed) error
 
 // Create the supplied resource.
@@ -108,7 +108,7 @@ type ManagedConnectionPropagator interface {
 	PropagateConnection(ctx context.Context, cm Claim, mg Managed) error
 }
 
-// A ManagedConnectionPropagatorFn is a function that sastisfies the
+// A ManagedConnectionPropagatorFn is a function that satisfies the
 // ManagedConnectionPropagator interface.
 type ManagedConnectionPropagatorFn func(ctx context.Context, cm Claim, mg Managed) error
 
@@ -123,7 +123,7 @@ type ManagedBinder interface {
 	Bind(ctx context.Context, cm Claim, mg Managed) error
 }
 
-// A ManagedBinderFn is a function that sastisfies the ManagedBinder interface.
+// A ManagedBinderFn is a function that satisfies the ManagedBinder interface.
 type ManagedBinderFn func(ctx context.Context, cm Claim, mg Managed) error
 
 // Bind the supplied resource claim to the supplied managed resource.
@@ -136,7 +136,7 @@ type ManagedFinalizer interface {
 	Finalize(ctx context.Context, cm Managed) error
 }
 
-// A ManagedFinalizerFn is a function that sastisfies the ManagedFinalizer interface.
+// A ManagedFinalizerFn is a function that satisfies the ManagedFinalizer interface.
 type ManagedFinalizerFn func(ctx context.Context, cm Managed) error
 
 // Finalize the supplied managed resource.
@@ -149,7 +149,7 @@ type ClaimFinalizer interface {
 	Finalize(ctx context.Context, cm Claim) error
 }
 
-// A ClaimFinalizerFn is a function that sastisfies the ClaimFinalizer interface.
+// A ClaimFinalizerFn is a function that satisfies the ClaimFinalizer interface.
 type ClaimFinalizerFn func(ctx context.Context, cm Claim) error
 
 // Finalize the supplied managed resource.

@@ -18,12 +18,17 @@ package resource
 
 import (
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 )
+
+type adder interface {
+	Add(item interface{})
+}
 
 // EnqueueRequestForClaim enqueues a reconcile.Request for the NamespacedName
 // of a ClaimReferencer's ClaimReference.
@@ -54,12 +59,58 @@ func (e *EnqueueRequestForClaim) Generic(evt event.GenericEvent, q workqueue.Rat
 	addClaim(evt.Object, q)
 }
 
-type adder interface {
-	Add(item interface{})
-}
-
 func addClaim(obj runtime.Object, queue adder) {
 	if cr, ok := obj.(ClaimReferencer); ok && cr.GetClaimReference() != nil {
 		queue.Add(reconcile.Request{NamespacedName: meta.NamespacedNameOf(cr.GetClaimReference())})
+	}
+}
+
+// EnqueueRequestForPropagator enqueues a reconcile.Request for the
+// NamespacedName of a propagated object, i.e. an object with propagation
+// metadata annotations.
+type EnqueueRequestForPropagator struct{}
+
+// Create adds a NamespacedName for the supplied CreateEvent if its Object is
+// propagated.
+func (e *EnqueueRequestForPropagator) Create(evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+	addPropagator(evt.Object, q)
+}
+
+// Update adds a NamespacedName for the supplied UpdateEvent if its Objects are
+// propagated.
+func (e *EnqueueRequestForPropagator) Update(evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+	addPropagator(evt.ObjectOld, q)
+	addPropagator(evt.ObjectNew, q)
+}
+
+// Delete adds a NamespacedName for the supplied DeleteEvent if its Object is
+// propagated.
+func (e *EnqueueRequestForPropagator) Delete(evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+	addPropagator(evt.Object, q)
+}
+
+// Generic adds a NamespacedName for the supplied GenericEvent if its Object is
+// propagated.
+func (e *EnqueueRequestForPropagator) Generic(evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+	addPropagator(evt.Object, q)
+}
+
+func addPropagator(obj runtime.Object, queue adder) {
+	ao, ok := obj.(annotated)
+	if !ok {
+		return
+	}
+
+	a := ao.GetAnnotations()
+	switch {
+	case a[AnnotationKeyPropagateFromNamespace] == "":
+		return
+	case a[AnnotationKeyPropagateFromName] == "":
+		return
+	default:
+		queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{
+			Namespace: a[AnnotationKeyPropagateFromNamespace],
+			Name:      a[AnnotationKeyPropagateFromName],
+		}})
 	}
 }

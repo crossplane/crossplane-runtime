@@ -37,6 +37,7 @@ const (
 	errUpdateClaim          = "cannot update resource claim"
 	errGetSecret            = "cannot get managed resource's connection secret"
 	errSecretConflict       = "cannot establish control of existing connection secret"
+	errUpdateSecret         = "cannot update connection secret"
 	errCreateOrUpdateSecret = "cannot create or update connection secret"
 	errUpdateManaged        = "cannot update managed resource"
 	errUpdateManagedStatus  = "cannot update managed resource status"
@@ -102,8 +103,16 @@ func (a *APIManagedConnectionPropagator) PropagateConnection(ctx context.Context
 		return errors.Wrap(err, errGetSecret)
 	}
 
+	// Make sure the managed resource is the controller of the connection secret
+	// it references before we propagate it. This ensures a managed resource
+	// cannot use Crossplane to circumvent RBAC by propagating a secret it does
+	// not own.
+	if c := metav1.GetControllerOf(mgcs); c == nil || c.UID != mg.GetUID() {
+		return errors.New(errSecretConflict)
+	}
+
 	cmcs := ConnectionSecretFor(cm, MustGetKind(cm, a.typer))
-	_, err := util.CreateOrUpdate(ctx, a.client, cmcs, func() error {
+	if _, err := util.CreateOrUpdate(ctx, a.client, cmcs, func() error {
 		// Inside this anonymous function cmcs could either be unchanged (if
 		// it does not exist in the API server) or updated to reflect its
 		// current state according to the API server.
@@ -111,10 +120,23 @@ func (a *APIManagedConnectionPropagator) PropagateConnection(ctx context.Context
 			return errors.New(errSecretConflict)
 		}
 		cmcs.Data = mgcs.Data
+		meta.AddAnnotations(cmcs, map[string]string{
+			AnnotationKeyPropagateFromNamespace: mgcs.GetNamespace(),
+			AnnotationKeyPropagateFromName:      mgcs.GetName(),
+			AnnotationKeyPropagateFromUID:       string(mgcs.GetUID()),
+		})
 		return nil
+	}); err != nil {
+		return errors.Wrap(err, errCreateOrUpdateSecret)
+	}
+
+	meta.AddAnnotations(mgcs, map[string]string{
+		AnnotationKeyPropagateToNamespace: cmcs.GetNamespace(),
+		AnnotationKeyPropagateToName:      cmcs.GetName(),
+		AnnotationKeyPropagateToUID:       string(cmcs.GetUID()),
 	})
 
-	return errors.Wrap(err, errCreateOrUpdateSecret)
+	return errors.Wrap(a.client.Update(ctx, mgcs), errUpdateSecret)
 }
 
 // An APIManagedBinder binds resources to claims by updating them in a

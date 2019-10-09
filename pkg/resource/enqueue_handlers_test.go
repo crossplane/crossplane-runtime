@@ -21,6 +21,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -46,7 +47,6 @@ func TestAddClaim(t *testing.T) {
 		queue adder
 	}{
 		"ObjectIsNotAClaimReferencer": {
-			obj:   &corev1.Pod{},
 			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
 		},
 		"ObjectHasNilClaimReference": {
@@ -63,12 +63,53 @@ func TestAddClaim(t *testing.T) {
 				if diff := cmp.Diff(want, got); diff != "" {
 					t.Errorf("-want, +got:\n%s", diff)
 				}
-
 			}),
 		},
 	}
 
 	for _, tc := range cases {
 		addClaim(tc.obj, tc.queue)
+	}
+}
+
+func TestAddPropagator(t *testing.T) {
+	ns := "coolns"
+	name := "coolname"
+
+	cases := map[string]struct {
+		obj   runtime.Object
+		queue adder
+	}{
+		"ObjectIsNotAnnotated": {
+			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
+		},
+		"ObjectMissing" + AnnotationKeyPropagateFromNamespace: {
+			obj: &MockManaged{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+				AnnotationKeyPropagateFromName: name,
+			}}},
+			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
+		},
+		"ObjectMissing" + AnnotationKeyPropagateFromName: {
+			obj: &MockManaged{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+				AnnotationKeyPropagateFromNamespace: ns,
+			}}},
+			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
+		},
+		"IsPropagatedObject": {
+			obj: &MockManaged{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+				AnnotationKeyPropagateFromNamespace: ns,
+				AnnotationKeyPropagateFromName:      name,
+			}}},
+			queue: addFn(func(got interface{}) {
+				want := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: ns, Name: name}}
+				if diff := cmp.Diff(want, got); diff != "" {
+					t.Errorf("-want, +got:\n%s", diff)
+				}
+			}),
+		},
+	}
+
+	for _, tc := range cases {
+		addPropagator(tc.obj, tc.queue)
 	}
 }
