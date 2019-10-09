@@ -152,3 +152,38 @@ func TestSetConditions(t *testing.T) {
 		})
 	}
 }
+
+func TestConditionWithMessage(t *testing.T) {
+	testMsg := "Something went wrong on cloud side"
+	cases := map[string]struct {
+		c    Condition
+		msg  string
+		want Condition
+	}{
+		"MessageAdded": {
+			c:    Condition{Type: TypeReady, Reason: ReasonUnavailable},
+			msg:  testMsg,
+			want: Condition{Type: TypeReady, Reason: ReasonUnavailable, Message: testMsg},
+		},
+		"MessageChanged": {
+			c:    Condition{Type: TypeReady, Reason: ReasonUnavailable, Message: "Some other message"},
+			msg:  testMsg,
+			want: Condition{Type: TypeReady, Reason: ReasonUnavailable, Message: testMsg},
+		},
+		"MessageCleared": {
+			c:    Condition{Type: TypeReady, Reason: ReasonUnavailable, Message: testMsg},
+			msg:  "",
+			want: Condition{Type: TypeReady, Reason: ReasonUnavailable},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := tc.c.WithMessage(tc.msg)
+
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("a.Equal(b): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}

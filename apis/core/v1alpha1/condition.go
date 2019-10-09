@@ -84,6 +84,13 @@ func (c Condition) Equal(other Condition) bool {
 		c.Message == other.Message
 }
 
+// WithMessage returns a condition by adding the provided message to existing
+// condition.
+func (c Condition) WithMessage(msg string) Condition {
+	c.Message = msg
+	return c
+}
+
 // NOTE(negz): Conditions are implemented as a slice rather than a map to comply
 // with Kubernetes API conventions. Ideally we'd comply by using a map that
 // marshalled to a JSON array, but doing so confuses the CRD schema generator.
@@ -204,21 +211,6 @@ func Unavailable() Condition {
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonUnavailable,
-	}
-}
-
-// UnavailableWithMessage returns a condition that indicates the managed
-// resource is not currently available for use and contains the message returned
-// by the API. Unavailable should be set only when Crossplane expects the managed
-// resource to be available but knows it is not, for example because its API
-// reports it is unhealthy.
-func UnavailableWithMessage(msg string) Condition {
-	return Condition{
-		Type:               TypeReady,
-		Status:             corev1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonUnavailable,
-		Message:            msg,
 	}
 }
 
