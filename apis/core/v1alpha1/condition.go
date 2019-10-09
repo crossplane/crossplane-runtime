@@ -84,6 +84,13 @@ func (c Condition) Equal(other Condition) bool {
 		c.Message == other.Message
 }
 
+// WithMessage returns a condition by adding the provided message to existing
+// condition.
+func (c Condition) WithMessage(msg string) Condition {
+	c.Message = msg
+	return c
+}
+
 // NOTE(negz): Conditions are implemented as a slice rather than a map to comply
 // with Kubernetes API conventions. Ideally we'd comply by using a map that
 // marshalled to a JSON array, but doing so confuses the CRD schema generator.
