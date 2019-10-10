@@ -23,6 +23,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 )
 
 /*
@@ -192,4 +194,14 @@ func WasCreated(o metav1.Object) bool {
 	// returns a reference while CreationTimestamp returns a value.
 	t := o.GetCreationTimestamp()
 	return !t.IsZero()
+}
+
+// GetExternalName returns the external name annotation value on the resource.
+func GetExternalName(o metav1.Object) string {
+	return o.GetAnnotations()[v1alpha1.ExternalNameAnnotationKey]
+}
+
+// SetExternalName sets the external name annotation of the resource.
+func SetExternalName(o metav1.Object, name string) {
+	AddAnnotations(o, map[string]string{v1alpha1.ExternalNameAnnotationKey: name})
 }

@@ -19,6 +19,8 @@ package meta
 import (
 	"testing"
 
+	"github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -750,6 +752,58 @@ func TestWasCreated(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			got := WasCreated(tc.o)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("WasCreated(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestGetExternalName(t *testing.T) {
+	testName := "my-external-name"
+
+	cases := map[string]struct {
+		o    metav1.Object
+		want string
+	}{
+		"ExternalNameExists": {
+			o:    &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{v1alpha1.ExternalNameAnnotationKey: testName}}},
+			want: testName,
+		},
+		"NoExternalName": {
+			o:    &corev1.Pod{},
+			want: "",
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := GetExternalName(tc.o)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("WasCreated(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestSetExternalName(t *testing.T) {
+	testName := "my-external-name"
+
+	cases := map[string]struct {
+		o    metav1.Object
+		name string
+		want metav1.Object
+	}{
+		"SetsTheCorrectKey": {
+			o:    &corev1.Pod{},
+			name: testName,
+			want: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{v1alpha1.ExternalNameAnnotationKey: testName}}},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			SetExternalName(tc.o, tc.name)
+			if diff := cmp.Diff(tc.want, tc.o); diff != "" {
 				t.Errorf("WasCreated(...): -want, +got:\n%s", diff)
 			}
 		})

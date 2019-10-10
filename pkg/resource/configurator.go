@@ -20,8 +20,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
-
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -57,8 +55,8 @@ func NewObjectMetaConfigurator(t runtime.ObjectTyper) *ObjectMetaConfigurator {
 func (c *ObjectMetaConfigurator) Configure(_ context.Context, cm Claim, cs NonPortableClass, mg Managed) error {
 	mg.SetNamespace(cs.GetNamespace())
 	mg.SetGenerateName(fmt.Sprintf("%s-%s-", cm.GetNamespace(), cm.GetName()))
-	if cm.GetAnnotations() != nil && cm.GetAnnotations()[v1alpha1.ExternalNameAnnotationKey] != "" {
-		meta.AddAnnotations(mg, map[string]string{v1alpha1.ExternalNameAnnotationKey: cm.GetAnnotations()[v1alpha1.ExternalNameAnnotationKey]})
+	if meta.GetExternalName(cm) != "" {
+		meta.SetExternalName(mg, meta.GetExternalName(cm))
 	}
 	// TODO(negz): Don't set this potentially cross-namespace owner reference.
 	// We probably want to use the resource's reclaim policy, not Kubernetes

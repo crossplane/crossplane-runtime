@@ -155,9 +155,8 @@ func NewAPIManagedBinder(c client.Client) *APIManagedBinder {
 func (a *APIManagedBinder) Bind(ctx context.Context, cm Claim, mg Managed) error {
 	cm.SetBindingPhase(v1alpha1.BindingPhaseBound)
 	// Propagate back the final name of the external resource to the claim.
-	if mg.GetAnnotations() != nil {
-		meta.AddAnnotations(cm,
-			map[string]string{v1alpha1.ExternalNameAnnotationKey: mg.GetAnnotations()[v1alpha1.ExternalNameAnnotationKey]})
+	if meta.GetExternalName(mg) != "" {
+		meta.SetExternalName(cm, meta.GetExternalName(mg))
 	}
 	mg.SetBindingPhase(v1alpha1.BindingPhaseBound)
 	if err := a.client.Update(ctx, mg); err != nil {
@@ -183,9 +182,8 @@ func NewAPIManagedStatusBinder(c client.Client) *APIManagedStatusBinder {
 func (a *APIManagedStatusBinder) Bind(ctx context.Context, cm Claim, mg Managed) error {
 	cm.SetBindingPhase(v1alpha1.BindingPhaseBound)
 	// Propagate back the final name of the external resource to the claim.
-	if mg.GetAnnotations() != nil {
-		meta.AddAnnotations(cm,
-			map[string]string{v1alpha1.ExternalNameAnnotationKey: mg.GetAnnotations()[v1alpha1.ExternalNameAnnotationKey]})
+	if meta.GetExternalName(mg) != "" {
+		meta.SetExternalName(cm, meta.GetExternalName(mg))
 	}
 	mg.SetBindingPhase(v1alpha1.BindingPhaseBound)
 	if err := a.client.Status().Update(ctx, mg); err != nil {
@@ -314,9 +312,9 @@ func NewManagedNameAsExternalName(c client.Client) *ManagedNameAsExternalName {
 
 // Initialize the given managed resource.
 func (a *ManagedNameAsExternalName) Initialize(ctx context.Context, mg Managed) error {
-	if mg.GetAnnotations() != nil && mg.GetAnnotations()[v1alpha1.ExternalNameAnnotationKey] == mg.GetName() {
+	if meta.GetExternalName(mg) == mg.GetName() {
 		return nil
 	}
-	meta.AddAnnotations(mg, map[string]string{v1alpha1.ExternalNameAnnotationKey: mg.GetName()})
+	meta.SetExternalName(mg, mg.GetName())
 	return errors.Wrap(a.client.Update(ctx, mg), errUpdateManaged)
 }
