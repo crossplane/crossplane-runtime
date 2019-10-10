@@ -52,23 +52,17 @@ type ResourceClaimSpec struct {
 	// TODO(negz): Make the below references immutable once set? Doing so means
 	// we don't have to track what provisioner was used to create a resource.
 
-	// A PortableClassReference specifies the name of a portable resource class,
-	// in the same namespace as this resource claim, that will be used to
+	// A ClassReference specifies a resource class that will be used to
 	// dynamically provision a managed resource when the resource claim is
-	// created. The specified class kind must be aligned with the resource
-	// claim; e.g. a MySQLInstance kind resource claim always refers to a
-	// MySQLInstanceClass kind portable resource class. Omit the portable class
-	// reference if you wish to bind to a specific managed resource (known as
-	// static binding), or to use the default portable class for the resource
-	// claim's namespace (if any).
+	// created. Omit the class reference if you wish to bind to a specific
+	// managed resource (known as static binding).
 	// +optional
-	PortableClassReference *corev1.LocalObjectReference `json:"classRef,omitempty"`
+	ClassReference *corev1.ObjectReference `json:"classRef,omitempty"`
 
 	// A ResourceReference specifies an existing managed resource, in any
 	// namespace, to which this resource claim should attempt to bind. Omit the
-	// resource reference to enable dynamic provisioning using a portable
-	// resource class; the resource reference will be automatically populated by
-	// Crossplane.
+	// resource reference to enable dynamic provisioning using a resource class;
+	// the resource reference will be automatically populated by Crossplane.
 	// +optional
 	ResourceReference *corev1.ObjectReference `json:"resourceRef,omitempty"`
 }
@@ -99,12 +93,12 @@ type ResourceSpec struct {
 	// +optional
 	ClaimReference *corev1.ObjectReference `json:"claimRef,omitempty"`
 
-	// NonPortableClassReference specifies the non-portable resource class that
-	// was used to dynamically provision this managed resource, if any.
-	// Crossplane does not currently support setting this field manually, per
+	// ClassReference specifies the resource class that was used to dynamically
+	// provision this managed resource, if any. Crossplane does not currently
+	// support setting this field manually, per
 	// https://github.com/crossplaneio/crossplane-runtime/issues/20
 	// +optional
-	NonPortableClassReference *corev1.ObjectReference `json:"classRef,omitempty"`
+	ClassReference *corev1.ObjectReference `json:"classRef,omitempty"`
 
 	// ProviderReference specifies the provider that will be used to create,
 	// observe, update, and delete this managed resource.
@@ -126,10 +120,10 @@ type ResourceStatus struct {
 	BindingStatus     `json:",inline"`
 }
 
-// NonPortableClassSpecTemplate defines a template that will be used to create
-// the specifications of managed resources dynamically provisioned using a
-// resource class.
-type NonPortableClassSpecTemplate struct {
+// A ClassSpecTemplate defines a template that will be used to create the
+// specifications of managed resources dynamically provisioned using a resource
+// class.
+type ClassSpecTemplate struct {
 	// ProviderReference specifies the provider that will be used to create,
 	// observe, update, and delete managed resources that are dynamically
 	// provisioned using this resource class.
@@ -143,26 +137,4 @@ type NonPortableClassSpecTemplate struct {
 	// https://github.com/crossplaneio/crossplane-runtime/issues/21
 	// +optional
 	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
-}
-
-// PortableClass contains standard fields that all portable classes should include. Class
-// should typically be embedded in a specific portable class.
-
-// A PortableClass connects a portable resource claim to a non-portable resource
-// class used for dynamic provisioning.
-type PortableClass struct {
-
-	// NonPortableClassReference is a reference to a resource class kind that is
-	// not portable across cloud providers, such as an RDSInstanceClass.
-	NonPortableClassReference *corev1.ObjectReference `json:"classRef,omitempty"`
-}
-
-// SetNonPortableClassReference of this Class
-func (c *PortableClass) SetNonPortableClassReference(r *corev1.ObjectReference) {
-	c.NonPortableClassReference = r
-}
-
-// GetNonPortableClassReference of this Class
-func (c *PortableClass) GetNonPortableClassReference() *corev1.ObjectReference {
-	return c.NonPortableClassReference
 }

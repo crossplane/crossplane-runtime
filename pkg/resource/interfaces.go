@@ -44,16 +44,10 @@ type ClaimReferencer interface {
 	GetClaimReference() *corev1.ObjectReference
 }
 
-// A NonPortableClassReferencer may reference a non-portable resource class.
-type NonPortableClassReferencer interface {
-	SetNonPortableClassReference(r *corev1.ObjectReference)
-	GetNonPortableClassReference() *corev1.ObjectReference
-}
-
-// A PortableClassReferencer may reference a local portable class.
-type PortableClassReferencer interface {
-	SetPortableClassReference(r *corev1.LocalObjectReference)
-	GetPortableClassReference() *corev1.LocalObjectReference
+// A ClassReferencer may reference a resource class.
+type ClassReferencer interface {
+	SetClassReference(r *corev1.ObjectReference)
+	GetClassReference() *corev1.ObjectReference
 }
 
 // A ManagedResourceReferencer may reference a concrete managed resource.
@@ -74,12 +68,6 @@ type Reclaimer interface {
 	GetReclaimPolicy() v1alpha1.ReclaimPolicy
 }
 
-// A PortableClassLister may contain a list of portable classes.
-type PortableClassLister interface {
-	SetPortableClassItems(i []PortableClass)
-	GetPortableClassItems() []PortableClass
-}
-
 // A Claim is a Kubernetes object representing an abstract resource claim (e.g.
 // an SQL database) that may be bound to a concrete managed resource (e.g. a
 // CloudSQL instance).
@@ -87,7 +75,7 @@ type Claim interface {
 	runtime.Object
 	metav1.Object
 
-	PortableClassReferencer
+	ClassReferencer
 	ManagedResourceReferencer
 	ConnectionSecretWriterTo
 
@@ -95,9 +83,9 @@ type Claim interface {
 	Bindable
 }
 
-// A NonPortableClass is a Kubernetes object representing configuration
-// specifications for a manged resource.
-type NonPortableClass interface {
+// A Class is a Kubernetes object representing configuration specifications for
+// a managed resource.
+type Class interface {
 	runtime.Object
 	metav1.Object
 
@@ -110,29 +98,11 @@ type Managed interface {
 	runtime.Object
 	metav1.Object
 
-	NonPortableClassReferencer
+	ClassReferencer
 	ClaimReferencer
 	ConnectionSecretWriterTo
 	Reclaimer
 
 	Conditioned
 	Bindable
-}
-
-// A PortableClass is a Kubernetes object representing a default
-// behavior for a given claim kind.
-type PortableClass interface {
-	runtime.Object
-	metav1.Object
-
-	NonPortableClassReferencer
-}
-
-// A PortableClassList is a Kubernetes object representing representing
-// a list of portable classes.
-type PortableClassList interface {
-	runtime.Object
-	metav1.ListInterface
-
-	PortableClassLister
 }

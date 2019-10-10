@@ -24,7 +24,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -57,15 +56,8 @@ var log = logging.Logger.WithName("controller")
 // A ClaimKind contains the type metadata for a kind of resource claim.
 type ClaimKind schema.GroupVersionKind
 
-// A NonPortableClassKind contains the type metadata for a kind of
-// non-portable resource class.
-type NonPortableClassKind schema.GroupVersionKind
-
-// A ClassKinds contains the type metadata for a kind of resource class.
-type ClassKinds struct {
-	Portable    schema.GroupVersionKind
-	NonPortable schema.GroupVersionKind
-}
+// A ClassKind contains the type metadata for a kind of resource class.
+type ClassKind schema.GroupVersionKind
 
 // A ManagedKind contains the type metadata for a kind of managed resource.
 type ManagedKind schema.GroupVersionKind
@@ -73,15 +65,15 @@ type ManagedKind schema.GroupVersionKind
 // A ManagedConfigurator configures a resource, typically by converting it to
 // a known type and populating its spec.
 type ManagedConfigurator interface {
-	Configure(ctx context.Context, cm Claim, cs NonPortableClass, mg Managed) error
+	Configure(ctx context.Context, cm Claim, cs Class, mg Managed) error
 }
 
 // A ManagedConfiguratorFn is a function that satisfies the
 // ManagedConfigurator interface.
-type ManagedConfiguratorFn func(ctx context.Context, cm Claim, cs NonPortableClass, mg Managed) error
+type ManagedConfiguratorFn func(ctx context.Context, cm Claim, cs Class, mg Managed) error
 
 // Configure the supplied resource using the supplied claim and class.
-func (fn ManagedConfiguratorFn) Configure(ctx context.Context, cm Claim, cs NonPortableClass, mg Managed) error {
+func (fn ManagedConfiguratorFn) Configure(ctx context.Context, cm Claim, cs Class, mg Managed) error {
 	return fn(ctx, cm, cs, mg)
 }
 
@@ -90,14 +82,14 @@ func (fn ManagedConfiguratorFn) Configure(ctx context.Context, cm Claim, cs NonP
 // responsible for final modifications to the claim and resource, for example
 // ensuring resource, class, claim, and owner references are set.
 type ManagedCreator interface {
-	Create(ctx context.Context, cm Claim, cs NonPortableClass, mg Managed) error
+	Create(ctx context.Context, cm Claim, cs Class, mg Managed) error
 }
 
 // A ManagedCreatorFn is a function that satisfies the ManagedCreator interface.
-type ManagedCreatorFn func(ctx context.Context, cm Claim, cs NonPortableClass, mg Managed) error
+type ManagedCreatorFn func(ctx context.Context, cm Claim, cs Class, mg Managed) error
 
 // Create the supplied resource.
-func (fn ManagedCreatorFn) Create(ctx context.Context, cm Claim, cs NonPortableClass, mg Managed) error {
+func (fn ManagedCreatorFn) Create(ctx context.Context, cm Claim, cs Class, mg Managed) error {
 	return fn(ctx, cm, cs, mg)
 }
 
@@ -164,11 +156,10 @@ func (fn ClaimFinalizerFn) Finalize(ctx context.Context, cm Claim) error {
 // type of resource class provisioner. Each controller must watch its subset of
 // resource claims and any managed resources they control.
 type ClaimReconciler struct {
-	client              client.Client
-	newClaim            func() Claim
-	newNonPortableClass func() NonPortableClass
-	newPortableClass    func() PortableClass
-	newManaged          func() Managed
+	client     client.Client
+	newClaim   func() Claim
+	newClass   func() Class
+	newManaged func() Managed
 
 	// The below structs embed the set of interfaces used to implement the
 	// resource claim reconciler. We do this primarily for readability, so that
@@ -261,24 +252,22 @@ func WithClaimFinalizer(f ClaimFinalizer) ClaimReconcilerOption {
 // with the supplied manager's runtime.Scheme. The returned ClaimReconciler will
 // apply only the ObjectMetaConfigurator by default; most callers should supply
 // one or more ManagedConfigurators to configure their managed resources.
-func NewClaimReconciler(m manager.Manager, of ClaimKind, using ClassKinds, with ManagedKind, o ...ClaimReconcilerOption) *ClaimReconciler {
+func NewClaimReconciler(m manager.Manager, of ClaimKind, using ClassKind, with ManagedKind, o ...ClaimReconcilerOption) *ClaimReconciler {
 	nc := func() Claim { return MustCreateObject(schema.GroupVersionKind(of), m.GetScheme()).(Claim) }
-	ns := func() NonPortableClass { return MustCreateObject(using.NonPortable, m.GetScheme()).(NonPortableClass) }
-	np := func() PortableClass { return MustCreateObject(using.Portable, m.GetScheme()).(PortableClass) }
+	ns := func() Class { return MustCreateObject(schema.GroupVersionKind(using), m.GetScheme()).(Class) }
 	nr := func() Managed { return MustCreateObject(schema.GroupVersionKind(with), m.GetScheme()).(Managed) }
 
 	// Panic early if we've been asked to reconcile a claim or resource kind
 	// that has not been registered with our controller manager's scheme.
-	_, _, _, _ = nc(), ns(), np(), nr()
+	_, _, _ = nc(), ns(), nr()
 
 	r := &ClaimReconciler{
-		client:              m.GetClient(),
-		newClaim:            nc,
-		newNonPortableClass: ns,
-		newPortableClass:    np,
-		newManaged:          nr,
-		managed:             defaultCRManaged(m),
-		claim:               defaultCRClaim(m),
+		client:     m.GetClient(),
+		newClaim:   nc,
+		newClass:   ns,
+		newManaged: nr,
+		managed:    defaultCRManaged(m),
+		claim:      defaultCRClaim(m),
 	}
 
 	for _, ro := range o {
@@ -342,26 +331,12 @@ func (r *ClaimReconciler) Reconcile(req reconcile.Request) (reconcile.Result, er
 	}
 
 	if !meta.WasCreated(managed) {
-		portable := r.newPortableClass()
-		// Portable class reference should always be set by the time we get this far;
+		// Class reference should always be set by the time we get this far;
 		// Our watch predicates require it.
-		p := types.NamespacedName{
-			Namespace: claim.GetNamespace(),
-			Name:      claim.GetPortableClassReference().Name,
-		}
-		if err := r.client.Get(ctx, p, portable); err != nil {
-			// If we didn't hit this error last time we'll be requeued
-			// implicitly due to the status update. Otherwise we want to retry
-			// after a brief wait, in case this was a transient error or the
-			// portable class is (re)created.
-			claim.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(err))
-			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, claim), errUpdateClaimStatus)
-		}
-
-		class := r.newNonPortableClass()
+		class := r.newClass()
 		// Class reference should always be set by the time we get this far; we
 		// set it on last reconciliation.
-		if err := r.client.Get(ctx, meta.NamespacedNameOf(portable.GetNonPortableClassReference()), class); err != nil {
+		if err := r.client.Get(ctx, meta.NamespacedNameOf(claim.GetClassReference()), class); err != nil {
 			// If we didn't hit this error last time we'll be requeued
 			// implicitly due to the status update. Otherwise we want to retry
 			// after a brief wait, in case this was a transient error or the

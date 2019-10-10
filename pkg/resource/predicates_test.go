@@ -110,18 +110,18 @@ func TestHasManagedResourceReferenceKind(t *testing.T) {
 	}{
 		"NotAClassReferencer": {
 			c:    &test.MockClient{},
-			s:    MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockManaged{}),
+			s:    MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 			kind: ManagedKind(MockGVK(&MockManaged{})),
 			want: false,
 		},
 		"HasNoResourceReference": {
-			s:    MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockManaged{}),
+			s:    MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 			obj:  &MockClaim{},
 			kind: ManagedKind(MockGVK(&MockManaged{})),
 			want: false,
 		},
 		"HasCorrectResourceReference": {
-			s: MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockManaged{}),
+			s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 			obj: &MockClaim{
 				MockManagedResourceReferencer: MockManagedResourceReferencer{
 					Ref: &corev1.ObjectReference{
@@ -335,100 +335,7 @@ func TestIsPropagated(t *testing.T) {
 	}
 }
 
-func TestHasIndirectClassReferenceKind(t *testing.T) {
-	errUnexpected := errors.New("unexpected object type")
-
-	type withoutNamespace struct {
-		runtime.Object
-		*MockPortableClassReferencer
-	}
-
-	cases := map[string]struct {
-		obj  runtime.Object
-		c    client.Client
-		s    runtime.ObjectCreater
-		kind ClassKinds
-		want bool
-	}{
-		"NotAPortableClassReferencer": {
-			s:    MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}),
-			kind: ClassKinds{Portable: MockGVK(&MockPortableClass{}), NonPortable: MockGVK(&MockNonPortableClass{})},
-			want: false,
-		},
-		"NoPortableClassReference": {
-			s:    MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}),
-			obj:  &MockClaim{},
-			kind: ClassKinds{Portable: MockGVK(&MockPortableClass{}), NonPortable: MockGVK(&MockNonPortableClass{})},
-			want: false,
-		},
-		"NotANamespacer": {
-			s:    MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}),
-			obj:  withoutNamespace{MockPortableClassReferencer: &MockPortableClassReferencer{Ref: &corev1.LocalObjectReference{}}},
-			kind: ClassKinds{Portable: MockGVK(&MockPortableClass{}), NonPortable: MockGVK(&MockNonPortableClass{})},
-			want: false,
-		},
-		"GetPortableClassError": {
-			c:    &test.MockClient{MockGet: test.NewMockGetFn(errors.New("boom"))},
-			s:    MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}),
-			obj:  &MockClaim{MockPortableClassReferencer: MockPortableClassReferencer{Ref: &corev1.LocalObjectReference{}}},
-			kind: ClassKinds{Portable: MockGVK(&MockPortableClass{}), NonPortable: MockGVK(&MockNonPortableClass{})},
-			want: false,
-		},
-		"IncorrectNonPortableClassKind": {
-			c: &test.MockClient{
-				MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
-					switch o := o.(type) {
-					case *MockPortableClass:
-						pc := &MockPortableClass{}
-						pc.SetNonPortableClassReference(&corev1.ObjectReference{})
-						*o = *pc
-						return nil
-					default:
-						return errUnexpected
-					}
-				}),
-			},
-			s:    MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}),
-			obj:  &MockClaim{MockPortableClassReferencer: MockPortableClassReferencer{Ref: &corev1.LocalObjectReference{}}},
-			kind: ClassKinds{Portable: MockGVK(&MockPortableClass{}), NonPortable: MockGVK(&MockNonPortableClass{})},
-			want: false,
-		},
-		"CorrectNonPortableClassKind": {
-			c: &test.MockClient{
-				MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
-					switch o := o.(type) {
-					case *MockPortableClass:
-						pc := &MockPortableClass{}
-						version, kind := MockGVK(&MockNonPortableClass{}).ToAPIVersionAndKind()
-						pc.SetNonPortableClassReference(&corev1.ObjectReference{
-							Kind:       kind,
-							APIVersion: version,
-						})
-						*o = *pc
-						return nil
-					default:
-						return errUnexpected
-					}
-				}),
-			},
-			s:    MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}),
-			obj:  &MockClaim{MockPortableClassReferencer: MockPortableClassReferencer{Ref: &corev1.LocalObjectReference{}}},
-			kind: ClassKinds{Portable: MockGVK(&MockPortableClass{}), NonPortable: MockGVK(&MockNonPortableClass{})},
-			want: true,
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			got := HasIndirectClassReferenceKind(tc.c, tc.s, tc.kind)(tc.obj)
-			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("HasIndirectClassReferenceKind(...): -want, +got:\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestHasNoPortableClassReference(t *testing.T) {
+func TestHasNoClassReference(t *testing.T) {
 	cases := map[string]struct {
 		obj  runtime.Object
 		want bool
@@ -441,14 +348,14 @@ func TestHasNoPortableClassReference(t *testing.T) {
 			want: true,
 		},
 		"HasClassReference": {
-			obj:  &MockClaim{MockPortableClassReferencer: MockPortableClassReferencer{Ref: &corev1.LocalObjectReference{}}},
+			obj:  &MockClaim{MockClassReferencer: MockClassReferencer{Ref: &corev1.ObjectReference{}}},
 			want: false,
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := HasNoPortableClassReference()(tc.obj)
+			got := HasNoClassReference()(tc.obj)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("NoClassReference(...): -want, +got:\n%s", diff)
 			}

@@ -40,7 +40,7 @@ func TestConfiguratorChain(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		cm  Claim
-		cs  NonPortableClass
+		cs  Class
 		mg  Managed
 	}
 
@@ -54,35 +54,35 @@ func TestConfiguratorChain(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				cm:  &MockClaim{},
-				cs:  &MockNonPortableClass{},
+				cs:  &MockClass{},
 				mg:  &MockManaged{},
 			},
 			want: nil,
 		},
 		"SuccessulConfigurator": {
 			cc: ConfiguratorChain{
-				ManagedConfiguratorFn(func(_ context.Context, _ Claim, _ NonPortableClass, _ Managed) error {
+				ManagedConfiguratorFn(func(_ context.Context, _ Claim, _ Class, _ Managed) error {
 					return nil
 				}),
 			},
 			args: args{
 				ctx: context.Background(),
 				cm:  &MockClaim{},
-				cs:  &MockNonPortableClass{},
+				cs:  &MockClass{},
 				mg:  &MockManaged{},
 			},
 			want: nil,
 		},
 		"ConfiguratorReturnsError": {
 			cc: ConfiguratorChain{
-				ManagedConfiguratorFn(func(_ context.Context, _ Claim, _ NonPortableClass, _ Managed) error {
+				ManagedConfiguratorFn(func(_ context.Context, _ Claim, _ Class, _ Managed) error {
 					return errBoom
 				}),
 			},
 			args: args{
 				ctx: context.Background(),
 				cm:  &MockClaim{},
-				cs:  &MockNonPortableClass{},
+				cs:  &MockClass{},
 				mg:  &MockManaged{},
 			},
 			want: errBoom,
@@ -108,7 +108,7 @@ func TestConfigureObjectMeta(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		cm  Claim
-		cs  NonPortableClass
+		cs  Class
 		mg  Managed
 	}
 
@@ -127,7 +127,7 @@ func TestConfigureObjectMeta(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				cm:  &MockClaim{ObjectMeta: metav1.ObjectMeta{Name: claimName, Namespace: claimNS, UID: uid}},
-				cs:  &MockNonPortableClass{ObjectMeta: metav1.ObjectMeta{Namespace: ns}},
+				cs:  &MockClass{ObjectMeta: metav1.ObjectMeta{Namespace: ns}},
 				mg:  &MockManaged{},
 			},
 			want: want{
