@@ -891,3 +891,82 @@ func TestEstablishManaged(t *testing.T) {
 		})
 	}
 }
+
+func TestInitializeManaged(t *testing.T) {
+	type args struct {
+		ctx context.Context
+		mg  Managed
+	}
+
+	type want struct {
+		err error
+		mg  Managed
+	}
+
+	errBoom := errors.New("boom")
+	testExternalName := "my-external-name"
+
+	cases := map[string]struct {
+		client client.Client
+		args   args
+		want   want
+	}{
+		"UpdateManagedError": {
+			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(errBoom)},
+			args: args{
+				ctx: context.Background(),
+				mg:  &MockManaged{ObjectMeta: metav1.ObjectMeta{Name: testExternalName}},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errUpdateManaged),
+				mg: &MockManaged{ObjectMeta: metav1.ObjectMeta{
+					Name:        testExternalName,
+					Annotations: map[string]string{meta.ExternalNameAnnotationKey: testExternalName},
+				}},
+			},
+		},
+		"UpdateSuccessful": {
+			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil)},
+			args: args{
+				ctx: context.Background(),
+				mg:  &MockManaged{ObjectMeta: metav1.ObjectMeta{Name: testExternalName}},
+			},
+			want: want{
+				err: nil,
+				mg: &MockManaged{ObjectMeta: metav1.ObjectMeta{
+					Name:        testExternalName,
+					Annotations: map[string]string{meta.ExternalNameAnnotationKey: testExternalName},
+				}},
+			},
+		},
+		"UpdateNotNeeded": {
+			args: args{
+				ctx: context.Background(),
+				mg: &MockManaged{ObjectMeta: metav1.ObjectMeta{
+					Name:        testExternalName,
+					Annotations: map[string]string{meta.ExternalNameAnnotationKey: testExternalName},
+				}},
+			},
+			want: want{
+				err: nil,
+				mg: &MockManaged{ObjectMeta: metav1.ObjectMeta{
+					Name:        testExternalName,
+					Annotations: map[string]string{meta.ExternalNameAnnotationKey: testExternalName},
+				}},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			api := NewManagedNameAsExternalName(tc.client)
+			err := api.Initialize(tc.args.ctx, tc.args.mg)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("api.Establish(...): -want error, +got error:\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.want.mg, tc.args.mg, test.EquateConditions()); diff != "" {
+				t.Errorf("api.Establish(...) Managed: -want, +got:\n%s", diff)
+			}
+		})
+	}
+}

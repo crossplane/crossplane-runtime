@@ -19,8 +19,6 @@ package meta
 import (
 	"testing"
 
-	"github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -766,7 +764,7 @@ func TestGetExternalName(t *testing.T) {
 		want string
 	}{
 		"ExternalNameExists": {
-			o:    &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{v1alpha1.ExternalNameAnnotationKey: testName}}},
+			o:    &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{ExternalNameAnnotationKey: testName}}},
 			want: testName,
 		},
 		"NoExternalName": {
@@ -796,7 +794,7 @@ func TestSetExternalName(t *testing.T) {
 		"SetsTheCorrectKey": {
 			o:    &corev1.Pod{},
 			name: testName,
-			want: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{v1alpha1.ExternalNameAnnotationKey: testName}}},
+			want: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{ExternalNameAnnotationKey: testName}}},
 		},
 	}
 

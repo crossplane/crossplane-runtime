@@ -23,8 +23,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-
-	"github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 )
 
 /*
@@ -33,6 +31,12 @@ import (
 	an ObjectReference using ReferenceTo() than it is to make an ObjectReference
 	satisfy metav1.Object.
 */
+
+const (
+	// ExternalNameAnnotationKey is the key in the annotations map of a resource
+	// for the name of the resource as it appears on provider's systems.
+	ExternalNameAnnotationKey = "crossplane.io/external-name"
+)
 
 // ReferenceTo returns an object reference to the supplied object, presumed to
 // be of the supplied group, version, and kind.
@@ -198,10 +202,10 @@ func WasCreated(o metav1.Object) bool {
 
 // GetExternalName returns the external name annotation value on the resource.
 func GetExternalName(o metav1.Object) string {
-	return o.GetAnnotations()[v1alpha1.ExternalNameAnnotationKey]
+	return o.GetAnnotations()[ExternalNameAnnotationKey]
 }
 
 // SetExternalName sets the external name annotation of the resource.
 func SetExternalName(o metav1.Object, name string) {
-	AddAnnotations(o, map[string]string{v1alpha1.ExternalNameAnnotationKey: name})
+	AddAnnotations(o, map[string]string{ExternalNameAnnotationKey: name})
 }
