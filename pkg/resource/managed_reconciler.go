@@ -73,20 +73,6 @@ func (fn ManagedConnectionPublisherFns) UnpublishConnection(ctx context.Context,
 	return fn.UnpublishConnectionFn(ctx, mg, c)
 }
 
-// A ManagedEstablisher establishes ownership of the supplied Managed resource.
-// This typically involves adding a finalizer to the object metadata.
-type ManagedEstablisher interface {
-	Establish(ctx context.Context, mg Managed) error
-}
-
-// ManagedEstablisherFn is the pluggable struct to produce objects with ManagedEstablisher interface.
-type ManagedEstablisherFn func(ctx context.Context, mg Managed) error
-
-// Establish calls ManagedEstablisherFn function.
-func (m ManagedEstablisherFn) Establish(ctx context.Context, mg Managed) error {
-	return m(ctx, mg)
-}
-
 // A ManagedInitializer establishes ownership of the supplied Managed resource.
 // This typically involves the operations that are run before calling any ExternalClient methods.
 type ManagedInitializer interface {
@@ -236,7 +222,6 @@ type ManagedReconciler struct {
 
 type mrManaged struct {
 	ManagedConnectionPublisher
-	ManagedEstablisher
 	ManagedFinalizer
 	ManagedInitializer
 }
@@ -244,9 +229,11 @@ type mrManaged struct {
 func defaultMRManaged(m manager.Manager) mrManaged {
 	return mrManaged{
 		ManagedConnectionPublisher: NewAPISecretPublisher(m.GetClient(), m.GetScheme()),
-		ManagedEstablisher:         NewAPIManagedFinalizerAdder(m.GetClient()),
 		ManagedFinalizer:           NewAPIManagedFinalizerRemover(m.GetClient()),
-		ManagedInitializer:         NewManagedNameAsExternalName(m.GetClient()),
+		ManagedInitializer: InitializerChain{
+			NewManagedNameAsExternalName(m.GetClient()),
+			NewAPIManagedFinalizerAdder(m.GetClient()),
+		},
 	}
 }
 
@@ -430,14 +417,6 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 	}
 
 	if !observation.ResourceExists {
-		if err := r.managed.Establish(ctx, managed); err != nil {
-			// If this is the first time we encounter this issue we'll be
-			// requeued implicitly when we update our status with the new error
-			// condition. If not, we want to try again after a short wait.
-			managed.SetConditions(v1alpha1.ReconcileError(err))
-			return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
-		}
-
 		creation, err := external.Create(ctx, managed)
 		if err != nil {
 			// We'll hit this condition if we can't create our external

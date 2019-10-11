@@ -137,6 +137,17 @@ func RemoveFinalizer(o metav1.Object, finalizer string) {
 	o.SetFinalizers(f)
 }
 
+// FinalizerExists checks whether given finalizer is already set.
+func FinalizerExists(o metav1.Object, finalizer string) bool {
+	f := o.GetFinalizers()
+	for _, e := range f {
+		if e == finalizer {
+			return true
+		}
+	}
+	return false
+}
+
 // AddLabels to the supplied object.
 func AddLabels(o metav1.Object, labels map[string]string) {
 	l := o.GetLabels()

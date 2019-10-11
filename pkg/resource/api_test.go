@@ -39,7 +39,8 @@ var (
 	_ ManagedBinder               = &APIManagedBinder{}
 	_ ManagedBinder               = &APIManagedStatusBinder{}
 	_ ClaimFinalizer              = &APIClaimFinalizerRemover{}
-	_ ManagedEstablisher          = &APIManagedFinalizerAdder{}
+	_ ManagedInitializer          = &APIManagedFinalizerAdder{}
+	_ ManagedInitializer          = &ManagedNameAsExternalName{}
 	_ ManagedFinalizer            = &APIManagedFinalizerRemover{}
 )
 
@@ -836,7 +837,7 @@ func TestFinalizeManaged(t *testing.T) {
 	}
 }
 
-func TestEstablishManaged(t *testing.T) {
+func TestAPIManagedFinalizerAdder(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		mg  Managed
@@ -881,18 +882,18 @@ func TestEstablishManaged(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			api := NewAPIManagedFinalizerAdder(tc.client)
-			err := api.Establish(tc.args.ctx, tc.args.mg)
+			err := api.Initialize(tc.args.ctx, tc.args.mg)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("api.Establish(...): -want error, +got error:\n%s", diff)
+				t.Errorf("api.Initialize(...): -want error, +got error:\n%s", diff)
 			}
 			if diff := cmp.Diff(tc.want.mg, tc.args.mg, test.EquateConditions()); diff != "" {
-				t.Errorf("api.Establish(...) Managed: -want, +got:\n%s", diff)
+				t.Errorf("api.Initialize(...) Managed: -want, +got:\n%s", diff)
 			}
 		})
 	}
 }
 
-func TestInitializeManaged(t *testing.T) {
+func TestManagedNameAsExternalName(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		mg  Managed
@@ -962,10 +963,10 @@ func TestInitializeManaged(t *testing.T) {
 			api := NewManagedNameAsExternalName(tc.client)
 			err := api.Initialize(tc.args.ctx, tc.args.mg)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("api.Establish(...): -want error, +got error:\n%s", diff)
+				t.Errorf("api.Initialize(...): -want error, +got error:\n%s", diff)
 			}
 			if diff := cmp.Diff(tc.want.mg, tc.args.mg, test.EquateConditions()); diff != "" {
-				t.Errorf("api.Establish(...) Managed: -want, +got:\n%s", diff)
+				t.Errorf("api.Initialize(...) Managed: -want, +got:\n%s", diff)
 			}
 		})
 	}

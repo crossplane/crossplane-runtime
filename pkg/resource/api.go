@@ -157,6 +157,9 @@ func (a *APIManagedBinder) Bind(ctx context.Context, cm Claim, mg Managed) error
 	// Propagate back the final name of the external resource to the claim.
 	if meta.GetExternalName(mg) != "" {
 		meta.SetExternalName(cm, meta.GetExternalName(mg))
+		if err := a.client.Update(ctx, cm); err != nil {
+			return errors.Wrap(err, errUpdateClaim)
+		}
 	}
 	mg.SetBindingPhase(v1alpha1.BindingPhaseBound)
 	if err := a.client.Update(ctx, mg); err != nil {
@@ -184,6 +187,9 @@ func (a *APIManagedStatusBinder) Bind(ctx context.Context, cm Claim, mg Managed)
 	// Propagate back the final name of the external resource to the claim.
 	if meta.GetExternalName(mg) != "" {
 		meta.SetExternalName(cm, meta.GetExternalName(mg))
+		if err := a.client.Update(ctx, cm); err != nil {
+			return errors.Wrap(err, errUpdateClaim)
+		}
 	}
 	mg.SetBindingPhase(v1alpha1.BindingPhaseBound)
 	if err := a.client.Status().Update(ctx, mg); err != nil {
@@ -271,21 +277,6 @@ func (a *APIManagedFinalizerRemover) Finalize(ctx context.Context, mg Managed) e
 	return errors.Wrap(a.client.Update(ctx, mg), errUpdateManaged)
 }
 
-// An APIManagedFinalizerAdder establishes ownership of a managed resource by
-// adding a finalizer and updating it in the API server.
-type APIManagedFinalizerAdder struct{ client client.Client }
-
-// NewAPIManagedFinalizerAdder returns a new APIManagedFinalizerAdder.
-func NewAPIManagedFinalizerAdder(c client.Client) *APIManagedFinalizerAdder {
-	return &APIManagedFinalizerAdder{client: c}
-}
-
-// Establish ownership of the supplied Managed resource.
-func (a *APIManagedFinalizerAdder) Establish(ctx context.Context, mg Managed) error {
-	meta.AddFinalizer(mg, managedFinalizerName)
-	return errors.Wrap(a.client.Update(ctx, mg), errUpdateManaged)
-}
-
 // A InitializerChain chains multiple managed initializers.
 type InitializerChain []ManagedInitializer
 
@@ -298,6 +289,24 @@ func (cc InitializerChain) Initialize(ctx context.Context, mg Managed) error {
 		}
 	}
 	return nil
+}
+
+// An APIManagedFinalizerAdder establishes ownership of a managed resource by
+// adding a finalizer and updating it in the API server.
+type APIManagedFinalizerAdder struct{ client client.Client }
+
+// NewAPIManagedFinalizerAdder returns a new APIManagedFinalizerAdder.
+func NewAPIManagedFinalizerAdder(c client.Client) *APIManagedFinalizerAdder {
+	return &APIManagedFinalizerAdder{client: c}
+}
+
+// Initialize ownership of the supplied Managed resource.
+func (a *APIManagedFinalizerAdder) Initialize(ctx context.Context, mg Managed) error {
+	if meta.FinalizerExists(mg, managedFinalizerName) {
+		return nil
+	}
+	meta.AddFinalizer(mg, managedFinalizerName)
+	return errors.Wrap(a.client.Update(ctx, mg), errUpdateManaged)
 }
 
 // ManagedNameAsExternalName writes the name of the managed resource to

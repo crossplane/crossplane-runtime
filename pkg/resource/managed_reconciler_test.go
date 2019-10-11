@@ -459,7 +459,7 @@ func TestManagedReconciler(t *testing.T) {
 						}
 					},
 					func(r *ManagedReconciler) {
-						r.managed.ManagedEstablisher = ManagedEstablisherFn(func(_ context.Context, mg Managed) error {
+						r.managed.ManagedInitializer = ManagedInitializerFn(func(_ context.Context, mg Managed) error {
 							mg.SetFinalizers(testFinalizers)
 							return nil
 						})
@@ -508,7 +508,7 @@ func TestManagedReconciler(t *testing.T) {
 						}
 					},
 					func(r *ManagedReconciler) {
-						r.managed.ManagedEstablisher = ManagedEstablisherFn(func(_ context.Context, mg Managed) error {
+						r.managed.ManagedInitializer = ManagedInitializerFn(func(_ context.Context, mg Managed) error {
 							mg.SetFinalizers(testFinalizers)
 							return nil
 						})
@@ -553,7 +553,7 @@ func TestManagedReconciler(t *testing.T) {
 						}
 					},
 					func(r *ManagedReconciler) {
-						r.managed.ManagedEstablisher = ManagedEstablisherFn(func(_ context.Context, _ Managed) error {
+						r.managed.ManagedInitializer = ManagedInitializerFn(func(_ context.Context, _ Managed) error {
 							return errBoom
 						})
 					},

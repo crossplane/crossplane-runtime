@@ -506,6 +506,59 @@ func TestRemoveFinalizer(t *testing.T) {
 	}
 }
 
+func TestFinalizerExists(t *testing.T) {
+	finalizer := "fin"
+	funalizer := "fun"
+
+	type args struct {
+		o         metav1.Object
+		finalizer string
+	}
+
+	cases := map[string]struct {
+		args args
+		want bool
+	}{
+		"NoExistingFinalizers": {
+			args: args{
+				o:         &corev1.Pod{},
+				finalizer: finalizer,
+			},
+			want: false,
+		},
+		"FinalizerExists": {
+			args: args{
+				o: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Finalizers: []string{finalizer},
+					},
+				},
+				finalizer: finalizer,
+			},
+			want: true,
+		},
+		"AnotherFinalizerExists": {
+			args: args{
+				o: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Finalizers: []string{funalizer},
+					},
+				},
+				finalizer: finalizer,
+			},
+			want: false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			if diff := cmp.Diff(tc.want, FinalizerExists(tc.args.o, tc.args.finalizer)); diff != "" {
+				t.Errorf("tc.args.o.GetFinalizers(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestAddLabels(t *testing.T) {
 	key, value := "key", "value"
 	existingKey, existingValue := "ekey", "evalue"
