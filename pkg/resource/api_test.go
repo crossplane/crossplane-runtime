@@ -945,14 +945,14 @@ func TestManagedNameAsExternalName(t *testing.T) {
 				ctx: context.Background(),
 				mg: &MockManaged{ObjectMeta: metav1.ObjectMeta{
 					Name:        testExternalName,
-					Annotations: map[string]string{meta.ExternalNameAnnotationKey: testExternalName},
+					Annotations: map[string]string{meta.ExternalNameAnnotationKey: "some-name"},
 				}},
 			},
 			want: want{
 				err: nil,
 				mg: &MockManaged{ObjectMeta: metav1.ObjectMeta{
 					Name:        testExternalName,
-					Annotations: map[string]string{meta.ExternalNameAnnotationKey: testExternalName},
+					Annotations: map[string]string{meta.ExternalNameAnnotationKey: "some-name"},
 				}},
 			},
 		},
