@@ -187,7 +187,7 @@ func TestPropagateConnection(t *testing.T) {
 				ctx: context.Background(),
 				cm:  &MockClaim{},
 				mg: &MockManaged{
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: mgcsname}},
+					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: &corev1.ObjectReference{Name: mgcsname}},
 				},
 			},
 			want: nil,
@@ -196,7 +196,7 @@ func TestPropagateConnection(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				cm: &MockClaim{
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: mgcsname}},
+					MockLocalConnectionSecretWriterTo: MockLocalConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: mgcsname}},
 				},
 				mg: &MockManaged{},
 			},
@@ -209,10 +209,10 @@ func TestPropagateConnection(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				cm: &MockClaim{
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: cmcsname}},
+					MockLocalConnectionSecretWriterTo: MockLocalConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: cmcsname}},
 				},
 				mg: &MockManaged{
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: mgcsname}},
+					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: &corev1.ObjectReference{Name: mgcsname}},
 				},
 			},
 			want: errors.Wrap(errBoom, errGetSecret),
@@ -248,12 +248,12 @@ func TestPropagateConnection(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				cm: &MockClaim{
-					ObjectMeta:                   metav1.ObjectMeta{Name: cmname},
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: cmcsname}},
+					ObjectMeta:                        metav1.ObjectMeta{Name: cmname},
+					MockLocalConnectionSecretWriterTo: MockLocalConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: cmcsname}},
 				},
 				mg: &MockManaged{
 					ObjectMeta:                   metav1.ObjectMeta{Name: mgname, UID: uid},
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: mgcsname}},
+					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: &corev1.ObjectReference{Name: mgcsname}},
 				},
 			},
 			want: errors.Wrap(errors.New(errSecretConflict), errCreateOrUpdateSecret),
@@ -285,12 +285,12 @@ func TestPropagateConnection(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				cm: &MockClaim{
-					ObjectMeta:                   metav1.ObjectMeta{Name: cmname},
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: cmcsname}},
+					ObjectMeta:                        metav1.ObjectMeta{Name: cmname},
+					MockLocalConnectionSecretWriterTo: MockLocalConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: cmcsname}},
 				},
 				mg: &MockManaged{
 					ObjectMeta:                   metav1.ObjectMeta{Name: mgname, UID: uid},
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: mgcsname}},
+					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: &corev1.ObjectReference{Name: mgcsname}},
 				},
 			},
 			want: errors.Wrap(errors.New(errSecretConflict), errCreateOrUpdateSecret),
@@ -331,12 +331,12 @@ func TestPropagateConnection(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				cm: &MockClaim{
-					ObjectMeta:                   metav1.ObjectMeta{Name: cmname},
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: cmcsname}},
+					ObjectMeta:                        metav1.ObjectMeta{Name: cmname},
+					MockLocalConnectionSecretWriterTo: MockLocalConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: cmcsname}},
 				},
 				mg: &MockManaged{
 					ObjectMeta:                   metav1.ObjectMeta{Name: mgname, UID: uid},
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: mgcsname}},
+					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: &corev1.ObjectReference{Name: mgcsname}},
 				},
 			},
 			want: errors.Wrap(errBoom, errUpdateSecret),
@@ -402,12 +402,12 @@ func TestPropagateConnection(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				cm: &MockClaim{
-					ObjectMeta:                   metav1.ObjectMeta{Namespace: namespace, Name: cmname, UID: uid},
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: cmcsname}},
+					ObjectMeta:                        metav1.ObjectMeta{Namespace: namespace, Name: cmname, UID: uid},
+					MockLocalConnectionSecretWriterTo: MockLocalConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: cmcsname}},
 				},
 				mg: &MockManaged{
 					ObjectMeta:                   metav1.ObjectMeta{Name: mgname, UID: uid},
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: mgcsname}},
+					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: &corev1.ObjectReference{Name: mgcsname}},
 				},
 			},
 			want: nil,

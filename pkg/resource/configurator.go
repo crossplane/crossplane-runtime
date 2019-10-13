@@ -52,16 +52,21 @@ func NewObjectMetaConfigurator(t runtime.ObjectTyper) *ObjectMetaConfigurator {
 }
 
 // Configure the supplied Managed resource's object metadata.
-func (c *ObjectMetaConfigurator) Configure(_ context.Context, cm Claim, cs Class, mg Managed) error {
-	mg.SetNamespace(cs.GetNamespace())
+func (c *ObjectMetaConfigurator) Configure(_ context.Context, cm Claim, _ Class, mg Managed) error {
 	mg.SetGenerateName(fmt.Sprintf("%s-%s-", cm.GetNamespace(), cm.GetName()))
 	if meta.GetExternalName(cm) != "" {
 		meta.SetExternalName(mg, meta.GetExternalName(cm))
 	}
-	// TODO(negz): Don't set this potentially cross-namespace owner reference.
-	// We probably want to use the resource's reclaim policy, not Kubernetes
-	// garbage collection, to determine whether to delete a managed resource
-	// when its claim is deleted per https://github.com/crossplaneio/crossplane/issues/550
+
+	// TODO(negz): Avoid setting this owner reference? Kubernetes specifies that
+	// cluster scoped resources cannot have namespaced owners, by design, but
+	// the owner reference appears to work for cascading deletes.
+	// https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#owners-and-dependents
+
+	// TODO(negz): We probably want to use the resource's reclaim policy, not
+	// Kubernetes garbage collection, to determine whether to delete a managed
+	// resource when its claim is deleted per
+	// https://github.com/crossplaneio/crossplane/issues/550
 	mg.SetOwnerReferences([]v1.OwnerReference{meta.AsOwner(meta.ReferenceTo(cm, MustGetKind(cm, c.typer)))})
 
 	return nil

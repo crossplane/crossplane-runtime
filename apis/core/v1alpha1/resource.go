@@ -78,13 +78,12 @@ type ResourceClaimStatus struct {
 
 // A ResourceSpec defines the desired state of a managed resource.
 type ResourceSpec struct {
-	// WriteConnectionSecretToReference specifies the name of a Secret, in the
-	// same namespace as this managed resource, to which any connection details
-	// for this managed resource should be written. Connection details
-	// frequently include the endpoint, username, and password required to
-	// connect to the managed resource.
+	// WriteConnectionSecretToReference specifies the namespace and name of a
+	// Secret to which any connection details for this managed resource should
+	// be written. Connection details frequently include the endpoint, username,
+	// and password required to connect to the managed resource.
 	// +optional
-	WriteConnectionSecretToReference corev1.LocalObjectReference `json:"writeConnectionSecretToRef,omitempty"`
+	WriteConnectionSecretToReference *corev1.ObjectReference `json:"writeConnectionSecretToRef,omitempty"`
 
 	// ClaimReference specifies the resource claim to which this managed
 	// resource will be bound. ClaimReference is set automatically during
@@ -124,6 +123,11 @@ type ResourceStatus struct {
 // specifications of managed resources dynamically provisioned using a resource
 // class.
 type ClassSpecTemplate struct {
+	// WriteConnectionSecretsToNamespace specifies the namespace in which the
+	// connection secrets of managed resources dynamically provisioned using
+	// this claim will be created.
+	WriteConnectionSecretsToNamespace string `json:"writeConnectionSecretsToNamespace"`
+
 	// ProviderReference specifies the provider that will be used to create,
 	// observe, update, and delete managed resources that are dynamically
 	// provisioned using this resource class.

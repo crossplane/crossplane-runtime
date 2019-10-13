@@ -56,10 +56,18 @@ type ManagedResourceReferencer interface {
 	GetResourceReference() *corev1.ObjectReference
 }
 
-// A ConnectionSecretWriterTo may write a connection secret.
-type ConnectionSecretWriterTo interface {
+// A LocalConnectionSecretWriterTo may write a connection secret to its own
+// namespace.
+type LocalConnectionSecretWriterTo interface {
 	SetWriteConnectionSecretToReference(r corev1.LocalObjectReference)
 	GetWriteConnectionSecretToReference() corev1.LocalObjectReference
+}
+
+// A ConnectionSecretWriterTo may write a connection secret to an arbitrary
+// namespace.
+type ConnectionSecretWriterTo interface {
+	SetWriteConnectionSecretToReference(r *corev1.ObjectReference)
+	GetWriteConnectionSecretToReference() *corev1.ObjectReference
 }
 
 // A Reclaimer may specify a ReclaimPolicy.
@@ -75,9 +83,10 @@ type Claim interface {
 	runtime.Object
 	metav1.Object
 
+	ClassSelector
 	ClassReferencer
 	ManagedResourceReferencer
-	ConnectionSecretWriterTo
+	LocalConnectionSecretWriterTo
 
 	Conditioned
 	Bindable

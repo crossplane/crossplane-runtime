@@ -55,12 +55,21 @@ type MockManagedResourceReferencer struct{ Ref *corev1.ObjectReference }
 func (m *MockManagedResourceReferencer) SetResourceReference(r *corev1.ObjectReference) { m.Ref = r }
 func (m *MockManagedResourceReferencer) GetResourceReference() *corev1.ObjectReference  { return m.Ref }
 
-type MockConnectionSecretWriterTo struct{ Ref corev1.LocalObjectReference }
+type MockLocalConnectionSecretWriterTo struct{ Ref corev1.LocalObjectReference }
 
-func (m *MockConnectionSecretWriterTo) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
+func (m *MockLocalConnectionSecretWriterTo) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
 	m.Ref = r
 }
-func (m *MockConnectionSecretWriterTo) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
+func (m *MockLocalConnectionSecretWriterTo) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
+	return m.Ref
+}
+
+type MockConnectionSecretWriterTo struct{ Ref *corev1.ObjectReference }
+
+func (m *MockConnectionSecretWriterTo) SetWriteConnectionSecretToReference(r *corev1.ObjectReference) {
+	m.Ref = r
+}
+func (m *MockConnectionSecretWriterTo) GetWriteConnectionSecretToReference() *corev1.ObjectReference {
 	return m.Ref
 }
 
@@ -77,7 +86,7 @@ type MockClaim struct {
 	metav1.ObjectMeta
 	MockClassReferencer
 	MockManagedResourceReferencer
-	MockConnectionSecretWriterTo
+	MockLocalConnectionSecretWriterTo
 	MockConditioned
 	MockBindable
 }

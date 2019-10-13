@@ -100,7 +100,6 @@ func TestConfiguratorChain(t *testing.T) {
 }
 
 func TestConfigureObjectMeta(t *testing.T) {
-	ns := "namespace"
 	claimName := "myclaim"
 	claimNS := "myclaimns"
 	uid := types.UID("definitely-a-uuid")
@@ -127,12 +126,10 @@ func TestConfigureObjectMeta(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				cm:  &MockClaim{ObjectMeta: metav1.ObjectMeta{Name: claimName, Namespace: claimNS, UID: uid}},
-				cs:  &MockClass{ObjectMeta: metav1.ObjectMeta{Namespace: ns}},
 				mg:  &MockManaged{},
 			},
 			want: want{
 				mg: &MockManaged{ObjectMeta: metav1.ObjectMeta{
-					Namespace:    ns,
 					GenerateName: claimNS + "-" + claimName + "-",
 					OwnerReferences: []metav1.OwnerReference{{
 						APIVersion: MockGVK(&MockClaim{}).GroupVersion().String(),

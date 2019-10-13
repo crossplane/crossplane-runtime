@@ -28,18 +28,46 @@ import (
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 )
 
-// A ConnectionSecretOwner may create and manage a connection secret.
+// A LocalConnectionSecretOwner may create and manage a connection secret in its
+// own namespace.
+type LocalConnectionSecretOwner interface {
+	metav1.Object
+	LocalConnectionSecretWriterTo
+}
+
+// LocalConnectionSecretFor creates a connection secret in the namespace of the
+// supplied LocalConnectionSecretOwner, assumed to be of the supplied kind.
+func LocalConnectionSecretFor(o LocalConnectionSecretOwner, kind schema.GroupVersionKind) *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace:       o.GetNamespace(),
+			Name:            o.GetWriteConnectionSecretToReference().Name,
+			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.ReferenceTo(o, kind))},
+		},
+		Data: make(map[string][]byte),
+	}
+}
+
+// A ConnectionSecretOwner may create and manage a connection secret in an
+// arbitrary namespace.
 type ConnectionSecretOwner interface {
 	metav1.Object
 	ConnectionSecretWriterTo
 }
 
-// ConnectionSecretFor the supplied ConnectionSecretOwner, assumed to be of the
-// supplied kind.
+// ConnectionSecretFor creates a connection for the supplied
+// ConnectionSecretOwner, assumed to be of the supplied kind. The secret is
+// written to 'default' namespace if the ConnectionSecretOwner does not specify
+// a namespace.
 func ConnectionSecretFor(o ConnectionSecretOwner, kind schema.GroupVersionKind) *corev1.Secret {
+	ns := o.GetWriteConnectionSecretToReference().Namespace
+	if ns == "" {
+		ns = corev1.NamespaceDefault
+	}
+
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace:       o.GetNamespace(),
+			Namespace:       ns,
 			Name:            o.GetWriteConnectionSecretToReference().Name,
 			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.ReferenceTo(o, kind))},
 		},
