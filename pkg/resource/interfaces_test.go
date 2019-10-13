@@ -41,6 +41,15 @@ type MockClaimReferencer struct{ Ref *corev1.ObjectReference }
 func (m *MockClaimReferencer) SetClaimReference(r *corev1.ObjectReference) { m.Ref = r }
 func (m *MockClaimReferencer) GetClaimReference() *corev1.ObjectReference  { return m.Ref }
 
+type MockClassSelector struct{ Sel *metav1.LabelSelector }
+
+func (m *MockClassSelector) SetClassSelector(s *metav1.LabelSelector) {
+	m.Sel = s
+}
+func (m *MockClassSelector) GetClassSelector() *metav1.LabelSelector {
+	return m.Sel
+}
+
 type MockClassReferencer struct{ Ref *corev1.ObjectReference }
 
 func (m *MockClassReferencer) SetClassReference(r *corev1.ObjectReference) {
@@ -86,6 +95,7 @@ type MockClaim struct {
 	runtime.Object
 
 	metav1.ObjectMeta
+	MockClassSelector
 	MockClassReferencer
 	MockManagedResourceReferencer
 	MockLocalConnectionSecretWriterTo

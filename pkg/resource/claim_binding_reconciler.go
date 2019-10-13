@@ -59,6 +59,15 @@ type ClaimKind schema.GroupVersionKind
 // A ClassKind contains the type metadata for a kind of resource class.
 type ClassKind schema.GroupVersionKind
 
+// List returns the list kind associated with a ClassKind.
+func (k ClassKind) List() schema.GroupVersionKind {
+	return schema.GroupVersionKind{
+		Group:   k.Group,
+		Version: k.Version,
+		Kind:    k.Kind + "List",
+	}
+}
+
 // A ManagedKind contains the type metadata for a kind of managed resource.
 type ManagedKind schema.GroupVersionKind
 
@@ -194,7 +203,7 @@ func defaultCRClaim(m manager.Manager) crClaim {
 	return crClaim{ClaimFinalizer: NewAPIClaimFinalizerRemover(m.GetClient())}
 }
 
-// A ClaimReconcilerOption configures a Reconciler.
+// A ClaimReconcilerOption configures a ClaimReconciler.
 type ClaimReconcilerOption func(*ClaimReconciler)
 
 // WithManagedConfigurators specifies which configurators should be used to

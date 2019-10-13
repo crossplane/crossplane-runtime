@@ -44,6 +44,12 @@ type ClaimReferencer interface {
 	GetClaimReference() *corev1.ObjectReference
 }
 
+// A ClassSelector may reference a resource class.
+type ClassSelector interface {
+	SetClassSelector(s *metav1.LabelSelector)
+	GetClassSelector() *metav1.LabelSelector
+}
+
 // A ClassReferencer may reference a resource class.
 type ClassReferencer interface {
 	SetClassReference(r *corev1.ObjectReference)

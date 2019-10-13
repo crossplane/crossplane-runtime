@@ -335,6 +335,62 @@ func TestIsPropagated(t *testing.T) {
 	}
 }
 
+func TestHasClassSelector(t *testing.T) {
+	cases := map[string]struct {
+		obj  runtime.Object
+		want bool
+	}{
+		"NotAClassSelector": {
+			want: false,
+		},
+		"NoClassSelector": {
+			obj:  &MockClaim{},
+			want: false,
+		},
+		"HasClassSelector": {
+			obj:  &MockClaim{MockClassSelector: MockClassSelector{Sel: &v1.LabelSelector{}}},
+			want: true,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := HasClassSelector()(tc.obj)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("HasClassSelector(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestHasNoClassSelector(t *testing.T) {
+	cases := map[string]struct {
+		obj  runtime.Object
+		want bool
+	}{
+		"NotAClassSelector": {
+			want: false,
+		},
+		"NoClassSelector": {
+			obj:  &MockClaim{},
+			want: true,
+		},
+		"HasClassSelector": {
+			obj:  &MockClaim{MockClassSelector: MockClassSelector{Sel: &v1.LabelSelector{}}},
+			want: false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := HasNoClassSelector()(tc.obj)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("HasNoClassSelector(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestHasNoClassReference(t *testing.T) {
 	cases := map[string]struct {
 		obj  runtime.Object
@@ -357,7 +413,7 @@ func TestHasNoClassReference(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			got := HasNoClassReference()(tc.obj)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("NoClassReference(...): -want, +got:\n%s", diff)
+				t.Errorf("HasNoClassReference(...): -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -385,7 +441,7 @@ func TestHasNoMangedResourceReference(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			got := HasNoManagedResourceReference()(tc.obj)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("NoManagedResourecReference(...): -want, +got:\n%s", diff)
+				t.Errorf("HasNoManagedResourecReference(...): -want, +got:\n%s", diff)
 			}
 		})
 	}

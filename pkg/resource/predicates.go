@@ -154,7 +154,31 @@ func IsPropagated() PredicateFn {
 	}
 }
 
-// HasNoClassReference accepts resource claimsthat do not reference a specific
+// HasClassSelector accepts resource claims that do not specify a resource
+// class selector.
+func HasClassSelector() PredicateFn {
+	return func(obj runtime.Object) bool {
+		cs, ok := obj.(ClassSelector)
+		if !ok {
+			return false
+		}
+		return cs.GetClassSelector() != nil
+	}
+}
+
+// HasNoClassSelector accepts resource claims that do not specify a resource
+// class selector.
+func HasNoClassSelector() PredicateFn {
+	return func(obj runtime.Object) bool {
+		cs, ok := obj.(ClassSelector)
+		if !ok {
+			return false
+		}
+		return cs.GetClassSelector() == nil
+	}
+}
+
+// HasNoClassReference accepts resource claims that do not reference a specific
 // resource class.
 func HasNoClassReference() PredicateFn {
 	return func(obj runtime.Object) bool {

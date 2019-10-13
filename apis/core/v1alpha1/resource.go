@@ -18,6 +18,13 @@ package v1alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+// The annotation used to make a resource class the default.
+const (
+	AnnotationDefaultClassKey   = "resourceclass.crossplane.io/is-default-class"
+	AnnotationDefaultClassValue = "true"
 )
 
 const (
@@ -81,10 +88,15 @@ type ResourceClaimSpec struct {
 	// TODO(negz): Make the below references immutable once set? Doing so means
 	// we don't have to track what provisioner was used to create a resource.
 
+	// A ClassSelector specifies labels that will be used to select a resource
+	// class for this claim. If multiple classes match the labels one will be
+	// chosen at random.
+	// +optional
+	ClassSelector *metav1.LabelSelector `json:"classSelector,omitempty"`
+
 	// A ClassReference specifies a resource class that will be used to
 	// dynamically provision a managed resource when the resource claim is
-	// created. Omit the class reference if you wish to bind to a specific
-	// managed resource (known as static binding).
+	// created.
 	// +optional
 	ClassReference *corev1.ObjectReference `json:"classRef,omitempty"`
 
