@@ -838,7 +838,7 @@
   revision = "581e00157fb1a0435d4fac54a52d1ca1e481d60e"
 
 [[projects]]
-  digest = "1:17128a8b8ad758f567eaf89104ef8e36fa0b611fc10852cbfe63699c741a7618"
+  digest = "1:cab4474fd49acdab99a048725044f2563e8b3a69d8daa3d2f3175a8182c02f84"
   name = "sigs.k8s.io/controller-runtime"
   packages = [
     "pkg/cache",
@@ -871,8 +871,8 @@
     "pkg/webhook/internal/metrics",
   ]
   pruneopts = "UT"
-  revision = "eb94491f7ac37f163aef146cf3c17f87d21ae184"
-  version = "v0.2.0-beta.5"
+  revision = "fc5542c693e3340f8abbe91c6345bd64c494a60c"
+  version = "v0.2.2"
 
 [[projects]]
   digest = "1:608ec00545532185775097db32734be2fc0d88ead84250db3a9c5b86024d8ec2"
@@ -923,6 +923,7 @@
     "github.com/google/go-cmp/cmp/cmpopts",
     "github.com/onsi/gomega",
     "github.com/pkg/errors",
+    "go.uber.org/zap",
     "golang.org/x/tools/cmd/stringer",
     "k8s.io/api/apps/v1",
     "k8s.io/api/core/v1",
@@ -947,6 +948,7 @@
     "sigs.k8s.io/controller-runtime/pkg/envtest",
     "sigs.k8s.io/controller-runtime/pkg/event",
     "sigs.k8s.io/controller-runtime/pkg/handler",
+    "sigs.k8s.io/controller-runtime/pkg/log/zap",
     "sigs.k8s.io/controller-runtime/pkg/manager",
     "sigs.k8s.io/controller-runtime/pkg/predicate",
     "sigs.k8s.io/controller-runtime/pkg/reconcile",

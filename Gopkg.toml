@@ -46,3 +46,6 @@ required = [
   source = "https://github.com/fsnotify/fsnotify.git"
   version="v1.4.7"
 
+[[constraint]]
+  name="sigs.k8s.io/controller-runtime"
+  version="v0.2.2"
