@@ -19,10 +19,7 @@ limitations under the License.
 package logging
 
 import (
-	"os"
-
 	"github.com/go-logr/logr"
-	"github.com/go-logr/zapr"
 	"go.uber.org/zap"
 	runtimezap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	runtimelog "sigs.k8s.io/controller-runtime/pkg/runtime/log"
@@ -44,20 +41,22 @@ var (
 	ZapLogger = zapLogger
 )
 
-// ZapLogger is a Logger implementation from controller runtime.
+// zapLogger is Logger implementation of controller runtime.
 // If development is true, a Zap development config will be used
 // (stacktraces on warnings, no sampling), otherwise a Zap production
 // config will be used (stacktraces on errors, sampling).
 // If disableStacktrace is true, stacktraces enabled on fatals
 // independent of config.
 func zapLogger(development bool, disableStacktrace bool) logr.Logger {
-	zl := runtimezap.RawLoggerTo(os.Stderr, development)
-
-	if disableStacktrace {
-		zl = zl.WithOptions(zap.AddStacktrace(zap.FatalLevel))
+	o := func(o *runtimezap.Options) {
+		o.Development = development
+		if disableStacktrace {
+			lvl := zap.NewAtomicLevelAt(zap.FatalLevel)
+			o.StacktraceLevel = &lvl
+		}
 	}
 
-	return zapr.NewLogger(zl)
+	return runtimezap.New(o)
 }
 
 // SetLogger sets a concrete logging implementation for all deferred Loggers.
