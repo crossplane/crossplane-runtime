@@ -39,6 +39,35 @@ const (
 	ResourceCredentialsTokenKey = "token"
 )
 
+// NOTE(negz): The below secret references differ from ObjectReference and
+// LocalObjectReference in that they include only the fields Crossplane needs to
+// reference a secret, and make those fields required. This reduces ambiguity in
+// the API for resource authors.
+
+// A LocalSecretReference is a reference to a secret in the same namespace as
+// the referencer.
+type LocalSecretReference struct {
+	// Name of the secret.
+	Name string `json:"name"`
+}
+
+// A SecretReference is a reference to a secret in an arbitrary namespace.
+type SecretReference struct {
+	// Name of the secret.
+	Name string `json:"name"`
+
+	// Namespace of the secret.
+	Namespace string `json:"namespace"`
+}
+
+// A SecretKeySelector is a reference to a secret key in an arbitrary namespace.
+type SecretKeySelector struct {
+	SecretReference `json:",inline"`
+
+	// The key to select.
+	Key string `json:"key"`
+}
+
 // A ResourceClaimSpec defines the desired state of a resource claim.
 type ResourceClaimSpec struct {
 	// WriteConnectionSecretToReference specifies the name of a Secret, in the
@@ -47,7 +76,7 @@ type ResourceClaimSpec struct {
 	// include the endpoint, username, and password required to connect to the
 	// managed resource bound to this resource claim.
 	// +optional
-	WriteConnectionSecretToReference corev1.LocalObjectReference `json:"writeConnectionSecretToRef,omitempty"`
+	WriteConnectionSecretToReference *LocalSecretReference `json:"writeConnectionSecretToRef,omitempty"`
 
 	// TODO(negz): Make the below references immutable once set? Doing so means
 	// we don't have to track what provisioner was used to create a resource.
@@ -83,7 +112,7 @@ type ResourceSpec struct {
 	// be written. Connection details frequently include the endpoint, username,
 	// and password required to connect to the managed resource.
 	// +optional
-	WriteConnectionSecretToReference *corev1.ObjectReference `json:"writeConnectionSecretToRef,omitempty"`
+	WriteConnectionSecretToReference *SecretReference `json:"writeConnectionSecretToRef,omitempty"`
 
 	// ClaimReference specifies the resource claim to which this managed
 	// resource will be bound. ClaimReference is set automatically during

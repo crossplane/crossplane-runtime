@@ -55,21 +55,23 @@ type MockManagedResourceReferencer struct{ Ref *corev1.ObjectReference }
 func (m *MockManagedResourceReferencer) SetResourceReference(r *corev1.ObjectReference) { m.Ref = r }
 func (m *MockManagedResourceReferencer) GetResourceReference() *corev1.ObjectReference  { return m.Ref }
 
-type MockLocalConnectionSecretWriterTo struct{ Ref corev1.LocalObjectReference }
+type MockLocalConnectionSecretWriterTo struct {
+	Ref *v1alpha1.LocalSecretReference
+}
 
-func (m *MockLocalConnectionSecretWriterTo) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
+func (m *MockLocalConnectionSecretWriterTo) SetWriteConnectionSecretToReference(r *v1alpha1.LocalSecretReference) {
 	m.Ref = r
 }
-func (m *MockLocalConnectionSecretWriterTo) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
+func (m *MockLocalConnectionSecretWriterTo) GetWriteConnectionSecretToReference() *v1alpha1.LocalSecretReference {
 	return m.Ref
 }
 
-type MockConnectionSecretWriterTo struct{ Ref *corev1.ObjectReference }
+type MockConnectionSecretWriterTo struct{ Ref *v1alpha1.SecretReference }
 
-func (m *MockConnectionSecretWriterTo) SetWriteConnectionSecretToReference(r *corev1.ObjectReference) {
+func (m *MockConnectionSecretWriterTo) SetWriteConnectionSecretToReference(r *v1alpha1.SecretReference) {
 	m.Ref = r
 }
-func (m *MockConnectionSecretWriterTo) GetWriteConnectionSecretToReference() *corev1.ObjectReference {
+func (m *MockConnectionSecretWriterTo) GetWriteConnectionSecretToReference() *v1alpha1.SecretReference {
 	return m.Ref
 }
 

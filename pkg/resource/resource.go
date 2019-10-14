@@ -60,14 +60,9 @@ type ConnectionSecretOwner interface {
 // written to 'default' namespace if the ConnectionSecretOwner does not specify
 // a namespace.
 func ConnectionSecretFor(o ConnectionSecretOwner, kind schema.GroupVersionKind) *corev1.Secret {
-	ns := o.GetWriteConnectionSecretToReference().Namespace
-	if ns == "" {
-		ns = corev1.NamespaceDefault
-	}
-
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace:       ns,
+			Namespace:       o.GetWriteConnectionSecretToReference().Namespace,
 			Name:            o.GetWriteConnectionSecretToReference().Name,
 			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.ReferenceTo(o, kind))},
 		},

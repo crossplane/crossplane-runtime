@@ -45,14 +45,14 @@ var MockOwnerGVK = schema.GroupVersionKind{
 
 type MockLocalOwner struct {
 	metav1.ObjectMeta
-	Ref corev1.LocalObjectReference
+	Ref *v1alpha1.LocalSecretReference
 }
 
-func (m *MockLocalOwner) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
+func (m *MockLocalOwner) GetWriteConnectionSecretToReference() *v1alpha1.LocalSecretReference {
 	return m.Ref
 }
 
-func (m *MockLocalOwner) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
+func (m *MockLocalOwner) SetWriteConnectionSecretToReference(r *v1alpha1.LocalSecretReference) {
 	m.Ref = r
 }
 
@@ -78,7 +78,7 @@ func TestLocalConnectionSecretFor(t *testing.T) {
 						Name:      name,
 						UID:       uid,
 					},
-					Ref: corev1.LocalObjectReference{Name: secretName},
+					Ref: &v1alpha1.LocalSecretReference{Name: secretName},
 				},
 				kind: MockOwnerGVK,
 			},
@@ -110,14 +110,14 @@ func TestLocalConnectionSecretFor(t *testing.T) {
 
 type MockOwner struct {
 	metav1.ObjectMeta
-	Ref *corev1.ObjectReference
+	Ref *v1alpha1.SecretReference
 }
 
-func (m *MockOwner) GetWriteConnectionSecretToReference() *corev1.ObjectReference {
+func (m *MockOwner) GetWriteConnectionSecretToReference() *v1alpha1.SecretReference {
 	return m.Ref
 }
 
-func (m *MockOwner) SetWriteConnectionSecretToReference(r *corev1.ObjectReference) {
+func (m *MockOwner) SetWriteConnectionSecretToReference(r *v1alpha1.SecretReference) {
 	m.Ref = r
 }
 
@@ -135,7 +135,7 @@ func TestConnectionSecretFor(t *testing.T) {
 		args args
 		want *corev1.Secret
 	}{
-		"SpecifiedNamespace": {
+		"Success": {
 			args: args{
 				o: &MockOwner{
 					ObjectMeta: metav1.ObjectMeta{
@@ -143,40 +143,13 @@ func TestConnectionSecretFor(t *testing.T) {
 						Name:      name,
 						UID:       uid,
 					},
-					Ref: &corev1.ObjectReference{Namespace: namespace, Name: secretName},
+					Ref: &v1alpha1.SecretReference{Namespace: namespace, Name: secretName},
 				},
 				kind: MockOwnerGVK,
 			},
 			want: &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: namespace,
-					Name:      secretName,
-					OwnerReferences: []metav1.OwnerReference{{
-						APIVersion: MockOwnerGVK.GroupVersion().String(),
-						Kind:       MockOwnerGVK.Kind,
-						Name:       name,
-						UID:        uid,
-						Controller: &controller,
-					}},
-				},
-				Data: map[string][]byte{},
-			},
-		},
-		"DefaultNamespace": {
-			args: args{
-				o: &MockOwner{
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace: namespace,
-						Name:      name,
-						UID:       uid,
-					},
-					Ref: &corev1.ObjectReference{Name: secretName},
-				},
-				kind: MockOwnerGVK,
-			},
-			want: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: corev1.NamespaceDefault,
 					Name:      secretName,
 					OwnerReferences: []metav1.OwnerReference{{
 						APIVersion: MockOwnerGVK.GroupVersion().String(),

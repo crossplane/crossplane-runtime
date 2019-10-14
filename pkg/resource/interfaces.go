@@ -59,15 +59,15 @@ type ManagedResourceReferencer interface {
 // A LocalConnectionSecretWriterTo may write a connection secret to its own
 // namespace.
 type LocalConnectionSecretWriterTo interface {
-	SetWriteConnectionSecretToReference(r corev1.LocalObjectReference)
-	GetWriteConnectionSecretToReference() corev1.LocalObjectReference
+	SetWriteConnectionSecretToReference(r *v1alpha1.LocalSecretReference)
+	GetWriteConnectionSecretToReference() *v1alpha1.LocalSecretReference
 }
 
 // A ConnectionSecretWriterTo may write a connection secret to an arbitrary
 // namespace.
 type ConnectionSecretWriterTo interface {
-	SetWriteConnectionSecretToReference(r *corev1.ObjectReference)
-	GetWriteConnectionSecretToReference() *corev1.ObjectReference
+	SetWriteConnectionSecretToReference(r *v1alpha1.SecretReference)
+	GetWriteConnectionSecretToReference() *v1alpha1.SecretReference
 }
 
 // A Reclaimer may specify a ReclaimPolicy.
