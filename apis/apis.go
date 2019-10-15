@@ -15,7 +15,7 @@ limitations under the License.
 */
 
 // Generate deepcopy for apis
-//go:generate go run ../vendor/sigs.k8s.io/controller-tools/cmd/controller-gen/main.go object:headerFile=../hack/boilerplate.go.txt paths=./...
+//go:generate ${CONTROLLERGEN} object:headerFile=../hack/boilerplate.go.txt paths=./...
 
 // Package apis contains Kubernetes API groups
 package apis
