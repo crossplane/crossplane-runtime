@@ -55,7 +55,9 @@ func NewObjectMetaConfigurator(t runtime.ObjectTyper) *ObjectMetaConfigurator {
 func (c *ObjectMetaConfigurator) Configure(_ context.Context, cm Claim, cs NonPortableClass, mg Managed) error {
 	mg.SetNamespace(cs.GetNamespace())
 	mg.SetGenerateName(fmt.Sprintf("%s-%s-", cm.GetNamespace(), cm.GetName()))
-
+	if meta.GetExternalName(cm) != "" {
+		meta.SetExternalName(mg, meta.GetExternalName(cm))
+	}
 	// TODO(negz): Don't set this potentially cross-namespace owner reference.
 	// We probably want to use the resource's reclaim policy, not Kubernetes
 	// garbage collection, to determine whether to delete a managed resource

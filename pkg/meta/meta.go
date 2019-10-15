@@ -32,6 +32,12 @@ import (
 	satisfy metav1.Object.
 */
 
+const (
+	// ExternalNameAnnotationKey is the key in the annotations map of a resource
+	// for the name of the resource as it appears on provider's systems.
+	ExternalNameAnnotationKey = "crossplane.io/external-name"
+)
+
 // ReferenceTo returns an object reference to the supplied object, presumed to
 // be of the supplied group, version, and kind.
 func ReferenceTo(o metav1.Object, of schema.GroupVersionKind) *corev1.ObjectReference {
@@ -131,6 +137,17 @@ func RemoveFinalizer(o metav1.Object, finalizer string) {
 	o.SetFinalizers(f)
 }
 
+// FinalizerExists checks whether given finalizer is already set.
+func FinalizerExists(o metav1.Object, finalizer string) bool {
+	f := o.GetFinalizers()
+	for _, e := range f {
+		if e == finalizer {
+			return true
+		}
+	}
+	return false
+}
+
 // AddLabels to the supplied object.
 func AddLabels(o metav1.Object, labels map[string]string) {
 	l := o.GetLabels()
@@ -192,4 +209,14 @@ func WasCreated(o metav1.Object) bool {
 	// returns a reference while CreationTimestamp returns a value.
 	t := o.GetCreationTimestamp()
 	return !t.IsZero()
+}
+
+// GetExternalName returns the external name annotation value on the resource.
+func GetExternalName(o metav1.Object) string {
+	return o.GetAnnotations()[ExternalNameAnnotationKey]
+}
+
+// SetExternalName sets the external name annotation of the resource.
+func SetExternalName(o metav1.Object, name string) {
+	AddAnnotations(o, map[string]string{ExternalNameAnnotationKey: name})
 }

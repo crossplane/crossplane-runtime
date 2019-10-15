@@ -506,6 +506,59 @@ func TestRemoveFinalizer(t *testing.T) {
 	}
 }
 
+func TestFinalizerExists(t *testing.T) {
+	finalizer := "fin"
+	funalizer := "fun"
+
+	type args struct {
+		o         metav1.Object
+		finalizer string
+	}
+
+	cases := map[string]struct {
+		args args
+		want bool
+	}{
+		"NoExistingFinalizers": {
+			args: args{
+				o:         &corev1.Pod{},
+				finalizer: finalizer,
+			},
+			want: false,
+		},
+		"FinalizerExists": {
+			args: args{
+				o: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Finalizers: []string{finalizer},
+					},
+				},
+				finalizer: finalizer,
+			},
+			want: true,
+		},
+		"AnotherFinalizerExists": {
+			args: args{
+				o: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Finalizers: []string{funalizer},
+					},
+				},
+				finalizer: finalizer,
+			},
+			want: false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			if diff := cmp.Diff(tc.want, FinalizerExists(tc.args.o, tc.args.finalizer)); diff != "" {
+				t.Errorf("tc.args.o.GetFinalizers(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestAddLabels(t *testing.T) {
 	key, value := "key", "value"
 	existingKey, existingValue := "ekey", "evalue"
@@ -750,6 +803,58 @@ func TestWasCreated(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			got := WasCreated(tc.o)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("WasCreated(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestGetExternalName(t *testing.T) {
+	testName := "my-external-name"
+
+	cases := map[string]struct {
+		o    metav1.Object
+		want string
+	}{
+		"ExternalNameExists": {
+			o:    &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{ExternalNameAnnotationKey: testName}}},
+			want: testName,
+		},
+		"NoExternalName": {
+			o:    &corev1.Pod{},
+			want: "",
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := GetExternalName(tc.o)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("WasCreated(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestSetExternalName(t *testing.T) {
+	testName := "my-external-name"
+
+	cases := map[string]struct {
+		o    metav1.Object
+		name string
+		want metav1.Object
+	}{
+		"SetsTheCorrectKey": {
+			o:    &corev1.Pod{},
+			name: testName,
+			want: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{ExternalNameAnnotationKey: testName}}},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			SetExternalName(tc.o, tc.name)
+			if diff := cmp.Diff(tc.want, tc.o); diff != "" {
 				t.Errorf("WasCreated(...): -want, +got:\n%s", diff)
 			}
 		})

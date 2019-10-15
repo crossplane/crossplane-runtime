@@ -72,6 +72,31 @@ func TestManagedReconciler(t *testing.T) {
 			},
 			want: want{err: errors.Wrap(errBoom, errGetManaged)},
 		},
+		"InitializeError": {
+			args: args{
+				m: &MockManager{
+					c: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+							want := &MockManaged{}
+							want.SetConditions(v1alpha1.ReconcileError(errBoom))
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+					s: MockSchemeWith(&MockManaged{}),
+				},
+				mg: ManagedKind(MockGVK(&MockManaged{})),
+				o: []ManagedReconcilerOption{
+					WithManagedInitializers(ManagedInitializerFn(func(_ context.Context, mg Managed) error {
+						return errBoom
+					})),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+		},
 		"ExternalConnectError": {
 			args: args{
 				m: &MockManager{
@@ -434,7 +459,7 @@ func TestManagedReconciler(t *testing.T) {
 						}
 					},
 					func(r *ManagedReconciler) {
-						r.managed.ManagedEstablisher = ManagedEstablisherFn(func(_ context.Context, mg Managed) error {
+						r.managed.ManagedInitializer = ManagedInitializerFn(func(_ context.Context, mg Managed) error {
 							mg.SetFinalizers(testFinalizers)
 							return nil
 						})
@@ -483,7 +508,7 @@ func TestManagedReconciler(t *testing.T) {
 						}
 					},
 					func(r *ManagedReconciler) {
-						r.managed.ManagedEstablisher = ManagedEstablisherFn(func(_ context.Context, mg Managed) error {
+						r.managed.ManagedInitializer = ManagedInitializerFn(func(_ context.Context, mg Managed) error {
 							mg.SetFinalizers(testFinalizers)
 							return nil
 						})
@@ -528,7 +553,7 @@ func TestManagedReconciler(t *testing.T) {
 						}
 					},
 					func(r *ManagedReconciler) {
-						r.managed.ManagedEstablisher = ManagedEstablisherFn(func(_ context.Context, _ Managed) error {
+						r.managed.ManagedInitializer = ManagedInitializerFn(func(_ context.Context, _ Managed) error {
 							return errBoom
 						})
 					},
@@ -709,6 +734,11 @@ func TestManagedReconciler(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			defaultOptions := []ManagedReconcilerOption{
 				func(r *ManagedReconciler) {
+					r.managed.ManagedInitializer = ManagedInitializerFn(func(_ context.Context, mg Managed) error {
+						return nil
+					})
+				},
+				func(r *ManagedReconciler) {
 					r.external = mrExternal{
 						ExternalConnecter: ExternalConnectorFn(func(_ context.Context, _ Managed) (ExternalClient, error) {
 							return tc.args.e, nil
@@ -717,7 +747,6 @@ func TestManagedReconciler(t *testing.T) {
 				},
 			}
 			tc.args.o = append(defaultOptions, tc.args.o...)
-
 			r := NewManagedReconciler(tc.args.m, tc.args.mg, tc.args.o...)
 			got, err := r.Reconcile(reconcile.Request{})
 
