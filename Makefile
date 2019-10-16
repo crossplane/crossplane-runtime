@@ -25,6 +25,7 @@ GO_TEST_PARALLEL := $(shell echo $$(( $(NPROCS) / 2 )))
 
 GO_LDFLAGS += -X $(GO_PROJECT)/pkg/version.Version=$(VERSION)
 GO_SUBDIRS += pkg apis
+GO111MODULE = on
 -include build/makelib/golang.mk
 
 # ====================================================================================
@@ -63,7 +64,6 @@ submodules:
 
 define CROSSPLANE_RUNTIME_HELP
 Crossplane Runtime Targets:
-    manifests          Generate manifests e.g. CRD, RBAC etc.
     cobertura          Generate a coverage report for cobertura applying exclusions on generated files.
     reviewable         Ensure a PR is ready for review.
     submodules         Update the submodules, such as the common build scripts.
