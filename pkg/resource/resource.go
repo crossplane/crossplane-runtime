@@ -138,3 +138,8 @@ func IsBindable(b Bindable) bool {
 func IsBound(b Bindable) bool {
 	return b.GetBindingPhase() == v1alpha1.BindingPhaseBound
 }
+
+// IsConditionTrue returns true if the supplied condition's status is true.
+func IsConditionTrue(c v1alpha1.Condition) bool {
+	return c.Status == corev1.ConditionTrue
+}

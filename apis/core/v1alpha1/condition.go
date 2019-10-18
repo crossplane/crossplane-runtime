@@ -138,6 +138,18 @@ func (s *ConditionedStatus) SetConditions(c ...Condition) {
 	}
 }
 
+// GetCondition returns the Condition of the supplied type. If no such Condition
+// exists a Condition with status unknown is returned.
+func (s *ConditionedStatus) GetCondition(ct ConditionType) Condition {
+	for _, c := range s.Conditions {
+		if c.Type == ct {
+			return c
+		}
+	}
+
+	return Condition{Type: ct, Status: corev1.ConditionUnknown}
+}
+
 // Equal returns true if the status is identical to the supplied status,
 // ignoring the LastTransitionTimes and order of statuses.
 func (s *ConditionedStatus) Equal(other *ConditionedStatus) bool {
