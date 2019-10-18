@@ -79,6 +79,23 @@ func HasManagedResourceReferenceKind(k ManagedKind) PredicateFn {
 	}
 }
 
+// HasClassReferenceKind accepts objects that reference the supplied resource
+// class kind.
+func HasClassReferenceKind(k ClassKind) PredicateFn {
+	return func(obj runtime.Object) bool {
+		r, ok := obj.(ClassReferencer)
+		if !ok {
+			return false
+		}
+
+		if r.GetClassReference() == nil {
+			return false
+		}
+
+		return r.GetClassReference().GroupVersionKind() == schema.GroupVersionKind(k)
+	}
+}
+
 // IsManagedKind accepts objects that are of the supplied managed resource kind.
 func IsManagedKind(k ManagedKind, ot runtime.ObjectTyper) PredicateFn {
 	return func(obj runtime.Object) bool {

@@ -104,24 +104,20 @@ func TestHasManagedResourceReferenceKind(t *testing.T) {
 	cases := map[string]struct {
 		obj  runtime.Object
 		c    client.Client
-		s    runtime.ObjectCreater
 		kind ManagedKind
 		want bool
 	}{
 		"NotAClassReferencer": {
 			c:    &test.MockClient{},
-			s:    MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 			kind: ManagedKind(MockGVK(&MockManaged{})),
 			want: false,
 		},
 		"HasNoResourceReference": {
-			s:    MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 			obj:  &MockClaim{},
 			kind: ManagedKind(MockGVK(&MockManaged{})),
 			want: false,
 		},
 		"HasCorrectResourceReference": {
-			s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 			obj: &MockClaim{
 				MockManagedResourceReferencer: MockManagedResourceReferencer{
 					Ref: &corev1.ObjectReference{
@@ -140,6 +136,47 @@ func TestHasManagedResourceReferenceKind(t *testing.T) {
 			got := HasManagedResourceReferenceKind(tc.kind)(tc.obj)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("HasManagedResourceReferenceKind(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestHasClassReferenceKind(t *testing.T) {
+	cases := map[string]struct {
+		obj  runtime.Object
+		c    client.Client
+		kind ClassKind
+		want bool
+	}{
+		"NotAClassReferencer": {
+			c:    &test.MockClient{},
+			kind: ClassKind(MockGVK(&MockClass{})),
+			want: false,
+		},
+		"HasNoClassReference": {
+			obj:  &MockClaim{},
+			kind: ClassKind(MockGVK(&MockClass{})),
+			want: false,
+		},
+		"HasCorrectClassReference": {
+			obj: &MockClaim{
+				MockClassReferencer: MockClassReferencer{
+					Ref: &corev1.ObjectReference{
+						APIVersion: MockGVK(&MockClass{}).GroupVersion().String(),
+						Kind:       MockGVK(&MockClass{}).Kind,
+					},
+				},
+			},
+			kind: ClassKind(MockGVK(&MockClass{})),
+			want: true,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := HasClassReferenceKind(tc.kind)(tc.obj)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("HasClassReferenceKind(...): -want, +got:\n%s", diff)
 			}
 		})
 	}
