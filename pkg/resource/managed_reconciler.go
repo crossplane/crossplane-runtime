@@ -32,8 +32,10 @@ import (
 )
 
 const (
-	managedControllerName   = "managedresource.crossplane.io"
-	managedFinalizerName    = "finalizer." + managedControllerName
+	managedControllerName               = "managedresource.crossplane.io"
+	managedFinalizerName                = "finalizer." + managedControllerName
+	managedResourceStructTagPackageName = "resource"
+
 	managedReconcileTimeout = 1 * time.Minute
 
 	defaultManagedShortWait = 30 * time.Second
@@ -84,6 +86,14 @@ type ManagedInitializerFn func(ctx context.Context, mg Managed) error
 
 // Initialize calls ManagedInitializerFn function.
 func (m ManagedInitializerFn) Initialize(ctx context.Context, mg Managed) error {
+	return m(ctx, mg)
+}
+
+// ManagedReferenceResolverFn is the pluggable struct to produce objects with ManagedReferenceResolver interface.
+type ManagedReferenceResolverFn func(context.Context, Managed) error
+
+// ResolveReferences calls ManagedReferenceResolverFn function
+func (m ManagedReferenceResolverFn) ResolveReferences(ctx context.Context, mg Managed) error {
 	return m(ctx, mg)
 }
 
@@ -224,6 +234,7 @@ type mrManaged struct {
 	ManagedConnectionPublisher
 	ManagedFinalizer
 	ManagedInitializer
+	ManagedReferenceResolver
 }
 
 func defaultMRManaged(m manager.Manager) mrManaged {
@@ -234,6 +245,7 @@ func defaultMRManaged(m manager.Manager) mrManaged {
 			NewManagedNameAsExternalName(m.GetClient()),
 			NewAPIManagedFinalizerAdder(m.GetClient()),
 		},
+		ManagedReferenceResolver: NewReferenceResolver(m.GetClient()),
 	}
 }
 
@@ -417,6 +429,23 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 	}
 
 	if !observation.ResourceExists {
+		if !IsConditionTrue(managed.GetCondition(v1alpha1.TypeReferencesResolved)) {
+			if err := r.managed.ResolveReferences(ctx, managed); err != nil {
+				// update the status according to the type of the err
+				switch err.(type) {
+				case NotReadyError:
+					managed.SetConditions(v1alpha1.ReferenceResolutionBlocked(err))
+				default:
+					managed.SetConditions(v1alpha1.ReconcileError(err))
+				}
+
+				return reconcile.Result{RequeueAfter: r.longWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+			}
+
+			// Add ReferenceResolutionSuccess to the conditions
+			managed.SetConditions(v1alpha1.ReferenceResolutionSuccess())
+		}
+
 		creation, err := external.Create(ctx, managed)
 		if err != nil {
 			// We'll hit this condition if we can't create our external
