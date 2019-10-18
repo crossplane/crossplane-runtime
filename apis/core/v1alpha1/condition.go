@@ -34,6 +34,9 @@ const (
 	// TypeSynced managed resources are believed to be in sync with the
 	// Kubernetes resources that manage their lifecycle.
 	TypeSynced ConditionType = "Synced"
+
+	// TypeReferencesResolved managed resources' references are resolved
+	TypeReferencesResolved = "ReferencesResolved"
 )
 
 // A ConditionReason represents the reason a resource is in a condition.
@@ -51,6 +54,13 @@ const (
 const (
 	ReasonReconcileSuccess ConditionReason = "Successfully reconciled managed resource"
 	ReasonReconcileError   ConditionReason = "Encountered an error during managed resource reconciliation"
+)
+
+// Reason references for a resource are or are not resolved
+const (
+	ReasonReferenceResolveSuccess  ConditionReason = "Successfully resolved managed resource references to other resources"
+	ReasonResolveReferencesBlocked ConditionReason = "One or more of referenced resources do not exist, or are not yet Ready"
+	ReasonReferenceResolveError    ConditionReason = "Encountered an error while resolving managed resource references to other resources"
 )
 
 // A Condition that may apply to a managed resource.
@@ -111,6 +121,25 @@ func NewConditionedStatus(c ...Condition) *ConditionedStatus {
 	s := &ConditionedStatus{}
 	s.SetConditions(c...)
 	return s
+}
+
+// GetCondition returns the condition for the given ConditionType if exists,
+// otherwise returns nil
+func (s *ConditionedStatus) GetCondition(ct ConditionType) Condition {
+	for _, c := range s.Conditions {
+		if c.Type == ct {
+			return c
+		}
+	}
+
+	return Condition{Type: ct, Status: corev1.ConditionUnknown}
+}
+
+// IsConditionTrue returns a boolean indicating whether the given condition
+// exists and is true
+func (s *ConditionedStatus) IsConditionTrue(ct ConditionType) bool {
+	cond := s.GetCondition(ct)
+	return cond.Status != corev1.ConditionTrue
 }
 
 // SetConditions sets the supplied conditions, replacing any existing conditions
@@ -236,6 +265,31 @@ func ReconcileError(err error) Condition {
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonReconcileError,
+		Message:            err.Error(),
+	}
+}
+
+// ReferenceResolutionSuccess returns a condition indicating that Crossplane
+// successfully resolved the references used in the managed resource
+func ReferenceResolutionSuccess() Condition {
+	return Condition{
+		Type:               TypeReferencesResolved,
+		Status:             corev1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonReferenceResolveSuccess,
+	}
+}
+
+// ReferenceResolutionBlocked returns a condition indicating that Crossplane is
+// unable to resolve the references used in the managed resource. This could
+// mean that one or more of referred resources do not yet exist, or are not yet
+// Ready
+func ReferenceResolutionBlocked(err error) Condition {
+	return Condition{
+		Type:               TypeReferencesResolved,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonResolveReferencesBlocked,
 		Message:            err.Error(),
 	}
 }
