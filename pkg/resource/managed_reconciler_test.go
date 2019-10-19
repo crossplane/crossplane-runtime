@@ -51,7 +51,7 @@ func TestManagedReconciler(t *testing.T) {
 	}
 
 	errBoom := errors.New("boom")
-	errNotReady := NewNotReadyErr([]string{"resource z"})
+	errNotReady := &referencesAccessErr{[]ReferenceStatus{{Name: "cool-res", Status: ReferenceNotReady}}}
 	now := metav1.Now()
 	testFinalizers := []string{"finalizer.crossplane.io"}
 	testConnectionDetails := ConnectionDetails{

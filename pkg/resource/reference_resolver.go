@@ -44,28 +44,60 @@ type fieldHasTagPair struct {
 	hasTheTag  bool
 }
 
-// NotReadyError is a custom error interface, that indicates the resource is not ready
-type NotReadyError interface {
-	error
+// ReferenceStatusType is an enum type for the possible values for a Reference Status
+type ReferenceStatusType int
 
-	resources() []string
+const (
+	// ReferenceStatusUnknown is the default value
+	ReferenceStatusUnknown ReferenceStatusType = iota
+	// ReferenceNotFound shows that the reference is not found
+	ReferenceNotFound
+	// ReferenceNotReady shows that the reference is not ready
+	ReferenceNotReady
+	// ReferenceReady shows that the reference is ready
+	ReferenceReady
+)
+
+func (t ReferenceStatusType) String() string {
+	return []string{"Unknown", "NotFound", "NotReady", "Ready"}[t]
 }
 
-type resourceNotReadyErr struct {
-	items []string
+// ReferenceStatus has the name and status of a reference
+type ReferenceStatus struct {
+	Name   string
+	Status ReferenceStatusType
 }
 
-// NewNotReadyErr returns a new NotReadyError
-func NewNotReadyErr(items []string) NotReadyError {
-	return &resourceNotReadyErr{items}
+func (r ReferenceStatus) String() string {
+	return fmt.Sprintf("%s:%s,", r.Name, r.Status)
 }
 
-func (r *resourceNotReadyErr) Error() string {
-	return fmt.Sprintf("These resources are not ready to be referenced: %s", r.items)
+// referencesAccessErr is used to indicate that one or more references can not
+// be accessed
+type referencesAccessErr struct {
+	statuses []ReferenceStatus
 }
 
-func (r *resourceNotReadyErr) resources() []string {
-	return r.items
+// newReferenceAccessErr returns a referencesAccessErr if any of the given
+// references are not ready
+func newReferenceAccessErr(statuses []ReferenceStatus) error {
+	for _, st := range statuses {
+		if st.Status != ReferenceReady {
+			return &referencesAccessErr{statuses}
+		}
+	}
+
+	return nil
+}
+
+func (r *referencesAccessErr) Error() string {
+	return fmt.Sprintf("Some of the referenced resources cannot be accessed. {%s}", r.statuses)
+}
+
+// IsReferencesAccessError returns true if the given error is of type referencesAccessErr
+func IsReferencesAccessError(err error) bool {
+	_, result := err.(*referencesAccessErr)
+	return result
 }
 
 // AttributeReferencer is an interface for referencing and resolving
@@ -74,13 +106,9 @@ func (r *resourceNotReadyErr) resources() []string {
 // for more information
 type AttributeReferencer interface {
 
-	// ValidateReady validates that the referenced managed resource type has the
-	// 'Ready' condition type and it is 'True'. If the returned error is nil,
-	// the resource is interpretted to be `Ready`. Otherwise, if the error type
-	// is `NotReadyError`, then the reference resolution status is updated as
-	// `ReferenceResolutionBlocked`, otherwise it updates the status as
-	// `ReconcileError`
-	ValidateReady(context.Context, Managed, client.Reader) error
+	// GetStatus looks up the referenced objects in K8S api and returns a list
+	// of ReferenceStatus
+	GetStatus(context.Context, Managed, client.Reader) ([]ReferenceStatus, error)
 
 	// Build retrieves referenced resource, as well as other non-managed
 	// resources (like a `Provider`), and builds the referenced attribute
@@ -129,10 +157,18 @@ func (r *APIManagedReferenceResolver) ResolveReferences(ctx context.Context, mg 
 	}()
 
 	// make sure that all the references are ready
+	allStatuses := []ReferenceStatus{}
 	for _, referencer := range referencers {
-		if err := referencer.ValidateReady(ctx, mg, r.reader); err != nil {
+		statuses, err := referencer.GetStatus(ctx, mg, r.reader)
+		if err != nil {
 			return err
 		}
+
+		allStatuses = append(allStatuses, statuses...)
+	}
+
+	if err := newReferenceAccessErr(allStatuses); err != nil {
+		return err
 	}
 
 	// build and assign the attributes

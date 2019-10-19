@@ -31,18 +31,18 @@ import (
 type ItemAReferencer struct {
 	*corev1.LocalObjectReference
 
-	validateFn     func(context.Context, Managed, client.Reader) error
-	validateCalled bool
-	buildFn        func(context.Context, Managed, client.Reader) (string, error)
-	buildCalled    bool
-	assignFn       func(Managed, string) error
-	assignCalled   bool
-	assignParam    string
+	getStatusFn     func(context.Context, Managed, client.Reader) ([]ReferenceStatus, error)
+	getStatusCalled bool
+	buildFn         func(context.Context, Managed, client.Reader) (string, error)
+	buildCalled     bool
+	assignFn        func(Managed, string) error
+	assignCalled    bool
+	assignParam     string
 }
 
-func (r *ItemAReferencer) ValidateReady(ctx context.Context, mg Managed, reader client.Reader) error {
-	r.validateCalled = true
-	return r.validateFn(ctx, mg, reader)
+func (r *ItemAReferencer) GetStatus(ctx context.Context, mg Managed, reader client.Reader) ([]ReferenceStatus, error) {
+	r.getStatusCalled = true
+	return r.getStatusFn(ctx, mg, reader)
 }
 
 func (r *ItemAReferencer) Build(ctx context.Context, mg Managed, reader client.Reader) (string, error) {
@@ -60,8 +60,8 @@ type ItemBReferencer struct {
 	*corev1.LocalObjectReference
 }
 
-func (r *ItemBReferencer) ValidateReady(context.Context, Managed, client.Reader) error {
-	return nil
+func (r *ItemBReferencer) GetStatus(context.Context, Managed, client.Reader) ([]ReferenceStatus, error) {
+	return nil, nil
 }
 
 func (r *ItemBReferencer) Build(context.Context, Managed, client.Reader) (string, error) {
@@ -261,7 +261,7 @@ func Test_findAttributeReferencerFields(t *testing.T) {
 
 func Test_ResolveReferences(t *testing.T) {
 
-	validValidateFn := func(context.Context, Managed, client.Reader) error { return nil }
+	validGetStatusFn := func(context.Context, Managed, client.Reader) ([]ReferenceStatus, error) { return nil, nil }
 	validBuildFn := func(context.Context, Managed, client.Reader) (string, error) { return "fakeValue", nil }
 	validAssignFn := func(Managed, string) error { return nil }
 
@@ -281,11 +281,11 @@ func Test_ResolveReferences(t *testing.T) {
 	}
 
 	type want struct {
-		validateCalled bool
-		buildCalled    bool
-		assignCalled   bool
-		assignParam    string
-		err            error
+		getStatusCalled bool
+		buildCalled     bool
+		assignCalled    bool
+		assignParam     string
+		err             error
 	}
 
 	for name, tc := range map[string]struct {
@@ -295,61 +295,114 @@ func Test_ResolveReferences(t *testing.T) {
 		"ValidAttribute_ReturnsNil": {
 			args: args{
 				&ItemAReferencer{
-					validateFn: validValidateFn,
-					buildFn:    validBuildFn,
-					assignFn:   validAssignFn,
+					getStatusFn: validGetStatusFn,
+					buildFn:     validBuildFn,
+					assignFn:    validAssignFn,
 				},
 			},
 			want: want{
-				validateCalled: true,
-				buildCalled:    true,
-				assignCalled:   true,
-				assignParam:    "fakeValue",
+				getStatusCalled: true,
+				buildCalled:     true,
+				assignCalled:    true,
+				assignParam:     "fakeValue",
 			},
 		},
-		"ValidAttribute_ValidateError_ReturnsErr": {
+		"ValidAttribute_GetStatusError_ReturnsErr": {
 			args: args{
 				&ItemAReferencer{
-					validateFn: func(context.Context, Managed, client.Reader) error {
-						return errBoom
+					getStatusFn: func(context.Context, Managed, client.Reader) ([]ReferenceStatus, error) {
+						return nil, errBoom
 					},
 					buildFn:  validBuildFn,
 					assignFn: validAssignFn,
 				},
 			},
 			want: want{
-				validateCalled: true,
-				err:            errBoom,
+				getStatusCalled: true,
+				err:             errBoom,
+			},
+		},
+		"ValidAttribute_GetStatusReturnsNotReadyStatus_ReturnsErr": {
+			args: args{
+				&ItemAReferencer{
+					getStatusFn: func(context.Context, Managed, client.Reader) ([]ReferenceStatus, error) {
+						return []ReferenceStatus{{"cool-res", ReferenceNotReady}}, nil
+					},
+					buildFn:  validBuildFn,
+					assignFn: validAssignFn,
+				},
+			},
+			want: want{
+				getStatusCalled: true,
+				err:             &referencesAccessErr{[]ReferenceStatus{{"cool-res", ReferenceNotReady}}},
+			},
+		},
+		"ValidAttribute_GetStatusReturnsMixedReadyStatus_ReturnsErr": {
+			args: args{
+				&ItemAReferencer{
+					getStatusFn: func(context.Context, Managed, client.Reader) ([]ReferenceStatus, error) {
+						return []ReferenceStatus{
+							{"cool1-res", ReferenceNotFound},
+							{"cool2-res", ReferenceReady},
+						}, nil
+					},
+					buildFn:  validBuildFn,
+					assignFn: validAssignFn,
+				},
+			},
+			want: want{
+				getStatusCalled: true,
+				err: &referencesAccessErr{[]ReferenceStatus{
+					{"cool1-res", ReferenceNotFound},
+					{"cool2-res", ReferenceReady},
+				}},
+			},
+		},
+		"ValidAttribute_GetStatusReturnsReadyStatus_ReturnsErr": {
+			args: args{
+				&ItemAReferencer{
+					getStatusFn: func(context.Context, Managed, client.Reader) ([]ReferenceStatus, error) {
+						return []ReferenceStatus{{"cool-res", ReferenceReady}}, nil
+					},
+					buildFn:  validBuildFn,
+					assignFn: validAssignFn,
+				},
+			},
+			want: want{
+				getStatusCalled: true,
+				buildCalled:     true,
+				assignCalled:    true,
+				assignParam:     "fakeValue",
 			},
 		},
 		"ValidAttribute_BuildError_ReturnsErr": {
 			args: args{
 				&ItemAReferencer{
-					validateFn: validValidateFn,
-					buildFn:    func(context.Context, Managed, client.Reader) (string, error) { return "", errBoom },
-					assignFn:   validAssignFn,
+					getStatusFn: validGetStatusFn,
+					buildFn:     func(context.Context, Managed, client.Reader) (string, error) { return "", errBoom },
+					assignFn:    validAssignFn,
 				},
 			},
 			want: want{
-				validateCalled: true,
-				buildCalled:    true,
-				err:            errors.WithMessage(errBoom, errBuildAttribute),
+				getStatusCalled: true,
+				buildCalled:     true,
+				err:             errors.WithMessage(errBoom, errBuildAttribute),
 			},
 		},
 		"ValidAttribute_AssignError_ReturnsErr": {
 			args: args{
 				&ItemAReferencer{
-					validateFn: validValidateFn,
-					buildFn:    validBuildFn,
-					assignFn:   func(Managed, string) error { return errBoom },
+					getStatusFn: validGetStatusFn,
+					buildFn:     validBuildFn,
+					assignFn:    func(Managed, string) error { return errBoom },
 				},
 			},
 			want: want{
-				validateCalled: true,
-				buildCalled:    true,
-				assignCalled:   true,
-				assignParam:    "fakeValue",
-				err:            errors.WithMessage(errBoom, errAssignAttribute),
+				getStatusCalled: true,
+				buildCalled:     true,
+				assignCalled:    true,
+				assignParam:     "fakeValue",
+				err:             errors.WithMessage(errBoom, errAssignAttribute),
 			},
 		},
 		"ValidAttribute_PanicHappens_Recovers": {
@@ -359,8 +412,8 @@ func Test_ResolveReferences(t *testing.T) {
 				},
 			},
 			want: want{
-				validateCalled: true,
-				err:            errors.Errorf(errPanicedResolving, "runtime error: invalid memory address or nil pointer dereference"),
+				getStatusCalled: true,
+				err:             errors.Errorf(errPanicedResolving, "runtime error: invalid memory address or nil pointer dereference"),
 			},
 		},
 	} {
@@ -376,15 +429,15 @@ func Test_ResolveReferences(t *testing.T) {
 				t.Errorf("ResolveReferences(...): -want error, +got error:\n%s", diff)
 			}
 
-			gotCalls := []bool{tc.args.field.validateCalled, tc.args.field.buildCalled, tc.args.field.assignCalled}
-			wantCalls := []bool{tc.want.validateCalled, tc.want.buildCalled, tc.want.assignCalled}
+			gotCalls := []bool{tc.args.field.getStatusCalled, tc.args.field.buildCalled, tc.args.field.assignCalled}
+			wantCalls := []bool{tc.want.getStatusCalled, tc.want.buildCalled, tc.want.assignCalled}
 
 			if diff := cmp.Diff(wantCalls, gotCalls); diff != "" {
-				t.Errorf("ResolveReferences(...) => []{validateCalled, buildCalled, assignCalled}, : -want, +got:\n%s", diff)
+				t.Errorf("ResolveReferences(...) => []{getStatusCalled, buildCalled, assignCalled}, : -want, +got:\n%s", diff)
 			}
 
 			if diff := cmp.Diff(tc.want.assignParam, tc.args.field.assignParam); diff != "" {
-				t.Errorf("ResolveReferences(...) => []{validateCalled, buildCalled, assignCalled}, : -want, +got:\n%s", diff)
+				t.Errorf("ResolveReferences(...) => []{getStatusCalled, buildCalled, assignCalled}, : -want, +got:\n%s", diff)
 			}
 		})
 	}

@@ -431,14 +431,12 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 	if !observation.ResourceExists {
 		if !IsConditionTrue(managed.GetCondition(v1alpha1.TypeReferencesResolved)) {
 			if err := r.managed.ResolveReferences(ctx, managed); err != nil {
-				// update the status according to the type of the err
-				switch err.(type) {
-				case NotReadyError:
-					managed.SetConditions(v1alpha1.ReferenceResolutionBlocked(err))
-				default:
-					managed.SetConditions(v1alpha1.ReconcileError(err))
+				condition := v1alpha1.ReconcileError(err)
+				if IsReferencesAccessError(err) {
+					condition = v1alpha1.ReferenceResolutionBlocked(err)
 				}
 
+				managed.SetConditions(condition)
 				return reconcile.Result{RequeueAfter: r.longWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 			}
 
