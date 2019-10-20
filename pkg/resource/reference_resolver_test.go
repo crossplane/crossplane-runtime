@@ -23,6 +23,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
@@ -272,12 +273,9 @@ func Test_ResolveReferences(t *testing.T) {
 		ItemARef *ItemAReferencer `resource:"attributereferencer"`
 	}
 
-	type mockReader struct{ client.Reader }
-	rr := NewReferenceResolver(mockReader{})
-	ctx := context.Background()
-
 	type args struct {
-		field *ItemAReferencer
+		field            *ItemAReferencer
+		clientUpdaterErr error
 	}
 
 	type want struct {
@@ -294,7 +292,7 @@ func Test_ResolveReferences(t *testing.T) {
 	}{
 		"ValidAttribute_ReturnsNil": {
 			args: args{
-				&ItemAReferencer{
+				field: &ItemAReferencer{
 					getStatusFn: validGetStatusFn,
 					buildFn:     validBuildFn,
 					assignFn:    validAssignFn,
@@ -309,7 +307,7 @@ func Test_ResolveReferences(t *testing.T) {
 		},
 		"ValidAttribute_GetStatusError_ReturnsErr": {
 			args: args{
-				&ItemAReferencer{
+				field: &ItemAReferencer{
 					getStatusFn: func(context.Context, Managed, client.Reader) ([]ReferenceStatus, error) {
 						return nil, errBoom
 					},
@@ -324,7 +322,7 @@ func Test_ResolveReferences(t *testing.T) {
 		},
 		"ValidAttribute_GetStatusReturnsNotReadyStatus_ReturnsErr": {
 			args: args{
-				&ItemAReferencer{
+				field: &ItemAReferencer{
 					getStatusFn: func(context.Context, Managed, client.Reader) ([]ReferenceStatus, error) {
 						return []ReferenceStatus{{"cool-res", ReferenceNotReady}}, nil
 					},
@@ -339,7 +337,7 @@ func Test_ResolveReferences(t *testing.T) {
 		},
 		"ValidAttribute_GetStatusReturnsMixedReadyStatus_ReturnsErr": {
 			args: args{
-				&ItemAReferencer{
+				field: &ItemAReferencer{
 					getStatusFn: func(context.Context, Managed, client.Reader) ([]ReferenceStatus, error) {
 						return []ReferenceStatus{
 							{"cool1-res", ReferenceNotFound},
@@ -360,7 +358,7 @@ func Test_ResolveReferences(t *testing.T) {
 		},
 		"ValidAttribute_GetStatusReturnsReadyStatus_ReturnsErr": {
 			args: args{
-				&ItemAReferencer{
+				field: &ItemAReferencer{
 					getStatusFn: func(context.Context, Managed, client.Reader) ([]ReferenceStatus, error) {
 						return []ReferenceStatus{{"cool-res", ReferenceReady}}, nil
 					},
@@ -377,7 +375,7 @@ func Test_ResolveReferences(t *testing.T) {
 		},
 		"ValidAttribute_BuildError_ReturnsErr": {
 			args: args{
-				&ItemAReferencer{
+				field: &ItemAReferencer{
 					getStatusFn: validGetStatusFn,
 					buildFn:     func(context.Context, Managed, client.Reader) (string, error) { return "", errBoom },
 					assignFn:    validAssignFn,
@@ -391,7 +389,7 @@ func Test_ResolveReferences(t *testing.T) {
 		},
 		"ValidAttribute_AssignError_ReturnsErr": {
 			args: args{
-				&ItemAReferencer{
+				field: &ItemAReferencer{
 					getStatusFn: validGetStatusFn,
 					buildFn:     validBuildFn,
 					assignFn:    func(Managed, string) error { return errBoom },
@@ -405,9 +403,26 @@ func Test_ResolveReferences(t *testing.T) {
 				err:             errors.WithMessage(errBoom, errAssignAttribute),
 			},
 		},
+		"ValidAttribute_UpdateResourceError_ReturnsErr": {
+			args: args{
+				field: &ItemAReferencer{
+					getStatusFn: validGetStatusFn,
+					buildFn:     validBuildFn,
+					assignFn:    validAssignFn,
+				},
+				clientUpdaterErr: errBoom,
+			},
+			want: want{
+				getStatusCalled: true,
+				buildCalled:     true,
+				assignCalled:    true,
+				assignParam:     "fakeValue",
+				err:             errors.WithMessage(errBoom, errUpdateResourceAfterAssignment),
+			},
+		},
 		"ValidAttribute_PanicHappens_Recovers": {
 			args: args{
-				&ItemAReferencer{
+				field: &ItemAReferencer{
 					// this should cause a panic, since functions are all nil
 				},
 			},
@@ -418,6 +433,10 @@ func Test_ResolveReferences(t *testing.T) {
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
+
+			c := mockClient{updaterErr: tc.args.clientUpdaterErr}
+			rr := NewReferenceResolver(&c)
+			ctx := context.Background()
 
 			res := managed{
 				ItemARef: tc.args.field,
@@ -443,6 +462,15 @@ func Test_ResolveReferences(t *testing.T) {
 	}
 }
 
+type mockClient struct {
+	updaterErr error
+	client.Client
+}
+
+func (c *mockClient) Update(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error {
+	return c.updaterErr
+}
+
 func Test_ResolveReferences_AttributeNotImplemented_Panics(t *testing.T) {
 	type mockStruct struct {
 		Name string
@@ -462,11 +490,29 @@ func Test_ResolveReferences_AttributeNotImplemented_Panics(t *testing.T) {
 			}
 		}()
 
-		NewReferenceResolver(struct{ client.Reader }{}).
+		NewReferenceResolver(struct{ client.Client }{}).
 			ResolveReferences(context.Background(), &res)
 	}()
 
 	if diff := cmp.Diff(paniced, true); diff != "" {
 		t.Errorf("ResolveReferences(...) should panic for invalid attributereferencer: -want , +got :\n%s", diff)
+	}
+}
+
+func Test_ResolveReferences_NoReferencersFound_ExitsEarly(t *testing.T) {
+	type mockStruct struct {
+		Name string
+	}
+
+	res := struct {
+		MockManaged
+	}{}
+
+	var wantErr error = nil
+	gotErr := NewReferenceResolver(struct{ client.Client }{}).
+		ResolveReferences(context.Background(), &res)
+
+	if diff := cmp.Diff(wantErr, gotErr, test.EquateErrors()); diff != "" {
+		t.Errorf("ResolveReferences(...) with no referencers: -want error, +got error:\n%s", diff)
 	}
 }

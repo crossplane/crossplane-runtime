@@ -33,9 +33,10 @@ const (
 
 // Error strings
 const (
-	errTaggedFieldlNotImplemented = "ManagedReferenceResolver: the field has the %v tag, but has not implemented AttributeReferencer interface"
-	errBuildAttribute             = "ManagedReferenceResolver: could not build the attribute"
-	errAssignAttribute            = "ManagedReferenceResolver: could not assign the attribute"
+	errTaggedFieldlNotImplemented    = "ManagedReferenceResolver: the field has the %v tag, but has not implemented AttributeReferencer interface"
+	errBuildAttribute                = "ManagedReferenceResolver: could not build the attribute"
+	errAssignAttribute               = "ManagedReferenceResolver: could not assign the attribute"
+	errUpdateResourceAfterAssignment = "ManagedReferenceResolver: could not update the resource after resolving references"
 )
 
 // fieldHasTagPair is used in findAttributeReferencerFields
@@ -130,11 +131,11 @@ type ManagedReferenceResolver interface {
 
 // APIManagedReferenceResolver resolves implements ManagedReferenceResolver interface
 type APIManagedReferenceResolver struct {
-	reader client.Reader
+	client client.Client
 }
 
 // NewReferenceResolver returns a new APIManagedReferenceResolver
-func NewReferenceResolver(c client.Reader) *APIManagedReferenceResolver {
+func NewReferenceResolver(c client.Client) *APIManagedReferenceResolver {
 	return &APIManagedReferenceResolver{c}
 }
 
@@ -148,6 +149,11 @@ func (r *APIManagedReferenceResolver) ResolveReferences(ctx context.Context, mg 
 		panic(err)
 	}
 
+	// if there are no referencers exit early
+	if len(referencers) == 0 {
+		return nil
+	}
+
 	// this recovers from potential panics during execution of
 	// AttributeReferencer methods
 	defer func() {
@@ -159,7 +165,7 @@ func (r *APIManagedReferenceResolver) ResolveReferences(ctx context.Context, mg 
 	// make sure that all the references are ready
 	allStatuses := []ReferenceStatus{}
 	for _, referencer := range referencers {
-		statuses, err := referencer.GetStatus(ctx, mg, r.reader)
+		statuses, err := referencer.GetStatus(ctx, mg, r.client)
 		if err != nil {
 			return err
 		}
@@ -173,7 +179,7 @@ func (r *APIManagedReferenceResolver) ResolveReferences(ctx context.Context, mg 
 
 	// build and assign the attributes
 	for _, referencer := range referencers {
-		val, err := referencer.Build(ctx, mg, r.reader)
+		val, err := referencer.Build(ctx, mg, r.client)
 		if err != nil {
 			return errors.WithMessage(err, errBuildAttribute)
 		}
@@ -181,6 +187,11 @@ func (r *APIManagedReferenceResolver) ResolveReferences(ctx context.Context, mg 
 		if err := referencer.Assign(mg, val); err != nil {
 			return errors.WithMessage(err, errAssignAttribute)
 		}
+	}
+
+	// persist the updated managed resource
+	if err := r.client.Update(ctx, mg); err != nil {
+		return errors.WithMessage(err, errUpdateResourceAfterAssignment)
 	}
 
 	return nil
