@@ -22,6 +22,8 @@ import (
 	"reflect"
 
 	"github.com/pkg/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -101,6 +103,12 @@ func IsReferencesAccessError(err error) bool {
 	return result
 }
 
+// CanReference is a type that is used as ReferenceResolver input
+type CanReference interface {
+	runtime.Object
+	metav1.Object
+}
+
 // AttributeReferencer is an interface for referencing and resolving
 // cross-resource attribute references. See
 // https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-cross-resource-referencing.md
@@ -109,15 +117,15 @@ type AttributeReferencer interface {
 
 	// GetStatus looks up the referenced objects in K8S api and returns a list
 	// of ReferenceStatus
-	GetStatus(context.Context, Managed, client.Reader) ([]ReferenceStatus, error)
+	GetStatus(context.Context, CanReference, client.Reader) ([]ReferenceStatus, error)
 
 	// Build retrieves referenced resource, as well as other non-managed
 	// resources (like a `Provider`), and builds the referenced attribute
-	Build(context.Context, Managed, client.Reader) (string, error)
+	Build(context.Context, CanReference, client.Reader) (string, error)
 
 	// Assign accepts a managed resource object, and assigns the given value to the
 	// corresponding property
-	Assign(Managed, string) error
+	Assign(CanReference, string) error
 }
 
 // A ManagedReferenceResolver resolves the references to other managed
@@ -126,7 +134,7 @@ type AttributeReferencer interface {
 // interface and have
 // `attributeReferencerTagName:"managedResourceStructTagPackageName"` tag
 type ManagedReferenceResolver interface {
-	ResolveReferences(context.Context, Managed) error
+	ResolveReferences(context.Context, CanReference) error
 }
 
 // APIManagedReferenceResolver resolves implements ManagedReferenceResolver interface
@@ -140,9 +148,9 @@ func NewReferenceResolver(c client.Client) *APIManagedReferenceResolver {
 }
 
 // ResolveReferences resolves references made to other managed resources
-func (r *APIManagedReferenceResolver) ResolveReferences(ctx context.Context, mg Managed) (err error) {
+func (r *APIManagedReferenceResolver) ResolveReferences(ctx context.Context, res CanReference) (err error) {
 	// retrieve all the referencer fields from the managed resource
-	referencers, err := findAttributeReferencerFields(mg, false)
+	referencers, err := findAttributeReferencerFields(res, false)
 	if err != nil {
 		// if there is an error it should immediately panic, since this means an
 		// attribute is tagged but doesn't implement AttributeReferencer
@@ -165,7 +173,7 @@ func (r *APIManagedReferenceResolver) ResolveReferences(ctx context.Context, mg 
 	// make sure that all the references are ready
 	allStatuses := []ReferenceStatus{}
 	for _, referencer := range referencers {
-		statuses, err := referencer.GetStatus(ctx, mg, r.client)
+		statuses, err := referencer.GetStatus(ctx, res, r.client)
 		if err != nil {
 			return err
 		}
@@ -179,22 +187,18 @@ func (r *APIManagedReferenceResolver) ResolveReferences(ctx context.Context, mg 
 
 	// build and assign the attributes
 	for _, referencer := range referencers {
-		val, err := referencer.Build(ctx, mg, r.client)
+		val, err := referencer.Build(ctx, res, r.client)
 		if err != nil {
 			return errors.WithMessage(err, errBuildAttribute)
 		}
 
-		if err := referencer.Assign(mg, val); err != nil {
+		if err := referencer.Assign(res, val); err != nil {
 			return errors.WithMessage(err, errAssignAttribute)
 		}
 	}
 
 	// persist the updated managed resource
-	if err := r.client.Update(ctx, mg); err != nil {
-		return errors.WithMessage(err, errUpdateResourceAfterAssignment)
-	}
-
-	return nil
+	return errors.WithMessage(r.client.Update(ctx, res), errUpdateResourceAfterAssignment)
 }
 
 // findAttributeReferencerFields recursively finds all non-nil fields in a struct and its sub types

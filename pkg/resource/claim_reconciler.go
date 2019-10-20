@@ -183,6 +183,7 @@ type crManaged struct {
 	ManagedConnectionPropagator
 	ManagedBinder
 	ManagedFinalizer
+	ManagedReferenceResolver
 }
 
 func defaultCRManaged(m manager.Manager) crManaged {
@@ -192,6 +193,7 @@ func defaultCRManaged(m manager.Manager) crManaged {
 		ManagedConnectionPropagator: NewAPIManagedConnectionPropagator(m.GetClient(), m.GetScheme()),
 		ManagedBinder:               NewAPIManagedBinder(m.GetClient()),
 		ManagedFinalizer:            NewAPIManagedUnbinder(m.GetClient()),
+		ManagedReferenceResolver:    NewReferenceResolver(m.GetClient()),
 	}
 }
 
@@ -368,6 +370,21 @@ func (r *ClaimReconciler) Reconcile(req reconcile.Request) (reconcile.Result, er
 			// class is (re)created.
 			claim.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(err))
 			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, claim), errUpdateClaimStatus)
+		}
+
+		if !IsConditionTrue(claim.GetCondition(v1alpha1.TypeReferencesResolved)) {
+			if err := r.managed.ResolveReferences(ctx, class); err != nil {
+				condition := v1alpha1.ReconcileError(err)
+				if IsReferencesAccessError(err) {
+					condition = v1alpha1.ReferenceResolutionBlocked(err)
+				}
+
+				claim.SetConditions(condition)
+				return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, claim), errUpdateClaimStatus)
+			}
+
+			// Add ReferenceResolutionSuccess to claim conditions
+			claim.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 		}
 
 		if err := r.managed.Configure(ctx, claim, class, managed); err != nil {

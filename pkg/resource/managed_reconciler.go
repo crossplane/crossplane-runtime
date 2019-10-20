@@ -90,11 +90,11 @@ func (m ManagedInitializerFn) Initialize(ctx context.Context, mg Managed) error 
 }
 
 // ManagedReferenceResolverFn is the pluggable struct to produce objects with ManagedReferenceResolver interface.
-type ManagedReferenceResolverFn func(context.Context, Managed) error
+type ManagedReferenceResolverFn func(context.Context, CanReference) error
 
 // ResolveReferences calls ManagedReferenceResolverFn function
-func (m ManagedReferenceResolverFn) ResolveReferences(ctx context.Context, mg Managed) error {
-	return m(ctx, mg)
+func (m ManagedReferenceResolverFn) ResolveReferences(ctx context.Context, res CanReference) error {
+	return m(ctx, res)
 }
 
 // An ExternalConnecter produces a new ExternalClient given the supplied

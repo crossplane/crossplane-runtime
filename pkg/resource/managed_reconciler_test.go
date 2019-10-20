@@ -561,7 +561,7 @@ func TestManagedReconciler(t *testing.T) {
 						})
 					},
 					func(r *ManagedReconciler) {
-						r.managed.ManagedReferenceResolver = ManagedReferenceResolverFn(func(_ context.Context, mg Managed) error {
+						r.managed.ManagedReferenceResolver = ManagedReferenceResolverFn(func(_ context.Context, res CanReference) error {
 							return errNotReady
 						})
 					},
@@ -612,7 +612,7 @@ func TestManagedReconciler(t *testing.T) {
 						})
 					},
 					func(r *ManagedReconciler) {
-						r.managed.ManagedReferenceResolver = ManagedReferenceResolverFn(func(_ context.Context, mg Managed) error {
+						r.managed.ManagedReferenceResolver = ManagedReferenceResolverFn(func(_ context.Context, res CanReference) error {
 							return errBoom
 						})
 					},

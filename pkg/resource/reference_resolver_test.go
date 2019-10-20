@@ -32,44 +32,44 @@ import (
 type ItemAReferencer struct {
 	*corev1.LocalObjectReference
 
-	getStatusFn     func(context.Context, Managed, client.Reader) ([]ReferenceStatus, error)
+	getStatusFn     func(context.Context, CanReference, client.Reader) ([]ReferenceStatus, error)
 	getStatusCalled bool
-	buildFn         func(context.Context, Managed, client.Reader) (string, error)
+	buildFn         func(context.Context, CanReference, client.Reader) (string, error)
 	buildCalled     bool
-	assignFn        func(Managed, string) error
+	assignFn        func(CanReference, string) error
 	assignCalled    bool
 	assignParam     string
 }
 
-func (r *ItemAReferencer) GetStatus(ctx context.Context, mg Managed, reader client.Reader) ([]ReferenceStatus, error) {
+func (r *ItemAReferencer) GetStatus(ctx context.Context, res CanReference, reader client.Reader) ([]ReferenceStatus, error) {
 	r.getStatusCalled = true
-	return r.getStatusFn(ctx, mg, reader)
+	return r.getStatusFn(ctx, res, reader)
 }
 
-func (r *ItemAReferencer) Build(ctx context.Context, mg Managed, reader client.Reader) (string, error) {
+func (r *ItemAReferencer) Build(ctx context.Context, res CanReference, reader client.Reader) (string, error) {
 	r.buildCalled = true
-	return r.buildFn(ctx, mg, reader)
+	return r.buildFn(ctx, res, reader)
 }
 
-func (r *ItemAReferencer) Assign(mg Managed, val string) error {
+func (r *ItemAReferencer) Assign(res CanReference, val string) error {
 	r.assignCalled = true
 	r.assignParam = val
-	return r.assignFn(mg, val)
+	return r.assignFn(res, val)
 }
 
 type ItemBReferencer struct {
 	*corev1.LocalObjectReference
 }
 
-func (r *ItemBReferencer) GetStatus(context.Context, Managed, client.Reader) ([]ReferenceStatus, error) {
+func (r *ItemBReferencer) GetStatus(context.Context, CanReference, client.Reader) ([]ReferenceStatus, error) {
 	return nil, nil
 }
 
-func (r *ItemBReferencer) Build(context.Context, Managed, client.Reader) (string, error) {
+func (r *ItemBReferencer) Build(context.Context, CanReference, client.Reader) (string, error) {
 	return "", nil
 }
 
-func (r *ItemBReferencer) Assign(Managed, string) error {
+func (r *ItemBReferencer) Assign(CanReference, string) error {
 	return nil
 }
 
@@ -262,9 +262,9 @@ func Test_findAttributeReferencerFields(t *testing.T) {
 
 func Test_ResolveReferences(t *testing.T) {
 
-	validGetStatusFn := func(context.Context, Managed, client.Reader) ([]ReferenceStatus, error) { return nil, nil }
-	validBuildFn := func(context.Context, Managed, client.Reader) (string, error) { return "fakeValue", nil }
-	validAssignFn := func(Managed, string) error { return nil }
+	validGetStatusFn := func(context.Context, CanReference, client.Reader) ([]ReferenceStatus, error) { return nil, nil }
+	validBuildFn := func(context.Context, CanReference, client.Reader) (string, error) { return "fakeValue", nil }
+	validAssignFn := func(CanReference, string) error { return nil }
 
 	errBoom := errors.New("boom")
 
@@ -308,7 +308,7 @@ func Test_ResolveReferences(t *testing.T) {
 		"ValidAttribute_GetStatusError_ReturnsErr": {
 			args: args{
 				field: &ItemAReferencer{
-					getStatusFn: func(context.Context, Managed, client.Reader) ([]ReferenceStatus, error) {
+					getStatusFn: func(context.Context, CanReference, client.Reader) ([]ReferenceStatus, error) {
 						return nil, errBoom
 					},
 					buildFn:  validBuildFn,
@@ -323,7 +323,7 @@ func Test_ResolveReferences(t *testing.T) {
 		"ValidAttribute_GetStatusReturnsNotReadyStatus_ReturnsErr": {
 			args: args{
 				field: &ItemAReferencer{
-					getStatusFn: func(context.Context, Managed, client.Reader) ([]ReferenceStatus, error) {
+					getStatusFn: func(context.Context, CanReference, client.Reader) ([]ReferenceStatus, error) {
 						return []ReferenceStatus{{"cool-res", ReferenceNotReady}}, nil
 					},
 					buildFn:  validBuildFn,
@@ -338,7 +338,7 @@ func Test_ResolveReferences(t *testing.T) {
 		"ValidAttribute_GetStatusReturnsMixedReadyStatus_ReturnsErr": {
 			args: args{
 				field: &ItemAReferencer{
-					getStatusFn: func(context.Context, Managed, client.Reader) ([]ReferenceStatus, error) {
+					getStatusFn: func(context.Context, CanReference, client.Reader) ([]ReferenceStatus, error) {
 						return []ReferenceStatus{
 							{"cool1-res", ReferenceNotFound},
 							{"cool2-res", ReferenceReady},
@@ -359,7 +359,7 @@ func Test_ResolveReferences(t *testing.T) {
 		"ValidAttribute_GetStatusReturnsReadyStatus_ReturnsErr": {
 			args: args{
 				field: &ItemAReferencer{
-					getStatusFn: func(context.Context, Managed, client.Reader) ([]ReferenceStatus, error) {
+					getStatusFn: func(context.Context, CanReference, client.Reader) ([]ReferenceStatus, error) {
 						return []ReferenceStatus{{"cool-res", ReferenceReady}}, nil
 					},
 					buildFn:  validBuildFn,
@@ -377,7 +377,7 @@ func Test_ResolveReferences(t *testing.T) {
 			args: args{
 				field: &ItemAReferencer{
 					getStatusFn: validGetStatusFn,
-					buildFn:     func(context.Context, Managed, client.Reader) (string, error) { return "", errBoom },
+					buildFn:     func(context.Context, CanReference, client.Reader) (string, error) { return "", errBoom },
 					assignFn:    validAssignFn,
 				},
 			},
@@ -392,7 +392,7 @@ func Test_ResolveReferences(t *testing.T) {
 				field: &ItemAReferencer{
 					getStatusFn: validGetStatusFn,
 					buildFn:     validBuildFn,
-					assignFn:    func(Managed, string) error { return errBoom },
+					assignFn:    func(CanReference, string) error { return errBoom },
 				},
 			},
 			want: want{
@@ -500,15 +500,11 @@ func Test_ResolveReferences_AttributeNotImplemented_Panics(t *testing.T) {
 }
 
 func Test_ResolveReferences_NoReferencersFound_ExitsEarly(t *testing.T) {
-	type mockStruct struct {
-		Name string
-	}
-
 	res := struct {
 		MockManaged
 	}{}
 
-	var wantErr error = nil
+	var wantErr error
 	gotErr := NewReferenceResolver(struct{ client.Client }{}).
 		ResolveReferences(context.Background(), &res)
 
