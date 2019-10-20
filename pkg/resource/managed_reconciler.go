@@ -372,6 +372,21 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
+	if !IsConditionTrue(managed.GetCondition(v1alpha1.TypeReferencesResolved)) {
+		if err := r.managed.ResolveReferences(ctx, managed); err != nil {
+			condition := v1alpha1.ReconcileError(err)
+			if IsReferencesAccessError(err) {
+				condition = v1alpha1.ReferenceResolutionBlocked(err)
+			}
+
+			managed.SetConditions(condition)
+			return reconcile.Result{RequeueAfter: r.longWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		}
+
+		// Add ReferenceResolutionSuccess to the conditions
+		managed.SetConditions(v1alpha1.ReferenceResolutionSuccess())
+	}
+
 	observation, err := external.Observe(ctx, managed)
 	if err != nil {
 		// We'll usually hit this case if our Provider credentials are invalid
@@ -429,21 +444,6 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 	}
 
 	if !observation.ResourceExists {
-		if !IsConditionTrue(managed.GetCondition(v1alpha1.TypeReferencesResolved)) {
-			if err := r.managed.ResolveReferences(ctx, managed); err != nil {
-				condition := v1alpha1.ReconcileError(err)
-				if IsReferencesAccessError(err) {
-					condition = v1alpha1.ReferenceResolutionBlocked(err)
-				}
-
-				managed.SetConditions(condition)
-				return reconcile.Result{RequeueAfter: r.longWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
-			}
-
-			// Add ReferenceResolutionSuccess to the conditions
-			managed.SetConditions(v1alpha1.ReferenceResolutionSuccess())
-		}
-
 		creation, err := external.Create(ctx, managed)
 		if err != nil {
 			// We'll hit this condition if we can't create our external
