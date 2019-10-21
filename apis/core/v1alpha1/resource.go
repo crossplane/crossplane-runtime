@@ -18,7 +18,11 @@ package v1alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	// NOTE(negz): Importing this as metav1 appears to break controller-gen's
+	// deepcopy generation logic. It generates a deepcopy file that omits this
+	// import and thus does not compile. Importing as v1 fixes this. ¯\_(ツ)_/¯
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // The annotation used to make a resource class the default.
@@ -92,7 +96,7 @@ type ResourceClaimSpec struct {
 	// class for this claim. If multiple classes match the labels one will be
 	// chosen at random.
 	// +optional
-	ClassSelector *metav1.LabelSelector `json:"classSelector,omitempty"`
+	ClassSelector *v1.LabelSelector `json:"classSelector,omitempty"`
 
 	// A ClassReference specifies a resource class that will be used to
 	// dynamically provision a managed resource when the resource claim is
