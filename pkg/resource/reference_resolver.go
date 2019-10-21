@@ -30,7 +30,6 @@ import (
 
 const (
 	attributeReferencerTagName = "attributereferencer"
-	errPanicedResolving        = "paniced while resolving references: %v"
 )
 
 // Error strings
@@ -72,7 +71,7 @@ type ReferenceStatus struct {
 }
 
 func (r ReferenceStatus) String() string {
-	return fmt.Sprintf("%s:%s,", r.Name, r.Status)
+	return fmt.Sprintf("{reference:%s status:%s}", r.Name, r.Status)
 }
 
 // referencesAccessErr is used to indicate that one or more references can not
@@ -94,10 +93,12 @@ func newReferenceAccessErr(statuses []ReferenceStatus) error {
 }
 
 func (r *referencesAccessErr) Error() string {
-	return fmt.Sprintf("Some of the referenced resources cannot be accessed. {%s}", r.statuses)
+	return fmt.Sprintf("%s", r.statuses)
 }
 
-// IsReferencesAccessError returns true if the given error is of type referencesAccessErr
+// IsReferencesAccessError returns true if the given error indicates that some
+// of the `AttributeReferencer` fields are referring to objects that are not
+// accessible, either they are not ready or they do not yet exist
 func IsReferencesAccessError(err error) bool {
 	_, result := err.(*referencesAccessErr)
 	return result
@@ -142,8 +143,8 @@ type APIManagedReferenceResolver struct {
 	client client.Client
 }
 
-// NewReferenceResolver returns a new APIManagedReferenceResolver
-func NewReferenceResolver(c client.Client) *APIManagedReferenceResolver {
+// NewAPIManagedReferenceResolver returns a new APIManagedReferenceResolver
+func NewAPIManagedReferenceResolver(c client.Client) *APIManagedReferenceResolver {
 	return &APIManagedReferenceResolver{c}
 }
 
@@ -161,14 +162,6 @@ func (r *APIManagedReferenceResolver) ResolveReferences(ctx context.Context, res
 	if len(referencers) == 0 {
 		return nil
 	}
-
-	// this recovers from potential panics during execution of
-	// AttributeReferencer methods
-	defer func() {
-		if r := recover(); r != nil {
-			err = errors.Errorf(errPanicedResolving, r)
-		}
-	}()
 
 	// make sure that all the references are ready
 	allStatuses := []ReferenceStatus{}
@@ -189,16 +182,16 @@ func (r *APIManagedReferenceResolver) ResolveReferences(ctx context.Context, res
 	for _, referencer := range referencers {
 		val, err := referencer.Build(ctx, res, r.client)
 		if err != nil {
-			return errors.WithMessage(err, errBuildAttribute)
+			return errors.Wrap(err, errBuildAttribute)
 		}
 
 		if err := referencer.Assign(res, val); err != nil {
-			return errors.WithMessage(err, errAssignAttribute)
+			return errors.Wrap(err, errAssignAttribute)
 		}
 	}
 
 	// persist the updated managed resource
-	return errors.WithMessage(r.client.Update(ctx, res), errUpdateResourceAfterAssignment)
+	return errors.Wrap(r.client.Update(ctx, res), errUpdateResourceAfterAssignment)
 }
 
 // findAttributeReferencerFields recursively finds all non-nil fields in a struct and its sub types

@@ -384,7 +384,7 @@ func Test_ResolveReferences(t *testing.T) {
 			want: want{
 				getStatusCalled: true,
 				buildCalled:     true,
-				err:             errors.WithMessage(errBoom, errBuildAttribute),
+				err:             errors.Wrap(errBoom, errBuildAttribute),
 			},
 		},
 		"ValidAttribute_AssignError_ReturnsErr": {
@@ -400,7 +400,7 @@ func Test_ResolveReferences(t *testing.T) {
 				buildCalled:     true,
 				assignCalled:    true,
 				assignParam:     "fakeValue",
-				err:             errors.WithMessage(errBoom, errAssignAttribute),
+				err:             errors.Wrap(errBoom, errAssignAttribute),
 			},
 		},
 		"ValidAttribute_UpdateResourceError_ReturnsErr": {
@@ -417,25 +417,14 @@ func Test_ResolveReferences(t *testing.T) {
 				buildCalled:     true,
 				assignCalled:    true,
 				assignParam:     "fakeValue",
-				err:             errors.WithMessage(errBoom, errUpdateResourceAfterAssignment),
-			},
-		},
-		"ValidAttribute_PanicHappens_Recovers": {
-			args: args{
-				field: &ItemAReferencer{
-					// this should cause a panic, since functions are all nil
-				},
-			},
-			want: want{
-				getStatusCalled: true,
-				err:             errors.Errorf(errPanicedResolving, "runtime error: invalid memory address or nil pointer dereference"),
+				err:             errors.Wrap(errBoom, errUpdateResourceAfterAssignment),
 			},
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
 
 			c := mockClient{updaterErr: tc.args.clientUpdaterErr}
-			rr := NewReferenceResolver(&c)
+			rr := NewAPIManagedReferenceResolver(&c)
 			ctx := context.Background()
 
 			res := managed{
@@ -490,7 +479,7 @@ func Test_ResolveReferences_AttributeNotImplemented_Panics(t *testing.T) {
 			}
 		}()
 
-		NewReferenceResolver(struct{ client.Client }{}).
+		NewAPIManagedReferenceResolver(struct{ client.Client }{}).
 			ResolveReferences(context.Background(), &res)
 	}()
 
@@ -505,7 +494,7 @@ func Test_ResolveReferences_NoReferencersFound_ExitsEarly(t *testing.T) {
 	}{}
 
 	var wantErr error
-	gotErr := NewReferenceResolver(struct{ client.Client }{}).
+	gotErr := NewAPIManagedReferenceResolver(struct{ client.Client }{}).
 		ResolveReferences(context.Background(), &res)
 
 	if diff := cmp.Diff(wantErr, gotErr, test.EquateErrors()); diff != "" {

@@ -134,13 +134,6 @@ func (s *ConditionedStatus) GetCondition(ct ConditionType) Condition {
 	return Condition{Type: ct, Status: corev1.ConditionUnknown}
 }
 
-// IsConditionTrue returns a boolean indicating whether the given condition
-// exists and is true
-func (s *ConditionedStatus) IsConditionTrue(ct ConditionType) bool {
-	cond := s.GetCondition(ct)
-	return cond.Status != corev1.ConditionTrue
-}
-
 // SetConditions sets the supplied conditions, replacing any existing conditions
 // of the same type. This is a no-op if all supplied conditions are identical,
 // ignoring the last transition time, to those already set.

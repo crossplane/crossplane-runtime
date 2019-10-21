@@ -545,16 +545,6 @@ func TestManagedReconciler(t *testing.T) {
 				},
 				o: []ManagedReconcilerOption{
 					func(r *ManagedReconciler) {
-						r.managed.ManagedConnectionPublisher = ManagedConnectionPublisherFns{
-							PublishConnectionFn: func(_ context.Context, _ Managed, c ConnectionDetails) error {
-								if diff := cmp.Diff(0, len(c)); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							},
-						}
-					},
-					func(r *ManagedReconciler) {
 						r.managed.ManagedInitializer = ManagedInitializerFn(func(_ context.Context, mg Managed) error {
 							mg.SetFinalizers(testFinalizers)
 							return nil
@@ -587,24 +577,8 @@ func TestManagedReconciler(t *testing.T) {
 					s: MockSchemeWith(&MockManaged{}),
 				},
 				mg: ManagedKind(MockGVK(&MockManaged{})),
-				e: &ExternalClientFns{
-					ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
-						return ExternalObservation{
-							ResourceExists: false,
-						}, nil
-					},
-				},
+				e:  &ExternalClientFns{},
 				o: []ManagedReconcilerOption{
-					func(r *ManagedReconciler) {
-						r.managed.ManagedConnectionPublisher = ManagedConnectionPublisherFns{
-							PublishConnectionFn: func(_ context.Context, _ Managed, c ConnectionDetails) error {
-								if diff := cmp.Diff(0, len(c)); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							},
-						}
-					},
 					func(r *ManagedReconciler) {
 						r.managed.ManagedInitializer = ManagedInitializerFn(func(_ context.Context, mg Managed) error {
 							mg.SetFinalizers(testFinalizers)
@@ -637,13 +611,7 @@ func TestManagedReconciler(t *testing.T) {
 					s: MockSchemeWith(&MockManaged{}),
 				},
 				mg: ManagedKind(MockGVK(&MockManaged{})),
-				e: &ExternalClientFns{
-					ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
-						return ExternalObservation{
-							ResourceExists: false,
-						}, nil
-					},
-				},
+				e:  &ExternalClientFns{},
 				o: []ManagedReconcilerOption{
 					func(r *ManagedReconciler) {
 						r.managed.ManagedConnectionPublisher = ManagedConnectionPublisherFns{

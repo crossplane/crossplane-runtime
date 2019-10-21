@@ -153,6 +153,37 @@ func TestSetConditions(t *testing.T) {
 	}
 }
 
+func TestGetCondition(t *testing.T) {
+	cases := map[string]struct {
+		cs   *ConditionedStatus
+		t    ConditionType
+		want Condition
+	}{
+		"ConditionExists": {
+			cs:   NewConditionedStatus(Available()),
+			t:    TypeReady,
+			want: Available(),
+		},
+		"ConditionDoesNotExist": {
+			cs: NewConditionedStatus(Available()),
+			t:  TypeSynced,
+			want: Condition{
+				Type:   TypeSynced,
+				Status: corev1.ConditionUnknown,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := tc.cs.GetCondition(tc.t)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("tc.cs.GetConditions(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestConditionWithMessage(t *testing.T) {
 	testMsg := "Something went wrong on cloud side"
 	cases := map[string]struct {

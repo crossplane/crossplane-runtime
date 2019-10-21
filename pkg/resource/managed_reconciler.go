@@ -245,7 +245,7 @@ func defaultMRManaged(m manager.Manager) mrManaged {
 			NewManagedNameAsExternalName(m.GetClient()),
 			NewAPIManagedFinalizerAdder(m.GetClient()),
 		},
-		ManagedReferenceResolver: NewReferenceResolver(m.GetClient()),
+		ManagedReferenceResolver: NewAPIManagedReferenceResolver(m.GetClient()),
 	}
 }
 
