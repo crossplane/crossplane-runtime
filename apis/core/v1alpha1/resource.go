@@ -23,6 +23,8 @@ import (
 const (
 	// ResourceCredentialsSecretEndpointKey is the key inside a connection secret for the connection endpoint
 	ResourceCredentialsSecretEndpointKey = "endpoint"
+	// ResourceCredentialsSecretPortKey is the key inside a connection secret for the connection port
+	ResourceCredentialsSecretPortKey = "port"
 	// ResourceCredentialsSecretUserKey is the key inside a connection secret for the connection user
 	ResourceCredentialsSecretUserKey = "username"
 	// ResourceCredentialsSecretPasswordKey is the key inside a connection secret for the connection password
