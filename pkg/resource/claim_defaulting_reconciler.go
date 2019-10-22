@@ -34,8 +34,9 @@ import (
 )
 
 const (
-	claimDefaultingControllerName   = "resourceclaimdefaulter.crossplane.io"
-	claimDefaultingReconcileTimeout = 1 * time.Minute
+	claimDefaultingControllerName       = "resourceclaimdefaulter.crossplane.io"
+	claimDefaultingReconcileTimeout     = 1 * time.Minute
+	claimDefaultingReconcileMaxJitterMs = 1500
 )
 
 // A ClaimDefaultingReconciler reconciles resource claims by setting their
@@ -75,7 +76,7 @@ func NewClaimDefaultingReconciler(m manager.Manager, of ClaimKind, to ClassKind,
 		classKind: to,
 		jitter: func() {
 			random := rand.New(rand.NewSource(time.Now().UnixNano()))
-			time.Sleep(time.Duration(random.Intn(200)) * time.Millisecond)
+			time.Sleep(time.Duration(random.Intn(claimDefaultingReconcileMaxJitterMs)) * time.Millisecond)
 		},
 	}
 

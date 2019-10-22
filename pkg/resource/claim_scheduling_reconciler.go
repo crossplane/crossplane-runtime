@@ -33,8 +33,9 @@ import (
 )
 
 const (
-	claimSchedulingControllerName   = "resourceclaimscheduler.crossplane.io"
-	claimSchedulingReconcileTimeout = 1 * time.Minute
+	claimSchedulingControllerName       = "resourceclaimscheduler.crossplane.io"
+	claimSchedulingReconcileTimeout     = 1 * time.Minute
+	claimSchedulingReconcileMaxJitterMs = 1500
 )
 
 const (
@@ -85,7 +86,7 @@ func NewClaimSchedulingReconciler(m manager.Manager, of ClaimKind, to ClassKind,
 		classKind: to,
 		jitter: func() {
 			random := rand.New(rand.NewSource(time.Now().UnixNano()))
-			time.Sleep(time.Duration(random.Intn(200)) * time.Millisecond)
+			time.Sleep(time.Duration(random.Intn(claimSchedulingReconcileMaxJitterMs)) * time.Millisecond)
 		},
 	}
 
