@@ -31,11 +31,11 @@ type Bindable interface {
 	GetBindingPhase() v1alpha1.BindingPhase
 }
 
-// A ConditionSetter may have conditions set. Conditions are informational, and
-// typically indicate the status of both a resource and its reconciliation
-// process.
-type ConditionSetter interface {
+// A Conditioned may have conditions set or retrieved. Conditions are typically
+// indicate the status of both a resource and its reconciliation process.
+type Conditioned interface {
 	SetConditions(c ...v1alpha1.Condition)
+	GetCondition(v1alpha1.ConditionType) v1alpha1.Condition
 }
 
 // A ClaimReferencer may reference a resource claim.
@@ -91,7 +91,7 @@ type Claim interface {
 	ManagedResourceReferencer
 	ConnectionSecretWriterTo
 
-	ConditionSetter
+	Conditioned
 	Bindable
 }
 
@@ -115,7 +115,7 @@ type Managed interface {
 	ConnectionSecretWriterTo
 	Reclaimer
 
-	ConditionSetter
+	Conditioned
 	Bindable
 }
 

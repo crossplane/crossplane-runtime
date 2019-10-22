@@ -326,3 +326,36 @@ func TestSetBindable(t *testing.T) {
 		})
 	}
 }
+
+func TestIsConditionTrue(t *testing.T) {
+	cases := map[string]struct {
+		c    v1alpha1.Condition
+		want bool
+	}{
+		"IsTrue": {
+			c:    v1alpha1.Condition{Status: corev1.ConditionTrue},
+			want: true,
+		},
+		"IsFalse": {
+			c:    v1alpha1.Condition{Status: corev1.ConditionFalse},
+			want: false,
+		},
+		"IsUnknown": {
+			c:    v1alpha1.Condition{Status: corev1.ConditionUnknown},
+			want: false,
+		},
+		"IsUnset": {
+			c:    v1alpha1.Condition{},
+			want: false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := IsConditionTrue(tc.c)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("IsConditionTrue(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}

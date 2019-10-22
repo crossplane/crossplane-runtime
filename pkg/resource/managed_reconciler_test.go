@@ -51,6 +51,7 @@ func TestManagedReconciler(t *testing.T) {
 	}
 
 	errBoom := errors.New("boom")
+	errNotReady := &referencesAccessErr{[]ReferenceStatus{{Name: "cool-res", Status: ReferenceNotReady}}}
 	now := metav1.Now()
 	testFinalizers := []string{"finalizer.crossplane.io"}
 	testConnectionDetails := ConnectionDetails{
@@ -517,6 +518,82 @@ func TestManagedReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
 		},
+		"ResolveReferences_NotReadyErr_ReturnsExpected": {
+			args: args{
+				m: &MockManager{
+					c: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+							want := &MockManaged{}
+							want.SetConditions(v1alpha1.ReferenceResolutionBlocked(errNotReady))
+							want.SetFinalizers(testFinalizers)
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+					s: MockSchemeWith(&MockManaged{}),
+				},
+				mg: ManagedKind(MockGVK(&MockManaged{})),
+				e: &ExternalClientFns{
+					ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
+						return ExternalObservation{
+							ResourceExists: false,
+						}, nil
+					},
+				},
+				o: []ManagedReconcilerOption{
+					func(r *ManagedReconciler) {
+						r.managed.ManagedInitializer = ManagedInitializerFn(func(_ context.Context, mg Managed) error {
+							mg.SetFinalizers(testFinalizers)
+							return nil
+						})
+					},
+					func(r *ManagedReconciler) {
+						r.managed.ManagedReferenceResolver = ManagedReferenceResolverFn(func(_ context.Context, res CanReference) error {
+							return errNotReady
+						})
+					},
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultManagedLongWait}},
+		},
+		"ResolveReferences_OtherError_ReturnsExpected": {
+			args: args{
+				m: &MockManager{
+					c: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+							want := &MockManaged{}
+							want.SetConditions(v1alpha1.ReconcileError(errBoom))
+							want.SetFinalizers(testFinalizers)
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+					s: MockSchemeWith(&MockManaged{}),
+				},
+				mg: ManagedKind(MockGVK(&MockManaged{})),
+				e:  &ExternalClientFns{},
+				o: []ManagedReconcilerOption{
+					func(r *ManagedReconciler) {
+						r.managed.ManagedInitializer = ManagedInitializerFn(func(_ context.Context, mg Managed) error {
+							mg.SetFinalizers(testFinalizers)
+							return nil
+						})
+					},
+					func(r *ManagedReconciler) {
+						r.managed.ManagedReferenceResolver = ManagedReferenceResolverFn(func(_ context.Context, res CanReference) error {
+							return errBoom
+						})
+					},
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultManagedLongWait}},
+		},
 		"EstablishResourceDoesNotExistError": {
 			args: args{
 				m: &MockManager{
@@ -534,13 +611,7 @@ func TestManagedReconciler(t *testing.T) {
 					s: MockSchemeWith(&MockManaged{}),
 				},
 				mg: ManagedKind(MockGVK(&MockManaged{})),
-				e: &ExternalClientFns{
-					ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
-						return ExternalObservation{
-							ResourceExists: false,
-						}, nil
-					},
-				},
+				e:  &ExternalClientFns{},
 				o: []ManagedReconcilerOption{
 					func(r *ManagedReconciler) {
 						r.managed.ManagedConnectionPublisher = ManagedConnectionPublisherFns{
