@@ -17,13 +17,9 @@ limitations under the License.
 package resource
 
 import (
-	"context"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
@@ -80,6 +76,23 @@ func HasManagedResourceReferenceKind(k ManagedKind) PredicateFn {
 		}
 
 		return r.GetResourceReference().GroupVersionKind() == schema.GroupVersionKind(k)
+	}
+}
+
+// HasClassReferenceKind accepts objects that reference the supplied resource
+// class kind.
+func HasClassReferenceKind(k ClassKind) PredicateFn {
+	return func(obj runtime.Object) bool {
+		r, ok := obj.(ClassReferencer)
+		if !ok {
+			return false
+		}
+
+		if r.GetClassReference() == nil {
+			return false
+		}
+
+		return r.GetClassReference().GroupVersionKind() == schema.GroupVersionKind(k)
 	}
 }
 
@@ -158,59 +171,44 @@ func IsPropagated() PredicateFn {
 	}
 }
 
-// HasIndirectClassReferenceKind accepts namespaced objects that reference the
-// supplied non-portable class kind via the supplied portable class kind.
-func HasIndirectClassReferenceKind(c client.Client, oc runtime.ObjectCreater, k ClassKinds) PredicateFn {
+// HasClassSelector accepts resource claims that do not specify a resource
+// class selector.
+func HasClassSelector() PredicateFn {
 	return func(obj runtime.Object) bool {
-		pcr, ok := obj.(PortableClassReferencer)
+		cs, ok := obj.(ClassSelector)
 		if !ok {
 			return false
 		}
-
-		pr := pcr.GetPortableClassReference()
-		if pr == nil {
-			return false
-		}
-
-		n, ok := obj.(interface{ GetNamespace() string })
-		if !ok {
-			return false
-		}
-
-		ctx, cancel := context.WithTimeout(context.Background(), claimReconcileTimeout)
-		defer cancel()
-
-		portable := MustCreateObject(k.Portable, oc).(PortableClass)
-		p := types.NamespacedName{Namespace: n.GetNamespace(), Name: pr.Name}
-		if err := c.Get(ctx, p, portable); err != nil {
-			return false
-		}
-
-		cr := portable.GetNonPortableClassReference()
-		if cr == nil {
-			return false
-		}
-
-		gvk := cr.GroupVersionKind()
-
-		return gvk == k.NonPortable
+		return cs.GetClassSelector() != nil
 	}
 }
 
-// HasNoPortableClassReference accepts ResourceClaims that do not reference a
-// specific portable class
-func HasNoPortableClassReference() PredicateFn {
+// HasNoClassSelector accepts resource claims that do not specify a resource
+// class selector.
+func HasNoClassSelector() PredicateFn {
 	return func(obj runtime.Object) bool {
-		cr, ok := obj.(PortableClassReferencer)
+		cs, ok := obj.(ClassSelector)
 		if !ok {
 			return false
 		}
-		return cr.GetPortableClassReference() == nil
+		return cs.GetClassSelector() == nil
 	}
 }
 
-// HasNoManagedResourceReference accepts ResourceClaims that do not reference a
-// specific Managed Resource
+// HasNoClassReference accepts resource claims that do not reference a specific
+// resource class.
+func HasNoClassReference() PredicateFn {
+	return func(obj runtime.Object) bool {
+		cr, ok := obj.(ClassReferencer)
+		if !ok {
+			return false
+		}
+		return cr.GetClassReference() == nil
+	}
+}
+
+// HasNoManagedResourceReference accepts resource claims that do not reference a
+// specific managed resource.
 func HasNoManagedResourceReference() PredicateFn {
 	return func(obj runtime.Object) bool {
 		cr, ok := obj.(ManagedResourceReferencer)

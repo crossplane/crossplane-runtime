@@ -44,16 +44,16 @@ type ClaimReferencer interface {
 	GetClaimReference() *corev1.ObjectReference
 }
 
-// A NonPortableClassReferencer may reference a non-portable resource class.
-type NonPortableClassReferencer interface {
-	SetNonPortableClassReference(r *corev1.ObjectReference)
-	GetNonPortableClassReference() *corev1.ObjectReference
+// A ClassSelector may reference a resource class.
+type ClassSelector interface {
+	SetClassSelector(s *metav1.LabelSelector)
+	GetClassSelector() *metav1.LabelSelector
 }
 
-// A PortableClassReferencer may reference a local portable class.
-type PortableClassReferencer interface {
-	SetPortableClassReference(r *corev1.LocalObjectReference)
-	GetPortableClassReference() *corev1.LocalObjectReference
+// A ClassReferencer may reference a resource class.
+type ClassReferencer interface {
+	SetClassReference(r *corev1.ObjectReference)
+	GetClassReference() *corev1.ObjectReference
 }
 
 // A ManagedResourceReferencer may reference a concrete managed resource.
@@ -62,22 +62,24 @@ type ManagedResourceReferencer interface {
 	GetResourceReference() *corev1.ObjectReference
 }
 
-// A ConnectionSecretWriterTo may write a connection secret.
+// A LocalConnectionSecretWriterTo may write a connection secret to its own
+// namespace.
+type LocalConnectionSecretWriterTo interface {
+	SetWriteConnectionSecretToReference(r *v1alpha1.LocalSecretReference)
+	GetWriteConnectionSecretToReference() *v1alpha1.LocalSecretReference
+}
+
+// A ConnectionSecretWriterTo may write a connection secret to an arbitrary
+// namespace.
 type ConnectionSecretWriterTo interface {
-	SetWriteConnectionSecretToReference(r corev1.LocalObjectReference)
-	GetWriteConnectionSecretToReference() corev1.LocalObjectReference
+	SetWriteConnectionSecretToReference(r *v1alpha1.SecretReference)
+	GetWriteConnectionSecretToReference() *v1alpha1.SecretReference
 }
 
 // A Reclaimer may specify a ReclaimPolicy.
 type Reclaimer interface {
 	SetReclaimPolicy(p v1alpha1.ReclaimPolicy)
 	GetReclaimPolicy() v1alpha1.ReclaimPolicy
-}
-
-// A PortableClassLister may contain a list of portable classes.
-type PortableClassLister interface {
-	SetPortableClassItems(i []PortableClass)
-	GetPortableClassItems() []PortableClass
 }
 
 // A Claim is a Kubernetes object representing an abstract resource claim (e.g.
@@ -87,17 +89,18 @@ type Claim interface {
 	runtime.Object
 	metav1.Object
 
-	PortableClassReferencer
+	ClassSelector
+	ClassReferencer
 	ManagedResourceReferencer
-	ConnectionSecretWriterTo
+	LocalConnectionSecretWriterTo
 
 	Conditioned
 	Bindable
 }
 
-// A NonPortableClass is a Kubernetes object representing configuration
-// specifications for a manged resource.
-type NonPortableClass interface {
+// A Class is a Kubernetes object representing configuration specifications for
+// a managed resource.
+type Class interface {
 	runtime.Object
 	metav1.Object
 
@@ -110,29 +113,11 @@ type Managed interface {
 	runtime.Object
 	metav1.Object
 
-	NonPortableClassReferencer
+	ClassReferencer
 	ClaimReferencer
 	ConnectionSecretWriterTo
 	Reclaimer
 
 	Conditioned
 	Bindable
-}
-
-// A PortableClass is a Kubernetes object representing a default
-// behavior for a given claim kind.
-type PortableClass interface {
-	runtime.Object
-	metav1.Object
-
-	NonPortableClassReferencer
-}
-
-// A PortableClassList is a Kubernetes object representing representing
-// a list of portable classes.
-type PortableClassList interface {
-	runtime.Object
-	metav1.ListInterface
-
-	PortableClassLister
 }

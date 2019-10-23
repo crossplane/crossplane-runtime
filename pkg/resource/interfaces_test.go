@@ -41,21 +41,21 @@ type MockClaimReferencer struct{ Ref *corev1.ObjectReference }
 func (m *MockClaimReferencer) SetClaimReference(r *corev1.ObjectReference) { m.Ref = r }
 func (m *MockClaimReferencer) GetClaimReference() *corev1.ObjectReference  { return m.Ref }
 
-type MockNonPortableClassReferencer struct{ Ref *corev1.ObjectReference }
+type MockClassSelector struct{ Sel *metav1.LabelSelector }
 
-func (m *MockNonPortableClassReferencer) SetNonPortableClassReference(r *corev1.ObjectReference) {
+func (m *MockClassSelector) SetClassSelector(s *metav1.LabelSelector) {
+	m.Sel = s
+}
+func (m *MockClassSelector) GetClassSelector() *metav1.LabelSelector {
+	return m.Sel
+}
+
+type MockClassReferencer struct{ Ref *corev1.ObjectReference }
+
+func (m *MockClassReferencer) SetClassReference(r *corev1.ObjectReference) {
 	m.Ref = r
 }
-func (m *MockNonPortableClassReferencer) GetNonPortableClassReference() *corev1.ObjectReference {
-	return m.Ref
-}
-
-type MockPortableClassReferencer struct{ Ref *corev1.LocalObjectReference }
-
-func (m *MockPortableClassReferencer) SetPortableClassReference(r *corev1.LocalObjectReference) {
-	m.Ref = r
-}
-func (m *MockPortableClassReferencer) GetPortableClassReference() *corev1.LocalObjectReference {
+func (m *MockClassReferencer) GetClassReference() *corev1.ObjectReference {
 	return m.Ref
 }
 
@@ -64,12 +64,23 @@ type MockManagedResourceReferencer struct{ Ref *corev1.ObjectReference }
 func (m *MockManagedResourceReferencer) SetResourceReference(r *corev1.ObjectReference) { m.Ref = r }
 func (m *MockManagedResourceReferencer) GetResourceReference() *corev1.ObjectReference  { return m.Ref }
 
-type MockConnectionSecretWriterTo struct{ Ref corev1.LocalObjectReference }
+type MockLocalConnectionSecretWriterTo struct {
+	Ref *v1alpha1.LocalSecretReference
+}
 
-func (m *MockConnectionSecretWriterTo) SetWriteConnectionSecretToReference(r corev1.LocalObjectReference) {
+func (m *MockLocalConnectionSecretWriterTo) SetWriteConnectionSecretToReference(r *v1alpha1.LocalSecretReference) {
 	m.Ref = r
 }
-func (m *MockConnectionSecretWriterTo) GetWriteConnectionSecretToReference() corev1.LocalObjectReference {
+func (m *MockLocalConnectionSecretWriterTo) GetWriteConnectionSecretToReference() *v1alpha1.LocalSecretReference {
+	return m.Ref
+}
+
+type MockConnectionSecretWriterTo struct{ Ref *v1alpha1.SecretReference }
+
+func (m *MockConnectionSecretWriterTo) SetWriteConnectionSecretToReference(r *v1alpha1.SecretReference) {
+	m.Ref = r
+}
+func (m *MockConnectionSecretWriterTo) GetWriteConnectionSecretToReference() *v1alpha1.SecretReference {
 	return m.Ref
 }
 
@@ -78,27 +89,23 @@ type MockReclaimer struct{ Policy v1alpha1.ReclaimPolicy }
 func (m *MockReclaimer) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) { m.Policy = p }
 func (m *MockReclaimer) GetReclaimPolicy() v1alpha1.ReclaimPolicy  { return m.Policy }
 
-type MockPortableClassLister struct{ Items []PortableClass }
-
-func (m *MockPortableClassLister) SetPortableClassItems(i []PortableClass) { m.Items = i }
-func (m *MockPortableClassLister) GetPortableClassItems() []PortableClass  { return m.Items }
-
 var _ Claim = &MockClaim{}
 
 type MockClaim struct {
 	runtime.Object
 
 	metav1.ObjectMeta
-	MockPortableClassReferencer
+	MockClassSelector
+	MockClassReferencer
 	MockManagedResourceReferencer
-	MockConnectionSecretWriterTo
+	MockLocalConnectionSecretWriterTo
 	MockConditioned
 	MockBindable
 }
 
-var _ NonPortableClass = &MockNonPortableClass{}
+var _ Class = &MockClass{}
 
-type MockNonPortableClass struct {
+type MockClass struct {
 	runtime.Object
 
 	metav1.ObjectMeta
@@ -111,28 +118,10 @@ type MockManaged struct {
 	runtime.Object
 
 	metav1.ObjectMeta
-	MockNonPortableClassReferencer
+	MockClassReferencer
 	MockClaimReferencer
 	MockConnectionSecretWriterTo
 	MockReclaimer
 	MockConditioned
 	MockBindable
-}
-
-var _ PortableClass = &MockPortableClass{}
-
-type MockPortableClass struct {
-	runtime.Object
-
-	metav1.ObjectMeta
-	MockNonPortableClassReferencer
-}
-
-var _ PortableClassList = &MockPortableClassList{}
-
-type MockPortableClassList struct {
-	runtime.Object
-
-	metav1.ListInterface
-	MockPortableClassLister
 }

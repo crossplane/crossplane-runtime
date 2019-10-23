@@ -30,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 )
 
@@ -122,6 +123,7 @@ func TestAPISecretPublisher(t *testing.T) {
 	}
 
 	mgname := "coolmanaged"
+	mgcsnamespace := "coolnamespace"
 	mgcsname := "coolmanagedsecret"
 	mgcsdata := map[string][]byte{
 		"cool":   []byte("data"),
@@ -163,7 +165,10 @@ func TestAPISecretPublisher(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				mg: &MockManaged{
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: mgcsname}},
+					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: &v1alpha1.SecretReference{
+						Namespace: mgcsnamespace,
+						Name:      mgcsname,
+					}},
 				},
 				c: ConnectionDetails{},
 			},
@@ -183,7 +188,10 @@ func TestAPISecretPublisher(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				mg: &MockManaged{
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: mgcsname}},
+					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: &v1alpha1.SecretReference{
+						Namespace: mgcsnamespace,
+						Name:      mgcsname,
+					}},
 				},
 				c: ConnectionDetails{},
 			},
@@ -195,6 +203,7 @@ func TestAPISecretPublisher(t *testing.T) {
 					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 					MockCreate: test.NewMockCreateFn(nil, func(got runtime.Object) error {
 						want := &corev1.Secret{}
+						want.SetNamespace(mgcsnamespace)
 						want.SetName(mgcsname)
 						want.SetOwnerReferences([]metav1.OwnerReference{{
 							Name:       mgname,
@@ -214,8 +223,11 @@ func TestAPISecretPublisher(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				mg: &MockManaged{
-					ObjectMeta:                   metav1.ObjectMeta{Name: mgname},
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: mgcsname}},
+					ObjectMeta: metav1.ObjectMeta{Name: mgname},
+					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: &v1alpha1.SecretReference{
+						Namespace: mgcsnamespace,
+						Name:      mgcsname,
+					}},
 				},
 				c: ConnectionDetails(cddata),
 			},
@@ -226,6 +238,7 @@ func TestAPISecretPublisher(t *testing.T) {
 				client: &test.MockClient{
 					MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
 						s := &corev1.Secret{}
+						s.SetNamespace(mgcsnamespace)
 						s.SetName(mgcsname)
 						s.SetOwnerReferences([]metav1.OwnerReference{{
 							Name:       mgname,
@@ -238,6 +251,7 @@ func TestAPISecretPublisher(t *testing.T) {
 					},
 					MockUpdate: test.NewMockUpdateFn(nil, func(got runtime.Object) error {
 						want := &corev1.Secret{}
+						want.SetNamespace(mgcsnamespace)
 						want.SetName(mgcsname)
 						want.SetOwnerReferences([]metav1.OwnerReference{{
 							Name:       mgname,
@@ -257,8 +271,11 @@ func TestAPISecretPublisher(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				mg: &MockManaged{
-					ObjectMeta:                   metav1.ObjectMeta{Name: mgname},
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: mgcsname}},
+					ObjectMeta: metav1.ObjectMeta{Name: mgname},
+					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: &v1alpha1.SecretReference{
+						Namespace: mgcsnamespace,
+						Name:      mgcsname,
+					}},
 				},
 				c: ConnectionDetails(cddata),
 			},
@@ -269,6 +286,7 @@ func TestAPISecretPublisher(t *testing.T) {
 				client: &test.MockClient{
 					MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
 						s := &corev1.Secret{}
+						s.SetNamespace(mgcsnamespace)
 						s.SetName(mgcsname)
 						s.SetOwnerReferences([]metav1.OwnerReference{{
 							Name:       mgname,
@@ -282,6 +300,7 @@ func TestAPISecretPublisher(t *testing.T) {
 					},
 					MockUpdate: test.NewMockUpdateFn(nil, func(got runtime.Object) error {
 						want := &corev1.Secret{}
+						want.SetNamespace(mgcsnamespace)
 						want.SetName(mgcsname)
 						want.SetOwnerReferences([]metav1.OwnerReference{{
 							Name:       mgname,
@@ -305,8 +324,11 @@ func TestAPISecretPublisher(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				mg: &MockManaged{
-					ObjectMeta:                   metav1.ObjectMeta{Name: mgname},
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: corev1.LocalObjectReference{Name: mgcsname}},
+					ObjectMeta: metav1.ObjectMeta{Name: mgname},
+					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: &v1alpha1.SecretReference{
+						Namespace: mgcsnamespace,
+						Name:      mgcsname,
+					}},
 				},
 				c: ConnectionDetails(cddata),
 			},

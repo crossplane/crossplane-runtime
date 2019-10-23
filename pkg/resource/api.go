@@ -58,12 +58,12 @@ func NewAPIManagedCreator(c client.Client, t runtime.ObjectTyper) *APIManagedCre
 }
 
 // Create the supplied resource using the supplied class and claim.
-func (a *APIManagedCreator) Create(ctx context.Context, cm Claim, cs NonPortableClass, mg Managed) error {
+func (a *APIManagedCreator) Create(ctx context.Context, cm Claim, cs Class, mg Managed) error {
 	cmr := meta.ReferenceTo(cm, MustGetKind(cm, a.typer))
 	csr := meta.ReferenceTo(cs, MustGetKind(cs, a.typer))
 
 	mg.SetClaimReference(cmr)
-	mg.SetNonPortableClassReference(csr)
+	mg.SetClassReference(csr)
 	if err := a.client.Create(ctx, mg); err != nil {
 		return errors.Wrap(err, errCreateManaged)
 	}
@@ -93,11 +93,14 @@ func NewAPIManagedConnectionPropagator(c client.Client, t runtime.ObjectTyper) *
 func (a *APIManagedConnectionPropagator) PropagateConnection(ctx context.Context, cm Claim, mg Managed) error {
 	// Either this resource does not expose a connection secret, or this claim
 	// does not want one.
-	if mg.GetWriteConnectionSecretToReference().Name == "" || cm.GetWriteConnectionSecretToReference().Name == "" {
+	if mg.GetWriteConnectionSecretToReference() == nil || cm.GetWriteConnectionSecretToReference() == nil {
 		return nil
 	}
 
-	n := types.NamespacedName{Namespace: mg.GetNamespace(), Name: mg.GetWriteConnectionSecretToReference().Name}
+	n := types.NamespacedName{
+		Namespace: mg.GetWriteConnectionSecretToReference().Namespace,
+		Name:      mg.GetWriteConnectionSecretToReference().Name,
+	}
 	mgcs := &corev1.Secret{}
 	if err := a.client.Get(ctx, n, mgcs); err != nil {
 		return errors.Wrap(err, errGetSecret)
@@ -111,7 +114,7 @@ func (a *APIManagedConnectionPropagator) PropagateConnection(ctx context.Context
 		return errors.New(errSecretConflict)
 	}
 
-	cmcs := ConnectionSecretFor(cm, MustGetKind(cm, a.typer))
+	cmcs := LocalConnectionSecretFor(cm, MustGetKind(cm, a.typer))
 	if _, err := util.CreateOrUpdate(ctx, a.client, cmcs, func() error {
 		// Inside this anonymous function cmcs could either be unchanged (if
 		// it does not exist in the API server) or updated to reflect its

@@ -63,7 +63,7 @@ func TestClaimReconciler(t *testing.T) {
 	type args struct {
 		m    manager.Manager
 		of   ClaimKind
-		use  ClassKinds
+		use  ClassKind
 		with ManagedKind
 		o    []ClaimReconcilerOption
 	}
@@ -85,10 +85,10 @@ func TestClaimReconciler(t *testing.T) {
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
-					s: MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}, &MockManaged{}),
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 				},
 				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKinds{Portable: MockGVK(&MockPortableClass{}), NonPortable: MockGVK(&MockNonPortableClass{})},
+				use:  ClassKind(MockGVK(&MockClass{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 			},
 			want: want{err: errors.Wrap(errBoom, errGetClaim)},
@@ -120,10 +120,10 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}, &MockManaged{}),
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 				},
 				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKinds{Portable: MockGVK(&MockPortableClass{}), NonPortable: MockGVK(&MockNonPortableClass{})},
+				use:  ClassKind(MockGVK(&MockClass{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 			},
 			want: want{result: reconcile.Result{RequeueAfter: aShortWait}},
@@ -153,10 +153,10 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}, &MockManaged{}),
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 				},
 				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKinds{Portable: MockGVK(&MockPortableClass{}), NonPortable: MockGVK(&MockNonPortableClass{})},
+				use:  ClassKind(MockGVK(&MockClass{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ClaimReconcilerOption{
 					WithManagedFinalizer(ManagedFinalizerFn(func(_ context.Context, _ Managed) error { return errBoom })),
@@ -189,10 +189,10 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}, &MockManaged{}),
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 				},
 				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKinds{Portable: MockGVK(&MockPortableClass{}), NonPortable: MockGVK(&MockNonPortableClass{})},
+				use:  ClassKind(MockGVK(&MockClass{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ClaimReconcilerOption{
 					WithManagedFinalizer(ManagedFinalizerFn(func(_ context.Context, _ Managed) error { return nil })),
@@ -226,10 +226,10 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}, &MockManaged{}),
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 				},
 				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKinds{Portable: MockGVK(&MockPortableClass{}), NonPortable: MockGVK(&MockNonPortableClass{})},
+				use:  ClassKind(MockGVK(&MockClass{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ClaimReconcilerOption{
 					WithManagedFinalizer(ManagedFinalizerFn(func(_ context.Context, _ Managed) error { return nil })),
@@ -263,10 +263,10 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}, &MockManaged{}),
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 				},
 				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKinds{Portable: MockGVK(&MockPortableClass{}), NonPortable: MockGVK(&MockNonPortableClass{})},
+				use:  ClassKind(MockGVK(&MockClass{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ClaimReconcilerOption{
 					WithManagedFinalizer(ManagedFinalizerFn(func(_ context.Context, _ Managed) error { return nil })),
@@ -274,41 +274,6 @@ func TestClaimReconciler(t *testing.T) {
 				},
 			},
 			want: want{result: reconcile.Result{Requeue: false}},
-		},
-		"GetPortableClassError": {
-			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
-							switch o := o.(type) {
-							case *MockClaim:
-								cm := &MockClaim{}
-								cm.SetPortableClassReference(&corev1.LocalObjectReference{})
-								*o = *cm
-								return nil
-							case *MockPortableClass:
-								return errBoom
-							default:
-								return errUnexpected
-							}
-						}),
-						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
-							want := &MockClaim{}
-							want.SetPortableClassReference(&corev1.LocalObjectReference{})
-							want.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(errBoom))
-							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
-								t.Errorf("-want, +got:\n%s", diff)
-							}
-							return nil
-						}),
-					},
-					s: MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}, &MockManaged{}),
-				},
-				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKinds{Portable: MockGVK(&MockPortableClass{}), NonPortable: MockGVK(&MockNonPortableClass{})},
-				with: ManagedKind(MockGVK(&MockManaged{})),
-			},
-			want: want{result: reconcile.Result{RequeueAfter: aShortWait}},
 		},
 		"GetResourceClassError": {
 			args: args{
@@ -318,15 +283,10 @@ func TestClaimReconciler(t *testing.T) {
 							switch o := o.(type) {
 							case *MockClaim:
 								cm := &MockClaim{}
-								cm.SetPortableClassReference(&corev1.LocalObjectReference{})
+								cm.SetClassReference(&corev1.ObjectReference{})
 								*o = *cm
 								return nil
-							case *MockPortableClass:
-								pc := &MockPortableClass{}
-								pc.SetNonPortableClassReference(&corev1.ObjectReference{})
-								*o = *pc
-								return nil
-							case *MockNonPortableClass:
+							case *MockClass:
 								return errBoom
 							default:
 								return errUnexpected
@@ -334,7 +294,7 @@ func TestClaimReconciler(t *testing.T) {
 						}),
 						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
 							want := &MockClaim{}
-							want.SetPortableClassReference(&corev1.LocalObjectReference{})
+							want.SetClassReference(&corev1.ObjectReference{})
 							want.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -342,10 +302,10 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}, &MockManaged{}),
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 				},
 				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKinds{Portable: MockGVK(&MockPortableClass{}), NonPortable: MockGVK(&MockNonPortableClass{})},
+				use:  ClassKind(MockGVK(&MockClass{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 			},
 			want: want{result: reconcile.Result{RequeueAfter: aShortWait}},
@@ -358,15 +318,10 @@ func TestClaimReconciler(t *testing.T) {
 							switch o := o.(type) {
 							case *MockClaim:
 								cm := &MockClaim{}
-								cm.SetPortableClassReference(&corev1.LocalObjectReference{})
+								cm.SetClassReference(&corev1.ObjectReference{})
 								*o = *cm
 								return nil
-							case *MockPortableClass:
-								pc := &MockPortableClass{}
-								pc.SetNonPortableClassReference(&corev1.ObjectReference{})
-								*o = *pc
-								return nil
-							case *MockNonPortableClass:
+							case *MockClass:
 								return nil
 							default:
 								return errUnexpected
@@ -374,7 +329,7 @@ func TestClaimReconciler(t *testing.T) {
 						}),
 						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
 							want := &MockClaim{}
-							want.SetPortableClassReference(&corev1.LocalObjectReference{})
+							want.SetClassReference(&corev1.ObjectReference{})
 							want.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -382,13 +337,13 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}, &MockManaged{}),
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 				},
 				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKinds{Portable: MockGVK(&MockPortableClass{}), NonPortable: MockGVK(&MockNonPortableClass{})},
+				use:  ClassKind(MockGVK(&MockClass{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ClaimReconcilerOption{WithManagedConfigurators(ManagedConfiguratorFn(
-					func(_ context.Context, _ Claim, _ NonPortableClass, _ Managed) error { return errBoom },
+					func(_ context.Context, _ Claim, _ Class, _ Managed) error { return errBoom },
 				))},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: aShortWait}},
@@ -401,15 +356,10 @@ func TestClaimReconciler(t *testing.T) {
 							switch o := o.(type) {
 							case *MockClaim:
 								cm := &MockClaim{}
-								cm.SetPortableClassReference(&corev1.LocalObjectReference{})
+								cm.SetClassReference(&corev1.ObjectReference{})
 								*o = *cm
 								return nil
-							case *MockPortableClass:
-								pc := &MockPortableClass{}
-								pc.SetNonPortableClassReference(&corev1.ObjectReference{})
-								*o = *pc
-								return nil
-							case *MockNonPortableClass:
+							case *MockClass:
 								return nil
 							default:
 								return errUnexpected
@@ -417,7 +367,7 @@ func TestClaimReconciler(t *testing.T) {
 						}),
 						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
 							want := &MockClaim{}
-							want.SetPortableClassReference(&corev1.LocalObjectReference{})
+							want.SetClassReference(&corev1.ObjectReference{})
 							want.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -425,17 +375,17 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}, &MockManaged{}),
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 				},
 				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKinds{Portable: MockGVK(&MockPortableClass{}), NonPortable: MockGVK(&MockNonPortableClass{})},
+				use:  ClassKind(MockGVK(&MockClass{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ClaimReconcilerOption{
 					WithManagedConfigurators(ManagedConfiguratorFn(
-						func(_ context.Context, _ Claim, _ NonPortableClass, _ Managed) error { return nil },
+						func(_ context.Context, _ Claim, _ Class, _ Managed) error { return nil },
 					)),
 					WithManagedCreator(ManagedCreatorFn(
-						func(_ context.Context, _ Claim, _ NonPortableClass, _ Managed) error { return errBoom },
+						func(_ context.Context, _ Claim, _ Class, _ Managed) error { return errBoom },
 					)),
 				},
 			},
@@ -474,10 +424,10 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}, &MockManaged{}),
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 				},
 				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKinds{Portable: MockGVK(&MockPortableClass{}), NonPortable: MockGVK(&MockNonPortableClass{})},
+				use:  ClassKind(MockGVK(&MockClass{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 			},
 			want: want{result: reconcile.Result{Requeue: false}},
@@ -513,10 +463,10 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}, &MockManaged{}),
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 				},
 				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKinds{Portable: MockGVK(&MockPortableClass{}), NonPortable: MockGVK(&MockNonPortableClass{})},
+				use:  ClassKind(MockGVK(&MockClass{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 			},
 			want: want{result: reconcile.Result{Requeue: false}},
@@ -552,10 +502,10 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}, &MockManaged{}),
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 				},
 				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKinds{Portable: MockGVK(&MockPortableClass{}), NonPortable: MockGVK(&MockNonPortableClass{})},
+				use:  ClassKind(MockGVK(&MockClass{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ClaimReconcilerOption{
 					WithManagedConnectionPropagator(ManagedConnectionPropagatorFn(
@@ -596,10 +546,10 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}, &MockManaged{}),
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 				},
 				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKinds{Portable: MockGVK(&MockPortableClass{}), NonPortable: MockGVK(&MockNonPortableClass{})},
+				use:  ClassKind(MockGVK(&MockClass{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ClaimReconcilerOption{
 					WithManagedConnectionPropagator(ManagedConnectionPropagatorFn(
@@ -643,10 +593,10 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockPortableClass{}, &MockNonPortableClass{}, &MockManaged{}),
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 				},
 				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKinds{Portable: MockGVK(&MockPortableClass{}), NonPortable: MockGVK(&MockNonPortableClass{})},
+				use:  ClassKind(MockGVK(&MockClass{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 			},
 			want: want{result: reconcile.Result{Requeue: false}},

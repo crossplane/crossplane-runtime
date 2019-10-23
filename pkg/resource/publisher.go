@@ -68,7 +68,7 @@ func NewAPISecretPublisher(c client.Client, ot runtime.ObjectTyper) *APISecretPu
 // exists with the supplied ConnectionDetails.
 func (a *APISecretPublisher) PublishConnection(ctx context.Context, mg Managed, c ConnectionDetails) error {
 	// This resource does not want to expose a connection secret.
-	if mg.GetWriteConnectionSecretToReference().Name == "" {
+	if mg.GetWriteConnectionSecretToReference() == nil {
 		return nil
 	}
 
