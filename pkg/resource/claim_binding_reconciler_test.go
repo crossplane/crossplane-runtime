@@ -311,6 +311,38 @@ func TestClaimReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{Requeue: false}},
 		},
+		"ClassReferenceNotSet": {
+			args: args{
+				m: &MockManager{
+					c: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							switch o := o.(type) {
+							case *MockClaim:
+								*o = MockClaim{}
+								return nil
+							case *MockManaged:
+								return nil
+							default:
+								return errUnexpected
+							}
+						}),
+						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
+							want := &MockClaim{}
+							want.SetConditions(Binding(), v1alpha1.ReconcileSuccess())
+							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
+				},
+				of:   ClaimKind(MockGVK(&MockClaim{})),
+				use:  ClassKind(MockGVK(&MockClass{})),
+				with: ManagedKind(MockGVK(&MockManaged{})),
+			},
+			want: want{result: reconcile.Result{Requeue: false}},
+		},
 		"GetResourceClassError": {
 			args: args{
 				m: &MockManager{
