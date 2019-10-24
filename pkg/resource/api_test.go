@@ -464,6 +464,7 @@ func TestBind(t *testing.T) {
 	}
 
 	errBoom := errors.New("boom")
+	externalName := "very-cool-external-resource"
 
 	cases := map[string]struct {
 		client client.Client
@@ -472,8 +473,15 @@ func TestBind(t *testing.T) {
 		want   want
 	}{
 		"UpdateManagedError": {
-			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(errBoom)},
-			typer:  MockSchemeWith(&MockClaim{}),
+			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil, func(obj runtime.Object) error {
+				switch obj.(type) {
+				case *MockManaged:
+					return errBoom
+				default:
+					return errors.New("unexpected object kind")
+				}
+			})},
+			typer: MockSchemeWith(&MockClaim{}),
 			args: args{
 				ctx: context.Background(),
 				cm:  &MockClaim{},
@@ -488,7 +496,39 @@ func TestBind(t *testing.T) {
 				},
 			},
 		},
-		"Successful": {
+		"UpdateClaimError": {
+			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil, func(obj runtime.Object) error {
+				switch obj.(type) {
+				case *MockManaged:
+					return nil
+				case *MockClaim:
+					return errBoom
+				default:
+					return errors.New("unexpected object kind")
+				}
+			})},
+			typer: MockSchemeWith(&MockClaim{}),
+			args: args{
+				ctx: context.Background(),
+				cm:  &MockClaim{},
+				mg: &MockManaged{
+					ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errUpdateClaim),
+				cm: &MockClaim{
+					ObjectMeta:   metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
+					MockBindable: MockBindable{Phase: v1alpha1.BindingPhaseBound},
+				},
+				mg: &MockManaged{
+					ObjectMeta:          metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
+					MockClaimReferencer: MockClaimReferencer{meta.ReferenceTo(&MockClaim{}, MockGVK(&MockClaim{}))},
+					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseBound},
+				},
+			},
+		},
+		"SuccessfulWithoutExternalName": {
 			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil)},
 			typer:  MockSchemeWith(&MockClaim{}),
 			args: args{
@@ -500,6 +540,28 @@ func TestBind(t *testing.T) {
 				err: nil,
 				cm:  &MockClaim{MockBindable: MockBindable{Phase: v1alpha1.BindingPhaseBound}},
 				mg: &MockManaged{
+					MockClaimReferencer: MockClaimReferencer{meta.ReferenceTo(&MockClaim{}, MockGVK(&MockClaim{}))},
+					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseBound},
+				},
+			},
+		},
+		"SuccessfulWithExternalName": {
+			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil)},
+			typer:  MockSchemeWith(&MockClaim{}),
+			args: args{
+				ctx: context.Background(),
+				cm:  &MockClaim{},
+				mg: &MockManaged{
+					ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
+				},
+			},
+			want: want{
+				err: nil,
+				cm: &MockClaim{
+					ObjectMeta:   metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
+					MockBindable: MockBindable{Phase: v1alpha1.BindingPhaseBound}},
+				mg: &MockManaged{
+					ObjectMeta:          metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
 					MockClaimReferencer: MockClaimReferencer{meta.ReferenceTo(&MockClaim{}, MockGVK(&MockClaim{}))},
 					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseBound},
 				},
@@ -538,6 +600,7 @@ func TestStatusBind(t *testing.T) {
 	}
 
 	errBoom := errors.New("boom")
+	externalName := "very-cool-external-resource"
 
 	cases := map[string]struct {
 		client client.Client
@@ -546,9 +609,14 @@ func TestStatusBind(t *testing.T) {
 		want   want
 	}{
 		"UpdateManagedError": {
-			client: &test.MockClient{
-				MockUpdate: test.NewMockUpdateFn(errBoom),
-			},
+			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil, func(obj runtime.Object) error {
+				switch obj.(type) {
+				case *MockManaged:
+					return errBoom
+				default:
+					return errors.New("unexpected object kind")
+				}
+			})},
 			typer: MockSchemeWith(&MockClaim{}),
 			args: args{
 				ctx: context.Background(),
@@ -583,7 +651,42 @@ func TestStatusBind(t *testing.T) {
 				},
 			},
 		},
-		"Successful": {
+		"UpdateClaimError": {
+			client: &test.MockClient{
+				MockUpdate: test.NewMockUpdateFn(nil, func(obj runtime.Object) error {
+					switch obj.(type) {
+					case *MockManaged:
+						return nil
+					case *MockClaim:
+						return errBoom
+					default:
+						return errors.New("unexpected object kind")
+					}
+				}),
+				MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+			},
+			typer: MockSchemeWith(&MockClaim{}),
+			args: args{
+				ctx: context.Background(),
+				cm:  &MockClaim{},
+				mg: &MockManaged{
+					ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errUpdateClaim),
+				cm: &MockClaim{
+					ObjectMeta:   metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
+					MockBindable: MockBindable{Phase: v1alpha1.BindingPhaseBound},
+				},
+				mg: &MockManaged{
+					ObjectMeta:          metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
+					MockClaimReferencer: MockClaimReferencer{meta.ReferenceTo(&MockClaim{}, MockGVK(&MockClaim{}))},
+					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseBound},
+				},
+			},
+		},
+		"SuccessfulWithoutExternalName": {
 			client: &test.MockClient{
 				MockUpdate:       test.NewMockUpdateFn(nil),
 				MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
@@ -598,6 +701,32 @@ func TestStatusBind(t *testing.T) {
 				err: nil,
 				cm:  &MockClaim{MockBindable: MockBindable{Phase: v1alpha1.BindingPhaseBound}},
 				mg: &MockManaged{
+					MockClaimReferencer: MockClaimReferencer{meta.ReferenceTo(&MockClaim{}, MockGVK(&MockClaim{}))},
+					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseBound},
+				},
+			},
+		},
+		"SuccessfulWithExternalName": {
+			client: &test.MockClient{
+				MockUpdate:       test.NewMockUpdateFn(nil),
+				MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+			},
+			typer: MockSchemeWith(&MockClaim{}),
+			args: args{
+				ctx: context.Background(),
+				cm:  &MockClaim{},
+				mg: &MockManaged{
+					ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
+				},
+			},
+			want: want{
+				err: nil,
+				cm: &MockClaim{
+					ObjectMeta:   metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
+					MockBindable: MockBindable{Phase: v1alpha1.BindingPhaseBound},
+				},
+				mg: &MockManaged{
+					ObjectMeta:          metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
 					MockClaimReferencer: MockClaimReferencer{meta.ReferenceTo(&MockClaim{}, MockGVK(&MockClaim{}))},
 					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseBound},
 				},
