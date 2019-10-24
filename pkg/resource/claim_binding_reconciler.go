@@ -351,9 +351,14 @@ func (r *ClaimReconciler) Reconcile(req reconcile.Request) (reconcile.Result, er
 		return reconcile.Result{Requeue: false}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, claim)), errUpdateClaimStatus)
 	}
 
-	if !meta.WasCreated(managed) {
-		// Class reference should always be set by the time we get this far;
-		// Our watch predicates require it.
+	// Claim reconcilers (should) watch for either claims with a resource ref,
+	// claims with a class ref, or managed resources with a claim ref. In the
+	// first case the managed resource always exists by the time we get here. In
+	// the second case the class reference is set. The third case exposes us to
+	// a pathological scenario in which a managed resource references a claim
+	// that has no resource ref or class ref, so we can't assume the class ref
+	// is always set at this point.
+	if !meta.WasCreated(managed) && claim.GetClassReference() != nil {
 		class := r.newClass()
 		// Class reference should always be set by the time we get this far; we
 		// set it on last reconciliation.
