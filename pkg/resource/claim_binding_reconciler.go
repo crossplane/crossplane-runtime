@@ -191,7 +191,7 @@ func defaultCRManaged(m manager.Manager) crManaged {
 		ManagedConfigurator:         NewObjectMetaConfigurator(m.GetScheme()),
 		ManagedCreator:              NewAPIManagedCreator(m.GetClient(), m.GetScheme()),
 		ManagedConnectionPropagator: NewAPIManagedConnectionPropagator(m.GetClient(), m.GetScheme()),
-		ManagedBinder:               NewAPIManagedBinder(m.GetClient()),
+		ManagedBinder:               NewAPIManagedBinder(m.GetClient(), m.GetScheme()),
 		ManagedFinalizer:            NewAPIManagedUnbinder(m.GetClient()),
 	}
 }
@@ -289,7 +289,7 @@ func NewClaimReconciler(m manager.Manager, of ClaimKind, using ClassKind, with M
 
 // Reconcile a resource claim with a concrete managed resource.
 func (r *ClaimReconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
-	// NOTE(negz): This method is a little over our cyclomatic complexity goal.
+	// NOTE(negz): This method is well over our cyclomatic complexity goal.
 	// Be wary of adding additional complexity.
 
 	log.V(logging.Debug).Info("Reconciling", "controller", claimControllerName, "request", req)
@@ -390,6 +390,16 @@ func (r *ClaimReconciler) Reconcile(req reconcile.Request) (reconcile.Result, er
 	}
 
 	if !IsBindable(managed) && !IsBound(managed) {
+		if managed.GetClaimReference() == nil {
+			// We're waiting to bind to a statically provisioned managed
+			// resource. We must requeue because our EnqueueRequestForClaim
+			// handler can only enqueue reconciles for managed resource updates
+			// when they have their claim reference set, and that doesn't happen
+			// until we bind to the managed resource we're waiting for.
+			claim.SetConditions(Binding(), v1alpha1.ReconcileSuccess())
+			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, claim), errUpdateClaimStatus)
+		}
+
 		// If this claim was not already binding we'll be requeued due to the
 		// status update. Otherwise there's no need to requeue. We should be
 		// watching both the resource claims and the resources we own, so we'll

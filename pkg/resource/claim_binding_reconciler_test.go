@@ -341,7 +341,7 @@ func TestClaimReconciler(t *testing.T) {
 				use:  ClassKind(MockGVK(&MockClass{})),
 				with: ManagedKind(MockGVK(&MockManaged{})),
 			},
-			want: want{result: reconcile.Result{Requeue: false}},
+			want: want{result: reconcile.Result{RequeueAfter: aShortWait}},
 		},
 		"GetResourceClassError": {
 			args: args{
@@ -475,6 +475,7 @@ func TestClaimReconciler(t *testing.T) {
 								// because the zero value of BindingPhase is
 								// BindingPhaseUnset.
 								mg := &MockManaged{}
+								mg.SetClaimReference(&corev1.ObjectReference{})
 								mg.SetCreationTimestamp(now)
 								*o = *mg
 								return nil
@@ -514,6 +515,7 @@ func TestClaimReconciler(t *testing.T) {
 							case *MockManaged:
 								mg := &MockManaged{}
 								mg.SetCreationTimestamp(now)
+								mg.SetClaimReference(&corev1.ObjectReference{})
 								mg.SetBindingPhase(v1alpha1.BindingPhaseUnbindable)
 								*o = *mg
 								return nil

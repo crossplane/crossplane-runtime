@@ -467,11 +467,13 @@ func TestBind(t *testing.T) {
 
 	cases := map[string]struct {
 		client client.Client
+		typer  runtime.ObjectTyper
 		args   args
 		want   want
 	}{
 		"UpdateManagedError": {
 			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(errBoom)},
+			typer:  MockSchemeWith(&MockClaim{}),
 			args: args{
 				ctx: context.Background(),
 				cm:  &MockClaim{},
@@ -480,11 +482,15 @@ func TestBind(t *testing.T) {
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateManaged),
 				cm:  &MockClaim{MockBindable: MockBindable{Phase: v1alpha1.BindingPhaseBound}},
-				mg:  &MockManaged{MockBindable: MockBindable{Phase: v1alpha1.BindingPhaseBound}},
+				mg: &MockManaged{
+					MockClaimReferencer: MockClaimReferencer{meta.ReferenceTo(&MockClaim{}, MockGVK(&MockClaim{}))},
+					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseBound},
+				},
 			},
 		},
 		"Successful": {
 			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil)},
+			typer:  MockSchemeWith(&MockClaim{}),
 			args: args{
 				ctx: context.Background(),
 				cm:  &MockClaim{},
@@ -493,14 +499,17 @@ func TestBind(t *testing.T) {
 			want: want{
 				err: nil,
 				cm:  &MockClaim{MockBindable: MockBindable{Phase: v1alpha1.BindingPhaseBound}},
-				mg:  &MockManaged{MockBindable: MockBindable{Phase: v1alpha1.BindingPhaseBound}},
+				mg: &MockManaged{
+					MockClaimReferencer: MockClaimReferencer{meta.ReferenceTo(&MockClaim{}, MockGVK(&MockClaim{}))},
+					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseBound},
+				},
 			},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			api := NewAPIManagedBinder(tc.client)
+			api := NewAPIManagedBinder(tc.client, tc.typer)
 			err := api.Bind(tc.args.ctx, tc.args.cm, tc.args.mg)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("api.Bind(...): -want error, +got error:\n%s", diff)
@@ -532,11 +541,34 @@ func TestStatusBind(t *testing.T) {
 
 	cases := map[string]struct {
 		client client.Client
+		typer  runtime.ObjectTyper
 		args   args
 		want   want
 	}{
+		"UpdateManagedError": {
+			client: &test.MockClient{
+				MockUpdate: test.NewMockUpdateFn(errBoom),
+			},
+			typer: MockSchemeWith(&MockClaim{}),
+			args: args{
+				ctx: context.Background(),
+				cm:  &MockClaim{},
+				mg:  &MockManaged{},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errUpdateManaged),
+				cm:  &MockClaim{MockBindable: MockBindable{Phase: v1alpha1.BindingPhaseBound}},
+				mg: &MockManaged{
+					MockClaimReferencer: MockClaimReferencer{meta.ReferenceTo(&MockClaim{}, MockGVK(&MockClaim{}))},
+				},
+			},
+		},
 		"UpdateManagedStatusError": {
-			client: &test.MockClient{MockStatusUpdate: test.NewMockStatusUpdateFn(errBoom)},
+			client: &test.MockClient{
+				MockUpdate:       test.NewMockUpdateFn(nil),
+				MockStatusUpdate: test.NewMockStatusUpdateFn(errBoom),
+			},
+			typer: MockSchemeWith(&MockClaim{}),
 			args: args{
 				ctx: context.Background(),
 				cm:  &MockClaim{},
@@ -545,11 +577,18 @@ func TestStatusBind(t *testing.T) {
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateManagedStatus),
 				cm:  &MockClaim{MockBindable: MockBindable{Phase: v1alpha1.BindingPhaseBound}},
-				mg:  &MockManaged{MockBindable: MockBindable{Phase: v1alpha1.BindingPhaseBound}},
+				mg: &MockManaged{
+					MockClaimReferencer: MockClaimReferencer{meta.ReferenceTo(&MockClaim{}, MockGVK(&MockClaim{}))},
+					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseBound},
+				},
 			},
 		},
 		"Successful": {
-			client: &test.MockClient{MockStatusUpdate: test.NewMockStatusUpdateFn(nil)},
+			client: &test.MockClient{
+				MockUpdate:       test.NewMockUpdateFn(nil),
+				MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+			},
+			typer: MockSchemeWith(&MockClaim{}),
 			args: args{
 				ctx: context.Background(),
 				cm:  &MockClaim{},
@@ -558,14 +597,17 @@ func TestStatusBind(t *testing.T) {
 			want: want{
 				err: nil,
 				cm:  &MockClaim{MockBindable: MockBindable{Phase: v1alpha1.BindingPhaseBound}},
-				mg:  &MockManaged{MockBindable: MockBindable{Phase: v1alpha1.BindingPhaseBound}},
+				mg: &MockManaged{
+					MockClaimReferencer: MockClaimReferencer{meta.ReferenceTo(&MockClaim{}, MockGVK(&MockClaim{}))},
+					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseBound},
+				},
 			},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			api := NewAPIManagedStatusBinder(tc.client)
+			api := NewAPIManagedStatusBinder(tc.client, tc.typer)
 			err := api.Bind(tc.args.ctx, tc.args.cm, tc.args.mg)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("api.Bind(...): -want error, +got error:\n%s", diff)
