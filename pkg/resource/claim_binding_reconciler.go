@@ -22,6 +22,7 @@ import (
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -305,7 +306,18 @@ func (r *ClaimReconciler) Reconcile(req reconcile.Request) (reconcile.Result, er
 
 	managed := r.newManaged()
 	if ref := claim.GetResourceReference(); ref != nil {
-		if err := IgnoreNotFound(r.client.Get(ctx, meta.NamespacedNameOf(ref), managed)); err != nil {
+		err := r.client.Get(ctx, meta.NamespacedNameOf(ref), managed)
+		if kerrors.IsNotFound(err) {
+			// If the managed resource we explicitly reference doesn't exist yet
+			// we want to retry after a brief wait, in case it is created. We
+			// must explicitly requeue because our EnqueueRequestForClaim
+			// handler can only enqueue reconciles for managed resources that
+			// have their claim reference set, so we can't expect to be queued
+			// implicitly when the managed resource we want to bind to appears.
+			claim.SetConditions(Binding(), v1alpha1.ReconcileSuccess())
+			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, claim), errUpdateClaimStatus)
+		}
+		if err != nil {
 			// If we didn't hit this error last time we'll be requeued
 			// implicitly due to the status update. Otherwise we want to retry
 			// after a brief wait, in case this was a transient error.
