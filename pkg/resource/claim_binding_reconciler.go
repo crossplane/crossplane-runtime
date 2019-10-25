@@ -22,6 +22,7 @@ import (
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -190,7 +191,7 @@ func defaultCRManaged(m manager.Manager) crManaged {
 		ManagedConfigurator:         NewObjectMetaConfigurator(m.GetScheme()),
 		ManagedCreator:              NewAPIManagedCreator(m.GetClient(), m.GetScheme()),
 		ManagedConnectionPropagator: NewAPIManagedConnectionPropagator(m.GetClient(), m.GetScheme()),
-		ManagedBinder:               NewAPIManagedBinder(m.GetClient()),
+		ManagedBinder:               NewAPIManagedBinder(m.GetClient(), m.GetScheme()),
 		ManagedFinalizer:            NewAPIManagedUnbinder(m.GetClient()),
 	}
 }
@@ -288,7 +289,7 @@ func NewClaimReconciler(m manager.Manager, of ClaimKind, using ClassKind, with M
 
 // Reconcile a resource claim with a concrete managed resource.
 func (r *ClaimReconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
-	// NOTE(negz): This method is a little over our cyclomatic complexity goal.
+	// NOTE(negz): This method is well over our cyclomatic complexity goal.
 	// Be wary of adding additional complexity.
 
 	log.V(logging.Debug).Info("Reconciling", "controller", claimControllerName, "request", req)
@@ -305,7 +306,18 @@ func (r *ClaimReconciler) Reconcile(req reconcile.Request) (reconcile.Result, er
 
 	managed := r.newManaged()
 	if ref := claim.GetResourceReference(); ref != nil {
-		if err := IgnoreNotFound(r.client.Get(ctx, meta.NamespacedNameOf(ref), managed)); err != nil {
+		err := r.client.Get(ctx, meta.NamespacedNameOf(ref), managed)
+		if kerrors.IsNotFound(err) {
+			// If the managed resource we explicitly reference doesn't exist yet
+			// we want to retry after a brief wait, in case it is created. We
+			// must explicitly requeue because our EnqueueRequestForClaim
+			// handler can only enqueue reconciles for managed resources that
+			// have their claim reference set, so we can't expect to be queued
+			// implicitly when the managed resource we want to bind to appears.
+			claim.SetConditions(Binding(), v1alpha1.ReconcileSuccess())
+			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, claim), errUpdateClaimStatus)
+		}
+		if err != nil {
 			// If we didn't hit this error last time we'll be requeued
 			// implicitly due to the status update. Otherwise we want to retry
 			// after a brief wait, in case this was a transient error.
@@ -339,9 +351,14 @@ func (r *ClaimReconciler) Reconcile(req reconcile.Request) (reconcile.Result, er
 		return reconcile.Result{Requeue: false}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, claim)), errUpdateClaimStatus)
 	}
 
-	if !meta.WasCreated(managed) {
-		// Class reference should always be set by the time we get this far;
-		// Our watch predicates require it.
+	// Claim reconcilers (should) watch for either claims with a resource ref,
+	// claims with a class ref, or managed resources with a claim ref. In the
+	// first case the managed resource always exists by the time we get here. In
+	// the second case the class reference is set. The third case exposes us to
+	// a pathological scenario in which a managed resource references a claim
+	// that has no resource ref or class ref, so we can't assume the class ref
+	// is always set at this point.
+	if !meta.WasCreated(managed) && claim.GetClassReference() != nil {
 		class := r.newClass()
 		// Class reference should always be set by the time we get this far; we
 		// set it on last reconciliation.
@@ -373,6 +390,16 @@ func (r *ClaimReconciler) Reconcile(req reconcile.Request) (reconcile.Result, er
 	}
 
 	if !IsBindable(managed) && !IsBound(managed) {
+		if managed.GetClaimReference() == nil {
+			// We're waiting to bind to a statically provisioned managed
+			// resource. We must requeue because our EnqueueRequestForClaim
+			// handler can only enqueue reconciles for managed resource updates
+			// when they have their claim reference set, and that doesn't happen
+			// until we bind to the managed resource we're waiting for.
+			claim.SetConditions(Binding(), v1alpha1.ReconcileSuccess())
+			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, claim), errUpdateClaimStatus)
+		}
+
 		// If this claim was not already binding we'll be requeued due to the
 		// status update. Otherwise there's no need to requeue. We should be
 		// watching both the resource claims and the resources we own, so we'll

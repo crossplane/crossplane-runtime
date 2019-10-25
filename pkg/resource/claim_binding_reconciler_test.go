@@ -24,6 +24,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -114,6 +115,41 @@ func TestClaimReconciler(t *testing.T) {
 							want := &MockClaim{}
 							want.SetResourceReference(&corev1.ObjectReference{})
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
+							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
+				},
+				of:   ClaimKind(MockGVK(&MockClaim{})),
+				use:  ClassKind(MockGVK(&MockClass{})),
+				with: ManagedKind(MockGVK(&MockManaged{})),
+			},
+			want: want{result: reconcile.Result{RequeueAfter: aShortWait}},
+		},
+		"ManagedNotFound": {
+			args: args{
+				m: &MockManager{
+					c: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							switch o := o.(type) {
+							case *MockClaim:
+								cm := &MockClaim{}
+								cm.SetResourceReference(&corev1.ObjectReference{})
+								*o = *cm
+								return nil
+							case *MockManaged:
+								return kerrors.NewNotFound(schema.GroupResource{}, "")
+							default:
+								return errUnexpected
+							}
+						}),
+						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
+							want := &MockClaim{}
+							want.SetResourceReference(&corev1.ObjectReference{})
+							want.SetConditions(Binding(), v1alpha1.ReconcileSuccess())
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
@@ -275,6 +311,38 @@ func TestClaimReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{Requeue: false}},
 		},
+		"ClassReferenceNotSet": {
+			args: args{
+				m: &MockManager{
+					c: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							switch o := o.(type) {
+							case *MockClaim:
+								*o = MockClaim{}
+								return nil
+							case *MockManaged:
+								return nil
+							default:
+								return errUnexpected
+							}
+						}),
+						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
+							want := &MockClaim{}
+							want.SetConditions(Binding(), v1alpha1.ReconcileSuccess())
+							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
+				},
+				of:   ClaimKind(MockGVK(&MockClaim{})),
+				use:  ClassKind(MockGVK(&MockClass{})),
+				with: ManagedKind(MockGVK(&MockManaged{})),
+			},
+			want: want{result: reconcile.Result{RequeueAfter: aShortWait}},
+		},
 		"GetResourceClassError": {
 			args: args{
 				m: &MockManager{
@@ -407,6 +475,7 @@ func TestClaimReconciler(t *testing.T) {
 								// because the zero value of BindingPhase is
 								// BindingPhaseUnset.
 								mg := &MockManaged{}
+								mg.SetClaimReference(&corev1.ObjectReference{})
 								mg.SetCreationTimestamp(now)
 								*o = *mg
 								return nil
@@ -446,6 +515,7 @@ func TestClaimReconciler(t *testing.T) {
 							case *MockManaged:
 								mg := &MockManaged{}
 								mg.SetCreationTimestamp(now)
+								mg.SetClaimReference(&corev1.ObjectReference{})
 								mg.SetBindingPhase(v1alpha1.BindingPhaseUnbindable)
 								*o = *mg
 								return nil

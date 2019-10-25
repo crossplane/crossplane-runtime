@@ -147,28 +147,35 @@ func (a *APIManagedConnectionPropagator) PropagateConnection(ctx context.Context
 // using the status subresource; such objects should use APIManagedStatusBinder.
 type APIManagedBinder struct {
 	client client.Client
+	typer  runtime.ObjectTyper
 }
 
 // NewAPIManagedBinder returns a new APIManagedBinder.
-func NewAPIManagedBinder(c client.Client) *APIManagedBinder {
-	return &APIManagedBinder{client: c}
+func NewAPIManagedBinder(c client.Client, t runtime.ObjectTyper) *APIManagedBinder {
+	return &APIManagedBinder{client: c, typer: t}
 }
 
 // Bind the supplied resource to the supplied claim.
 func (a *APIManagedBinder) Bind(ctx context.Context, cm Claim, mg Managed) error {
 	cm.SetBindingPhase(v1alpha1.BindingPhaseBound)
-	// Propagate back the final name of the external resource to the claim.
-	if meta.GetExternalName(mg) != "" {
-		meta.SetExternalName(cm, meta.GetExternalName(mg))
-		if err := a.client.Update(ctx, cm); err != nil {
-			return errors.Wrap(err, errUpdateClaim)
-		}
-	}
+
+	// This claim reference will already be set for dynamically provisioned
+	// managed resources, but we need to make sure it's set for statically
+	// provisioned resources too.
+	cmr := meta.ReferenceTo(cm, MustGetKind(cm, a.typer))
+	mg.SetClaimReference(cmr)
 	mg.SetBindingPhase(v1alpha1.BindingPhaseBound)
 	if err := a.client.Update(ctx, mg); err != nil {
 		return errors.Wrap(err, errUpdateManaged)
 	}
-	return nil
+
+	if meta.GetExternalName(mg) == "" {
+		return nil
+	}
+
+	// Propagate back the final name of the external resource to the claim.
+	meta.SetExternalName(cm, meta.GetExternalName(mg))
+	return errors.Wrap(a.client.Update(ctx, cm), errUpdateClaim)
 }
 
 // An APIManagedStatusBinder binds resources to claims by updating them in a
@@ -177,28 +184,39 @@ func (a *APIManagedBinder) Bind(ctx context.Context, cm Claim, mg Managed) error
 // APIManagedBinder.
 type APIManagedStatusBinder struct {
 	client client.Client
+	typer  runtime.ObjectTyper
 }
 
 // NewAPIManagedStatusBinder returns a new APIManagedStatusBinder.
-func NewAPIManagedStatusBinder(c client.Client) *APIManagedStatusBinder {
-	return &APIManagedStatusBinder{client: c}
+func NewAPIManagedStatusBinder(c client.Client, t runtime.ObjectTyper) *APIManagedStatusBinder {
+	return &APIManagedStatusBinder{client: c, typer: t}
 }
 
 // Bind the supplied resource to the supplied claim.
 func (a *APIManagedStatusBinder) Bind(ctx context.Context, cm Claim, mg Managed) error {
 	cm.SetBindingPhase(v1alpha1.BindingPhaseBound)
-	// Propagate back the final name of the external resource to the claim.
-	if meta.GetExternalName(mg) != "" {
-		meta.SetExternalName(cm, meta.GetExternalName(mg))
-		if err := a.client.Update(ctx, cm); err != nil {
-			return errors.Wrap(err, errUpdateClaim)
-		}
+
+	// This claim reference will already be set for dynamically provisioned
+	// managed resources, but we need to make sure it's set for statically
+	// provisioned resources too.
+	cmr := meta.ReferenceTo(cm, MustGetKind(cm, a.typer))
+	mg.SetClaimReference(cmr)
+	if err := a.client.Update(ctx, mg); err != nil {
+		return errors.Wrap(err, errUpdateManaged)
 	}
+
 	mg.SetBindingPhase(v1alpha1.BindingPhaseBound)
 	if err := a.client.Status().Update(ctx, mg); err != nil {
 		return errors.Wrap(err, errUpdateManagedStatus)
 	}
-	return nil
+
+	if meta.GetExternalName(mg) == "" {
+		return nil
+	}
+
+	// Propagate back the final name of the external resource to the claim.
+	meta.SetExternalName(cm, meta.GetExternalName(mg))
+	return errors.Wrap(a.client.Update(ctx, cm), errUpdateClaim)
 }
 
 // An APIManagedUnbinder finalizes the deletion of a managed resource by
