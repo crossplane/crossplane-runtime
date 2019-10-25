@@ -17,6 +17,7 @@ limitations under the License.
 package resource
 
 import (
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource/fake"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -203,10 +204,10 @@ func TestGetKind(t *testing.T) {
 	}{
 		"KindFound": {
 			args: args{
-				ot: MockTyper{GVKs: []schema.GroupVersionKind{MockGVK(&MockManaged{})}},
+				ot: MockTyper{GVKs: []schema.GroupVersionKind{MockGVK(&fake.MockManaged{})}},
 			},
 			want: want{
-				kind: MockGVK(&MockManaged{}),
+				kind: MockGVK(&fake.MockManaged{}),
 			},
 		},
 		"KindError": {
@@ -236,8 +237,8 @@ func TestGetKind(t *testing.T) {
 		"TooManyKinds": {
 			args: args{
 				ot: MockTyper{GVKs: []schema.GroupVersionKind{
-					MockGVK(&MockClaim{}),
-					MockGVK(&MockManaged{}),
+					MockGVK(&fake.MockClaim{}),
+					MockGVK(&fake.MockManaged{}),
 				}},
 			},
 			want: want{
@@ -269,10 +270,10 @@ func TestMustCreateObject(t *testing.T) {
 	}{
 		"KindRegistered": {
 			args: args{
-				kind: MockGVK(&MockClaim{}),
-				oc:   MockSchemeWith(&MockClaim{}),
+				kind: MockGVK(&fake.MockClaim{}),
+				oc:   MockSchemeWith(&fake.MockClaim{}),
 			},
-			want: &MockClaim{},
+			want: &fake.MockClaim{},
 		},
 	}
 
@@ -376,19 +377,19 @@ func TestSetBindable(t *testing.T) {
 		want v1alpha1.BindingPhase
 	}{
 		"BindableIsUnbindable": {
-			b:    &MockClaim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseUnbindable}},
+			b:    &fake.MockClaim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseUnbindable}},
 			want: v1alpha1.BindingPhaseUnbound,
 		},
 		"BindableIsUnbound": {
-			b:    &MockClaim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseUnbound}},
+			b:    &fake.MockClaim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseUnbound}},
 			want: v1alpha1.BindingPhaseUnbound,
 		},
 		"BindableIsBound": {
-			b:    &MockClaim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
+			b:    &fake.MockClaim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
 			want: v1alpha1.BindingPhaseBound,
 		},
 		"BindableIsReleased": {
-			b:    &MockClaim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseReleased}},
+			b:    &fake.MockClaim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseReleased}},
 			want: v1alpha1.BindingPhaseReleased,
 		},
 	}

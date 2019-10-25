@@ -17,6 +17,7 @@ limitations under the License.
 package resource
 
 import (
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource/fake"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -109,24 +110,24 @@ func TestHasManagedResourceReferenceKind(t *testing.T) {
 	}{
 		"NotAClassReferencer": {
 			c:    &test.MockClient{},
-			kind: ManagedKind(MockGVK(&MockManaged{})),
+			kind: ManagedKind(MockGVK(&fake.MockManaged{})),
 			want: false,
 		},
 		"HasNoResourceReference": {
-			obj:  &MockClaim{},
-			kind: ManagedKind(MockGVK(&MockManaged{})),
+			obj:  &fake.MockClaim{},
+			kind: ManagedKind(MockGVK(&fake.MockManaged{})),
 			want: false,
 		},
 		"HasCorrectResourceReference": {
-			obj: &MockClaim{
-				MockManagedResourceReferencer: MockManagedResourceReferencer{
+			obj: &fake.MockClaim{
+				MockManagedResourceReferencer: fake.MockManagedResourceReferencer{
 					Ref: &corev1.ObjectReference{
-						APIVersion: MockGVK(&MockManaged{}).GroupVersion().String(),
-						Kind:       MockGVK(&MockManaged{}).Kind,
+						APIVersion: MockGVK(&fake.MockManaged{}).GroupVersion().String(),
+						Kind:       MockGVK(&fake.MockManaged{}).Kind,
 					},
 				},
 			},
-			kind: ManagedKind(MockGVK(&MockManaged{})),
+			kind: ManagedKind(MockGVK(&fake.MockManaged{})),
 			want: true,
 		},
 	}
@@ -150,24 +151,24 @@ func TestHasClassReferenceKind(t *testing.T) {
 	}{
 		"NotAClassReferencer": {
 			c:    &test.MockClient{},
-			kind: ClassKind(MockGVK(&MockClass{})),
+			kind: ClassKind(MockGVK(&fake.MockClass{})),
 			want: false,
 		},
 		"HasNoClassReference": {
-			obj:  &MockClaim{},
-			kind: ClassKind(MockGVK(&MockClass{})),
+			obj:  &fake.MockClaim{},
+			kind: ClassKind(MockGVK(&fake.MockClass{})),
 			want: false,
 		},
 		"HasCorrectClassReference": {
-			obj: &MockClaim{
-				MockClassReferencer: MockClassReferencer{
+			obj: &fake.MockClaim{
+				MockClassReferencer: fake.MockClassReferencer{
 					Ref: &corev1.ObjectReference{
-						APIVersion: MockGVK(&MockClass{}).GroupVersion().String(),
-						Kind:       MockGVK(&MockClass{}).Kind,
+						APIVersion: MockGVK(&fake.MockClass{}).GroupVersion().String(),
+						Kind:       MockGVK(&fake.MockClass{}).Kind,
 					},
 				},
 			},
-			kind: ClassKind(MockGVK(&MockClass{})),
+			kind: ClassKind(MockGVK(&fake.MockClass{})),
 			want: true,
 		},
 	}
@@ -190,17 +191,17 @@ func TestIsManagedKind(t *testing.T) {
 		want bool
 	}{
 		"IsKind": {
-			kind: ManagedKind(MockGVK(&MockManaged{})),
-			ot:   MockTyper{GVKs: []schema.GroupVersionKind{MockGVK(&MockManaged{})}},
+			kind: ManagedKind(MockGVK(&fake.MockManaged{})),
+			ot:   MockTyper{GVKs: []schema.GroupVersionKind{MockGVK(&fake.MockManaged{})}},
 			want: true,
 		},
 		"IsNotKind": {
-			kind: ManagedKind(MockGVK(&MockManaged{})),
-			ot:   MockTyper{GVKs: []schema.GroupVersionKind{MockGVK(&MockClaim{})}},
+			kind: ManagedKind(MockGVK(&fake.MockManaged{})),
+			ot:   MockTyper{GVKs: []schema.GroupVersionKind{MockGVK(&fake.MockClaim{})}},
 			want: false,
 		},
 		"ErrorDeterminingKind": {
-			kind: ManagedKind(MockGVK(&MockManaged{})),
+			kind: ManagedKind(MockGVK(&fake.MockManaged{})),
 			ot:   MockTyper{Error: errors.New("boom")},
 			want: false,
 		},
@@ -232,31 +233,31 @@ func TestIsControlledByKind(t *testing.T) {
 			want: false,
 		},
 		"WrongAPIVersion": {
-			kind: MockGVK(&MockManaged{}),
+			kind: MockGVK(&fake.MockManaged{}),
 			obj: &corev1.Secret{ObjectMeta: v1.ObjectMeta{OwnerReferences: []v1.OwnerReference{
 				{
-					Kind:       MockGVK(&MockManaged{}).Kind,
+					Kind:       MockGVK(&fake.MockManaged{}).Kind,
 					Controller: &controller,
 				},
 			}}},
 			want: false,
 		},
 		"WrongKind": {
-			kind: MockGVK(&MockManaged{}),
+			kind: MockGVK(&fake.MockManaged{}),
 			obj: &corev1.Secret{ObjectMeta: v1.ObjectMeta{OwnerReferences: []v1.OwnerReference{
 				{
-					APIVersion: MockGVK(&MockManaged{}).GroupVersion().String(),
+					APIVersion: MockGVK(&fake.MockManaged{}).GroupVersion().String(),
 					Controller: &controller,
 				},
 			}}},
 			want: false,
 		},
 		"IsControlledByKind": {
-			kind: MockGVK(&MockManaged{}),
+			kind: MockGVK(&fake.MockManaged{}),
 			obj: &corev1.Secret{ObjectMeta: v1.ObjectMeta{OwnerReferences: []v1.OwnerReference{
 				{
-					APIVersion: MockGVK(&MockManaged{}).GroupVersion().String(),
-					Kind:       MockGVK(&MockManaged{}).Kind,
+					APIVersion: MockGVK(&fake.MockManaged{}).GroupVersion().String(),
+					Kind:       MockGVK(&fake.MockManaged{}).Kind,
 					Controller: &controller,
 				},
 			}}},
@@ -381,11 +382,11 @@ func TestHasClassSelector(t *testing.T) {
 			want: false,
 		},
 		"NoClassSelector": {
-			obj:  &MockClaim{},
+			obj:  &fake.MockClaim{},
 			want: false,
 		},
 		"HasClassSelector": {
-			obj:  &MockClaim{MockClassSelector: MockClassSelector{Sel: &v1.LabelSelector{}}},
+			obj:  &fake.MockClaim{MockClassSelector: fake.MockClassSelector{Sel: &v1.LabelSelector{}}},
 			want: true,
 		},
 	}
@@ -409,11 +410,11 @@ func TestHasNoClassSelector(t *testing.T) {
 			want: false,
 		},
 		"NoClassSelector": {
-			obj:  &MockClaim{},
+			obj:  &fake.MockClaim{},
 			want: true,
 		},
 		"HasClassSelector": {
-			obj:  &MockClaim{MockClassSelector: MockClassSelector{Sel: &v1.LabelSelector{}}},
+			obj:  &fake.MockClaim{MockClassSelector: fake.MockClassSelector{Sel: &v1.LabelSelector{}}},
 			want: false,
 		},
 	}
@@ -437,11 +438,11 @@ func TestHasNoClassReference(t *testing.T) {
 			want: false,
 		},
 		"NoClassReference": {
-			obj:  &MockClaim{},
+			obj:  &fake.MockClaim{},
 			want: true,
 		},
 		"HasClassReference": {
-			obj:  &MockClaim{MockClassReferencer: MockClassReferencer{Ref: &corev1.ObjectReference{}}},
+			obj:  &fake.MockClaim{MockClassReferencer: fake.MockClassReferencer{Ref: &corev1.ObjectReference{}}},
 			want: false,
 		},
 	}
@@ -465,11 +466,11 @@ func TestHasNoMangedResourceReference(t *testing.T) {
 			want: false,
 		},
 		"NoManagedResourceReference": {
-			obj:  &MockClaim{},
+			obj:  &fake.MockClaim{},
 			want: true,
 		},
 		"HasClassReference": {
-			obj:  &MockClaim{MockManagedResourceReferencer: MockManagedResourceReferencer{Ref: &corev1.ObjectReference{}}},
+			obj:  &fake.MockClaim{MockManagedResourceReferencer: fake.MockManagedResourceReferencer{Ref: &corev1.ObjectReference{}}},
 			want: false,
 		},
 	}

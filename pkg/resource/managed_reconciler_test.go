@@ -18,6 +18,7 @@ package resource
 
 import (
 	"context"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource/fake"
 	"testing"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -64,9 +65,9 @@ func TestManagedReconciler(t *testing.T) {
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
-					s: MockSchemeWith(&MockManaged{}),
+					s: MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
+				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
 			},
 			want: want{err: errors.Wrap(errBoom, errGetManaged)},
 		},
@@ -75,9 +76,9 @@ func TestManagedReconciler(t *testing.T) {
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, ""))},
-					s: MockSchemeWith(&MockManaged{}),
+					s: MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
+				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
 			},
 			want: want{result: reconcile.Result{}},
 		},
@@ -88,7 +89,7 @@ func TestManagedReconciler(t *testing.T) {
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, got runtime.Object, _ ...client.UpdateOption) error {
-							want := &MockManaged{}
+							want := &fake.MockManaged{}
 							want.SetConditions(v1alpha1.ReconcileError(errors.Wrap(errBoom, errReconcileConnect)))
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 								reason := "Errors connecting to the provider should be reported as a conditioned status."
@@ -97,9 +98,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockManaged{}),
+					s: MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
+				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
 						return nil, errBoom
@@ -115,7 +116,7 @@ func TestManagedReconciler(t *testing.T) {
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-							want := &MockManaged{}
+							want := &fake.MockManaged{}
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors initializing the managed resource should be reported as a conditioned status."
@@ -124,9 +125,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockManaged{}),
+					s: MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
+				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithExternalConnecter(&NopConnecter{}),
 					WithManagedInitializers(ManagedInitializerFn(func(_ context.Context, mg Managed) error {
@@ -143,7 +144,7 @@ func TestManagedReconciler(t *testing.T) {
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-							want := &MockManaged{}
+							want := &fake.MockManaged{}
 							want.SetConditions(v1alpha1.ReferenceResolutionBlocked(errNotReady))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Dependencies on unready references should be reported as a conditioned status."
@@ -152,9 +153,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockManaged{}),
+					s: MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
+				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithExternalConnecter(&NopConnecter{}),
@@ -172,7 +173,7 @@ func TestManagedReconciler(t *testing.T) {
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-							want := &MockManaged{}
+							want := &fake.MockManaged{}
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors during reference resolution should be reported as a conditioned status."
@@ -181,9 +182,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockManaged{}),
+					s: MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
+				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithExternalConnecter(&NopConnecter{}),
@@ -201,7 +202,7 @@ func TestManagedReconciler(t *testing.T) {
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-							want := &MockManaged{}
+							want := &fake.MockManaged{}
 							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileError(errors.Wrap(errBoom, errReconcileObserve)))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -211,9 +212,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockManaged{}),
+					s: MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
+				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
@@ -234,13 +235,13 @@ func TestManagedReconciler(t *testing.T) {
 				m: &MockManager{
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
-							mg := obj.(*MockManaged)
+							mg := obj.(*fake.MockManaged)
 							mg.SetDeletionTimestamp(&now)
 							mg.SetReclaimPolicy(v1alpha1.ReclaimDelete)
 							return nil
 						}),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-							want := &MockManaged{}
+							want := &fake.MockManaged{}
 							want.SetDeletionTimestamp(&now)
 							want.SetReclaimPolicy(v1alpha1.ReclaimDelete)
 							want.SetConditions(v1alpha1.ReconcileError(errors.Wrap(errBoom, errReconcileDelete)))
@@ -251,9 +252,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockManaged{}),
+					s: MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
+				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
@@ -278,13 +279,13 @@ func TestManagedReconciler(t *testing.T) {
 				m: &MockManager{
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
-							mg := obj.(*MockManaged)
+							mg := obj.(*fake.MockManaged)
 							mg.SetDeletionTimestamp(&now)
 							mg.SetReclaimPolicy(v1alpha1.ReclaimDelete)
 							return nil
 						}),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-							want := &MockManaged{}
+							want := &fake.MockManaged{}
 							want.SetDeletionTimestamp(&now)
 							want.SetReclaimPolicy(v1alpha1.ReclaimDelete)
 							want.SetConditions(v1alpha1.ReconcileSuccess())
@@ -295,9 +296,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockManaged{}),
+					s: MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
+				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
@@ -322,12 +323,12 @@ func TestManagedReconciler(t *testing.T) {
 				m: &MockManager{
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
-							mg := obj.(*MockManaged)
+							mg := obj.(*fake.MockManaged)
 							mg.SetDeletionTimestamp(&now)
 							return nil
 						}),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-							want := &MockManaged{}
+							want := &fake.MockManaged{}
 							want.SetDeletionTimestamp(&now)
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -337,9 +338,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockManaged{}),
+					s: MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
+				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
@@ -364,12 +365,12 @@ func TestManagedReconciler(t *testing.T) {
 				m: &MockManager{
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
-							mg := obj.(*MockManaged)
+							mg := obj.(*fake.MockManaged)
 							mg.SetDeletionTimestamp(&now)
 							return nil
 						}),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-							want := &MockManaged{}
+							want := &fake.MockManaged{}
 							want.SetDeletionTimestamp(&now)
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -379,9 +380,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockManaged{}),
+					s: MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
+				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
@@ -405,14 +406,14 @@ func TestManagedReconciler(t *testing.T) {
 				m: &MockManager{
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
-							mg := obj.(*MockManaged)
+							mg := obj.(*fake.MockManaged)
 							mg.SetDeletionTimestamp(&now)
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockManaged{}),
+					s: MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
+				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
@@ -437,7 +438,7 @@ func TestManagedReconciler(t *testing.T) {
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-							want := &MockManaged{}
+							want := &fake.MockManaged{}
 							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -447,9 +448,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockManaged{}),
+					s: MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
+				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
@@ -468,7 +469,7 @@ func TestManagedReconciler(t *testing.T) {
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-							want := &MockManaged{}
+							want := &fake.MockManaged{}
 							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -478,9 +479,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockManaged{}),
+					s: MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
+				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
@@ -498,7 +499,7 @@ func TestManagedReconciler(t *testing.T) {
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-							want := &MockManaged{}
+							want := &fake.MockManaged{}
 							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileError(errors.Wrap(errBoom, errReconcileCreate)))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -508,9 +509,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockManaged{}),
+					s: MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
+				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
@@ -538,7 +539,7 @@ func TestManagedReconciler(t *testing.T) {
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-							want := &MockManaged{}
+							want := &fake.MockManaged{}
 							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -548,9 +549,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockManaged{}),
+					s: MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
+				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
@@ -589,7 +590,7 @@ func TestManagedReconciler(t *testing.T) {
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-							want := &MockManaged{}
+							want := &fake.MockManaged{}
 							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileSuccess())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -599,9 +600,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockManaged{}),
+					s: MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
+				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
@@ -619,7 +620,7 @@ func TestManagedReconciler(t *testing.T) {
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-							want := &MockManaged{}
+							want := &fake.MockManaged{}
 							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileSuccess())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -629,9 +630,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockManaged{}),
+					s: MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
+				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
@@ -656,7 +657,7 @@ func TestManagedReconciler(t *testing.T) {
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-							want := &MockManaged{}
+							want := &fake.MockManaged{}
 							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileError(errors.Wrap(errBoom, errReconcileUpdate)))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -666,9 +667,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockManaged{}),
+					s: MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
+				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
@@ -696,7 +697,7 @@ func TestManagedReconciler(t *testing.T) {
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-							want := &MockManaged{}
+							want := &fake.MockManaged{}
 							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -706,9 +707,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockManaged{}),
+					s: MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
+				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
@@ -747,7 +748,7 @@ func TestManagedReconciler(t *testing.T) {
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-							want := &MockManaged{}
+							want := &fake.MockManaged{}
 							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileSuccess())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -757,9 +758,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockManaged{}),
+					s: MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
+				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
