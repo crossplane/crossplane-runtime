@@ -8,7 +8,7 @@ in Crossplane and its related stacks. Take a look at our [developer guide] and
 
 ## Contributing
 
-crossplane-runtime is a community driven project and we welcome contributions.
+crossplane-runtime is a community-driven project and we welcome contributions.
 See the Crossplane [contributing] guidelines to get started.
 
 ## Report a Bug
