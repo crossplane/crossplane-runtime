@@ -372,30 +372,25 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
-	if !IsConditionTrue(managed.GetCondition(v1alpha1.TypeReferencesResolved)) {
-		if err := r.managed.ResolveReferences(ctx, managed); err != nil {
-			condition := v1alpha1.ReconcileError(err)
-			if IsReferencesAccessError(err) {
-				condition = v1alpha1.ReferenceResolutionBlocked(err)
-			}
+	observation := ExternalObservation{ResourceExists: false}
 
-			managed.SetConditions(condition)
-			return reconcile.Result{RequeueAfter: r.longWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+	// If the references are not resolved the resource cannot exist, assuming
+	// that the reference fields are immutable. Running Observe when some
+	// references are not resolved, has the possibility of failing because a
+	// resource might use an empty value of an unresolved field, when calling
+	// Observe.
+	if IsConditionTrue(managed.GetCondition(v1alpha1.TypeReferencesResolved)) {
+		observation, err = external.Observe(ctx, managed)
+
+		if err != nil {
+			// We'll usually hit this case if our Provider credentials are invalid
+			// or insufficient for observing the external resource type we're
+			// concerned with. If this is the first time we encounter this issue
+			// we'll be requeued implicitly when we update our status with the new
+			// error condition. If not, we want to try again after a short wait.
+			managed.SetConditions(v1alpha1.ReconcileError(err))
+			return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 		}
-
-		// Add ReferenceResolutionSuccess to the conditions
-		managed.SetConditions(v1alpha1.ReferenceResolutionSuccess())
-	}
-
-	observation, err := external.Observe(ctx, managed)
-	if err != nil {
-		// We'll usually hit this case if our Provider credentials are invalid
-		// or insufficient for observing the external resource type we're
-		// concerned with. If this is the first time we encounter this issue
-		// we'll be requeued implicitly when we update our status with the new
-		// error condition. If not, we want to try again after a short wait.
-		managed.SetConditions(v1alpha1.ReconcileError(err))
-		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
 	if meta.WasDeleted(managed) {
@@ -433,6 +428,21 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 		// resources.
 		managed.SetConditions(v1alpha1.ReconcileSuccess())
 		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, managed)), errUpdateManagedStatus)
+	}
+
+	if !IsConditionTrue(managed.GetCondition(v1alpha1.TypeReferencesResolved)) {
+		if err := r.managed.ResolveReferences(ctx, managed); err != nil {
+			condition := v1alpha1.ReconcileError(err)
+			if IsReferencesAccessError(err) {
+				condition = v1alpha1.ReferenceResolutionBlocked(err)
+			}
+
+			managed.SetConditions(condition)
+			return reconcile.Result{RequeueAfter: r.longWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		}
+
+		// Add ReferenceResolutionSuccess to the conditions
+		managed.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 	}
 
 	if err := r.managed.PublishConnection(ctx, managed, observation.ConnectionDetails); err != nil {

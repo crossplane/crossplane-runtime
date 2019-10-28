@@ -29,13 +29,6 @@ type MockBindable struct{ Phase v1alpha1.BindingPhase }
 func (m *MockBindable) SetBindingPhase(p v1alpha1.BindingPhase) { m.Phase = p }
 func (m *MockBindable) GetBindingPhase() v1alpha1.BindingPhase  { return m.Phase }
 
-type MockConditioned struct{ Conditions []v1alpha1.Condition }
-
-func (m *MockConditioned) SetConditions(c ...v1alpha1.Condition) { m.Conditions = c }
-func (m *MockConditioned) GetCondition(ct v1alpha1.ConditionType) v1alpha1.Condition {
-	return v1alpha1.Condition{Type: ct, Status: corev1.ConditionUnknown}
-}
-
 type MockClaimReferencer struct{ Ref *corev1.ObjectReference }
 
 func (m *MockClaimReferencer) SetClaimReference(r *corev1.ObjectReference) { m.Ref = r }
@@ -99,7 +92,7 @@ type MockClaim struct {
 	MockClassReferencer
 	MockManagedResourceReferencer
 	MockLocalConnectionSecretWriterTo
-	MockConditioned
+	v1alpha1.ConditionedStatus
 	MockBindable
 }
 
@@ -122,6 +115,6 @@ type MockManaged struct {
 	MockClaimReferencer
 	MockConnectionSecretWriterTo
 	MockReclaimer
-	MockConditioned
+	v1alpha1.ConditionedStatus
 	MockBindable
 }

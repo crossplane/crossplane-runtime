@@ -53,6 +53,13 @@ func TestManagedReconciler(t *testing.T) {
 	errBoom := errors.New("boom")
 	errNotReady := &referencesAccessErr{[]ReferenceStatus{{Name: "cool-res", Status: ReferenceNotReady}}}
 	now := metav1.Now()
+
+	setReferencesResolvedFn := func(obj runtime.Object) error {
+
+		obj.(Managed).SetConditions(v1alpha1.ReferenceResolutionSuccess())
+		return nil
+	}
+
 	testFinalizers := []string{"finalizer.crossplane.io"}
 	testConnectionDetails := ConnectionDetails{
 		"username": []byte("crossplane.io"),
@@ -127,10 +134,11 @@ func TestManagedReconciler(t *testing.T) {
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil),
+						MockGet: test.NewMockGetFn(nil, setReferencesResolvedFn),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
+							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
@@ -152,7 +160,7 @@ func TestManagedReconciler(t *testing.T) {
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+						MockGet: test.NewMockGetFn(nil, setReferencesResolvedFn, func(obj runtime.Object) error {
 							mg := obj.(*MockManaged)
 							mg.SetDeletionTimestamp(&now)
 							mg.SetReclaimPolicy(v1alpha1.ReclaimDelete)
@@ -162,8 +170,8 @@ func TestManagedReconciler(t *testing.T) {
 							want := &MockManaged{}
 							want.SetDeletionTimestamp(&now)
 							want.SetReclaimPolicy(v1alpha1.ReclaimDelete)
-							want.SetConditions(v1alpha1.Deleting())
 							want.SetConditions(v1alpha1.ReconcileSuccess())
+							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
@@ -194,7 +202,7 @@ func TestManagedReconciler(t *testing.T) {
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+						MockGet: test.NewMockGetFn(nil, setReferencesResolvedFn, func(obj runtime.Object) error {
 							mg := obj.(*MockManaged)
 							mg.SetDeletionTimestamp(&now)
 							mg.SetReclaimPolicy(v1alpha1.ReclaimDelete)
@@ -204,8 +212,8 @@ func TestManagedReconciler(t *testing.T) {
 							want := &MockManaged{}
 							want.SetDeletionTimestamp(&now)
 							want.SetReclaimPolicy(v1alpha1.ReclaimDelete)
-							want.SetConditions(v1alpha1.Deleting())
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
+							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
@@ -233,7 +241,7 @@ func TestManagedReconciler(t *testing.T) {
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+						MockGet: test.NewMockGetFn(nil, setReferencesResolvedFn, func(obj runtime.Object) error {
 							mg := obj.(*MockManaged)
 							mg.SetDeletionTimestamp(&now)
 							mg.SetReclaimPolicy(v1alpha1.ReclaimRetain)
@@ -245,6 +253,7 @@ func TestManagedReconciler(t *testing.T) {
 							want.SetDeletionTimestamp(&now)
 							want.SetReclaimPolicy(v1alpha1.ReclaimRetain)
 							want.SetConditions(v1alpha1.ReconcileSuccess())
+							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
@@ -284,7 +293,7 @@ func TestManagedReconciler(t *testing.T) {
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+						MockGet: test.NewMockGetFn(nil, setReferencesResolvedFn, func(obj runtime.Object) error {
 							mg := obj.(*MockManaged)
 							mg.SetDeletionTimestamp(&now)
 							return nil
@@ -293,6 +302,7 @@ func TestManagedReconciler(t *testing.T) {
 							want := &MockManaged{}
 							want.SetDeletionTimestamp(&now)
 							want.SetConditions(v1alpha1.ReconcileSuccess())
+							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetFinalizers(nil)
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -329,7 +339,7 @@ func TestManagedReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
 		},
-		"UnpublishDeletedAndResourceDoesNotExistError": {
+		"DeletionTimestampSet_ReferenceNotResolved_ResourceNotExistAndDeletes": {
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{
@@ -341,7 +351,96 @@ func TestManagedReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
 							want.SetDeletionTimestamp(&now)
+							want.SetConditions(v1alpha1.ReconcileSuccess())
+							want.SetFinalizers(nil)
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+					s: MockSchemeWith(&MockManaged{}),
+				},
+				mg: ManagedKind(MockGVK(&MockManaged{})),
+				o: []ManagedReconcilerOption{
+					func(r *ManagedReconciler) {
+						r.managed.ManagedConnectionPublisher = ManagedConnectionPublisherFns{
+							UnpublishConnectionFn: func(_ context.Context, _ Managed, _ ConnectionDetails) error {
+								return nil
+							},
+						}
+					},
+					func(r *ManagedReconciler) {
+						r.managed.ManagedFinalizer = ManagedFinalizerFn(func(_ context.Context, mg Managed) error {
+							mg.SetFinalizers(nil)
+							return nil
+						})
+					},
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+		},
+		"DeletionTimestampSet_ReferenceNotResolved_SkipsCallingObserveFn": {
+			args: args{
+				m: &MockManager{
+					c: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+							mg := obj.(*MockManaged)
+							mg.SetDeletionTimestamp(&now)
+							return nil
+						}),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+							want := &MockManaged{}
+							want.SetDeletionTimestamp(&now)
+							want.SetConditions(v1alpha1.ReconcileSuccess())
+							want.SetFinalizers(nil)
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+					s: MockSchemeWith(&MockManaged{}),
+				},
+				e: &ExternalClientFns{
+					ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
+						t.Errorf("ObserveFn should not get called")
+						return ExternalObservation{}, nil
+					},
+				},
+				mg: ManagedKind(MockGVK(&MockManaged{})),
+				o: []ManagedReconcilerOption{
+					func(r *ManagedReconciler) {
+						r.managed.ManagedConnectionPublisher = ManagedConnectionPublisherFns{
+							UnpublishConnectionFn: func(_ context.Context, _ Managed, _ ConnectionDetails) error {
+								return nil
+							},
+						}
+					},
+					func(r *ManagedReconciler) {
+						r.managed.ManagedFinalizer = ManagedFinalizerFn(func(_ context.Context, mg Managed) error {
+							mg.SetFinalizers(nil)
+							return nil
+						})
+					},
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+		},
+		"UnpublishDeletedAndResourceDoesNotExistError": {
+			args: args{
+				m: &MockManager{
+					c: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, setReferencesResolvedFn, func(obj runtime.Object) error {
+							mg := obj.(*MockManaged)
+							mg.SetDeletionTimestamp(&now)
+							return nil
+						}),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+							want := &MockManaged{}
+							want.SetDeletionTimestamp(&now)
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
+							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetFinalizers(nil)
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -374,7 +473,7 @@ func TestManagedReconciler(t *testing.T) {
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+						MockGet: test.NewMockGetFn(nil, setReferencesResolvedFn, func(obj runtime.Object) error {
 							mg := obj.(*MockManaged)
 							mg.SetDeletionTimestamp(&now)
 							return nil
@@ -383,6 +482,7 @@ func TestManagedReconciler(t *testing.T) {
 							want := &MockManaged{}
 							want.SetDeletionTimestamp(&now)
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
+							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetFinalizers(nil)
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -424,6 +524,7 @@ func TestManagedReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
 							want.SetConditions(v1alpha1.ReconcileSuccess())
+							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetFinalizers(testFinalizers)
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -473,10 +574,11 @@ func TestManagedReconciler(t *testing.T) {
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil),
+						MockGet: test.NewMockGetFn(nil, setReferencesResolvedFn),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
+							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetFinalizers(testFinalizers)
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -636,10 +738,11 @@ func TestManagedReconciler(t *testing.T) {
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil),
+						MockGet: test.NewMockGetFn(nil, setReferencesResolvedFn),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
 							want.SetConditions(v1alpha1.ReconcileSuccess())
+							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
@@ -682,10 +785,11 @@ func TestManagedReconciler(t *testing.T) {
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil),
+						MockGet: test.NewMockGetFn(nil, setReferencesResolvedFn),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
+							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
@@ -722,10 +826,11 @@ func TestManagedReconciler(t *testing.T) {
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil),
+						MockGet: test.NewMockGetFn(nil, setReferencesResolvedFn),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
+							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
@@ -762,10 +867,11 @@ func TestManagedReconciler(t *testing.T) {
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil),
+						MockGet: test.NewMockGetFn(nil, setReferencesResolvedFn),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
 							want.SetConditions(v1alpha1.ReconcileSuccess())
+							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
