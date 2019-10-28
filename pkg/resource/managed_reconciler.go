@@ -339,7 +339,7 @@ func NewManagedReconciler(m manager.Manager, of ManagedKind, o ...ManagedReconci
 
 // Reconcile a managed resource with an external resource.
 func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
-	// NOTE(negz): This method is a little over our cyclomatic complexity goal.
+	// NOTE(negz): This method is a well over our cyclomatic complexity goal.
 	// Be wary of adding additional complexity.
 
 	log.V(logging.Debug).Info("Reconciling", "controller", managedControllerName, "request", req)
@@ -399,8 +399,8 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 	}
 
 	if meta.WasDeleted(managed) {
-		// TODO(muvaf): Reclaim Policy should be used between Claim and Managed. For Managed and External Resource,
-		// we need another field.
+		// TODO(muvaf): Reclaim Policy should be used between Claim and Managed.
+		// For Managed and External Resource, we need another field.
 		if observation.ResourceExists && managed.GetReclaimPolicy() == v1alpha1.ReclaimDelete {
 			if err := external.Delete(ctx, managed); err != nil {
 				// We'll hit this condition if we can't delete our external
