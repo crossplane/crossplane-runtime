@@ -28,23 +28,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const (
-	attributeReferencerTagName = "attributereferencer"
-)
-
 // Error strings
 const (
-	errTaggedFieldlNotImplemented    = "ManagedReferenceResolver: the field has the %v tag, but has not implemented AttributeReferencer interface"
-	errBuildAttribute                = "ManagedReferenceResolver: could not build the attribute"
-	errAssignAttribute               = "ManagedReferenceResolver: could not assign the attribute"
-	errUpdateResourceAfterAssignment = "ManagedReferenceResolver: could not update the resource after resolving references"
+	errGetReferencerStatus = "could not get referenced resource status"
+	errUpdateReferencer    = "could not update resource referencer"
+	errBuildAttribute      = "could not build the attribute"
+	errAssignAttribute     = "could not assign the attribute"
 )
-
-// fieldHasTagPair is used in findAttributeReferencerFields
-type fieldHasTagPair struct {
-	fieldValue reflect.Value
-	hasTheTag  bool
-}
 
 // ReferenceStatusType is an enum type for the possible values for a Reference Status
 type ReferenceStatusType int
@@ -110,23 +100,23 @@ type CanReference interface {
 	metav1.Object
 }
 
-// AttributeReferencer is an interface for referencing and resolving
-// cross-resource attribute references. See
+// An AttributeReferencer resolves cross-resource attribute references. See
 // https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-cross-resource-referencing.md
 // for more information
 type AttributeReferencer interface {
+	// GetStatus retries the referenced resource, as well as other non-managed
+	// resources (like a `Provider`) and reports their readiness for use as a
+	// referenced resource.
+	GetStatus(ctx context.Context, res CanReference, r client.Reader) ([]ReferenceStatus, error)
 
-	// GetStatus looks up the referenced objects in K8S api and returns a list
-	// of ReferenceStatus
-	GetStatus(context.Context, CanReference, client.Reader) ([]ReferenceStatus, error)
+	// Build retrieves the referenced resource, as well as other non-managed
+	// resources (like a `Provider`), and builds the referenced attribute,
+	// returning it as a string value.
+	Build(ctx context.Context, res CanReference, r client.Reader) (value string, err error)
 
-	// Build retrieves referenced resource, as well as other non-managed
-	// resources (like a `Provider`), and builds the referenced attribute
-	Build(context.Context, CanReference, client.Reader) (string, error)
-
-	// Assign accepts a managed resource object, and assigns the given value to the
-	// corresponding property
-	Assign(CanReference, string) error
+	// Assign accepts a managed resource object, and assigns the given value to
+	// its corresponding property.
+	Assign(res CanReference, value string) error
 }
 
 // A ManagedReferenceResolver resolves the references to other managed
@@ -138,37 +128,73 @@ type ManagedReferenceResolver interface {
 	ResolveReferences(context.Context, CanReference) error
 }
 
-// APIManagedReferenceResolver resolves implements ManagedReferenceResolver interface
-type APIManagedReferenceResolver struct {
-	client client.Client
+// An AttributeReferencerFinder returns all types within the supplied object
+// that satisfy AttributeReferencer.
+type AttributeReferencerFinder interface {
+	FindReferencers(obj interface{}) []AttributeReferencer
 }
 
-// NewAPIManagedReferenceResolver returns a new APIManagedReferenceResolver
-func NewAPIManagedReferenceResolver(c client.Client) *APIManagedReferenceResolver {
-	return &APIManagedReferenceResolver{c}
+// An AttributeReferencerFinderFn satisfies AttributeReferencerFinder.
+type AttributeReferencerFinderFn func(obj interface{}) []AttributeReferencer
+
+// FindReferencers finds all AttributeReferencers.
+func (fn AttributeReferencerFinderFn) FindReferencers(obj interface{}) []AttributeReferencer {
+	return fn(obj)
+}
+
+// An APIManagedReferenceResolver finds and resolves a resource's references,
+// then updates it in the Kubernetes API.
+type APIManagedReferenceResolver struct {
+	client client.Client
+	finder AttributeReferencerFinder
+}
+
+// An APIManagedReferenceResolverOption configures an
+// APIManagedReferenceResolver.
+type APIManagedReferenceResolverOption func(*APIManagedReferenceResolver)
+
+// WithAttributeReferencerFinder specifies an AttributeReferencerFinder used to
+// find AttributeReferencers.
+func WithAttributeReferencerFinder(f AttributeReferencerFinder) APIManagedReferenceResolverOption {
+	return func(r *APIManagedReferenceResolver) {
+		r.finder = f
+	}
+}
+
+// NewAPIManagedReferenceResolver returns an APIManagedReferenceResolver. The
+// resolver uses reflection to recursively finds all pointer types in a struct
+// that satisfy AttributeReferencer by default. It assesses only pointers,
+// structs, and slices because it is assumed that only struct fields or slice
+// elements that are pointers to a struct will satisfy AttributeReferencer.
+func NewAPIManagedReferenceResolver(c client.Client, o ...APIManagedReferenceResolverOption) *APIManagedReferenceResolver {
+	r := &APIManagedReferenceResolver{
+		client: c,
+		finder: AttributeReferencerFinderFn(findReferencers),
+	}
+
+	for _, rro := range o {
+		rro(r)
+	}
+
+	return r
 }
 
 // ResolveReferences resolves references made to other managed resources
-func (r *APIManagedReferenceResolver) ResolveReferences(ctx context.Context, res CanReference) (err error) {
-	// retrieve all the referencer fields from the managed resource
-	referencers, err := findAttributeReferencerFields(res, false)
-	if err != nil {
-		// if there is an error it should immediately panic, since this means an
-		// attribute is tagged but doesn't implement AttributeReferencer
-		panic(err)
-	}
+func (r *APIManagedReferenceResolver) ResolveReferences(ctx context.Context, res CanReference) error {
+	// Retrieve all the referencer fields from the managed resource.
+	referencers := r.finder.FindReferencers(res)
 
-	// if there are no referencers exit early
+	// If there are no referencers exit early.
 	if len(referencers) == 0 {
 		return nil
 	}
 
-	// make sure that all the references are ready
+	// Make sure that all the references are ready.
 	allStatuses := []ReferenceStatus{}
 	for _, referencer := range referencers {
 		statuses, err := referencer.GetStatus(ctx, res, r.client)
 		if err != nil {
-			return err
+			return errors.Wrap(err, errGetReferencerStatus)
 		}
 
 		allStatuses = append(allStatuses, statuses...)
@@ -178,7 +204,7 @@ func (r *APIManagedReferenceResolver) ResolveReferences(ctx context.Context, res
 		return err
 	}
 
-	// build and assign the attributes
+	// Build and assign the attributes.
 	for _, referencer := range referencers {
 		val, err := referencer.Build(ctx, res, r.client)
 		if err != nil {
@@ -190,86 +216,46 @@ func (r *APIManagedReferenceResolver) ResolveReferences(ctx context.Context, res
 		}
 	}
 
-	// persist the updated managed resource
-	return errors.Wrap(r.client.Update(ctx, res), errUpdateResourceAfterAssignment)
+	// Persist the updated managed resource.
+	return errors.Wrap(r.client.Update(ctx, res), errUpdateReferencer)
 }
 
-// findAttributeReferencerFields recursively finds all non-nil fields in a struct and its sub types
-// that implement AttributeReferencer and have `attributeReferencerTagName:"managedResourceStructTagPackageName"` tag
-func findAttributeReferencerFields(obj interface{}, objHasTheRightTag bool) ([]AttributeReferencer, error) {
-	pairs := []fieldHasTagPair{}
-	v := reflect.ValueOf(obj)
+// findReferencers recursively finds all pointer types in a struct that satisfy
+// AttributeReferencer. It assesses only pointers, structs, and slices because
+// it is assumed that only struct fields or slice elements that are pointers to
+// a struct will satisfy AttributeReferencer.
+func findReferencers(obj interface{}) []AttributeReferencer { // nolint:gocyclo
+	// NOTE(negz): This function is slightly over our complexity goal, but is
+	// easier to follow as a single function.
 
-	switch v.Kind() {
+	referencers := []AttributeReferencer{}
+
+	switch v := reflect.ValueOf(obj); v.Kind() {
 	case reflect.Ptr:
-		if v.IsNil() {
-			return nil, nil
+		if v.IsNil() || !v.CanInterface() {
+			return nil
 		}
-
-		pairs = append(pairs, fieldHasTagPair{v.Elem(), objHasTheRightTag})
-
+		if ar, ok := v.Interface().(AttributeReferencer); ok {
+			referencers = append(referencers, ar)
+		}
+		if v.Elem().CanInterface() {
+			referencers = append(referencers, findReferencers(v.Elem().Interface())...)
+		}
 	case reflect.Struct:
 		for i := 0; i < v.NumField(); i++ {
-			pairs = append(pairs, fieldHasTagPair{v.Field(i), hasAttrRefTag(reflect.TypeOf(obj).Field(i))})
-		}
-
-	case reflect.Slice:
-		for i := 0; i < v.Len(); i++ {
-			pairs = append(pairs, fieldHasTagPair{v.Index(i), objHasTheRightTag})
-		}
-	}
-
-	return inspectFields(pairs)
-}
-
-// inspectFields along with findAttributeReferencerFields it recursively
-// inspects the extracted struct fields, and returns the ones that are of type
-// `AttributeReferencer`.
-func inspectFields(pairs []fieldHasTagPair) ([]AttributeReferencer, error) {
-	result := []AttributeReferencer{}
-	for _, pair := range pairs {
-		if !pair.fieldValue.CanInterface() {
-			if pair.hasTheTag {
-				// if the field has the tag but its value cannot be converted to
-				// an `Interface{}` (like a struct with private fields) it can't
-				// possibly implement the method sets. returning error here
-				// since, there won't be a recursive call for this value
-				return nil, errors.Errorf(errTaggedFieldlNotImplemented, attributeReferencerTagName)
-			}
-
-			continue
-		}
-
-		if pair.hasTheTag {
-			if ar, implements := pair.fieldValue.Interface().(AttributeReferencer); implements {
-				if !pair.fieldValue.IsNil() {
-					result = append(result, ar)
-				}
-
+			if !v.Field(i).CanInterface() {
 				continue
 			}
-
-			// this is for the case where a tag is assigned to a struct, but it
-			// doesn't implement the interface
-			if pair.fieldValue.Kind() == reflect.Struct {
-				return nil, errors.Errorf(errTaggedFieldlNotImplemented, attributeReferencerTagName)
+			referencers = append(referencers, findReferencers(v.Field(i).Interface())...)
+		}
+	case reflect.Slice:
+		for i := 0; i < v.Len(); i++ {
+			if !v.Index(i).CanInterface() {
+				continue
 			}
+			referencers = append(referencers, findReferencers(v.Index(i).Interface())...)
 		}
-
-		resolvers, err := findAttributeReferencerFields(pair.fieldValue.Interface(), pair.hasTheTag)
-		if err != nil {
-			return nil, err
-		}
-
-		result = append(result, resolvers...)
 	}
 
-	return result, nil
-}
-
-// hasAttrRefTag returns true if the given struct field has the
-// AttributeReference tag
-func hasAttrRefTag(field reflect.StructField) bool {
-	val, ok := field.Tag.Lookup(managedResourceStructTagPackageName)
-	return ok && (val == attributeReferencerTagName)
+	return referencers
 }

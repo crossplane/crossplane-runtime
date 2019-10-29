@@ -32,9 +32,8 @@ import (
 )
 
 const (
-	managedControllerName               = "managedresource.crossplane.io"
-	managedFinalizerName                = "finalizer." + managedControllerName
-	managedResourceStructTagPackageName = "resource"
+	managedControllerName = "managedresource.crossplane.io"
+	managedFinalizerName  = "finalizer." + managedControllerName
 
 	managedReconcileTimeout = 1 * time.Minute
 
