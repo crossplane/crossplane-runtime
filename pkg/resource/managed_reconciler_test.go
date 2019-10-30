@@ -108,34 +108,7 @@ func TestManagedReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
 		},
-		"InitializeError": {
-			reason: "Errors initializing the managed resource should trigger a requeue after a short wait.",
-			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-							want := &MockManaged{}
-							want.SetConditions(v1alpha1.ReconcileError(errBoom))
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
-								reason := "Errors initializing the managed resource should be reported as a conditioned status."
-								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
-							}
-							return nil
-						}),
-					},
-					s: MockSchemeWith(&MockManaged{}),
-				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
-				o: []ManagedReconcilerOption{
-					WithExternalConnecter(&NopConnecter{}),
-					WithManagedInitializers(ManagedInitializerFn(func(_ context.Context, mg Managed) error {
-						return errBoom
-					})),
-				},
-			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
-		},
+
 		"ExternalObserveError": {
 			reason: "Errors observing the external resource should trigger a requeue after a short wait.",
 			args: args{
@@ -465,6 +438,37 @@ func TestManagedReconciler(t *testing.T) {
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, res CanReference) error {
 						return errBoom
 					})),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+		},
+		"InitializeError": {
+			reason: "Errors initializing the managed resource should trigger a requeue after a short wait.",
+			args: args{
+				m: &MockManager{
+					c: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+							want := &MockManaged{}
+							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
+							want.SetConditions(v1alpha1.ReconcileError(errBoom))
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := "Errors initializing the managed resource should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					s: MockSchemeWith(&MockManaged{}),
+				},
+				mg: ManagedKind(MockGVK(&MockManaged{})),
+				o: []ManagedReconcilerOption{
+					WithManagedInitializers(ManagedInitializerFn(func(_ context.Context, mg Managed) error {
+						return errBoom
+					})),
+					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
+					WithExternalConnecter(&NopConnecter{}),
+					WithManagedConnectionPublishers(),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},

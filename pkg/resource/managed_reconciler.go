@@ -394,14 +394,6 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
-	if err := r.managed.Initialize(ctx, managed); err != nil {
-		// If this is the first time we encounter this issue we'll be requeued
-		// implicitly when we update our status with the new error condition.
-		// If not, we want to try again after a short wait.
-		managed.SetConditions(v1alpha1.ReconcileError(err))
-		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
-	}
-
 	observation, err := external.Observe(ctx, managed)
 	if err != nil {
 		// We'll usually hit this case if our Provider credentials are invalid
@@ -483,6 +475,16 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 	managed.SetConditions(v1alpha1.ReferenceResolutionSuccess())
+
+	// TODO(negz): Is this really where we want to set the external name?
+	// We'll probably want to use it during observation.
+	if err := r.managed.Initialize(ctx, managed); err != nil {
+		// If this is the first time we encounter this issue we'll be requeued
+		// implicitly when we update our status with the new error condition.
+		// If not, we want to try again after a short wait.
+		managed.SetConditions(v1alpha1.ReconcileError(err))
+		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+	}
 
 	if !observation.ResourceExists {
 		creation, err := external.Create(ctx, managed)
