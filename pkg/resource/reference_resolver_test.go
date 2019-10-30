@@ -128,6 +128,7 @@ func TestResolveReferences(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
+				res: &MockManaged{},
 			},
 			want: errors.Wrap(errBoom, errBuildAttribute),
 		},
@@ -152,10 +153,39 @@ func TestResolveReferences(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
+				res: &MockManaged{},
 			},
 			want: errors.Wrap(errBoom, errAssignAttribute),
 		},
-		"Successful": {
+		"SuccessfulNoop": {
+			reason: "Should return without error when assignment does not change CanReference.",
+			c: &test.MockClient{
+				MockUpdate: test.NewMockUpdateFn(nil),
+			},
+			o: []APIManagedReferenceResolverOption{
+				WithAttributeReferencerFinder(AttributeReferencerFinderFn(func(_ interface{}) []AttributeReferencer {
+					return []AttributeReferencer{
+						&mockReferencer{
+							MockGetStatus: func(_ context.Context, _ CanReference, _ client.Reader) ([]ReferenceStatus, error) {
+								return nil, nil
+							},
+							MockBuild: func(_ context.Context, _ CanReference, _ client.Reader) (string, error) {
+								return wantValue, nil
+							},
+							MockAssign: func(res CanReference, gotValue string) error {
+								return nil
+							},
+						},
+					}
+				})),
+			},
+			args: args{
+				ctx: context.Background(),
+				res: &MockManaged{},
+			},
+			want: nil,
+		},
+		"SuccessfulUpdate": {
 			reason: "Should return without error when a value is successfully built and assigned.",
 			c: &test.MockClient{
 				MockUpdate: test.NewMockUpdateFn(nil),
@@ -170,11 +200,14 @@ func TestResolveReferences(t *testing.T) {
 							MockBuild: func(_ context.Context, _ CanReference, _ client.Reader) (string, error) {
 								return wantValue, nil
 							},
-							MockAssign: func(_ CanReference, gotValue string) error {
+							MockAssign: func(res CanReference, gotValue string) error {
 								if diff := cmp.Diff(wantValue, gotValue); diff != "" {
 									reason := "referencer.Assign should be called with the value returned by referencer.Build."
 									t.Errorf("\nReason: %s\nreferencer.Assign(...):\n%s", reason, diff)
 								}
+
+								// Simulate assignment by changing something about the resource.
+								res.(*MockManaged).SetAnnotations(map[string]string{"assigned": "true"})
 								return nil
 							},
 						},
@@ -183,6 +216,7 @@ func TestResolveReferences(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
+				res: &MockManaged{},
 			},
 			want: nil,
 		},
@@ -201,7 +235,10 @@ func TestResolveReferences(t *testing.T) {
 							MockBuild: func(_ context.Context, _ CanReference, _ client.Reader) (string, error) {
 								return "", nil
 							},
-							MockAssign: func(_ CanReference, _ string) error {
+							MockAssign: func(res CanReference, _ string) error {
+								// Simulate assignment by changing something about the resource.
+								res.(*MockManaged).SetAnnotations(map[string]string{"assigned": "true"})
+
 								return nil
 							},
 						},
@@ -210,6 +247,7 @@ func TestResolveReferences(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
+				res: &MockManaged{},
 			},
 			want: errors.Wrap(errBoom, errUpdateReferencer),
 		},

@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -204,6 +205,8 @@ func (r *APIManagedReferenceResolver) ResolveReferences(ctx context.Context, res
 		return err
 	}
 
+	existing := res.DeepCopyObject()
+
 	// Build and assign the attributes.
 	for _, referencer := range referencers {
 		val, err := referencer.Build(ctx, res, r.client)
@@ -214,6 +217,11 @@ func (r *APIManagedReferenceResolver) ResolveReferences(ctx context.Context, res
 		if err := referencer.Assign(res, val); err != nil {
 			return errors.Wrap(err, errAssignAttribute)
 		}
+	}
+
+	// Don't update if nothing changed during reference assignment.
+	if cmp.Equal(existing, res) {
+		return nil
 	}
 
 	// Persist the updated managed resource.

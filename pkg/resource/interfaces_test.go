@@ -17,9 +17,12 @@ limitations under the License.
 package resource
 
 import (
+	"encoding/json"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 )
@@ -92,8 +95,6 @@ func (m *MockReclaimer) GetReclaimPolicy() v1alpha1.ReclaimPolicy  { return m.Po
 var _ Claim = &MockClaim{}
 
 type MockClaim struct {
-	runtime.Object
-
 	metav1.ObjectMeta
 	MockClassSelector
 	MockClassReferencer
@@ -103,20 +104,44 @@ type MockClaim struct {
 	MockBindable
 }
 
+func (m *MockClaim) GetObjectKind() schema.ObjectKind {
+	return schema.EmptyObjectKind
+}
+
+func (m *MockClaim) DeepCopyObject() runtime.Object {
+	out := &MockClaim{}
+	j, err := json.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	json.Unmarshal(j, out)
+	return out
+}
+
 var _ Class = &MockClass{}
 
 type MockClass struct {
-	runtime.Object
-
 	metav1.ObjectMeta
 	MockReclaimer
+}
+
+func (m *MockClass) GetObjectKind() schema.ObjectKind {
+	return schema.EmptyObjectKind
+}
+
+func (m *MockClass) DeepCopyObject() runtime.Object {
+	out := &MockClass{}
+	j, err := json.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	json.Unmarshal(j, out)
+	return out
 }
 
 var _ Managed = &MockManaged{}
 
 type MockManaged struct {
-	runtime.Object
-
 	metav1.ObjectMeta
 	MockClassReferencer
 	MockClaimReferencer
@@ -124,4 +149,18 @@ type MockManaged struct {
 	MockReclaimer
 	MockConditioned
 	MockBindable
+}
+
+func (m *MockManaged) GetObjectKind() schema.ObjectKind {
+	return schema.EmptyObjectKind
+}
+
+func (m *MockManaged) DeepCopyObject() runtime.Object {
+	out := &MockManaged{}
+	j, err := json.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	json.Unmarshal(j, out)
+	return out
 }
