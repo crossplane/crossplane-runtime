@@ -376,15 +376,15 @@ func TestSetBindable(t *testing.T) {
 		want v1alpha1.BindingPhase
 	}{
 		"BindableIsUnbindable": {
-			b:    &MockClaim{MockBindable: MockBindable{Phase: v1alpha1.BindingPhaseUnbindable}},
+			b:    &MockClaim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseUnbindable}},
 			want: v1alpha1.BindingPhaseUnbound,
 		},
 		"BindableIsUnbound": {
-			b:    &MockClaim{MockBindable: MockBindable{Phase: v1alpha1.BindingPhaseUnbound}},
+			b:    &MockClaim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseUnbound}},
 			want: v1alpha1.BindingPhaseUnbound,
 		},
 		"BindableIsBound": {
-			b:    &MockClaim{MockBindable: MockBindable{Phase: v1alpha1.BindingPhaseBound}},
+			b:    &MockClaim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
 			want: v1alpha1.BindingPhaseBound,
 		},
 	}
