@@ -59,7 +59,7 @@ const (
 // Reason references for a resource are or are not resolved
 const (
 	ReasonReferenceResolveSuccess  ConditionReason = "Successfully resolved managed resource references to other resources"
-	ReasonResolveReferencesBlocked ConditionReason = "One or more of referenced resources do not exist, or are not yet Ready"
+	ReasonResolveReferencesBlocked ConditionReason = "One or more referenced resources do not exist, or are not yet Ready"
 )
 
 // A Condition that may apply to a managed resource.
