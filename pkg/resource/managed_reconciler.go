@@ -410,9 +410,7 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 			}
 
 			managed.SetConditions(condition)
-			// TODO(negz): The declaration of our dependencies implies we expect
-			// they are or will soon be ready. This should be a short wait.
-			return reconcile.Result{RequeueAfter: r.longWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+			return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 		}
 
 		// Add ReferenceResolutionSuccess to the conditions

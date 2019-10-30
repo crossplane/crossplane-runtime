@@ -137,7 +137,7 @@ func TestManagedReconciler(t *testing.T) {
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
 		},
 		"ResolveReferencesNotReadyError": {
-			reason: "Dependencies on unready references should trigger a requeue after a long wait.",
+			reason: "Dependencies on unready references should trigger a requeue after a short wait.",
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{
@@ -163,10 +163,10 @@ func TestManagedReconciler(t *testing.T) {
 					})),
 				},
 			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedLongWait}},
+			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
 		},
 		"ResolveReferencesError": {
-			reason: "Errors during reference resolution references should trigger a requeue after a long wait.",
+			reason: "Errors during reference resolution references should trigger a requeue after a short wait.",
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{
@@ -192,7 +192,7 @@ func TestManagedReconciler(t *testing.T) {
 					})),
 				},
 			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedLongWait}},
+			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
 		},
 		"ExternalObserveError": {
 			reason: "Errors observing the external resource should trigger a requeue after a short wait.",
