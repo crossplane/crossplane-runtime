@@ -184,7 +184,6 @@ func TestManagedReconciler(t *testing.T) {
 							want := &MockManaged{}
 							want.SetDeletionTimestamp(&now)
 							want.SetReclaimPolicy(v1alpha1.ReclaimDelete)
-							want.SetConditions(v1alpha1.Deleting())
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "An error deleting an external resource should be reported as a conditioned status."
@@ -229,7 +228,6 @@ func TestManagedReconciler(t *testing.T) {
 							want := &MockManaged{}
 							want.SetDeletionTimestamp(&now)
 							want.SetReclaimPolicy(v1alpha1.ReclaimDelete)
-							want.SetConditions(v1alpha1.Deleting())
 							want.SetConditions(v1alpha1.ReconcileSuccess())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A deleted external resource should be reported as a conditioned status."
@@ -479,6 +477,7 @@ func TestManagedReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
+							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors while creating an external resource should be reported as a conditioned status."
@@ -517,6 +516,7 @@ func TestManagedReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
+							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors publishing connection details after creation should be reported as a conditioned status."
@@ -566,6 +566,7 @@ func TestManagedReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
+							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileSuccess())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Successful managed resource creation should be reported as a conditioned status."
@@ -594,6 +595,7 @@ func TestManagedReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
+							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileSuccess())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful no-op reconcile should be reported as a conditioned status."
@@ -629,6 +631,7 @@ func TestManagedReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
+							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors while updating an external resource should be reported as a conditioned status."
@@ -667,6 +670,7 @@ func TestManagedReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
+							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors publishing connection details after an update should be reported as a conditioned status."
@@ -716,6 +720,7 @@ func TestManagedReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
+							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileSuccess())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful managed resource update should be reported as a conditioned status."

@@ -489,10 +489,10 @@ func TestBind(t *testing.T) {
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateManaged),
-				cm:  &MockClaim{MockBindable: MockBindable{Phase: v1alpha1.BindingPhaseBound}},
+				cm:  &MockClaim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
 				mg: &MockManaged{
 					MockClaimReferencer: MockClaimReferencer{meta.ReferenceTo(&MockClaim{}, MockGVK(&MockClaim{}))},
-					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseBound},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
 			},
 		},
@@ -518,13 +518,13 @@ func TestBind(t *testing.T) {
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateClaim),
 				cm: &MockClaim{
-					ObjectMeta:   metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
-					MockBindable: MockBindable{Phase: v1alpha1.BindingPhaseBound},
+					ObjectMeta:    metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
+					BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
 				mg: &MockManaged{
 					ObjectMeta:          metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
 					MockClaimReferencer: MockClaimReferencer{meta.ReferenceTo(&MockClaim{}, MockGVK(&MockClaim{}))},
-					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseBound},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
 			},
 		},
@@ -538,10 +538,10 @@ func TestBind(t *testing.T) {
 			},
 			want: want{
 				err: nil,
-				cm:  &MockClaim{MockBindable: MockBindable{Phase: v1alpha1.BindingPhaseBound}},
+				cm:  &MockClaim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
 				mg: &MockManaged{
 					MockClaimReferencer: MockClaimReferencer{meta.ReferenceTo(&MockClaim{}, MockGVK(&MockClaim{}))},
-					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseBound},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
 			},
 		},
@@ -558,12 +558,12 @@ func TestBind(t *testing.T) {
 			want: want{
 				err: nil,
 				cm: &MockClaim{
-					ObjectMeta:   metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
-					MockBindable: MockBindable{Phase: v1alpha1.BindingPhaseBound}},
+					ObjectMeta:    metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
+					BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
 				mg: &MockManaged{
 					ObjectMeta:          metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
 					MockClaimReferencer: MockClaimReferencer{meta.ReferenceTo(&MockClaim{}, MockGVK(&MockClaim{}))},
-					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseBound},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
 			},
 		},
@@ -625,7 +625,7 @@ func TestStatusBind(t *testing.T) {
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateManaged),
-				cm:  &MockClaim{MockBindable: MockBindable{Phase: v1alpha1.BindingPhaseBound}},
+				cm:  &MockClaim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
 				mg: &MockManaged{
 					MockClaimReferencer: MockClaimReferencer{meta.ReferenceTo(&MockClaim{}, MockGVK(&MockClaim{}))},
 				},
@@ -644,10 +644,10 @@ func TestStatusBind(t *testing.T) {
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateManagedStatus),
-				cm:  &MockClaim{MockBindable: MockBindable{Phase: v1alpha1.BindingPhaseBound}},
+				cm:  &MockClaim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
 				mg: &MockManaged{
 					MockClaimReferencer: MockClaimReferencer{meta.ReferenceTo(&MockClaim{}, MockGVK(&MockClaim{}))},
-					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseBound},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
 			},
 		},
@@ -676,13 +676,13 @@ func TestStatusBind(t *testing.T) {
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateClaim),
 				cm: &MockClaim{
-					ObjectMeta:   metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
-					MockBindable: MockBindable{Phase: v1alpha1.BindingPhaseBound},
+					ObjectMeta:    metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
+					BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
 				mg: &MockManaged{
 					ObjectMeta:          metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
 					MockClaimReferencer: MockClaimReferencer{meta.ReferenceTo(&MockClaim{}, MockGVK(&MockClaim{}))},
-					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseBound},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
 			},
 		},
@@ -699,10 +699,10 @@ func TestStatusBind(t *testing.T) {
 			},
 			want: want{
 				err: nil,
-				cm:  &MockClaim{MockBindable: MockBindable{Phase: v1alpha1.BindingPhaseBound}},
+				cm:  &MockClaim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
 				mg: &MockManaged{
 					MockClaimReferencer: MockClaimReferencer{meta.ReferenceTo(&MockClaim{}, MockGVK(&MockClaim{}))},
-					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseBound},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
 			},
 		},
@@ -722,13 +722,13 @@ func TestStatusBind(t *testing.T) {
 			want: want{
 				err: nil,
 				cm: &MockClaim{
-					ObjectMeta:   metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
-					MockBindable: MockBindable{Phase: v1alpha1.BindingPhaseBound},
+					ObjectMeta:    metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
+					BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
 				mg: &MockManaged{
 					ObjectMeta:          metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
 					MockClaimReferencer: MockClaimReferencer{meta.ReferenceTo(&MockClaim{}, MockGVK(&MockClaim{}))},
-					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseBound},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
 			},
 		},
@@ -777,7 +777,7 @@ func TestFinalizeResource(t *testing.T) {
 				ctx: context.Background(),
 				mg: &MockManaged{
 					MockReclaimer:       MockReclaimer{Policy: v1alpha1.ReclaimRetain},
-					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseBound},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 					MockClaimReferencer: MockClaimReferencer{Ref: &corev1.ObjectReference{}},
 				},
 			},
@@ -785,7 +785,7 @@ func TestFinalizeResource(t *testing.T) {
 				err: nil,
 				mg: &MockManaged{
 					MockReclaimer:       MockReclaimer{Policy: v1alpha1.ReclaimRetain},
-					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseUnbound},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseUnbound},
 					MockClaimReferencer: MockClaimReferencer{Ref: nil},
 				},
 			},
@@ -798,7 +798,7 @@ func TestFinalizeResource(t *testing.T) {
 				ctx: context.Background(),
 				mg: &MockManaged{
 					MockReclaimer:       MockReclaimer{Policy: v1alpha1.ReclaimRetain},
-					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseBound},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 					MockClaimReferencer: MockClaimReferencer{Ref: &corev1.ObjectReference{}},
 				},
 			},
@@ -806,7 +806,7 @@ func TestFinalizeResource(t *testing.T) {
 				err: errors.Wrap(errBoom, errUpdateManaged),
 				mg: &MockManaged{
 					MockReclaimer:       MockReclaimer{Policy: v1alpha1.ReclaimRetain},
-					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseUnbound},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseUnbound},
 					MockClaimReferencer: MockClaimReferencer{Ref: nil},
 				},
 			},
@@ -852,14 +852,14 @@ func TestStatusFinalizeResource(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				mg: &MockManaged{
-					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseBound},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 					MockClaimReferencer: MockClaimReferencer{Ref: &corev1.ObjectReference{}},
 				},
 			},
 			want: want{
 				err: nil,
 				mg: &MockManaged{
-					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseUnbound},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseUnbound},
 					MockClaimReferencer: MockClaimReferencer{Ref: nil},
 				},
 			},
@@ -871,14 +871,14 @@ func TestStatusFinalizeResource(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				mg: &MockManaged{
-					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseBound},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 					MockClaimReferencer: MockClaimReferencer{Ref: &corev1.ObjectReference{}},
 				},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateManaged),
 				mg: &MockManaged{
-					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseUnbound},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseUnbound},
 					MockClaimReferencer: MockClaimReferencer{Ref: nil},
 				},
 			},
@@ -892,7 +892,7 @@ func TestStatusFinalizeResource(t *testing.T) {
 				ctx: context.Background(),
 				mg: &MockManaged{
 					MockReclaimer:       MockReclaimer{Policy: v1alpha1.ReclaimRetain},
-					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseBound},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 					MockClaimReferencer: MockClaimReferencer{Ref: &corev1.ObjectReference{}},
 				},
 			},
@@ -900,7 +900,7 @@ func TestStatusFinalizeResource(t *testing.T) {
 				err: errors.Wrap(errBoom, errUpdateManagedStatus),
 				mg: &MockManaged{
 					MockReclaimer:       MockReclaimer{Policy: v1alpha1.ReclaimRetain},
-					MockBindable:        MockBindable{Phase: v1alpha1.BindingPhaseUnbound},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseUnbound},
 					MockClaimReferencer: MockClaimReferencer{Ref: nil},
 				},
 			},
