@@ -136,64 +136,6 @@ func TestManagedReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
 		},
-		"ResolveReferencesNotReadyError": {
-			reason: "Dependencies on unready references should trigger a requeue after a short wait.",
-			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-							want := &MockManaged{}
-							want.SetConditions(v1alpha1.ReferenceResolutionBlocked(errNotReady))
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
-								reason := "Dependencies on unready references should be reported as a conditioned status."
-								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
-							}
-							return nil
-						}),
-					},
-					s: MockSchemeWith(&MockManaged{}),
-				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
-				o: []ManagedReconcilerOption{
-					WithManagedInitializers(),
-					WithExternalConnecter(&NopConnecter{}),
-					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, res CanReference) error {
-						return errNotReady
-					})),
-				},
-			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
-		},
-		"ResolveReferencesError": {
-			reason: "Errors during reference resolution references should trigger a requeue after a short wait.",
-			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-							want := &MockManaged{}
-							want.SetConditions(v1alpha1.ReconcileError(errBoom))
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
-								reason := "Errors during reference resolution should be reported as a conditioned status."
-								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
-							}
-							return nil
-						}),
-					},
-					s: MockSchemeWith(&MockManaged{}),
-				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
-				o: []ManagedReconcilerOption{
-					WithManagedInitializers(),
-					WithExternalConnecter(&NopConnecter{}),
-					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, res CanReference) error {
-						return errBoom
-					})),
-				},
-			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
-		},
 		"ExternalObserveError": {
 			reason: "Errors observing the external resource should trigger a requeue after a short wait.",
 			args: args{
@@ -467,6 +409,64 @@ func TestManagedReconciler(t *testing.T) {
 					WithManagedConnectionPublishers(ManagedConnectionPublisherFns{
 						PublishConnectionFn: func(_ context.Context, _ Managed, _ ConnectionDetails) error { return errBoom },
 					}),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+		},
+		"ResolveReferencesNotReadyError": {
+			reason: "Dependencies on unready references should trigger a requeue after a short wait.",
+			args: args{
+				m: &MockManager{
+					c: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+							want := &MockManaged{}
+							want.SetConditions(v1alpha1.ReferenceResolutionBlocked(errNotReady))
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := "Dependencies on unready references should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					s: MockSchemeWith(&MockManaged{}),
+				},
+				mg: ManagedKind(MockGVK(&MockManaged{})),
+				o: []ManagedReconcilerOption{
+					WithManagedInitializers(),
+					WithExternalConnecter(&NopConnecter{}),
+					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, res CanReference) error {
+						return errNotReady
+					})),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+		},
+		"ResolveReferencesError": {
+			reason: "Errors during reference resolution references should trigger a requeue after a short wait.",
+			args: args{
+				m: &MockManager{
+					c: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+							want := &MockManaged{}
+							want.SetConditions(v1alpha1.ReconcileError(errBoom))
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := "Errors during reference resolution should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					s: MockSchemeWith(&MockManaged{}),
+				},
+				mg: ManagedKind(MockGVK(&MockManaged{})),
+				o: []ManagedReconcilerOption{
+					WithManagedInitializers(),
+					WithExternalConnecter(&NopConnecter{}),
+					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, res CanReference) error {
+						return errBoom
+					})),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},

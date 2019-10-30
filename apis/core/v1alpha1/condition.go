@@ -262,7 +262,7 @@ func ReconcileError(err error) Condition {
 }
 
 // ReferenceResolutionSuccess returns a condition indicating that Crossplane
-// successfully resolved the references used in the managed resource
+// successfully resolved the references used in the managed resource.
 func ReferenceResolutionSuccess() Condition {
 	return Condition{
 		Type:               TypeReferencesResolved,
@@ -275,7 +275,7 @@ func ReferenceResolutionSuccess() Condition {
 // ReferenceResolutionBlocked returns a condition indicating that Crossplane is
 // unable to resolve the references used in the managed resource. This could
 // mean that one or more of referred resources do not yet exist, or are not yet
-// Ready
+// Ready.
 func ReferenceResolutionBlocked(err error) Condition {
 	return Condition{
 		Type:               TypeReferencesResolved,
