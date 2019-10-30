@@ -402,20 +402,23 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
-	if !IsConditionTrue(managed.GetCondition(v1alpha1.TypeReferencesResolved)) {
-		if err := r.managed.ResolveReferences(ctx, managed); err != nil {
-			condition := v1alpha1.ReconcileError(err)
-			if IsReferencesAccessError(err) {
-				condition = v1alpha1.ReferenceResolutionBlocked(err)
-			}
-
-			managed.SetConditions(condition)
-			return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+	// We resolve any references before observing our external resource because
+	// in some rare examples we need a spec field to make the observe call, and
+	// that spec field could be set by a reference.
+	if err := r.managed.ResolveReferences(ctx, managed); err != nil {
+		condition := v1alpha1.ReconcileError(err)
+		if IsReferencesAccessError(err) {
+			condition = v1alpha1.ReferenceResolutionBlocked(err)
 		}
 
-		// Add ReferenceResolutionSuccess to the conditions
-		managed.SetConditions(v1alpha1.ReferenceResolutionSuccess())
+		// If any of our referenced resources are not yet ready (or if we
+		// encountered an error resolving them) we want to try again after a
+		// short wait. If this is the first time we encounter this situation
+		// we'll be requeued implicitly due to the status update.
+		managed.SetConditions(condition)
+		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
+	managed.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 
 	observation, err := external.Observe(ctx, managed)
 	if err != nil {
