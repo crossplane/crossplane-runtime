@@ -138,6 +138,20 @@ type ManagedFinalizer interface {
 	Finalize(ctx context.Context, cm Managed) error
 }
 
+// A FinalizerChain chains multiple managed finalizers.
+type FinalizerChain []ManagedFinalizer
+
+// Finalize calls each ManagedFinalizer serially. It returns the first
+// error it encounters, if any.
+func (cc FinalizerChain) Finalize(ctx context.Context, mg Managed) error {
+	for _, c := range cc {
+		if err := c.Finalize(ctx, mg); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // A ManagedFinalizerFn is a function that satisfies the ManagedFinalizer interface.
 type ManagedFinalizerFn func(ctx context.Context, cm Managed) error
 

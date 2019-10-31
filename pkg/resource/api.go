@@ -298,20 +298,6 @@ func (a *APIManagedFinalizerRemover) Finalize(ctx context.Context, mg Managed) e
 	return errors.Wrap(a.client.Update(ctx, mg), errUpdateManaged)
 }
 
-// A InitializerChain chains multiple managed initializers.
-type InitializerChain []ManagedInitializer
-
-// Initialize calls each ManagedInitializer serially. It returns the first
-// error it encounters, if any.
-func (cc InitializerChain) Initialize(ctx context.Context, mg Managed) error {
-	for _, c := range cc {
-		if err := c.Initialize(ctx, mg); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // An APIManagedFinalizerAdder establishes ownership of a managed resource by
 // adding a finalizer and updating it in the API server.
 type APIManagedFinalizerAdder struct{ client client.Client }

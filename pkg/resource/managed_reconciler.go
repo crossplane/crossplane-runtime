@@ -81,6 +81,20 @@ type ManagedInitializer interface {
 	Initialize(ctx context.Context, mg Managed) error
 }
 
+// A InitializerChain chains multiple managed initializers.
+type InitializerChain []ManagedInitializer
+
+// Initialize calls each ManagedInitializer serially. It returns the first
+// error it encounters, if any.
+func (cc InitializerChain) Initialize(ctx context.Context, mg Managed) error {
+	for _, c := range cc {
+		if err := c.Initialize(ctx, mg); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // ManagedInitializerFn is the pluggable struct to produce objects with ManagedInitializer interface.
 type ManagedInitializerFn func(ctx context.Context, mg Managed) error
 
@@ -138,7 +152,8 @@ type ExternalClient interface {
 	Delete(ctx context.Context, mg Managed) error
 }
 
-// ExternalClientFns is the pluggable struct to produce an ExternalClient from given functions.
+// ExternalClientFns is a pluggable struct to produce an ExternalClient from the
+// given functions.
 type ExternalClientFns struct {
 	ObserveFn func(ctx context.Context, mg Managed) (ExternalObservation, error)
 	CreateFn  func(ctx context.Context, mg Managed) (ExternalCreation, error)
@@ -299,11 +314,27 @@ func WithManagedConnectionPublishers(p ...ManagedConnectionPublisher) ManagedRec
 	}
 }
 
-// WithManagedInitializers specifies how the Reconciler should initialize
+// WithManagedInitializers specifies how the Reconciler should initialize a
 // managed resource before calling any of the ExternalClient functions.
 func WithManagedInitializers(i ...ManagedInitializer) ManagedReconcilerOption {
 	return func(r *ManagedReconciler) {
 		r.managed.ManagedInitializer = InitializerChain(i)
+	}
+}
+
+// WithManagedFinalizers specifies how the Reconciler should finalize a
+// managed resource after it has been deleted.
+func WithManagedFinalizers(f ...ManagedFinalizer) ManagedReconcilerOption {
+	return func(r *ManagedReconciler) {
+		r.managed.ManagedFinalizer = FinalizerChain(f)
+	}
+}
+
+// WithManagedReferenceResolver specifies how the Reconciler should resolve any
+// inter-resource references it encounters while reconciling managed resources.
+func WithManagedReferenceResolver(rr ManagedReferenceResolver) ManagedReconcilerOption {
+	return func(r *ManagedReconciler) {
+		r.managed.ManagedReferenceResolver = rr
 	}
 }
 
@@ -339,7 +370,7 @@ func NewManagedReconciler(m manager.Manager, of ManagedKind, o ...ManagedReconci
 
 // Reconcile a managed resource with an external resource.
 func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
-	// NOTE(negz): This method is a little over our cyclomatic complexity goal.
+	// NOTE(negz): This method is a well over our cyclomatic complexity goal.
 	// Be wary of adding additional complexity.
 
 	log.V(logging.Debug).Info("Reconciling", "controller", managedControllerName, "request", req)
@@ -380,6 +411,8 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 			}
 
 			managed.SetConditions(condition)
+			// TODO(negz): The declaration of our dependencies implies we expect
+			// they are or will soon be ready. This should be a short wait.
 			return reconcile.Result{RequeueAfter: r.longWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 		}
 
@@ -399,8 +432,8 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 	}
 
 	if meta.WasDeleted(managed) {
-		// TODO(muvaf): Reclaim Policy should be used between Claim and Managed. For Managed and External Resource,
-		// we need another field.
+		// TODO(muvaf): Reclaim Policy should be used between Claim and Managed.
+		// For Managed and External Resource, we need another field.
 		if observation.ResourceExists && managed.GetReclaimPolicy() == v1alpha1.ReclaimDelete {
 			if err := external.Delete(ctx, managed); err != nil {
 				// We'll hit this condition if we can't delete our external
@@ -412,7 +445,9 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 				managed.SetConditions(v1alpha1.ReconcileError(err))
 				return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 			}
+
 			managed.SetConditions(v1alpha1.ReconcileSuccess())
+			// TODO(negz): Why do we requeue here rather than just proceeding?
 			return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 		}
 		if err := r.managed.UnpublishConnection(ctx, managed, observation.ConnectionDetails); err != nil {
@@ -429,9 +464,12 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 			managed.SetConditions(v1alpha1.ReconcileError(err))
 			return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, managed)), errUpdateManagedStatus)
 		}
+
 		// We've successfully finalized the deletion of our external and managed
 		// resources.
 		managed.SetConditions(v1alpha1.ReconcileSuccess())
+		// TODO(negz): Why do we requeue here? We've deleted our resource and
+		// removed its finalizer at this stage. There's nothing more to do.
 		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, managed)), errUpdateManagedStatus)
 	}
 
