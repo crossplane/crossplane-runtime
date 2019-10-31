@@ -438,6 +438,24 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
+	// We resolve any references before observing our external resource because
+	// in some rare examples we need a spec field to make the observe call, and
+	// that spec field could be set by a reference.
+	if err := r.managed.ResolveReferences(ctx, managed); err != nil {
+		condition := v1alpha1.ReconcileError(err)
+		if IsReferencesAccessError(err) {
+			condition = v1alpha1.ReferenceResolutionBlocked(err)
+		}
+
+		// If any of our referenced resources are not yet ready (or if we
+		// encountered an error resolving them) we want to try again after a
+		// short wait. If this is the first time we encounter this situation
+		// we'll be requeued implicitly due to the status update.
+		managed.SetConditions(condition)
+		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+	}
+	managed.SetConditions(v1alpha1.ReferenceResolutionSuccess())
+
 	observation, err := external.Observe(ctx, managed)
 	if err != nil {
 		// We'll usually hit this case if our Provider credentials are invalid
@@ -504,21 +522,6 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 		managed.SetConditions(v1alpha1.ReconcileError(err))
 		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
-
-	if err := r.managed.ResolveReferences(ctx, managed); err != nil {
-		condition := v1alpha1.ReconcileError(err)
-		if IsReferencesAccessError(err) {
-			condition = v1alpha1.ReferenceResolutionBlocked(err)
-		}
-
-		// If any of our referenced resources are not yet ready (or if we
-		// encountered an error resolving them) we want to try again after a
-		// short wait. If this is the first time we encounter this situation
-		// we'll be requeued implicitly due to the status update.
-		managed.SetConditions(condition)
-		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
-	}
-	managed.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 
 	if err := r.managed.Initialize(ctx, managed); err != nil {
 		// If this is the first time we encounter this issue we'll be requeued

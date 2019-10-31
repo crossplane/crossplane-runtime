@@ -134,276 +134,6 @@ func TestManagedReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
 		},
-		"ExternalObserveError": {
-			reason: "Errors observing the external resource should trigger a requeue after a short wait.",
-			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-							want := &MockManaged{}
-							want.SetConditions(v1alpha1.ReconcileError(errBoom))
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
-								reason := "Errors observing the managed resource should be reported as a conditioned status."
-								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
-							}
-							return nil
-						}),
-					},
-					s: MockSchemeWith(&MockManaged{}),
-				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
-				o: []ManagedReconcilerOption{
-					WithManagedAnnotators(),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
-								return ExternalObservation{}, errBoom
-							},
-						}
-						return c, nil
-					})),
-				},
-			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
-		},
-		"ExternalDeleteError": {
-			reason: "Errors deleting the external resource should trigger a requeue after a short wait.",
-			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
-							mg := obj.(*MockManaged)
-							mg.SetDeletionTimestamp(&now)
-							mg.SetReclaimPolicy(v1alpha1.ReclaimDelete)
-							return nil
-						}),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-							want := &MockManaged{}
-							want.SetDeletionTimestamp(&now)
-							want.SetReclaimPolicy(v1alpha1.ReclaimDelete)
-							want.SetConditions(v1alpha1.ReconcileError(errBoom))
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
-								reason := "An error deleting an external resource should be reported as a conditioned status."
-								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
-							}
-							return nil
-						}),
-					},
-					s: MockSchemeWith(&MockManaged{}),
-				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
-				o: []ManagedReconcilerOption{
-					WithManagedAnnotators(),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: true}, nil
-							},
-							DeleteFn: func(_ context.Context, _ Managed) error {
-								return errBoom
-							},
-						}
-						return c, nil
-					})),
-				},
-			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
-		},
-		"ExternalDeleteSuccessful": {
-			reason: "A deleted managed resource with the 'delete' reclaim policy should delete its external resource then requeue after a short wait.",
-			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
-							mg := obj.(*MockManaged)
-							mg.SetDeletionTimestamp(&now)
-							mg.SetReclaimPolicy(v1alpha1.ReclaimDelete)
-							return nil
-						}),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-							want := &MockManaged{}
-							want.SetDeletionTimestamp(&now)
-							want.SetReclaimPolicy(v1alpha1.ReclaimDelete)
-							want.SetConditions(v1alpha1.ReconcileSuccess())
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
-								reason := "A deleted external resource should be reported as a conditioned status."
-								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
-							}
-							return nil
-						}),
-					},
-					s: MockSchemeWith(&MockManaged{}),
-				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
-				o: []ManagedReconcilerOption{
-					WithManagedAnnotators(),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: true}, nil
-							},
-							DeleteFn: func(_ context.Context, _ Managed) error {
-								return nil
-							},
-						}
-						return c, nil
-					})),
-				},
-			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
-		},
-		"UnpublishConnectionDetailsError": {
-			reason: "Errors unpublishing connection details should trigger a requeue after a short wait.",
-			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
-							mg := obj.(*MockManaged)
-							mg.SetDeletionTimestamp(&now)
-							return nil
-						}),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-							want := &MockManaged{}
-							want.SetDeletionTimestamp(&now)
-							want.SetConditions(v1alpha1.ReconcileError(errBoom))
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
-								reason := "Errors unpublishing connection details should be reported as a conditioned status."
-								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
-							}
-							return nil
-						}),
-					},
-					s: MockSchemeWith(&MockManaged{}),
-				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
-				o: []ManagedReconcilerOption{
-					WithManagedAnnotators(),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: false}, nil
-							},
-						}
-						return c, nil
-					})),
-					WithManagedConnectionPublishers(ManagedConnectionPublisherFns{
-						UnpublishConnectionFn: func(_ context.Context, _ Managed, _ ConnectionDetails) error { return errBoom },
-					}),
-				},
-			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
-		},
-		"FinalizeDeletionError": {
-			reason: "Errors finalizing managed resource deletion should trigger a requeue after a short wait.",
-			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
-							mg := obj.(*MockManaged)
-							mg.SetDeletionTimestamp(&now)
-							return nil
-						}),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-							want := &MockManaged{}
-							want.SetDeletionTimestamp(&now)
-							want.SetConditions(v1alpha1.ReconcileError(errBoom))
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
-								reason := "Errors finalizing managed resource deletion should be reported as a conditioned status."
-								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
-							}
-							return nil
-						}),
-					},
-					s: MockSchemeWith(&MockManaged{}),
-				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
-				o: []ManagedReconcilerOption{
-					WithManagedAnnotators(),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: false}, nil
-							},
-						}
-						return c, nil
-					})),
-					WithManagedConnectionPublishers(),
-					WithManagedFinalizers(ManagedFinalizerFn(func(_ context.Context, _ Managed) error { return errBoom })),
-				},
-			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
-		},
-		"DeleteSuccessful": {
-			reason: "Successful managed resource deletion should not trigger a requeue.",
-			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
-							mg := obj.(*MockManaged)
-							mg.SetDeletionTimestamp(&now)
-							return nil
-						}),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-							want := &MockManaged{}
-							want.SetDeletionTimestamp(&now)
-							want.SetConditions(v1alpha1.ReconcileSuccess())
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
-								reason := "Successful resource deletion should be reported as a conditioned status."
-								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
-							}
-							return nil
-						}),
-					},
-					s: MockSchemeWith(&MockManaged{}),
-				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
-				o: []ManagedReconcilerOption{
-					WithManagedAnnotators(),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: false}, nil
-							},
-						}
-						return c, nil
-					})),
-					WithManagedConnectionPublishers(),
-					WithManagedFinalizers(),
-				},
-			},
-			want: want{result: reconcile.Result{Requeue: false}},
-		},
-		"PublishObservationConnectionDetailsError": {
-			reason: "Errors publishing connection details after observation should trigger a requeue after a short wait.",
-			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-							want := &MockManaged{}
-							want.SetConditions(v1alpha1.ReconcileError(errBoom))
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
-								reason := "Errors publishing connection details after observation should be reported as a conditioned status."
-								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
-							}
-							return nil
-						}),
-					},
-					s: MockSchemeWith(&MockManaged{}),
-				},
-				mg: ManagedKind(MockGVK(&MockManaged{})),
-				o: []ManagedReconcilerOption{
-					WithManagedAnnotators(),
-					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
-					WithExternalConnecter(&NopConnecter{}),
-					WithManagedConnectionPublishers(ManagedConnectionPublisherFns{
-						PublishConnectionFn: func(_ context.Context, _ Managed, _ ConnectionDetails) error { return errBoom },
-					}),
-				},
-			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
-		},
 		"ResolveReferencesNotReadyError": {
 			reason: "Dependencies on unready references should trigger a requeue after a short wait.",
 			args: args{
@@ -458,6 +188,283 @@ func TestManagedReconciler(t *testing.T) {
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, res CanReference) error {
 						return errBoom
 					})),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+		},
+		"ExternalObserveError": {
+			reason: "Errors observing the external resource should trigger a requeue after a short wait.",
+			args: args{
+				m: &MockManager{
+					c: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+							want := &MockManaged{}
+							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
+							want.SetConditions(v1alpha1.ReconcileError(errBoom))
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := "Errors observing the managed resource should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					s: MockSchemeWith(&MockManaged{}),
+				},
+				mg: ManagedKind(MockGVK(&MockManaged{})),
+				o: []ManagedReconcilerOption{
+					WithManagedAnnotators(),
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
+								return ExternalObservation{}, errBoom
+							},
+						}
+						return c, nil
+					})),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+		},
+		"ExternalDeleteError": {
+			reason: "Errors deleting the external resource should trigger a requeue after a short wait.",
+			args: args{
+				m: &MockManager{
+					c: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+							mg := obj.(*MockManaged)
+							mg.SetDeletionTimestamp(&now)
+							mg.SetReclaimPolicy(v1alpha1.ReclaimDelete)
+							return nil
+						}),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+							want := &MockManaged{}
+							want.SetDeletionTimestamp(&now)
+							want.SetReclaimPolicy(v1alpha1.ReclaimDelete)
+							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
+							want.SetConditions(v1alpha1.ReconcileError(errBoom))
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := "An error deleting an external resource should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					s: MockSchemeWith(&MockManaged{}),
+				},
+				mg: ManagedKind(MockGVK(&MockManaged{})),
+				o: []ManagedReconcilerOption{
+					WithManagedAnnotators(),
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
+								return ExternalObservation{ResourceExists: true}, nil
+							},
+							DeleteFn: func(_ context.Context, _ Managed) error {
+								return errBoom
+							},
+						}
+						return c, nil
+					})),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+		},
+		"ExternalDeleteSuccessful": {
+			reason: "A deleted managed resource with the 'delete' reclaim policy should delete its external resource then requeue after a short wait.",
+			args: args{
+				m: &MockManager{
+					c: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+							mg := obj.(*MockManaged)
+							mg.SetDeletionTimestamp(&now)
+							mg.SetReclaimPolicy(v1alpha1.ReclaimDelete)
+							return nil
+						}),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+							want := &MockManaged{}
+							want.SetDeletionTimestamp(&now)
+							want.SetReclaimPolicy(v1alpha1.ReclaimDelete)
+							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
+							want.SetConditions(v1alpha1.ReconcileSuccess())
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := "A deleted external resource should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					s: MockSchemeWith(&MockManaged{}),
+				},
+				mg: ManagedKind(MockGVK(&MockManaged{})),
+				o: []ManagedReconcilerOption{
+					WithManagedAnnotators(),
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
+								return ExternalObservation{ResourceExists: true}, nil
+							},
+							DeleteFn: func(_ context.Context, _ Managed) error {
+								return nil
+							},
+						}
+						return c, nil
+					})),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+		},
+		"UnpublishConnectionDetailsError": {
+			reason: "Errors unpublishing connection details should trigger a requeue after a short wait.",
+			args: args{
+				m: &MockManager{
+					c: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+							mg := obj.(*MockManaged)
+							mg.SetDeletionTimestamp(&now)
+							return nil
+						}),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+							want := &MockManaged{}
+							want.SetDeletionTimestamp(&now)
+							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
+							want.SetConditions(v1alpha1.ReconcileError(errBoom))
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := "Errors unpublishing connection details should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					s: MockSchemeWith(&MockManaged{}),
+				},
+				mg: ManagedKind(MockGVK(&MockManaged{})),
+				o: []ManagedReconcilerOption{
+					WithManagedAnnotators(),
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
+								return ExternalObservation{ResourceExists: false}, nil
+							},
+						}
+						return c, nil
+					})),
+					WithManagedConnectionPublishers(ManagedConnectionPublisherFns{
+						UnpublishConnectionFn: func(_ context.Context, _ Managed, _ ConnectionDetails) error { return errBoom },
+					}),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+		},
+		"FinalizeDeletionError": {
+			reason: "Errors finalizing managed resource deletion should trigger a requeue after a short wait.",
+			args: args{
+				m: &MockManager{
+					c: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+							mg := obj.(*MockManaged)
+							mg.SetDeletionTimestamp(&now)
+							return nil
+						}),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+							want := &MockManaged{}
+							want.SetDeletionTimestamp(&now)
+							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
+							want.SetConditions(v1alpha1.ReconcileError(errBoom))
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := "Errors finalizing managed resource deletion should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					s: MockSchemeWith(&MockManaged{}),
+				},
+				mg: ManagedKind(MockGVK(&MockManaged{})),
+				o: []ManagedReconcilerOption{
+					WithManagedAnnotators(),
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
+								return ExternalObservation{ResourceExists: false}, nil
+							},
+						}
+						return c, nil
+					})),
+					WithManagedConnectionPublishers(),
+					WithManagedFinalizers(ManagedFinalizerFn(func(_ context.Context, _ Managed) error { return errBoom })),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+		},
+		"DeleteSuccessful": {
+			reason: "Successful managed resource deletion should not trigger a requeue.",
+			args: args{
+				m: &MockManager{
+					c: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+							mg := obj.(*MockManaged)
+							mg.SetDeletionTimestamp(&now)
+							return nil
+						}),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+							want := &MockManaged{}
+							want.SetDeletionTimestamp(&now)
+							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
+							want.SetConditions(v1alpha1.ReconcileSuccess())
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := "Successful resource deletion should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					s: MockSchemeWith(&MockManaged{}),
+				},
+				mg: ManagedKind(MockGVK(&MockManaged{})),
+				o: []ManagedReconcilerOption{
+					WithManagedAnnotators(),
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
+								return ExternalObservation{ResourceExists: false}, nil
+							},
+						}
+						return c, nil
+					})),
+					WithManagedConnectionPublishers(),
+					WithManagedFinalizers(),
+				},
+			},
+			want: want{result: reconcile.Result{Requeue: false}},
+		},
+		"PublishObservationConnectionDetailsError": {
+			reason: "Errors publishing connection details after observation should trigger a requeue after a short wait.",
+			args: args{
+				m: &MockManager{
+					c: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+							want := &MockManaged{}
+							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
+							want.SetConditions(v1alpha1.ReconcileError(errBoom))
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := "Errors publishing connection details after observation should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					s: MockSchemeWith(&MockManaged{}),
+				},
+				mg: ManagedKind(MockGVK(&MockManaged{})),
+				o: []ManagedReconcilerOption{
+					WithManagedAnnotators(),
+					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
+					WithExternalConnecter(&NopConnecter{}),
+					WithManagedConnectionPublishers(ManagedConnectionPublisherFns{
+						PublishConnectionFn: func(_ context.Context, _ Managed, _ ConnectionDetails) error { return errBoom },
+					}),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
