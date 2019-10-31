@@ -23,7 +23,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -95,11 +94,10 @@ func IsReferencesAccessError(err error) bool {
 	return result
 }
 
-// CanReference is a type that is used as ReferenceResolver input
-type CanReference interface {
-	runtime.Object
-	metav1.Object
-}
+// A CanReference is a resource that can reference another resource in its
+// spec in order to automatically resolve corresponding spec field values
+// by inspecting the referenced resource.
+type CanReference runtime.Object
 
 // An AttributeReferencer resolves cross-resource attribute references. See
 // https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-cross-resource-referencing.md
