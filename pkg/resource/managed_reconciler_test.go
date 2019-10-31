@@ -108,7 +108,32 @@ func TestManagedReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
 		},
-
+		"AnnotationError": {
+			reason: "Errors annotating the managed resource should trigger a requeue after a short wait.",
+			args: args{
+				m: &MockManager{
+					c: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+							want := &MockManaged{}
+							want.SetConditions(v1alpha1.ReconcileError(errBoom))
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := "Errors annotating the managed resource should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					s: MockSchemeWith(&MockManaged{}),
+				},
+				mg: ManagedKind(MockGVK(&MockManaged{})),
+				o: []ManagedReconcilerOption{
+					WithManagedAnnotators(ManagedAnnotatorFn(func(_ context.Context, _ Managed) error { return errBoom })),
+					WithExternalConnecter(&NopConnecter{}),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+		},
 		"ExternalObserveError": {
 			reason: "Errors observing the external resource should trigger a requeue after a short wait.",
 			args: args{
@@ -129,7 +154,7 @@ func TestManagedReconciler(t *testing.T) {
 				},
 				mg: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ManagedReconcilerOption{
-					WithManagedInitializers(),
+					WithManagedAnnotators(),
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
@@ -169,8 +194,7 @@ func TestManagedReconciler(t *testing.T) {
 				},
 				mg: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ManagedReconcilerOption{
-					WithManagedInitializers(),
-					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
+					WithManagedAnnotators(),
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
@@ -213,8 +237,7 @@ func TestManagedReconciler(t *testing.T) {
 				},
 				mg: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ManagedReconcilerOption{
-					WithManagedInitializers(),
-					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
+					WithManagedAnnotators(),
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
@@ -255,8 +278,7 @@ func TestManagedReconciler(t *testing.T) {
 				},
 				mg: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ManagedReconcilerOption{
-					WithManagedInitializers(),
-					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
+					WithManagedAnnotators(),
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
@@ -297,8 +319,7 @@ func TestManagedReconciler(t *testing.T) {
 				},
 				mg: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ManagedReconcilerOption{
-					WithManagedInitializers(),
-					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
+					WithManagedAnnotators(),
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
@@ -338,8 +359,7 @@ func TestManagedReconciler(t *testing.T) {
 				},
 				mg: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ManagedReconcilerOption{
-					WithManagedInitializers(),
-					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
+					WithManagedAnnotators(),
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
@@ -374,7 +394,7 @@ func TestManagedReconciler(t *testing.T) {
 				},
 				mg: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ManagedReconcilerOption{
-					WithManagedInitializers(),
+					WithManagedAnnotators(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
 					WithExternalConnecter(&NopConnecter{}),
 					WithManagedConnectionPublishers(ManagedConnectionPublisherFns{
@@ -404,7 +424,7 @@ func TestManagedReconciler(t *testing.T) {
 				},
 				mg: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ManagedReconcilerOption{
-					WithManagedInitializers(),
+					WithManagedAnnotators(),
 					WithExternalConnecter(&NopConnecter{}),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, res CanReference) error {
 						return errNotReady
@@ -433,7 +453,7 @@ func TestManagedReconciler(t *testing.T) {
 				},
 				mg: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ManagedReconcilerOption{
-					WithManagedInitializers(),
+					WithManagedAnnotators(),
 					WithExternalConnecter(&NopConnecter{}),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, res CanReference) error {
 						return errBoom
@@ -463,6 +483,7 @@ func TestManagedReconciler(t *testing.T) {
 				},
 				mg: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ManagedReconcilerOption{
+					WithManagedAnnotators(),
 					WithManagedInitializers(ManagedInitializerFn(func(_ context.Context, mg Managed) error {
 						return errBoom
 					})),
@@ -494,6 +515,7 @@ func TestManagedReconciler(t *testing.T) {
 				},
 				mg: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ManagedReconcilerOption{
+					WithManagedAnnotators(),
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
@@ -533,6 +555,7 @@ func TestManagedReconciler(t *testing.T) {
 				},
 				mg: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ManagedReconcilerOption{
+					WithManagedAnnotators(),
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
@@ -583,6 +606,7 @@ func TestManagedReconciler(t *testing.T) {
 				},
 				mg: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ManagedReconcilerOption{
+					WithManagedAnnotators(),
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
 					WithExternalConnecter(&NopConnecter{}),
@@ -612,6 +636,7 @@ func TestManagedReconciler(t *testing.T) {
 				},
 				mg: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ManagedReconcilerOption{
+					WithManagedAnnotators(),
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
@@ -648,6 +673,7 @@ func TestManagedReconciler(t *testing.T) {
 				},
 				mg: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ManagedReconcilerOption{
+					WithManagedAnnotators(),
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
@@ -687,6 +713,7 @@ func TestManagedReconciler(t *testing.T) {
 				},
 				mg: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ManagedReconcilerOption{
+					WithManagedAnnotators(),
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
@@ -737,6 +764,7 @@ func TestManagedReconciler(t *testing.T) {
 				},
 				mg: ManagedKind(MockGVK(&MockManaged{})),
 				o: []ManagedReconcilerOption{
+					WithManagedAnnotators(),
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {

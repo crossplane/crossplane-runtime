@@ -50,32 +50,34 @@ const (
 // resource, for example usernames, passwords, endpoints, ports, etc.
 type ConnectionDetails map[string][]byte
 
-// A ManagedConnectionPublisher manages the supplied ConnectionDetails for the supplied
-// Managed resource. ManagedPublishers must handle the case in which the
-// supplied ConnectionDetails are empty.
+// A ManagedConnectionPublisher manages the supplied ConnectionDetails for the
+// supplied Managed resource. ManagedPublishers must handle the case in which
+// the supplied ConnectionDetails are empty.
 type ManagedConnectionPublisher interface {
 	PublishConnection(ctx context.Context, mg Managed, c ConnectionDetails) error
 	UnpublishConnection(ctx context.Context, mg Managed, c ConnectionDetails) error
 }
 
-// ManagedConnectionPublisherFns is the pluggable struct to produce objects with ManagedConnectionPublisher interface.
+// ManagedConnectionPublisherFns satisies the ManagedConnectionPublisher
+// interface.
 type ManagedConnectionPublisherFns struct {
 	PublishConnectionFn   func(ctx context.Context, mg Managed, c ConnectionDetails) error
 	UnpublishConnectionFn func(ctx context.Context, mg Managed, c ConnectionDetails) error
 }
 
-// PublishConnection calls plugged PublishConnectionFn.
+// PublishConnection details.
 func (fn ManagedConnectionPublisherFns) PublishConnection(ctx context.Context, mg Managed, c ConnectionDetails) error {
 	return fn.PublishConnectionFn(ctx, mg, c)
 }
 
-// UnpublishConnection calls plugged UnpublishConnectionFn.
+// UnpublishConnection details.
 func (fn ManagedConnectionPublisherFns) UnpublishConnection(ctx context.Context, mg Managed, c ConnectionDetails) error {
 	return fn.UnpublishConnectionFn(ctx, mg, c)
 }
 
 // A ManagedInitializer establishes ownership of the supplied Managed resource.
-// This typically involves the operations that are run before calling any ExternalClient methods.
+// This typically involves the operations that are run before calling any
+// ExternalClient methods.
 type ManagedInitializer interface {
 	Initialize(ctx context.Context, mg Managed) error
 }
@@ -94,18 +96,45 @@ func (cc InitializerChain) Initialize(ctx context.Context, mg Managed) error {
 	return nil
 }
 
-// ManagedInitializerFn is the pluggable struct to produce objects with ManagedInitializer interface.
+// A ManagedInitializerFn satisfies the ManagedInitializer interface.
 type ManagedInitializerFn func(ctx context.Context, mg Managed) error
 
-// Initialize calls ManagedInitializerFn function.
+// Initialize the supplied managed resource.
 func (m ManagedInitializerFn) Initialize(ctx context.Context, mg Managed) error {
 	return m(ctx, mg)
 }
 
-// ManagedReferenceResolverFn is the pluggable struct to produce objects with ManagedReferenceResolver interface.
+// A ManagedAnnotator annotates the supplied Managed resource.
+type ManagedAnnotator interface {
+	Annotate(ctx context.Context, mg Managed) error
+}
+
+// A AnnotatorChain chains multiple managed annotators.
+type AnnotatorChain []ManagedAnnotator
+
+// Annotate calls each ManagedAnnotator serially. It returns the first
+// error it encounters, if any.
+func (ac AnnotatorChain) Annotate(ctx context.Context, mg Managed) error {
+	for _, a := range ac {
+		if err := a.Annotate(ctx, mg); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// A ManagedAnnotatorFn satisfies the ManagedAnnotator interface.
+type ManagedAnnotatorFn func(ctx context.Context, mg Managed) error
+
+// Annotate calls ManagedAnnotatorFn function.
+func (m ManagedAnnotatorFn) Annotate(ctx context.Context, mg Managed) error {
+	return m(ctx, mg)
+}
+
+// ManagedReferenceResolverFn satisfies the ManagedReferenceResolver interface.
 type ManagedReferenceResolverFn func(context.Context, CanReference) error
 
-// ResolveReferences calls ManagedReferenceResolverFn function
+// ResolveReferences of the supplied Managed resource.
 func (m ManagedReferenceResolverFn) ResolveReferences(ctx context.Context, res CanReference) error {
 	return m(ctx, res)
 }
@@ -116,7 +145,7 @@ type ExternalConnecter interface {
 	Connect(ctx context.Context, mg Managed) (ExternalClient, error)
 }
 
-// ExternalConnectorFn is the pluggable struct to produce an ExternalConnector from given functions.
+// ExternalConnectorFn satisfies the ExternalConnector interface.
 type ExternalConnectorFn func(ctx context.Context, mg Managed) (ExternalClient, error)
 
 // Connect calls plugged ExternalConnectorFn function.
@@ -249,17 +278,16 @@ type mrManaged struct {
 	ManagedFinalizer
 	ManagedInitializer
 	ManagedReferenceResolver
+	ManagedAnnotator
 }
 
 func defaultMRManaged(m manager.Manager) mrManaged {
 	return mrManaged{
 		ManagedConnectionPublisher: NewAPISecretPublisher(m.GetClient(), m.GetScheme()),
 		ManagedFinalizer:           NewAPIManagedFinalizerRemover(m.GetClient()),
-		ManagedInitializer: InitializerChain{
-			NewManagedNameAsExternalName(m.GetClient()),
-			NewAPIManagedFinalizerAdder(m.GetClient()),
-		},
-		ManagedReferenceResolver: NewAPIManagedReferenceResolver(m.GetClient()),
+		ManagedInitializer:         NewAPIManagedFinalizerAdder(m.GetClient()),
+		ManagedReferenceResolver:   NewAPIManagedReferenceResolver(m.GetClient()),
+		ManagedAnnotator:           NewManagedNameAsExternalName(m.GetClient()),
 	}
 }
 
@@ -337,6 +365,14 @@ func WithManagedReferenceResolver(rr ManagedReferenceResolver) ManagedReconciler
 	}
 }
 
+// WithManagedAnnotators specifies how the Reconciler should annotate a managed
+// resource after it has been deleted.
+func WithManagedAnnotators(a ...ManagedAnnotator) ManagedReconcilerOption {
+	return func(r *ManagedReconciler) {
+		r.managed.ManagedAnnotator = AnnotatorChain(a)
+	}
+}
+
 // NewManagedReconciler returns a ManagedReconciler that reconciles managed
 // resources of the supplied ManagedKind with resources in an external system
 // such as a cloud provider API. It panics if asked to reconcile a managed
@@ -390,6 +426,14 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 		// or invalid. If this is first time we encounter this issue we'll be
 		// requeued implicitly when we update our status with the new error
 		// condition. If not, we want to try again after a short wait.
+		managed.SetConditions(v1alpha1.ReconcileError(err))
+		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+	}
+
+	if err := r.managed.Annotate(ctx, managed); err != nil {
+		// If this is the first time we encounter this issue we'll be requeued
+		// implicitly when we update our status with the new error condition.
+		// If not, we want to try again after a short wait.
 		managed.SetConditions(v1alpha1.ReconcileError(err))
 		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
@@ -476,8 +520,6 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 	}
 	managed.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 
-	// TODO(negz): Is this really where we want to set the external name?
-	// We'll probably want to use it during observation.
 	if err := r.managed.Initialize(ctx, managed); err != nil {
 		// If this is the first time we encounter this issue we'll be requeued
 		// implicitly when we update our status with the new error condition.

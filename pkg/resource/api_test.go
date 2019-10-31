@@ -40,8 +40,8 @@ var (
 	_ ManagedBinder               = &APIManagedStatusBinder{}
 	_ ClaimFinalizer              = &APIClaimFinalizerRemover{}
 	_ ManagedInitializer          = &APIManagedFinalizerAdder{}
-	_ ManagedInitializer          = &ManagedNameAsExternalName{}
 	_ ManagedFinalizer            = &APIManagedFinalizerRemover{}
+	_ ManagedAnnotator            = &ManagedNameAsExternalName{}
 )
 
 func TestCreate(t *testing.T) {
@@ -1157,7 +1157,7 @@ func TestManagedNameAsExternalName(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			api := NewManagedNameAsExternalName(tc.client)
-			err := api.Initialize(tc.args.ctx, tc.args.mg)
+			err := api.Annotate(tc.args.ctx, tc.args.mg)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("api.Initialize(...): -want error, +got error:\n%s", diff)
 			}

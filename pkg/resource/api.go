@@ -316,9 +316,9 @@ func (a *APIManagedFinalizerAdder) Initialize(ctx context.Context, mg Managed) e
 	return errors.Wrap(a.client.Update(ctx, mg), errUpdateManaged)
 }
 
-// ManagedNameAsExternalName writes the name of the managed resource to
-// the external name annotation field in order to be used as name of
-// the external resource in provider.
+// ManagedNameAsExternalName writes the name of the managed resource to the
+// external name annotation field in order to be used as name of the external
+// resource in provider.
 type ManagedNameAsExternalName struct{ client client.Client }
 
 // NewManagedNameAsExternalName returns a new ManagedNameAsExternalName.
@@ -326,8 +326,8 @@ func NewManagedNameAsExternalName(c client.Client) *ManagedNameAsExternalName {
 	return &ManagedNameAsExternalName{client: c}
 }
 
-// Initialize the given managed resource.
-func (a *ManagedNameAsExternalName) Initialize(ctx context.Context, mg Managed) error {
+// Annotate the supplied managed resource.
+func (a *ManagedNameAsExternalName) Annotate(ctx context.Context, mg Managed) error {
 	if meta.GetExternalName(mg) != "" {
 		return nil
 	}
