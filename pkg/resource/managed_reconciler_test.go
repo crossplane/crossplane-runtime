@@ -404,7 +404,7 @@ func TestManagedReconciler(t *testing.T) {
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
 		},
 		"DeleteSuccessful": {
-			reason: "Successful managed resource deletion should trigger a requeue after a short wait.",
+			reason: "Successful managed resource deletion should not trigger a requeue.",
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{
@@ -443,7 +443,7 @@ func TestManagedReconciler(t *testing.T) {
 					WithManagedFinalizers(),
 				},
 			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+			want: want{result: reconcile.Result{Requeue: false}},
 		},
 		"PublishObservationConnectionDetailsError": {
 			reason: "Errors publishing connection details after observation should trigger a requeue after a short wait.",
