@@ -120,57 +120,54 @@ func (fn ManagedConnectionPropagatorFn) PropagateConnection(ctx context.Context,
 	return fn(ctx, cm, mg)
 }
 
-// A ManagedBinder binds a resource claim to a managed resource.
-type ManagedBinder interface {
+// A Binder binds a resource claim to a managed resource.
+type Binder interface {
+	// Bind the supplied Claim to the supplied Managed resource.
 	Bind(ctx context.Context, cm Claim, mg Managed) error
+
+	// Unbind the supplied Claim from the supplied Managed resource.
+	Unbind(ctx context.Context, cm Claim, mg Managed) error
 }
 
-// A ManagedBinderFn is a function that satisfies the ManagedBinder interface.
-type ManagedBinderFn func(ctx context.Context, cm Claim, mg Managed) error
-
-// Bind the supplied resource claim to the supplied managed resource.
-func (fn ManagedBinderFn) Bind(ctx context.Context, cm Claim, mg Managed) error {
-	return fn(ctx, cm, mg)
+// BinderFns satisfy the Binder interface.
+type BinderFns struct {
+	BindFn   func(ctx context.Context, cm Claim, mg Managed) error
+	UnbindFn func(ctx context.Context, cm Claim, mg Managed) error
 }
 
-// A ManagedFinalizer finalizes the deletion of a resource claim.
-type ManagedFinalizer interface {
-	Finalize(ctx context.Context, cm Managed) error
+// Bind the supplied Claim to the supplied Managed resource.
+func (b BinderFns) Bind(ctx context.Context, cm Claim, mg Managed) error {
+	return b.BindFn(ctx, cm, mg)
 }
 
-// A FinalizerChain chains multiple managed finalizers.
-type FinalizerChain []ManagedFinalizer
-
-// Finalize calls each ManagedFinalizer serially. It returns the first
-// error it encounters, if any.
-func (cc FinalizerChain) Finalize(ctx context.Context, mg Managed) error {
-	for _, c := range cc {
-		if err := c.Finalize(ctx, mg); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// A ManagedFinalizerFn is a function that satisfies the ManagedFinalizer interface.
-type ManagedFinalizerFn func(ctx context.Context, cm Managed) error
-
-// Finalize the supplied managed resource.
-func (fn ManagedFinalizerFn) Finalize(ctx context.Context, cm Managed) error {
-	return fn(ctx, cm)
+// Unbind the supplied Claim from the supplied Managed resource.
+func (b BinderFns) Unbind(ctx context.Context, cm Claim, mg Managed) error {
+	return b.UnbindFn(ctx, cm, mg)
 }
 
 // A ClaimFinalizer finalizes the deletion of a resource claim.
 type ClaimFinalizer interface {
-	Finalize(ctx context.Context, cm Claim) error
+	// AddFinalizer to the supplied Claim.
+	AddFinalizer(ctx context.Context, cm Claim) error
+
+	// RemoveFinalizer from the supplied Claim.
+	RemoveFinalizer(ctx context.Context, cm Claim) error
 }
 
-// A ClaimFinalizerFn is a function that satisfies the ClaimFinalizer interface.
-type ClaimFinalizerFn func(ctx context.Context, cm Claim) error
+// A ClaimFinalizerFns satisfy the ClaimFinalizer interface.
+type ClaimFinalizerFns struct {
+	AddFinalizerFn    func(ctx context.Context, cm Claim) error
+	RemoveFinalizerFn func(ctx context.Context, cm Claim) error
+}
 
-// Finalize the supplied managed resource.
-func (fn ClaimFinalizerFn) Finalize(ctx context.Context, cm Claim) error {
-	return fn(ctx, cm)
+// AddFinalizer to the supplied Claim.
+func (f ClaimFinalizerFns) AddFinalizer(ctx context.Context, mg Claim) error {
+	return f.AddFinalizerFn(ctx, mg)
+}
+
+// RemoveFinalizer from the supplied Claim.
+func (f ClaimFinalizerFns) RemoveFinalizer(ctx context.Context, mg Claim) error {
+	return f.RemoveFinalizerFn(ctx, mg)
 }
 
 // A ClaimReconciler reconciles resource claims by creating exactly one kind of
@@ -196,7 +193,7 @@ type crManaged struct {
 	ManagedConfigurator
 	ManagedCreator
 	ManagedConnectionPropagator
-	ManagedBinder
+	Binder
 	ManagedFinalizer
 }
 
@@ -205,8 +202,7 @@ func defaultCRManaged(m manager.Manager) crManaged {
 		ManagedConfigurator:         NewObjectMetaConfigurator(m.GetScheme()),
 		ManagedCreator:              NewAPIManagedCreator(m.GetClient(), m.GetScheme()),
 		ManagedConnectionPropagator: NewAPIManagedConnectionPropagator(m.GetClient(), m.GetScheme()),
-		ManagedBinder:               NewAPIManagedBinder(m.GetClient(), m.GetScheme()),
-		ManagedFinalizer:            NewAPIManagedUnbinder(m.GetClient()),
+		Binder:                      NewAPIBinder(m.GetClient(), m.GetScheme()),
 	}
 }
 
@@ -215,7 +211,7 @@ type crClaim struct {
 }
 
 func defaultCRClaim(m manager.Manager) crClaim {
-	return crClaim{ClaimFinalizer: NewAPIClaimFinalizerRemover(m.GetClient())}
+	return crClaim{ClaimFinalizer: NewAPIClaimFinalizer(m.GetClient(), claimFinalizerName)}
 }
 
 // A ClaimReconcilerOption configures a ClaimReconciler.
@@ -246,19 +242,11 @@ func WithManagedConnectionPropagator(p ManagedConnectionPropagator) ClaimReconci
 	}
 }
 
-// WithManagedBinder specifies which ManagedBinder should be used to bind
+// WithBinder specifies which Binder should be used to bind
 // resources to their claim.
-func WithManagedBinder(b ManagedBinder) ClaimReconcilerOption {
+func WithBinder(b Binder) ClaimReconcilerOption {
 	return func(r *ClaimReconciler) {
-		r.managed.ManagedBinder = b
-	}
-}
-
-// WithManagedFinalizer specifies which ManagedFinalizer should be used to
-// finalize managed resources when their claims are deleted.
-func WithManagedFinalizer(f ManagedFinalizer) ClaimReconcilerOption {
-	return func(r *ClaimReconciler) {
-		r.managed.ManagedFinalizer = f
+		r.managed.Binder = b
 	}
 }
 
@@ -341,7 +329,7 @@ func (r *ClaimReconciler) Reconcile(req reconcile.Request) (reconcile.Result, er
 	}
 
 	if meta.WasDeleted(claim) {
-		if err := r.managed.Finalize(ctx, managed); err != nil {
+		if err := r.managed.Unbind(ctx, claim, managed); err != nil {
 			// If we didn't hit this error last time we'll be requeued
 			// implicitly due to the status update. Otherwise we want to retry
 			// after a brief wait, in case this was a transient error.
@@ -349,7 +337,7 @@ func (r *ClaimReconciler) Reconcile(req reconcile.Request) (reconcile.Result, er
 			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, claim), errUpdateClaimStatus)
 		}
 
-		if err := r.claim.Finalize(ctx, claim); err != nil {
+		if err := r.claim.RemoveFinalizer(ctx, claim); err != nil {
 			// If we didn't hit this error last time we'll be requeued
 			// implicitly due to the status update. Otherwise we want to retry
 			// after a brief wait, in case this was a transient error.
@@ -390,6 +378,14 @@ func (r *ClaimReconciler) Reconcile(req reconcile.Request) (reconcile.Result, er
 			// implicitly due to the status update. Otherwise we want to retry
 			// after a brief wait, in case this was a transient error or some
 			// issue with the resource class was resolved.
+			claim.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(err))
+			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, claim), errUpdateClaimStatus)
+		}
+
+		if err := r.claim.AddFinalizer(ctx, claim); err != nil {
+			// If we didn't hit this error last time we'll be requeued
+			// implicitly due to the status update. Otherwise we want to retry
+			// after a brief wait, in case this was a transient error.
 			claim.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(err))
 			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, claim), errUpdateClaimStatus)
 		}

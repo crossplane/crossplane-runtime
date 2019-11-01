@@ -100,6 +100,31 @@ func (cc InitializerChain) Initialize(ctx context.Context, mg Managed) error {
 	return nil
 }
 
+// A ManagedFinalizer finalizes the deletion of a resource claim.
+type ManagedFinalizer interface {
+	// AddFinalizer to the supplied Managed resource.
+	AddFinalizer(ctx context.Context, cm Managed) error
+
+	// RemoveFinalizer from the supplied Managed resource.
+	RemoveFinalizer(ctx context.Context, cm Managed) error
+}
+
+// A ManagedFinalizerFns satisfy the ManagedFinalizer interface.
+type ManagedFinalizerFns struct {
+	AddFinalizerFn    func(ctx context.Context, cm Managed) error
+	RemoveFinalizerFn func(ctx context.Context, cm Managed) error
+}
+
+// AddFinalizer to the supplied Managed resource.
+func (f ManagedFinalizerFns) AddFinalizer(ctx context.Context, mg Managed) error {
+	return f.AddFinalizerFn(ctx, mg)
+}
+
+// RemoveFinalizer from the supplied Managed resource.
+func (f ManagedFinalizerFns) RemoveFinalizer(ctx context.Context, mg Managed) error {
+	return f.RemoveFinalizerFn(ctx, mg)
+}
+
 // A ManagedInitializerFn is a function that satisfies the ManagedInitializer
 // interface.
 type ManagedInitializerFn func(ctx context.Context, mg Managed) error
@@ -119,7 +144,7 @@ type ManagedReferenceResolver interface {
 	ResolveReferences(ctx context.Context, res CanReference) error
 }
 
-// a ManagedReferenceResolverFn is a function that satisfies the
+// A ManagedReferenceResolverFn is a function that satisfies the
 // ManagedReferenceResolver interface.
 type ManagedReferenceResolverFn func(context.Context, CanReference) error
 
@@ -282,12 +307,9 @@ type mrManaged struct {
 func defaultMRManaged(m manager.Manager) mrManaged {
 	return mrManaged{
 		ManagedConnectionPublisher: NewAPISecretPublisher(m.GetClient(), m.GetScheme()),
-		ManagedFinalizer:           NewAPIManagedFinalizerRemover(m.GetClient()),
-		ManagedInitializer: InitializerChain{
-			NewManagedNameAsExternalName(m.GetClient()),
-			NewAPIManagedFinalizerAdder(m.GetClient()),
-		},
-		ManagedReferenceResolver: NewAPIManagedReferenceResolver(m.GetClient()),
+		ManagedFinalizer:           NewAPIManagedFinalizer(m.GetClient(), managedFinalizerName),
+		ManagedInitializer:         NewManagedNameAsExternalName(m.GetClient()),
+		ManagedReferenceResolver:   NewAPIManagedReferenceResolver(m.GetClient()),
 	}
 }
 
@@ -349,11 +371,11 @@ func WithManagedInitializers(i ...ManagedInitializer) ManagedReconcilerOption {
 	}
 }
 
-// WithManagedFinalizers specifies how the Reconciler should finalize a
-// managed resource after it has been deleted.
-func WithManagedFinalizers(f ...ManagedFinalizer) ManagedReconcilerOption {
+// WithManagedFinalizer specifies how the Reconciler should add and remove
+// finalizers to and from the managed resource.
+func WithManagedFinalizer(f ManagedFinalizer) ManagedReconcilerOption {
 	return func(r *ManagedReconciler) {
-		r.managed.ManagedFinalizer = FinalizerChain(f)
+		r.managed.ManagedFinalizer = f
 	}
 }
 
@@ -491,7 +513,7 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 			managed.SetConditions(v1alpha1.ReconcileError(err))
 			return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, managed)), errUpdateManagedStatus)
 		}
-		if err := r.managed.Finalize(ctx, managed); err != nil {
+		if err := r.managed.RemoveFinalizer(ctx, managed); err != nil {
 			// If this is the first time we encounter this issue we'll be
 			// requeued implicitly when we update our status with the new error
 			// condition. If not, we want to try again after a short wait.
@@ -512,6 +534,14 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 		// not, we want to try again after a short wait.
 		managed.SetConditions(v1alpha1.ReconcileError(err))
 		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+	}
+
+	if err := r.managed.AddFinalizer(ctx, managed); err != nil {
+		// If this is the first time we encounter this issue we'll be
+		// requeued implicitly when we update our status with the new error
+		// condition. If not, we want to try again after a short wait.
+		managed.SetConditions(v1alpha1.ReconcileError(err))
+		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, managed)), errUpdateManagedStatus)
 	}
 
 	if !observation.ResourceExists {

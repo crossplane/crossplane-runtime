@@ -118,15 +118,6 @@ type AttributeReferencer interface {
 	Assign(res CanReference, value string) error
 }
 
-// A ManagedReferenceResolver resolves the references to other managed
-// resources, by looking them up in the Kubernetes API server. The references
-// are the fields in the managed resource that implement AttributeReferencer
-// interface and have
-// `attributeReferencerTagName:"managedResourceStructTagPackageName"` tag
-type ManagedReferenceResolver interface {
-	ResolveReferences(context.Context, CanReference) error
-}
-
 // An AttributeReferencerFinder returns all types within the supplied object
 // that satisfy AttributeReferencer.
 type AttributeReferencerFinder interface {

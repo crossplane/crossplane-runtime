@@ -361,8 +361,8 @@ func TestManagedReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
 		},
-		"FinalizeDeletionError": {
-			reason: "Errors finalizing managed resource deletion should trigger a requeue after a short wait.",
+		"RemoveFinalizerError": {
+			reason: "Errors removing the managed resource finalizer should trigger a requeue after a short wait.",
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{
@@ -377,7 +377,7 @@ func TestManagedReconciler(t *testing.T) {
 							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
-								reason := "Errors finalizing managed resource deletion should be reported as a conditioned status."
+								reason := "Errors removing the managed resource finalizer should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
 							return nil
@@ -398,7 +398,7 @@ func TestManagedReconciler(t *testing.T) {
 						return c, nil
 					})),
 					WithManagedConnectionPublishers(),
-					WithManagedFinalizers(ManagedFinalizerFn(func(_ context.Context, _ Managed) error { return errBoom })),
+					WithManagedFinalizer(ManagedFinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ Managed) error { return errBoom }}),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
@@ -429,7 +429,7 @@ func TestManagedReconciler(t *testing.T) {
 						return c, nil
 					})),
 					WithManagedConnectionPublishers(),
-					WithManagedFinalizers(),
+					WithManagedFinalizer(ManagedFinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ Managed) error { return nil }}),
 				},
 			},
 			want: want{result: reconcile.Result{Requeue: false}},
@@ -461,6 +461,36 @@ func TestManagedReconciler(t *testing.T) {
 					WithManagedConnectionPublishers(ManagedConnectionPublisherFns{
 						PublishConnectionFn: func(_ context.Context, _ Managed, _ ConnectionDetails) error { return errBoom },
 					}),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+		},
+		"AddFinalizerError": {
+			reason: "Errors adding a finalizer should trigger a requeue after a short wait.",
+			args: args{
+				m: &MockManager{
+					c: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+							want := &MockManaged{}
+							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
+							want.SetConditions(v1alpha1.ReconcileError(errBoom))
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := "Errors adding a finalizer should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					s: MockSchemeWith(&MockManaged{}),
+				},
+				mg: ManagedKind(MockGVK(&MockManaged{})),
+				o: []ManagedReconcilerOption{
+					WithManagedInitializers(),
+					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
+					WithExternalConnecter(&NopConnecter{}),
+					WithManagedConnectionPublishers(),
+					WithManagedFinalizer(ManagedFinalizerFns{AddFinalizerFn: func(_ context.Context, _ Managed) error { return errBoom }}),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
@@ -500,6 +530,7 @@ func TestManagedReconciler(t *testing.T) {
 						return c, nil
 					})),
 					WithManagedConnectionPublishers(),
+					WithManagedFinalizer(ManagedFinalizerFns{AddFinalizerFn: func(_ context.Context, _ Managed) error { return nil }}),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
@@ -550,6 +581,7 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						},
 					}),
+					WithManagedFinalizer(ManagedFinalizerFns{AddFinalizerFn: func(_ context.Context, _ Managed) error { return nil }}),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
@@ -579,6 +611,7 @@ func TestManagedReconciler(t *testing.T) {
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
 					WithExternalConnecter(&NopConnecter{}),
 					WithManagedConnectionPublishers(),
+					WithManagedFinalizer(ManagedFinalizerFns{AddFinalizerFn: func(_ context.Context, _ Managed) error { return nil }}),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
@@ -615,6 +648,7 @@ func TestManagedReconciler(t *testing.T) {
 						return c, nil
 					})),
 					WithManagedConnectionPublishers(),
+					WithManagedFinalizer(ManagedFinalizerFns{AddFinalizerFn: func(_ context.Context, _ Managed) error { return nil }}),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedLongWait}},
@@ -654,6 +688,7 @@ func TestManagedReconciler(t *testing.T) {
 						return c, nil
 					})),
 					WithManagedConnectionPublishers(),
+					WithManagedFinalizer(ManagedFinalizerFns{AddFinalizerFn: func(_ context.Context, _ Managed) error { return nil }}),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
@@ -704,6 +739,7 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						},
 					}),
+					WithManagedFinalizer(ManagedFinalizerFns{AddFinalizerFn: func(_ context.Context, _ Managed) error { return nil }}),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
@@ -743,6 +779,7 @@ func TestManagedReconciler(t *testing.T) {
 						return c, nil
 					})),
 					WithManagedConnectionPublishers(),
+					WithManagedFinalizer(ManagedFinalizerFns{AddFinalizerFn: func(_ context.Context, _ Managed) error { return nil }}),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedLongWait}},

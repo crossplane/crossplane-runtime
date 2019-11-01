@@ -36,12 +36,11 @@ import (
 var (
 	_ ManagedCreator              = &APIManagedCreator{}
 	_ ManagedConnectionPropagator = &APIManagedConnectionPropagator{}
-	_ ManagedBinder               = &APIManagedBinder{}
-	_ ManagedBinder               = &APIManagedStatusBinder{}
-	_ ClaimFinalizer              = &APIClaimFinalizerRemover{}
-	_ ManagedInitializer          = &APIManagedFinalizerAdder{}
+	_ Binder                      = &APIBinder{}
+	_ Binder                      = &APIStatusBinder{}
+	_ ClaimFinalizer              = &APIClaimFinalizer{}
+	_ ManagedFinalizer            = &APIManagedFinalizer{}
 	_ ManagedInitializer          = &ManagedNameAsExternalName{}
-	_ ManagedFinalizer            = &APIManagedFinalizerRemover{}
 )
 
 func TestCreate(t *testing.T) {
@@ -122,7 +121,6 @@ func TestCreate(t *testing.T) {
 					MockUpdate: test.NewMockUpdateFn(nil, func(got runtime.Object) error {
 						want := &MockClaim{}
 						want.SetName(cmname)
-						meta.AddFinalizer(want, claimFinalizerName)
 						want.SetResourceReference(&corev1.ObjectReference{
 							Name:       mgname,
 							APIVersion: MockGVK(&MockManaged{}).GroupVersion().String(),
@@ -571,7 +569,7 @@ func TestBind(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			api := NewAPIManagedBinder(tc.client, tc.typer)
+			api := NewAPIBinder(tc.client, tc.typer)
 			err := api.Bind(tc.args.ctx, tc.args.cm, tc.args.mg)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("api.Bind(...): -want error, +got error:\n%s", diff)
@@ -736,7 +734,7 @@ func TestStatusBind(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			api := NewAPIManagedStatusBinder(tc.client, tc.typer)
+			api := NewAPIStatusBinder(tc.client, tc.typer)
 			err := api.Bind(tc.args.ctx, tc.args.cm, tc.args.mg)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("api.Bind(...): -want error, +got error:\n%s", diff)
@@ -751,9 +749,10 @@ func TestStatusBind(t *testing.T) {
 	}
 }
 
-func TestFinalizeResource(t *testing.T) {
+func TestUnbind(t *testing.T) {
 	type args struct {
 		ctx context.Context
+		cm  Claim
 		mg  Managed
 	}
 
@@ -766,6 +765,7 @@ func TestFinalizeResource(t *testing.T) {
 
 	cases := map[string]struct {
 		client client.Client
+		typer  runtime.ObjectTyper
 		args   args
 		want   want
 	}{
@@ -815,13 +815,13 @@ func TestFinalizeResource(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			api := NewAPIManagedUnbinder(tc.client)
-			err := api.Finalize(tc.args.ctx, tc.args.mg)
+			api := NewAPIBinder(tc.client, tc.typer)
+			err := api.Unbind(tc.args.ctx, tc.args.cm, tc.args.mg)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("api.Finalize(...): -want error, +got error:\n%s", diff)
+				t.Errorf("api.Unbind(...): -want error, +got error:\n%s", diff)
 			}
 			if diff := cmp.Diff(tc.want.mg, tc.args.mg, test.EquateConditions()); diff != "" {
-				t.Errorf("api.Finalize(...) Managed: -want, +got:\n%s", diff)
+				t.Errorf("api.Unbind(...) Managed: -want, +got:\n%s", diff)
 			}
 		})
 	}
@@ -829,6 +829,7 @@ func TestFinalizeResource(t *testing.T) {
 func TestStatusFinalizeResource(t *testing.T) {
 	type args struct {
 		ctx context.Context
+		cm  Claim
 		mg  Managed
 	}
 
@@ -841,6 +842,7 @@ func TestStatusFinalizeResource(t *testing.T) {
 
 	cases := map[string]struct {
 		client client.Client
+		typer  runtime.ObjectTyper
 		args   args
 		want   want
 	}{
@@ -909,19 +911,21 @@ func TestStatusFinalizeResource(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			api := NewAPIManagedStatusUnbinder(tc.client)
-			err := api.Finalize(tc.args.ctx, tc.args.mg)
+			api := NewAPIStatusBinder(tc.client, tc.typer)
+			err := api.Unbind(tc.args.ctx, tc.args.cm, tc.args.mg)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("api.Finalize(...): -want error, +got error:\n%s", diff)
+				t.Errorf("api.Unbind(...): -want error, +got error:\n%s", diff)
 			}
 			if diff := cmp.Diff(tc.want.mg, tc.args.mg, test.EquateConditions()); diff != "" {
-				t.Errorf("api.Finalize(...) Managed: -want, +got:\n%s", diff)
+				t.Errorf("api.Unbind(...) Managed: -want, +got:\n%s", diff)
 			}
 		})
 	}
 }
 
-func TestFinalizeClaim(t *testing.T) {
+func TestClaimRemoveFinalizer(t *testing.T) {
+	finalizer := "veryfinal"
+
 	type args struct {
 		ctx context.Context
 		cm  Claim
@@ -943,7 +947,7 @@ func TestFinalizeClaim(t *testing.T) {
 			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(errBoom)},
 			args: args{
 				ctx: context.Background(),
-				cm:  &MockClaim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{claimFinalizerName}}},
+				cm:  &MockClaim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateClaim),
@@ -954,7 +958,7 @@ func TestFinalizeClaim(t *testing.T) {
 			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil)},
 			args: args{
 				ctx: context.Background(),
-				cm:  &MockClaim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{claimFinalizerName}}},
+				cm:  &MockClaim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
 			},
 			want: want{
 				err: nil,
@@ -965,8 +969,8 @@ func TestFinalizeClaim(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			api := NewAPIClaimFinalizerRemover(tc.client)
-			err := api.Finalize(tc.args.ctx, tc.args.cm)
+			api := NewAPIClaimFinalizer(tc.client, finalizer)
+			err := api.RemoveFinalizer(tc.args.ctx, tc.args.cm)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("api.Finalize(...): -want error, +got error:\n%s", diff)
 			}
@@ -977,7 +981,9 @@ func TestFinalizeClaim(t *testing.T) {
 	}
 }
 
-func TestFinalizeManaged(t *testing.T) {
+func TestManagedRemoveFinalizer(t *testing.T) {
+	finalizer := "veryfinal"
+
 	type args struct {
 		ctx context.Context
 		mg  Managed
@@ -999,7 +1005,7 @@ func TestFinalizeManaged(t *testing.T) {
 			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(errBoom)},
 			args: args{
 				ctx: context.Background(),
-				mg:  &MockManaged{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{managedFinalizerName}}},
+				mg:  &MockManaged{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateManaged),
@@ -1010,7 +1016,7 @@ func TestFinalizeManaged(t *testing.T) {
 			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil)},
 			args: args{
 				ctx: context.Background(),
-				mg:  &MockManaged{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{managedFinalizerName}}},
+				mg:  &MockManaged{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
 			},
 			want: want{
 				err: nil,
@@ -1021,19 +1027,79 @@ func TestFinalizeManaged(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			api := NewAPIManagedFinalizerRemover(tc.client)
-			err := api.Finalize(tc.args.ctx, tc.args.mg)
+			api := NewAPIManagedFinalizer(tc.client, finalizer)
+			err := api.RemoveFinalizer(tc.args.ctx, tc.args.mg)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("api.Finalize(...): -want error, +got error:\n%s", diff)
+				t.Errorf("api.RemoveFinalizer(...): -want error, +got error:\n%s", diff)
 			}
 			if diff := cmp.Diff(tc.want.mg, tc.args.mg, test.EquateConditions()); diff != "" {
-				t.Errorf("api.Finalize(...) Managed: -want, +got:\n%s", diff)
+				t.Errorf("api.RemoveFinalizer(...) Managed: -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestAPIClaimFinalizerAdder(t *testing.T) {
+	finalizer := "veryfinal"
+
+	type args struct {
+		ctx context.Context
+		cm  Claim
+	}
+
+	type want struct {
+		err error
+		cm  Claim
+	}
+
+	errBoom := errors.New("boom")
+
+	cases := map[string]struct {
+		client client.Client
+		args   args
+		want   want
+	}{
+		"UpdateClaimError": {
+			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(errBoom)},
+			args: args{
+				ctx: context.Background(),
+				cm:  &MockClaim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{}}},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errUpdateClaim),
+				cm:  &MockClaim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
+			},
+		},
+		"Successful": {
+			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil)},
+			args: args{
+				ctx: context.Background(),
+				cm:  &MockClaim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{}}},
+			},
+			want: want{
+				err: nil,
+				cm:  &MockClaim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			api := NewAPIClaimFinalizer(tc.client, finalizer)
+			err := api.AddFinalizer(tc.args.ctx, tc.args.cm)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("api.Initialize(...): -want error, +got error:\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.want.cm, tc.args.cm, test.EquateConditions()); diff != "" {
+				t.Errorf("api.Initialize(...) Claim: -want, +got:\n%s", diff)
 			}
 		})
 	}
 }
 
 func TestAPIManagedFinalizerAdder(t *testing.T) {
+	finalizer := "veryfinal"
+
 	type args struct {
 		ctx context.Context
 		mg  Managed
@@ -1059,7 +1125,7 @@ func TestAPIManagedFinalizerAdder(t *testing.T) {
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateManaged),
-				mg:  &MockManaged{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{managedFinalizerName}}},
+				mg:  &MockManaged{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
 			},
 		},
 		"Successful": {
@@ -1070,15 +1136,15 @@ func TestAPIManagedFinalizerAdder(t *testing.T) {
 			},
 			want: want{
 				err: nil,
-				mg:  &MockManaged{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{managedFinalizerName}}},
+				mg:  &MockManaged{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
 			},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			api := NewAPIManagedFinalizerAdder(tc.client)
-			err := api.Initialize(tc.args.ctx, tc.args.mg)
+			api := NewAPIManagedFinalizer(tc.client, finalizer)
+			err := api.AddFinalizer(tc.args.ctx, tc.args.mg)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("api.Initialize(...): -want error, +got error:\n%s", diff)
 			}
