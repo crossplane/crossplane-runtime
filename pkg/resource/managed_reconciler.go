@@ -446,8 +446,14 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 				return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 			}
 
+			// We've successfully requested deletion of our external resource.
+			// We queue another reconcile after a short wait rather than
+			// immediately finalizing our delete in order to verify that the
+			// external resource was actually deleted. If it no longer exists
+			// we'll skip this block on the next reconcile and proceed to
+			// unpublish and finalize. If it still exists we'll re-enter this
+			// block and try again.
 			managed.SetConditions(v1alpha1.ReconcileSuccess())
-			// TODO(negz): Why do we requeue here rather than just proceeding?
 			return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 		}
 		if err := r.managed.UnpublishConnection(ctx, managed, observation.ConnectionDetails); err != nil {
@@ -465,12 +471,11 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 			return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, managed)), errUpdateManagedStatus)
 		}
 
-		// We've successfully finalized the deletion of our external and managed
-		// resources.
-		managed.SetConditions(v1alpha1.ReconcileSuccess())
-		// TODO(negz): Why do we requeue here? We've deleted our resource and
-		// removed its finalizer at this stage. There's nothing more to do.
-		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, managed)), errUpdateManagedStatus)
+		// We've successfully deleted external resource (if necessary) and
+		// removed our finalizer. If we assume we were the only controller that
+		// added a finalizer to this resource then it should no longer exist and
+		// thus there is no point trying to update its status.
+		return reconcile.Result{Requeue: false}, nil
 	}
 
 	if err := r.managed.PublishConnection(ctx, managed, observation.ConnectionDetails); err != nil {
