@@ -471,12 +471,11 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 			return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, managed)), errUpdateManagedStatus)
 		}
 
-		// We've successfully finalized the deletion of our external and managed
-		// resources. We'll be requeued implicitly (if we still exist) due to
-		// the finalizer deletion and subsequent status update, but otherwise
-		// there's no more work to do.
-		managed.SetConditions(v1alpha1.ReconcileSuccess())
-		return reconcile.Result{Requeue: false}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, managed)), errUpdateManagedStatus)
+		// We've successfully deleted external resource (if necessary) and
+		// removed our finalizer. If we assume we were the only controller that
+		// added a finalizer to this resource then it should no longer exist and
+		// thus there is no point trying to update its status.
+		return reconcile.Result{Requeue: false}, nil
 	}
 
 	if err := r.managed.PublishConnection(ctx, managed, observation.ConnectionDetails); err != nil {

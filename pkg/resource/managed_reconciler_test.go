@@ -404,24 +404,13 @@ func TestManagedReconciler(t *testing.T) {
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
 		},
 		"DeleteSuccessful": {
-			reason: "Successful managed resource deletion should not trigger a requeue.",
+			reason: "Successful managed resource deletion should not trigger a requeue or status update.",
 			args: args{
 				m: &MockManager{
 					c: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
 							mg := obj.(*MockManaged)
 							mg.SetDeletionTimestamp(&now)
-							return nil
-						}),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-							want := &MockManaged{}
-							want.SetDeletionTimestamp(&now)
-							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
-							want.SetConditions(v1alpha1.ReconcileSuccess())
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
-								reason := "Successful resource deletion should be reported as a conditioned status."
-								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
-							}
 							return nil
 						}),
 					},
