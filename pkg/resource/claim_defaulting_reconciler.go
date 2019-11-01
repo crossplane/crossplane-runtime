@@ -130,9 +130,12 @@ func (r *ClaimDefaultingReconciler) Reconcile(req reconcile.Request) (reconcile.
 	}
 
 	if len(defaults) == 0 {
-		// None of our classes are annotated as the default.
-		// There's nothing for us to do.
-		return reconcile.Result{Requeue: false}, nil
+		// None of our classes are annotated as the default. We can't be sure
+		// whether another controller owns the default class, or whether there
+		// is no default class, so we requeue after a short wait. We'll abort
+		// the next reconcile immediately if another controller defaulted the
+		// claim.
+		return reconcile.Result{RequeueAfter: aShortWait}, nil
 	}
 
 	random := rand.New(rand.NewSource(time.Now().UnixNano()))

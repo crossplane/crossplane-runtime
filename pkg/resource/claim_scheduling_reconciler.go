@@ -133,9 +133,11 @@ func (r *ClaimSchedulingReconciler) Reconcile(req reconcile.Request) (reconcile.
 	}
 
 	if len(classes.Items) == 0 {
-		// None of our classes matched the class selector.
-		// There's nothing for us to do.
-		return reconcile.Result{Requeue: false}, nil
+		// None of our classes matched the selector. We can't be sure whether
+		// another controller owns classes that matched the selector, or whether
+		// no classes match, so we requeue after a short wait. We'll abort the
+		// next reconcile immediately if another controller scheduled the claim.
+		return reconcile.Result{RequeueAfter: aShortWait}, nil
 	}
 
 	random := rand.New(rand.NewSource(time.Now().UnixNano()))
