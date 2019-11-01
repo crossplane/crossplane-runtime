@@ -132,7 +132,7 @@ func TestClaimDefaultingReconciler(t *testing.T) {
 				of: ClaimKind(MockGVK(&MockClaim{})),
 				to: ClassKind(MockGVK(&MockClass{})),
 			},
-			want: want{result: reconcile.Result{Requeue: false}},
+			want: want{result: reconcile.Result{RequeueAfter: aShortWait}},
 		},
 		"UpdateClaimError": {
 			args: args{
