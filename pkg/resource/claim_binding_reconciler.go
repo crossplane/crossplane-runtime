@@ -193,7 +193,6 @@ type crManaged struct {
 	ManagedConfigurator
 	ManagedCreator
 	ManagedConnectionPropagator
-	Binder
 	ManagedFinalizer
 }
 
@@ -202,16 +201,19 @@ func defaultCRManaged(m manager.Manager) crManaged {
 		ManagedConfigurator:         NewObjectMetaConfigurator(m.GetScheme()),
 		ManagedCreator:              NewAPIManagedCreator(m.GetClient(), m.GetScheme()),
 		ManagedConnectionPropagator: NewAPIManagedConnectionPropagator(m.GetClient(), m.GetScheme()),
-		Binder:                      NewAPIBinder(m.GetClient(), m.GetScheme()),
 	}
 }
 
 type crClaim struct {
 	ClaimFinalizer
+	Binder
 }
 
 func defaultCRClaim(m manager.Manager) crClaim {
-	return crClaim{ClaimFinalizer: NewAPIClaimFinalizer(m.GetClient(), claimFinalizerName)}
+	return crClaim{
+		ClaimFinalizer: NewAPIClaimFinalizer(m.GetClient(), claimFinalizerName),
+		Binder:         NewAPIBinder(m.GetClient(), m.GetScheme()),
+	}
 }
 
 // A ClaimReconcilerOption configures a ClaimReconciler.
@@ -246,7 +248,7 @@ func WithManagedConnectionPropagator(p ManagedConnectionPropagator) ClaimReconci
 // resources to their claim.
 func WithBinder(b Binder) ClaimReconcilerOption {
 	return func(r *ClaimReconciler) {
-		r.managed.Binder = b
+		r.claim.Binder = b
 	}
 }
 
@@ -329,7 +331,7 @@ func (r *ClaimReconciler) Reconcile(req reconcile.Request) (reconcile.Result, er
 	}
 
 	if meta.WasDeleted(claim) {
-		if err := r.managed.Unbind(ctx, claim, managed); err != nil {
+		if err := r.claim.Unbind(ctx, claim, managed); err != nil {
 			// If we didn't hit this error last time we'll be requeued
 			// implicitly due to the status update. Otherwise we want to retry
 			// after a brief wait, in case this was a transient error.
@@ -382,14 +384,6 @@ func (r *ClaimReconciler) Reconcile(req reconcile.Request) (reconcile.Result, er
 			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, claim), errUpdateClaimStatus)
 		}
 
-		if err := r.claim.AddFinalizer(ctx, claim); err != nil {
-			// If we didn't hit this error last time we'll be requeued
-			// implicitly due to the status update. Otherwise we want to retry
-			// after a brief wait, in case this was a transient error.
-			claim.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(err))
-			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, claim), errUpdateClaimStatus)
-		}
-
 		if err := r.managed.Create(ctx, claim, class, managed); err != nil {
 			// If we didn't hit this error last time we'll be requeued
 			// implicitly due to the status update. Otherwise we want to retry
@@ -428,7 +422,15 @@ func (r *ClaimReconciler) Reconcile(req reconcile.Request) (reconcile.Result, er
 			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, claim), errUpdateClaimStatus)
 		}
 
-		if err := r.managed.Bind(ctx, claim, managed); err != nil {
+		if err := r.claim.AddFinalizer(ctx, claim); err != nil {
+			// If we didn't hit this error last time we'll be requeued
+			// implicitly due to the status update. Otherwise we want to retry
+			// after a brief wait, in case this was a transient error.
+			claim.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(err))
+			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, claim), errUpdateClaimStatus)
+		}
+
+		if err := r.claim.Bind(ctx, claim, managed); err != nil {
 			// If we didn't hit this error last time we'll be requeued implicitly
 			// due to the status update. Otherwise we want to retry after a brief
 			// wait, in case this was a transient error.

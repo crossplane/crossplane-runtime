@@ -416,49 +416,6 @@ func TestClaimReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{RequeueAfter: aShortWait}},
 		},
-		"AddFinalizerError": {
-			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
-							switch o := o.(type) {
-							case *MockClaim:
-								cm := &MockClaim{}
-								cm.SetClassReference(&corev1.ObjectReference{})
-								*o = *cm
-								return nil
-							case *MockClass:
-								return nil
-							default:
-								return errUnexpected
-							}
-						}),
-						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
-							want := &MockClaim{}
-							want.SetClassReference(&corev1.ObjectReference{})
-							want.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(errBoom))
-							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
-								t.Errorf("-want, +got:\n%s", diff)
-							}
-							return nil
-						}),
-					},
-					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
-				},
-				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKind(MockGVK(&MockClass{})),
-				with: ManagedKind(MockGVK(&MockManaged{})),
-				o: []ClaimReconcilerOption{
-					WithManagedConfigurators(ManagedConfiguratorFn(
-						func(_ context.Context, _ Claim, _ Class, _ Managed) error { return nil },
-					)),
-					WithClaimFinalizer(ClaimFinalizerFns{
-						AddFinalizerFn: func(_ context.Context, _ Claim) error { return errBoom }},
-					),
-				},
-			},
-			want: want{result: reconcile.Result{RequeueAfter: aShortWait}},
-		},
 		"CreateManagedError": {
 			args: args{
 				m: &MockManager{
@@ -631,6 +588,53 @@ func TestClaimReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{RequeueAfter: aShortWait}},
 		},
+		"AddFinalizerError": {
+			args: args{
+				m: &MockManager{
+					c: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							switch o := o.(type) {
+							case *MockClaim:
+								cm := &MockClaim{}
+								cm.SetResourceReference(&corev1.ObjectReference{})
+								*o = *cm
+								return nil
+							case *MockManaged:
+								mg := &MockManaged{}
+								mg.SetCreationTimestamp(now)
+								mg.SetBindingPhase(v1alpha1.BindingPhaseUnbound)
+								*o = *mg
+								return nil
+							default:
+								return errUnexpected
+							}
+						}),
+						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
+							want := &MockClaim{}
+							want.SetResourceReference(&corev1.ObjectReference{})
+							want.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(errBoom))
+							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
+				},
+				of:   ClaimKind(MockGVK(&MockClaim{})),
+				use:  ClassKind(MockGVK(&MockClass{})),
+				with: ManagedKind(MockGVK(&MockManaged{})),
+				o: []ClaimReconcilerOption{
+					WithManagedConnectionPropagator(ManagedConnectionPropagatorFn(
+						func(_ context.Context, _ Claim, _ Managed) error { return nil },
+					)),
+					WithClaimFinalizer(ClaimFinalizerFns{
+						AddFinalizerFn: func(_ context.Context, _ Claim) error { return errBoom }},
+					),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: aShortWait}},
+		},
 		"BindError": {
 			args: args{
 				m: &MockManager{
@@ -671,6 +675,9 @@ func TestClaimReconciler(t *testing.T) {
 					WithManagedConnectionPropagator(ManagedConnectionPropagatorFn(
 						func(_ context.Context, _ Claim, _ Managed) error { return nil },
 					)),
+					WithClaimFinalizer(ClaimFinalizerFns{
+						AddFinalizerFn: func(_ context.Context, _ Claim) error { return nil }},
+					),
 					WithBinder(BinderFns{
 						BindFn: func(_ context.Context, _ Claim, _ Managed) error { return errBoom },
 					}),
