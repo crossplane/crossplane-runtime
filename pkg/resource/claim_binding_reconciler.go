@@ -357,12 +357,11 @@ func (r *ClaimReconciler) Reconcile(req reconcile.Request) (reconcile.Result, er
 			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, claim), errUpdateClaimStatus)
 		}
 
-		// We've successfully processed the delete, so there's no further
-		// reconciliation to do. There's a good chance our claim no longer
-		// exists, but we try update its status just in case it sticks around,
-		// for example due to additional finalizers.
-		claim.SetConditions(v1alpha1.Deleting(), v1alpha1.ReconcileSuccess())
-		return reconcile.Result{Requeue: false}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, claim)), errUpdateClaimStatus)
+		// We've successfully deleted our claim and removed our finalizer. If we
+		// assume we were the only controller that added a finalizer to this
+		// claim then it should no longer exist and thus there is no point
+		// trying to update its status.
+		return reconcile.Result{Requeue: false}, nil
 	}
 
 	// Claim reconcilers (should) watch for either claims with a resource ref,
