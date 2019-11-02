@@ -826,7 +826,7 @@ func TestUnbind(t *testing.T) {
 		})
 	}
 }
-func TestStatusFinalizeResource(t *testing.T) {
+func TestStatusUnbind(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		cm  Claim
@@ -880,7 +880,7 @@ func TestStatusFinalizeResource(t *testing.T) {
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateManaged),
 				mg: &MockManaged{
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseUnbound},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 					MockClaimReferencer: MockClaimReferencer{Ref: nil},
 				},
 			},

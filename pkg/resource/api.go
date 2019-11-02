@@ -233,13 +233,13 @@ func (a *APIStatusBinder) Unbind(ctx context.Context, _ Claim, mg Managed) error
 	// TODO(negz): We probably want to delete the managed resource here if its
 	// reclaim policy is delete, rather than relying on garbage collection, per
 	// https://github.com/crossplaneio/crossplane/issues/550
-	mg.SetBindingPhase(v1alpha1.BindingPhaseUnbound)
-	mg.SetClaimReference(nil)
 
+	mg.SetClaimReference(nil)
 	if err := a.client.Update(ctx, mg); err != nil {
 		return errors.Wrap(IgnoreNotFound(err), errUpdateManaged)
 	}
 
+	mg.SetBindingPhase(v1alpha1.BindingPhaseUnbound)
 	return errors.Wrap(IgnoreNotFound(a.client.Status().Update(ctx, mg)), errUpdateManagedStatus)
 }
 
