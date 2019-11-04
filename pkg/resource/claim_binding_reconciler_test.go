@@ -289,15 +289,6 @@ func TestClaimReconciler(t *testing.T) {
 								return errUnexpected
 							}
 						}),
-						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
-							want := &MockClaim{}
-							want.SetDeletionTimestamp(&now)
-							want.SetConditions(v1alpha1.Deleting(), v1alpha1.ReconcileSuccess())
-							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
-								t.Errorf("-want, +got:\n%s", diff)
-							}
-							return nil
-						}),
 					},
 					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
 				},
