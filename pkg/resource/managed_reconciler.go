@@ -50,11 +50,16 @@ const (
 // resource, for example usernames, passwords, endpoints, ports, etc.
 type ConnectionDetails map[string][]byte
 
-// A ManagedConnectionPublisher manages the supplied ConnectionDetails for the supplied
-// Managed resource. ManagedPublishers must handle the case in which the
-// supplied ConnectionDetails are empty.
+// A ManagedConnectionPublisher manages the supplied ConnectionDetails for the
+// supplied Managed resource. ManagedPublishers must handle the case in which
+// the supplied ConnectionDetails are empty.
 type ManagedConnectionPublisher interface {
+	// PublishConnection details for the supplied Managed resource. Publishing
+	// must be additive; i.e. if details (a, b, c) are published, subsequently
+	// publicing details (b, c, d) should update (b, c) but not remove a.
 	PublishConnection(ctx context.Context, mg Managed, c ConnectionDetails) error
+
+	// UnpublishConnection details for the supplied Managed resource.
 	UnpublishConnection(ctx context.Context, mg Managed, c ConnectionDetails) error
 }
 
@@ -64,18 +69,19 @@ type ManagedConnectionPublisherFns struct {
 	UnpublishConnectionFn func(ctx context.Context, mg Managed, c ConnectionDetails) error
 }
 
-// PublishConnection calls plugged PublishConnectionFn.
+// PublishConnection details for the supplied Managed resource.
 func (fn ManagedConnectionPublisherFns) PublishConnection(ctx context.Context, mg Managed, c ConnectionDetails) error {
 	return fn.PublishConnectionFn(ctx, mg, c)
 }
 
-// UnpublishConnection calls plugged UnpublishConnectionFn.
+// UnpublishConnection details for the supplied Managed resource.
 func (fn ManagedConnectionPublisherFns) UnpublishConnection(ctx context.Context, mg Managed, c ConnectionDetails) error {
 	return fn.UnpublishConnectionFn(ctx, mg, c)
 }
 
 // A ManagedInitializer establishes ownership of the supplied Managed resource.
-// This typically involves the operations that are run before calling any ExternalClient methods.
+// This typically involves the operations that are run before calling any
+// ExternalClient methods.
 type ManagedInitializer interface {
 	Initialize(ctx context.Context, mg Managed) error
 }
@@ -94,7 +100,33 @@ func (cc InitializerChain) Initialize(ctx context.Context, mg Managed) error {
 	return nil
 }
 
-// ManagedInitializerFn is the pluggable struct to produce objects with ManagedInitializer interface.
+// A ManagedFinalizer finalizes the deletion of a resource claim.
+type ManagedFinalizer interface {
+	// AddFinalizer to the supplied Managed resource.
+	AddFinalizer(ctx context.Context, cm Managed) error
+
+	// RemoveFinalizer from the supplied Managed resource.
+	RemoveFinalizer(ctx context.Context, cm Managed) error
+}
+
+// A ManagedFinalizerFns satisfy the ManagedFinalizer interface.
+type ManagedFinalizerFns struct {
+	AddFinalizerFn    func(ctx context.Context, cm Managed) error
+	RemoveFinalizerFn func(ctx context.Context, cm Managed) error
+}
+
+// AddFinalizer to the supplied Managed resource.
+func (f ManagedFinalizerFns) AddFinalizer(ctx context.Context, mg Managed) error {
+	return f.AddFinalizerFn(ctx, mg)
+}
+
+// RemoveFinalizer from the supplied Managed resource.
+func (f ManagedFinalizerFns) RemoveFinalizer(ctx context.Context, mg Managed) error {
+	return f.RemoveFinalizerFn(ctx, mg)
+}
+
+// A ManagedInitializerFn is a function that satisfies the ManagedInitializer
+// interface.
 type ManagedInitializerFn func(ctx context.Context, mg Managed) error
 
 // Initialize calls ManagedInitializerFn function.
@@ -102,7 +134,18 @@ func (m ManagedInitializerFn) Initialize(ctx context.Context, mg Managed) error 
 	return m(ctx, mg)
 }
 
-// ManagedReferenceResolverFn is the pluggable struct to produce objects with ManagedReferenceResolver interface.
+// A ManagedReferenceResolver resolves references to other managed resources.
+type ManagedReferenceResolver interface {
+	// ResolveReferences finds all fields in the supplied CanReference that are
+	// references to Kubernetes resources, then uses the fields of those
+	// resources to update corresponding fields in CanReference, for example
+	// setting .spec.network to the name of the Network resource specified as
+	// .spec.networkRef.
+	ResolveReferences(ctx context.Context, res CanReference) error
+}
+
+// A ManagedReferenceResolverFn is a function that satisfies the
+// ManagedReferenceResolver interface.
 type ManagedReferenceResolverFn func(context.Context, CanReference) error
 
 // ResolveReferences calls ManagedReferenceResolverFn function
@@ -113,13 +156,17 @@ func (m ManagedReferenceResolverFn) ResolveReferences(ctx context.Context, res C
 // An ExternalConnecter produces a new ExternalClient given the supplied
 // Managed resource.
 type ExternalConnecter interface {
+	// Connect to the provider specified by the supplied managed resource and
+	// produce an ExternalClient.
 	Connect(ctx context.Context, mg Managed) (ExternalClient, error)
 }
 
-// ExternalConnectorFn is the pluggable struct to produce an ExternalConnector from given functions.
+// An ExternalConnectorFn is a function that satisfies the ExternalConnecter
+// interface.
 type ExternalConnectorFn func(ctx context.Context, mg Managed) (ExternalClient, error)
 
-// Connect calls plugged ExternalConnectorFn function.
+// Connect to the provider specified by the supplied managed resource and
+// produce an ExternalClient.
 func (ec ExternalConnectorFn) Connect(ctx context.Context, mg Managed) (ExternalClient, error) {
 	return ec(ctx, mg)
 }
@@ -151,8 +198,8 @@ type ExternalClient interface {
 	Delete(ctx context.Context, mg Managed) error
 }
 
-// ExternalClientFns is a pluggable struct to produce an ExternalClient from the
-// given functions.
+// ExternalClientFns are a series of functions that satisfy the ExternalClient
+// interface.
 type ExternalClientFns struct {
 	ObserveFn func(ctx context.Context, mg Managed) (ExternalObservation, error)
 	CreateFn  func(ctx context.Context, mg Managed) (ExternalCreation, error)
@@ -160,23 +207,29 @@ type ExternalClientFns struct {
 	DeleteFn  func(ctx context.Context, mg Managed) error
 }
 
-// Observe calls plugged ObserveFn function.
+// Observe the external resource the supplied Managed resource represents, if
+// any.
 func (e ExternalClientFns) Observe(ctx context.Context, mg Managed) (ExternalObservation, error) {
 	return e.ObserveFn(ctx, mg)
 }
 
-// Create calls plugged CreateFn function.
+// Create an external resource per the specifications of the supplied Managed
+// resource.
 func (e ExternalClientFns) Create(ctx context.Context, mg Managed) (ExternalCreation, error) {
 	return e.CreateFn(ctx, mg)
 }
 
-// Update calls plugged UpdateFn function.
+// Update the external resource represented by the supplied Managed resource, if
+// necessary.
 func (e ExternalClientFns) Update(ctx context.Context, mg Managed) (ExternalUpdate, error) {
 	return e.UpdateFn(ctx, mg)
 }
 
-// Delete calls plugged DeleteFn function.
-func (e ExternalClientFns) Delete(ctx context.Context, mg Managed) error { return e.DeleteFn(ctx, mg) }
+// Delete the external resource upon deletion of its associated Managed
+// resource.
+func (e ExternalClientFns) Delete(ctx context.Context, mg Managed) error {
+	return e.DeleteFn(ctx, mg)
+}
 
 // A NopConnecter does nothing.
 type NopConnecter struct{}
@@ -254,12 +307,9 @@ type mrManaged struct {
 func defaultMRManaged(m manager.Manager) mrManaged {
 	return mrManaged{
 		ManagedConnectionPublisher: NewAPISecretPublisher(m.GetClient(), m.GetScheme()),
-		ManagedFinalizer:           NewAPIManagedFinalizerRemover(m.GetClient()),
-		ManagedInitializer: InitializerChain{
-			NewManagedNameAsExternalName(m.GetClient()),
-			NewAPIManagedFinalizerAdder(m.GetClient()),
-		},
-		ManagedReferenceResolver: NewAPIManagedReferenceResolver(m.GetClient()),
+		ManagedFinalizer:           NewAPIManagedFinalizer(m.GetClient(), managedFinalizerName),
+		ManagedInitializer:         NewManagedNameAsExternalName(m.GetClient()),
+		ManagedReferenceResolver:   NewAPIManagedReferenceResolver(m.GetClient()),
 	}
 }
 
@@ -321,11 +371,11 @@ func WithManagedInitializers(i ...ManagedInitializer) ManagedReconcilerOption {
 	}
 }
 
-// WithManagedFinalizers specifies how the Reconciler should finalize a
-// managed resource after it has been deleted.
-func WithManagedFinalizers(f ...ManagedFinalizer) ManagedReconcilerOption {
+// WithManagedFinalizer specifies how the Reconciler should add and remove
+// finalizers to and from the managed resource.
+func WithManagedFinalizer(f ManagedFinalizer) ManagedReconcilerOption {
 	return func(r *ManagedReconciler) {
-		r.managed.ManagedFinalizer = FinalizerChain(f)
+		r.managed.ManagedFinalizer = f
 	}
 }
 
@@ -463,7 +513,7 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 			managed.SetConditions(v1alpha1.ReconcileError(err))
 			return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, managed)), errUpdateManagedStatus)
 		}
-		if err := r.managed.Finalize(ctx, managed); err != nil {
+		if err := r.managed.RemoveFinalizer(ctx, managed); err != nil {
 			// If this is the first time we encounter this issue we'll be
 			// requeued implicitly when we update our status with the new error
 			// condition. If not, we want to try again after a short wait.
@@ -471,7 +521,7 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 			return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, managed)), errUpdateManagedStatus)
 		}
 
-		// We've successfully deleted external resource (if necessary) and
+		// We've successfully deleted our external resource (if necessary) and
 		// removed our finalizer. If we assume we were the only controller that
 		// added a finalizer to this resource then it should no longer exist and
 		// thus there is no point trying to update its status.
@@ -484,6 +534,14 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 		// not, we want to try again after a short wait.
 		managed.SetConditions(v1alpha1.ReconcileError(err))
 		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+	}
+
+	if err := r.managed.AddFinalizer(ctx, managed); err != nil {
+		// If this is the first time we encounter this issue we'll be
+		// requeued implicitly when we update our status with the new error
+		// condition. If not, we want to try again after a short wait.
+		managed.SetConditions(v1alpha1.ReconcileError(err))
+		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(IgnoreNotFound(r.client.Status().Update(ctx, managed)), errUpdateManagedStatus)
 	}
 
 	if !observation.ResourceExists {
