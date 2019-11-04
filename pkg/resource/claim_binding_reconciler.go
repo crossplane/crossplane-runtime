@@ -212,7 +212,7 @@ type crClaim struct {
 func defaultCRClaim(m manager.Manager) crClaim {
 	return crClaim{
 		ClaimFinalizer: NewAPIClaimFinalizer(m.GetClient(), claimFinalizerName),
-		Binder:         NewAPIBinder(m.GetClient(), m.GetScheme()),
+		Binder:         NewAPIStatusBinder(m.GetClient(), m.GetScheme()),
 	}
 }
 
