@@ -243,7 +243,6 @@ func TestManagedReconciler(t *testing.T) {
 							want := &MockManaged{}
 							want.SetDeletionTimestamp(&now)
 							want.SetReclaimPolicy(v1alpha1.ReclaimDelete)
-							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "An error deleting an external resource should be reported as a conditioned status."
@@ -288,7 +287,6 @@ func TestManagedReconciler(t *testing.T) {
 							want := &MockManaged{}
 							want.SetDeletionTimestamp(&now)
 							want.SetReclaimPolicy(v1alpha1.ReclaimDelete)
-							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileSuccess())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A deleted external resource should be reported as a conditioned status."
@@ -331,7 +329,6 @@ func TestManagedReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
 							want.SetDeletionTimestamp(&now)
-							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors unpublishing connection details should be reported as a conditioned status."
@@ -374,7 +371,6 @@ func TestManagedReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
 							want.SetDeletionTimestamp(&now)
-							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors removing the managed resource finalizer should be reported as a conditioned status."
