@@ -58,7 +58,7 @@ cobertura:
 		$(GOCOVER_COBERTURA) > $(GO_TEST_OUTPUT)/cobertura-coverage.xml
 
 # Ensure a PR is ready for review.
-reviewable: vendor generate lint
+reviewable: generate lint
 
 # Update the submodules, such as the common build scripts.
 submodules:
