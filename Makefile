@@ -59,6 +59,13 @@ cobertura:
 
 # Ensure a PR is ready for review.
 reviewable: generate lint
+	@go mod tidy
+
+# Ensure branch is clean.
+check-diff: reviewable
+	@$(INFO) checking that branch is clean
+	@git diff --quiet || $(FAIL)
+	@$(OK) branch is clean
 
 # Update the submodules, such as the common build scripts.
 submodules:
