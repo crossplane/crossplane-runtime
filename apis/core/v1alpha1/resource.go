@@ -46,8 +46,10 @@ const (
 	ResourceCredentialsSecretClientCertKey = "clientCert"
 	// ResourceCredentialsSecretClientKeyKey is the key inside a connection secret for the client key
 	ResourceCredentialsSecretClientKeyKey = "clientKey"
-	// ResourceCredentialsTokenKey is the key inside a connection secret for the bearer token value
-	ResourceCredentialsTokenKey = "token"
+	// ResourceCredentialsSecretTokenKey is the key inside a connection secret for the bearer token value
+	ResourceCredentialsSecretTokenKey = "token"
+	// ResourceCredentialsSecretKubeconfigKey is the key inside a connection secret for the raw kubeconfig yaml
+	ResourceCredentialsSecretKubeconfigKey = "kubeconfig"
 )
 
 // NOTE(negz): The below secret references differ from ObjectReference and
