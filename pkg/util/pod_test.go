@@ -25,8 +25,8 @@ import (
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 )
@@ -37,6 +37,9 @@ type envvars struct {
 }
 
 func TestGetRunningPod(t *testing.T) {
+	fooPod := &v1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: "foo-ns", Name: "foo"}}
+	errFoo := errors.New("too much foo")
+
 	type want struct {
 		pod *v1.Pod
 		err error
@@ -73,14 +76,32 @@ func TestGetRunningPod(t *testing.T) {
 			},
 		},
 		{
+			name: "GetPodError",
+			envvars: envvars{
+				podName:      "foo",
+				podNamespace: "foo-ns",
+			},
+			kube: &test.MockClient{
+				MockGet: test.NewMockGetFn(errFoo),
+			},
+			want: want{
+				err: errFoo,
+			},
+		},
+		{
 			name: "SimpleGet",
 			envvars: envvars{
 				podName:      "foo",
 				podNamespace: "foo-ns",
 			},
-			kube: fake.NewFakeClient(&v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "foo-ns"}}),
+			kube: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+					*obj.(*v1.Pod) = *fooPod
+					return nil
+				}),
+			},
 			want: want{
-				pod: &v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "foo-ns"}},
+				pod: fooPod,
 				err: nil,
 			},
 		},
@@ -95,11 +116,11 @@ func TestGetRunningPod(t *testing.T) {
 			got, err := GetRunningPod(context.Background(), tt.kube)
 
 			if diff := cmp.Diff(err, tt.want.err, test.EquateErrors()); diff != "" {
-				t.Errorf("GetRunningPod() want error != got error:\n%s", diff)
+				t.Errorf("GetRunningPod() -want error, +got error:\n%s", diff)
 			}
 
-			if diff := cmp.Diff(got, tt.want.pod); diff != "" {
-				t.Errorf("GetRunningPod() got != want:\n%v", diff)
+			if diff := cmp.Diff(tt.want.pod, got); diff != "" {
+				t.Errorf("GetRunningPod() -got, + want:\n%v", diff)
 			}
 		})
 	}

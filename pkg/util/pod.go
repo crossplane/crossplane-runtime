@@ -55,9 +55,11 @@ func GetRunningPod(ctx context.Context, kube client.Client) (*v1.Pod, error) {
 	log.V(logging.Debug).Info("getting pod", "name", name)
 
 	pod := &v1.Pod{}
-	err := kube.Get(ctx, name, pod)
+	if err := kube.Get(ctx, name, pod); err != nil {
+		return nil, err
+	}
 
-	return pod, err
+	return pod, nil
 }
 
 // GetContainerImage will get the container image for the container with the given name in the
