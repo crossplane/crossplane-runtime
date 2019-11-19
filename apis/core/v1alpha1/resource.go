@@ -150,13 +150,18 @@ type ResourceSpec struct {
 	// observe, update, and delete this managed resource.
 	ProviderReference *corev1.ObjectReference `json:"providerRef"`
 
-	// ReclaimPolicy specifies what will happen to the external resource this
-	// managed resource manages when the managed resource is deleted. "Delete"
-	// deletes the external resource, while "Retain" (the default) does not.
-	// Note this behaviour is subtly different from other uses of the
-	// ReclaimPolicy concept within the Kubernetes ecosystem per
-	// https://github.com/crossplaneio/crossplane-runtime/issues/21
+	// ReclaimPolicy specifies what will happen to this managed resource when
+	// its resource claim is deleted, and what will happen to the underlying
+	// external resource when the managed resource is deleted. The "Delete"
+	// policy causes the managed resource to be deleted when its bound resource
+	// claim is deleted, and in turn causes the external resource to be deleted
+	// when its managed resource is deleted. The "Retain" policy causes the
+	// managed resource to be retained, in binding phase "Released", when its
+	// resource claim is deleted, and in turn causes the external resource to be
+	// retained when its managed resource is deleted. The "Retain" policy is
+	// used when no policy is specified.
 	// +optional
+	// +kubebuilder:validation:Enum=Retain;Delete
 	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
@@ -180,12 +185,18 @@ type ClassSpecTemplate struct {
 	// provisioned using this resource class.
 	ProviderReference *corev1.ObjectReference `json:"providerRef"`
 
-	// ReclaimPolicy specifies what will happen to external resources when
-	// managed resources dynamically provisioned using this resource class are
-	// deleted. "Delete" deletes the external resource, while "Retain" (the
-	// default) does not. Note this behaviour is subtly different from other
-	// uses of the ReclaimPolicy concept within the Kubernetes ecosystem per
-	// https://github.com/crossplaneio/crossplane-runtime/issues/21
+	// ReclaimPolicy specifies what will happen to managed resources dynamically
+	// provisioned using this class when their resource claims are deleted, and
+	// what will happen to their underlying external resource when they are
+	// deleted. The "Delete" policy causes the managed resource to be deleted
+	// when its bound resource claim is deleted, and in turn causes the external
+	// resource to be deleted when its managed resource is deleted. The "Retain"
+	// policy causes the managed resource to be retained, in binding phase
+	// "Released", when its resource claim is deleted, and in turn causes the
+	// external resource to be retained when its managed resource is deleted.
+	// The "Retain" policy is used when no policy is specified, however the
+	// "Delete" policy is set at dynamic provisioning time if no policy is set.
 	// +optional
+	// +kubebuilder:validation:Enum=Retain;Delete
 	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }

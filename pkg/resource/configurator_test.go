@@ -24,12 +24,14 @@ import (
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 )
 
 var (
 	_ ManagedConfiguratorFn = ConfigureNames
+	_ ManagedConfiguratorFn = ConfigureReclaimPolicy
 	_ ManagedConfigurator   = ConfiguratorChain{}
 )
 
@@ -98,7 +100,7 @@ func TestConfiguratorChain(t *testing.T) {
 	}
 }
 
-func TestConfigurators(t *testing.T) {
+func TestNameConfigurators(t *testing.T) {
 	claimName := "myclaim"
 	claimNS := "myclaimns"
 	externalName := "wayout"
@@ -156,8 +158,8 @@ func TestConfigurators(t *testing.T) {
 		}
 	})
 
-	// NOTE(negz): This deprecated API wraps TestConfigureNames; they should
-	// behave identically.
+	// NOTE(negz): This deprecated API wraps ConfigureNames; they should behave
+	// identically.
 	t.Run("TestObjectMetaConfigurator", func(t *testing.T) {
 		for name, tc := range cases {
 			t.Run(name, func(t *testing.T) {
@@ -173,4 +175,71 @@ func TestConfigurators(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestConfigureReclaimPolicy(t *testing.T) {
+	type args struct {
+		ctx context.Context
+		cm  Claim
+		cs  Class
+		mg  Managed
+	}
+
+	type want struct {
+		err error
+		mg  Managed
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"AlreadySet": {
+			reason: "Existing managed resource reclaim policies should be respected.",
+			args: args{
+				ctx: context.Background(),
+				cs:  &MockClass{MockReclaimer: MockReclaimer{Policy: v1alpha1.ReclaimDelete}},
+				mg:  &MockManaged{MockReclaimer: MockReclaimer{Policy: v1alpha1.ReclaimRetain}},
+			},
+			want: want{
+				mg: &MockManaged{MockReclaimer: MockReclaimer{Policy: v1alpha1.ReclaimRetain}},
+			},
+		},
+		"SetByClass": {
+			reason: "The class's reclaim policy should be propagated to the managed resource.",
+			args: args{
+				ctx: context.Background(),
+				cs:  &MockClass{MockReclaimer: MockReclaimer{Policy: v1alpha1.ReclaimRetain}},
+				mg:  &MockManaged{},
+			},
+			want: want{
+				mg: &MockManaged{MockReclaimer: MockReclaimer{Policy: v1alpha1.ReclaimRetain}},
+			},
+		},
+		"DefaultToDelete": {
+			reason: "If neither the class nor managed resource set a reclaim policy, it should default to Delete.",
+			args: args{
+				ctx: context.Background(),
+				cs:  &MockClass{},
+				mg:  &MockManaged{},
+			},
+			want: want{
+				mg: &MockManaged{MockReclaimer: MockReclaimer{Policy: v1alpha1.ReclaimDelete}},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := ConfigureReclaimPolicy(tc.args.ctx, tc.args.cm, tc.args.cs, tc.args.mg)
+			if diff := cmp.Diff(tc.want.err, got, test.EquateErrors()); diff != "" {
+				t.Errorf("\nReason: %s\nConfigureReclaimPolicy(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+
+			if diff := cmp.Diff(tc.want.mg, tc.args.mg); diff != "" {
+				t.Errorf("\nReason: %s\nConfigureReclaimPolicy(...) Managed: -want, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
 }

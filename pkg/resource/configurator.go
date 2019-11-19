@@ -22,6 +22,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 
+	"github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 )
 
@@ -63,6 +64,26 @@ func ConfigureNames(_ context.Context, cm Claim, _ Class, mg Managed) error {
 	mg.SetGenerateName(fmt.Sprintf("%s-%s-", cm.GetNamespace(), cm.GetName()))
 	if meta.GetExternalName(cm) != "" {
 		meta.SetExternalName(mg, meta.GetExternalName(cm))
+	}
+
+	return nil
+}
+
+// ConfigureReclaimPolicy configures the reclaim policy of the supplied managed
+// resource. If the managed resource _already has_ a reclaim policy (for example
+// because one was set by another configurator) it is respected. Otherwise the
+// reclaim policy is copied from the resource class. If the resource class does
+// not specify a reclaim policy, the managed resource's policy is set to
+// "Delete".
+func ConfigureReclaimPolicy(_ context.Context, _ Claim, cs Class, mg Managed) error {
+	if mg.GetReclaimPolicy() != "" {
+		return nil
+	}
+
+	mg.SetReclaimPolicy(cs.GetReclaimPolicy())
+
+	if mg.GetReclaimPolicy() == "" {
+		mg.SetReclaimPolicy(v1alpha1.ReclaimDelete)
 	}
 
 	return nil

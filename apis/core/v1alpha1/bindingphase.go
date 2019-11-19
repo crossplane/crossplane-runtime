@@ -36,6 +36,11 @@ const (
 
 	// BindingPhaseBound resources are bound to another resource.
 	BindingPhaseBound BindingPhase = "Bound"
+
+	// BindingPhaseReleased managed resources were bound to a resource claim
+	// that has since been deleted. Released managed resources cannot be
+	// reclaimed; they are retained to allow manual clean-up and deletion.
+	BindingPhaseReleased BindingPhase = "Released"
 )
 
 // A BindingStatus represents the bindability and binding status of a resource.
@@ -46,7 +51,7 @@ type BindingStatus struct {
 	// available for binding, and Bound resources have successfully bound to
 	// another resource.
 	// +optional
-	// +kubebuilder:validation:Enum=Unbindable;Unbound;Bound
+	// +kubebuilder:validation:Enum=Unbindable;Unbound;Bound;Released
 	Phase BindingPhase `json:"bindingPhase,omitempty"`
 }
 

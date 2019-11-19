@@ -142,12 +142,16 @@ func ResolveClassClaimValues(classValue, claimValue string) (string, error) {
 }
 
 // SetBindable indicates that the supplied Bindable is ready for binding to
-// another Bindable, such as a resource claim or managed resource.
+// another Bindable, such as a resource claim or managed resource by setting its
+// binding phase to "Unbound". It is a no-op for Bindables in phases "Bound" or
+// "Released", because these phases may not transition back to "Unbound".
 func SetBindable(b Bindable) {
-	if b.GetBindingPhase() == v1alpha1.BindingPhaseBound {
+	switch b.GetBindingPhase() {
+	case v1alpha1.BindingPhaseBound, v1alpha1.BindingPhaseReleased:
 		return
+	default:
+		b.SetBindingPhase(v1alpha1.BindingPhaseUnbound)
 	}
-	b.SetBindingPhase(v1alpha1.BindingPhaseUnbound)
 }
 
 // IsBindable returns true if the supplied Bindable is ready for binding to
