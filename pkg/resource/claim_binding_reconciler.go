@@ -198,7 +198,7 @@ type crManaged struct {
 
 func defaultCRManaged(m manager.Manager) crManaged {
 	return crManaged{
-		ManagedConfigurator:         NewObjectMetaConfigurator(m.GetScheme()),
+		ManagedConfigurator:         ManagedConfiguratorFn(ConfigureNames),
 		ManagedCreator:              NewAPIManagedCreator(m.GetClient(), m.GetScheme()),
 		ManagedConnectionPropagator: NewAPIManagedConnectionPropagator(m.GetClient(), m.GetScheme()),
 	}

@@ -23,15 +23,14 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 )
 
 var (
-	_ ManagedConfigurator = &ObjectMetaConfigurator{}
-	_ ManagedConfigurator = ConfiguratorChain{}
+	_ ManagedConfiguratorFn = ConfigureNames
+	_ ManagedConfigurator   = ConfiguratorChain{}
 )
 
 func TestConfiguratorChain(t *testing.T) {
@@ -99,10 +98,10 @@ func TestConfiguratorChain(t *testing.T) {
 	}
 }
 
-func TestConfigureObjectMeta(t *testing.T) {
+func TestConfigurators(t *testing.T) {
 	claimName := "myclaim"
 	claimNS := "myclaimns"
-	uid := types.UID("definitely-a-uuid")
+	externalName := "wayout"
 
 	type args struct {
 		ctx context.Context
@@ -117,42 +116,61 @@ func TestConfigureObjectMeta(t *testing.T) {
 	}
 
 	cases := map[string]struct {
-		typer runtime.ObjectTyper
-		args  args
-		want  want
+		args args
+		want want
 	}{
 		"Successful": {
-			typer: MockSchemeWith(&MockClaim{}),
 			args: args{
 				ctx: context.Background(),
-				cm:  &MockClaim{ObjectMeta: metav1.ObjectMeta{Name: claimName, Namespace: claimNS, UID: uid}},
-				mg:  &MockManaged{},
+				cm: &MockClaim{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace:   claimNS,
+						Name:        claimName,
+						Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName},
+					}},
+				mg: &MockManaged{},
 			},
 			want: want{
-				mg: &MockManaged{ObjectMeta: metav1.ObjectMeta{
-					GenerateName: claimNS + "-" + claimName + "-",
-					OwnerReferences: []metav1.OwnerReference{{
-						APIVersion: MockGVK(&MockClaim{}).GroupVersion().String(),
-						Kind:       MockGVK(&MockClaim{}).Kind,
-						UID:        uid,
-						Name:       claimName,
-					}},
-				}},
+				mg: &MockManaged{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: claimNS + "-" + claimName + "-",
+						Annotations:  map[string]string{meta.ExternalNameAnnotationKey: externalName},
+					},
+				},
 			},
 		},
 	}
 
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			om := NewObjectMetaConfigurator(tc.typer)
-			got := om.Configure(tc.args.ctx, tc.args.cm, tc.args.cs, tc.args.mg)
-			if diff := cmp.Diff(tc.want.err, got, test.EquateErrors()); diff != "" {
-				t.Errorf("om.Configure(...): -want error, +got error:\n%s", diff)
-			}
+	t.Run("TestConfigureNames", func(t *testing.T) {
+		for name, tc := range cases {
+			t.Run(name, func(t *testing.T) {
+				got := ConfigureNames(tc.args.ctx, tc.args.cm, tc.args.cs, tc.args.mg)
+				if diff := cmp.Diff(tc.want.err, got, test.EquateErrors()); diff != "" {
+					t.Errorf("ConfigureNames(...): -want error, +got error:\n%s", diff)
+				}
 
-			if diff := cmp.Diff(tc.want.mg, tc.args.mg); diff != "" {
-				t.Errorf("om.Configure(...) Managed: -want, +got error:\n%s", diff)
-			}
-		})
-	}
+				if diff := cmp.Diff(tc.want.mg, tc.args.mg); diff != "" {
+					t.Errorf("ConfigureNames(...) Managed: -want, +got error:\n%s", diff)
+				}
+			})
+		}
+	})
+
+	// NOTE(negz): This deprecated API wraps TestConfigureNames; they should
+	// behave identically.
+	t.Run("TestObjectMetaConfigurator", func(t *testing.T) {
+		for name, tc := range cases {
+			t.Run(name, func(t *testing.T) {
+				om := NewObjectMetaConfigurator(nil)
+				got := om.Configure(tc.args.ctx, tc.args.cm, tc.args.cs, tc.args.mg)
+				if diff := cmp.Diff(tc.want.err, got, test.EquateErrors()); diff != "" {
+					t.Errorf("om.Configure(...): -want error, +got error:\n%s", diff)
+				}
+
+				if diff := cmp.Diff(tc.want.mg, tc.args.mg); diff != "" {
+					t.Errorf("om.Configure(...) Managed: -want, +got error:\n%s", diff)
+				}
+			})
+		}
+	})
 }

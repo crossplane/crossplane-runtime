@@ -20,7 +20,6 @@ import (
 	"context"
 	"fmt"
 
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
@@ -41,33 +40,30 @@ func (cc ConfiguratorChain) Configure(ctx context.Context, cm Claim, cs Class, m
 }
 
 // An ObjectMetaConfigurator sets standard object metadata for a dynamically
-// provisioned resource, deriving it from a class and claim.
-type ObjectMetaConfigurator struct {
-	typer runtime.ObjectTyper
-}
+// provisioned resource, deriving it from a class and claim. It is deprecated;
+// use ConfigureNames instead.
+type ObjectMetaConfigurator struct{}
 
 // NewObjectMetaConfigurator returns a new ObjectMetaConfigurator.
-func NewObjectMetaConfigurator(t runtime.ObjectTyper) *ObjectMetaConfigurator {
-	return &ObjectMetaConfigurator{typer: t}
+func NewObjectMetaConfigurator(_ runtime.ObjectTyper) *ObjectMetaConfigurator {
+	return &ObjectMetaConfigurator{}
 }
 
 // Configure the supplied Managed resource's object metadata.
-func (c *ObjectMetaConfigurator) Configure(_ context.Context, cm Claim, _ Class, mg Managed) error {
+func (c *ObjectMetaConfigurator) Configure(ctx context.Context, cm Claim, cs Class, mg Managed) error {
+	return ConfigureNames(ctx, cm, cs, mg)
+}
+
+// ConfigureNames configures the name and external name of the supplied managed
+// resource. The managed resource name is derived from the supplied resource
+// claim, in the form {claim-namespace}-{claim-name}-{random-string}. The
+// resource claim's external name annotation, if any, is propagated to the
+// managed resource.
+func ConfigureNames(_ context.Context, cm Claim, _ Class, mg Managed) error {
 	mg.SetGenerateName(fmt.Sprintf("%s-%s-", cm.GetNamespace(), cm.GetName()))
 	if meta.GetExternalName(cm) != "" {
 		meta.SetExternalName(mg, meta.GetExternalName(cm))
 	}
-
-	// TODO(negz): Avoid setting this owner reference? Kubernetes specifies that
-	// cluster scoped resources cannot have namespaced owners, by design, but
-	// the owner reference appears to work for cascading deletes.
-	// https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#owners-and-dependents
-
-	// TODO(negz): We probably want to use the resource's reclaim policy, not
-	// Kubernetes garbage collection, to determine whether to delete a managed
-	// resource when its claim is deleted per
-	// https://github.com/crossplaneio/crossplane/issues/550
-	mg.SetOwnerReferences([]v1.OwnerReference{meta.AsOwner(meta.ReferenceTo(cm, MustGetKind(cm, c.typer)))})
 
 	return nil
 }
