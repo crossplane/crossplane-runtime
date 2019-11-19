@@ -387,6 +387,10 @@ func TestSetBindable(t *testing.T) {
 			b:    &MockClaim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
 			want: v1alpha1.BindingPhaseBound,
 		},
+		"BindableIsReleased": {
+			b:    &MockClaim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseReleased}},
+			want: v1alpha1.BindingPhaseReleased,
+		},
 	}
 
 	for name, tc := range cases {

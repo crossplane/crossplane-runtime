@@ -41,6 +41,7 @@ const (
 	errCreateOrUpdateSecret = "cannot create or update connection secret"
 	errUpdateManaged        = "cannot update managed resource"
 	errUpdateManagedStatus  = "cannot update managed resource status"
+	errDeleteManaged        = "cannot delete managed resource"
 )
 
 const claimFinalizerName = "finalizer." + claimControllerName
@@ -177,14 +178,25 @@ func (a *APIBinder) Bind(ctx context.Context, cm Claim, mg Managed) error {
 	return errors.Wrap(a.client.Update(ctx, cm), errUpdateClaim)
 }
 
-// Unbind the supplied Claim from the supplied Managed resource.
+// Unbind the supplied Claim from the supplied Managed resource by removing the
+// managed resource's claim reference, transitioning it to binding phase
+// "Released", and if the managed resource's reclaim policy is "Delete",
+// deleting it.
 func (a *APIBinder) Unbind(ctx context.Context, _ Claim, mg Managed) error {
-	// TODO(negz): We probably want to delete the managed resource here if its
-	// reclaim policy is delete, rather than relying on garbage collection, per
-	// https://github.com/crossplaneio/crossplane/issues/550
-	mg.SetBindingPhase(v1alpha1.BindingPhaseUnbound)
+	mg.SetBindingPhase(v1alpha1.BindingPhaseReleased)
 	mg.SetClaimReference(nil)
-	return errors.Wrap(IgnoreNotFound(a.client.Update(ctx, mg)), errUpdateManaged)
+	if err := a.client.Update(ctx, mg); err != nil {
+		return errors.Wrap(IgnoreNotFound(err), errUpdateManaged)
+	}
+
+	// We go to the trouble of unbinding the managed resource before deleting it
+	// because we want it to show up as "released" (not "bound") if its managed
+	// resource reconciler is wedged or delayed trying to delete it.
+	if mg.GetReclaimPolicy() != v1alpha1.ReclaimDelete {
+		return nil
+	}
+
+	return errors.Wrap(IgnoreNotFound(a.client.Delete(ctx, mg)), errDeleteManaged)
 }
 
 // An APIStatusBinder binds resources to claims by updating them in a
@@ -228,19 +240,29 @@ func (a *APIStatusBinder) Bind(ctx context.Context, cm Claim, mg Managed) error 
 	return errors.Wrap(a.client.Update(ctx, cm), errUpdateClaim)
 }
 
-// Unbind the supplied Claim from the supplied Managed resource.
+// Unbind the supplied Claim from the supplied Managed resource by removing the
+// managed resource's claim reference, transitioning it to binding phase
+// "Released", and if the managed resource's reclaim policy is "Delete",
+// deleting it.
 func (a *APIStatusBinder) Unbind(ctx context.Context, _ Claim, mg Managed) error {
-	// TODO(negz): We probably want to delete the managed resource here if its
-	// reclaim policy is delete, rather than relying on garbage collection, per
-	// https://github.com/crossplaneio/crossplane/issues/550
-
 	mg.SetClaimReference(nil)
 	if err := a.client.Update(ctx, mg); err != nil {
 		return errors.Wrap(IgnoreNotFound(err), errUpdateManaged)
 	}
 
-	mg.SetBindingPhase(v1alpha1.BindingPhaseUnbound)
-	return errors.Wrap(IgnoreNotFound(a.client.Status().Update(ctx, mg)), errUpdateManagedStatus)
+	mg.SetBindingPhase(v1alpha1.BindingPhaseReleased)
+	if err := a.client.Status().Update(ctx, mg); err != nil {
+		return errors.Wrap(IgnoreNotFound(err), errUpdateManagedStatus)
+	}
+
+	// We go to the trouble of unbinding the managed resource before deleting it
+	// because we want it to show up as "released" (not "bound") if its managed
+	// resource reconciler is wedged or delayed trying to delete it.
+	if mg.GetReclaimPolicy() != v1alpha1.ReclaimDelete {
+		return nil
+	}
+
+	return errors.Wrap(IgnoreNotFound(a.client.Delete(ctx, mg)), errDeleteManaged)
 }
 
 // An APIClaimFinalizer adds and removes finalizers to and from a claim.

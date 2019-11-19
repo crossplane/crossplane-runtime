@@ -21,11 +21,12 @@ package v1alpha1
 type ReclaimPolicy string
 
 const (
-	// ReclaimDelete means the managed resource will be deleted when its bound
-	// resource claim is deleted.
+	// ReclaimDelete means both the managed resource and its underlying external
+	// resource will be deleted when its bound resource claim is deleted.
 	ReclaimDelete ReclaimPolicy = "Delete"
 
-	// ReclaimRetain means the managed resource will remain when its bound
-	// resource claim is deleted.
+	// ReclaimRetain means the managed resource will retained when its bound
+	// resource claim is deleted. Furthermore, its underlying external resource
+	// will be retained when the managed resource is deleted.
 	ReclaimRetain ReclaimPolicy = "Retain"
 )

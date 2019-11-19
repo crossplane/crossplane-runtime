@@ -490,8 +490,6 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 	}
 
 	if meta.WasDeleted(managed) {
-		// TODO(muvaf): Reclaim Policy should be used between Claim and Managed.
-		// For Managed and External Resource, we need another field.
 		if observation.ResourceExists && managed.GetReclaimPolicy() == v1alpha1.ReclaimDelete {
 			if err := external.Delete(ctx, managed); err != nil {
 				// We'll hit this condition if we can't delete our external

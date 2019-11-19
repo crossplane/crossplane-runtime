@@ -769,7 +769,7 @@ func TestUnbind(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"Successful": {
+		"SuccessfulRetain": {
 			client: &test.MockClient{
 				MockUpdate: test.NewMockUpdateFn(nil),
 			},
@@ -785,7 +785,29 @@ func TestUnbind(t *testing.T) {
 				err: nil,
 				mg: &MockManaged{
 					MockReclaimer:       MockReclaimer{Policy: v1alpha1.ReclaimRetain},
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseUnbound},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseReleased},
+					MockClaimReferencer: MockClaimReferencer{Ref: nil},
+				},
+			},
+		},
+		"SuccessfulDelete": {
+			client: &test.MockClient{
+				MockUpdate: test.NewMockUpdateFn(nil),
+				MockDelete: test.NewMockDeleteFn(nil),
+			},
+			args: args{
+				ctx: context.Background(),
+				mg: &MockManaged{
+					MockReclaimer:       MockReclaimer{Policy: v1alpha1.ReclaimDelete},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
+					MockClaimReferencer: MockClaimReferencer{Ref: &corev1.ObjectReference{}},
+				},
+			},
+			want: want{
+				err: nil,
+				mg: &MockManaged{
+					MockReclaimer:       MockReclaimer{Policy: v1alpha1.ReclaimDelete},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseReleased},
 					MockClaimReferencer: MockClaimReferencer{Ref: nil},
 				},
 			},
@@ -806,7 +828,29 @@ func TestUnbind(t *testing.T) {
 				err: errors.Wrap(errBoom, errUpdateManaged),
 				mg: &MockManaged{
 					MockReclaimer:       MockReclaimer{Policy: v1alpha1.ReclaimRetain},
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseUnbound},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseReleased},
+					MockClaimReferencer: MockClaimReferencer{Ref: nil},
+				},
+			},
+		},
+		"DeleteError": {
+			client: &test.MockClient{
+				MockUpdate: test.NewMockUpdateFn(nil),
+				MockDelete: test.NewMockDeleteFn(errBoom),
+			},
+			args: args{
+				ctx: context.Background(),
+				mg: &MockManaged{
+					MockReclaimer:       MockReclaimer{Policy: v1alpha1.ReclaimDelete},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
+					MockClaimReferencer: MockClaimReferencer{Ref: &corev1.ObjectReference{}},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errDeleteManaged),
+				mg: &MockManaged{
+					MockReclaimer:       MockReclaimer{Policy: v1alpha1.ReclaimDelete},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseReleased},
 					MockClaimReferencer: MockClaimReferencer{Ref: nil},
 				},
 			},
@@ -846,7 +890,7 @@ func TestStatusUnbind(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"Successful": {
+		"SuccessfulRetain": {
 			client: &test.MockClient{
 				MockUpdate:       test.NewMockUpdateFn(nil),
 				MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
@@ -861,7 +905,30 @@ func TestStatusUnbind(t *testing.T) {
 			want: want{
 				err: nil,
 				mg: &MockManaged{
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseUnbound},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseReleased},
+					MockClaimReferencer: MockClaimReferencer{Ref: nil},
+				},
+			},
+		},
+		"SuccessfulDelete": {
+			client: &test.MockClient{
+				MockUpdate:       test.NewMockUpdateFn(nil),
+				MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+				MockDelete:       test.NewMockDeleteFn(nil),
+			},
+			args: args{
+				ctx: context.Background(),
+				mg: &MockManaged{
+					MockReclaimer:       MockReclaimer{Policy: v1alpha1.ReclaimDelete},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
+					MockClaimReferencer: MockClaimReferencer{Ref: &corev1.ObjectReference{}},
+				},
+			},
+			want: want{
+				err: nil,
+				mg: &MockManaged{
+					MockReclaimer:       MockReclaimer{Policy: v1alpha1.ReclaimDelete},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseReleased},
 					MockClaimReferencer: MockClaimReferencer{Ref: nil},
 				},
 			},
@@ -902,7 +969,30 @@ func TestStatusUnbind(t *testing.T) {
 				err: errors.Wrap(errBoom, errUpdateManagedStatus),
 				mg: &MockManaged{
 					MockReclaimer:       MockReclaimer{Policy: v1alpha1.ReclaimRetain},
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseUnbound},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseReleased},
+					MockClaimReferencer: MockClaimReferencer{Ref: nil},
+				},
+			},
+		},
+		"DeleteError": {
+			client: &test.MockClient{
+				MockUpdate:       test.NewMockUpdateFn(nil),
+				MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+				MockDelete:       test.NewMockDeleteFn(errBoom),
+			},
+			args: args{
+				ctx: context.Background(),
+				mg: &MockManaged{
+					MockReclaimer:       MockReclaimer{Policy: v1alpha1.ReclaimDelete},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
+					MockClaimReferencer: MockClaimReferencer{Ref: &corev1.ObjectReference{}},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errDeleteManaged),
+				mg: &MockManaged{
+					MockReclaimer:       MockReclaimer{Policy: v1alpha1.ReclaimDelete},
+					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseReleased},
 					MockClaimReferencer: MockClaimReferencer{Ref: nil},
 				},
 			},
