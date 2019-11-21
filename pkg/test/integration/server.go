@@ -100,7 +100,7 @@ func WithCleaner(cleaner OperationFn) Option {
 }
 
 // WithCRDDirectoryPaths sets custom CRD locations for an Athodyd Config.
-func WithCRDDirectoryPaths(crds []string) Option {
+func WithCRDDirectoryPaths(crds ...string) Option {
 	return func(c *Config) {
 		c.CRDDirectoryPaths = crds
 	}
