@@ -180,11 +180,10 @@ func New(cfg *rest.Config, o ...Option) (*Manager, error) {
 
 // Run starts a controller-runtime manager with Athodyd's channel.
 func (m *Manager) Run() {
-	go func() error {
+	go func() {
 		if err := m.Start(m.channel); err != nil {
-			return err
+			panic(err)
 		}
-		return nil
 	}()
 }
 

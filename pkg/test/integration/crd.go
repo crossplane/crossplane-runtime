@@ -76,7 +76,7 @@ func readCRDs(path string) ([]*apiextensionsv1beta1.CustomResourceDefinition, er
 }
 
 func readDocuments(fp string) ([][]byte, error) {
-	b, err := ioutil.ReadFile(fp)
+	b, err := ioutil.ReadFile(filepath.Clean(fp))
 	if err != nil {
 		return nil, err
 	}
