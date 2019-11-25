@@ -89,7 +89,7 @@ func TestManagedReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, got runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
-							want.SetConditions(v1alpha1.ReconcileError(errBoom))
+							want.SetConditions(v1alpha1.ReconcileError(errors.Wrap(errBoom, errReconcileConnect)))
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 								reason := "Errors connecting to the provider should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
@@ -203,7 +203,7 @@ func TestManagedReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
 							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
-							want.SetConditions(v1alpha1.ReconcileError(errBoom))
+							want.SetConditions(v1alpha1.ReconcileError(errors.Wrap(errBoom, errReconcileObserve)))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors observing the managed resource should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
@@ -243,7 +243,7 @@ func TestManagedReconciler(t *testing.T) {
 							want := &MockManaged{}
 							want.SetDeletionTimestamp(&now)
 							want.SetReclaimPolicy(v1alpha1.ReclaimDelete)
-							want.SetConditions(v1alpha1.ReconcileError(errBoom))
+							want.SetConditions(v1alpha1.ReconcileError(errors.Wrap(errBoom, errReconcileDelete)))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "An error deleting an external resource should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
@@ -500,7 +500,7 @@ func TestManagedReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
 							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
-							want.SetConditions(v1alpha1.ReconcileError(errBoom))
+							want.SetConditions(v1alpha1.ReconcileError(errors.Wrap(errBoom, errReconcileCreate)))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors while creating an external resource should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
@@ -658,7 +658,7 @@ func TestManagedReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &MockManaged{}
 							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
-							want.SetConditions(v1alpha1.ReconcileError(errBoom))
+							want.SetConditions(v1alpha1.ReconcileError(errors.Wrap(errBoom, errReconcileUpdate)))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors while updating an external resource should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)

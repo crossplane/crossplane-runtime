@@ -43,7 +43,12 @@ const (
 
 // Error strings.
 const (
-	errGetManaged = "cannot get managed resource"
+	errGetManaged       = "cannot get managed resource"
+	errReconcileConnect = "Connect failed"
+	errReconcileObserve = "Observe failed"
+	errReconcileCreate  = "Create failed"
+	errReconcileUpdate  = "Update failed"
+	errReconcileDelete  = "Delete failed"
 )
 
 // ConnectionDetails created or updated during an operation on an external
@@ -440,7 +445,7 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 		// or invalid. If this is first time we encounter this issue we'll be
 		// requeued implicitly when we update our status with the new error
 		// condition. If not, we want to try again after a short wait.
-		managed.SetConditions(v1alpha1.ReconcileError(err))
+		managed.SetConditions(v1alpha1.ReconcileError(errors.Wrap(err, errReconcileConnect)))
 		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
@@ -485,7 +490,7 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 		// concerned with. If this is the first time we encounter this issue
 		// we'll be requeued implicitly when we update our status with the new
 		// error condition. If not, we want to try again after a short wait.
-		managed.SetConditions(v1alpha1.ReconcileError(err))
+		managed.SetConditions(v1alpha1.ReconcileError(errors.Wrap(err, errReconcileObserve)))
 		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
@@ -498,7 +503,7 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 				// issue we'll be requeued implicitly when we update our status with
 				// the new error condition. If not, we want to try again after a
 				// short wait.
-				managed.SetConditions(v1alpha1.ReconcileError(err))
+				managed.SetConditions(v1alpha1.ReconcileError(errors.Wrap(err, errReconcileDelete)))
 				return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 			}
 
@@ -559,7 +564,7 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 			// issue we'll be requeued implicitly when we update our status with
 			// the new error condition. If not, we want to try again after a
 			// short wait.
-			managed.SetConditions(v1alpha1.ReconcileError(err))
+			managed.SetConditions(v1alpha1.ReconcileError(errors.Wrap(err, errReconcileCreate)))
 			return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 		}
 
@@ -596,7 +601,7 @@ func (r *ManagedReconciler) Reconcile(req reconcile.Request) (reconcile.Result, 
 		// it. If this is the first time we encounter this issue we'll be
 		// requeued implicitly when we update our status with the new error
 		// condition. If not, we want to try again after a short wait.
-		managed.SetConditions(v1alpha1.ReconcileError(err))
+		managed.SetConditions(v1alpha1.ReconcileError(errors.Wrap(err, errReconcileUpdate)))
 		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
