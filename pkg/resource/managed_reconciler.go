@@ -44,11 +44,11 @@ const (
 // Error strings.
 const (
 	errGetManaged       = "cannot get managed resource"
-	errReconcileConnect = "Connect failed"
-	errReconcileObserve = "Observe failed"
-	errReconcileCreate  = "Create failed"
-	errReconcileUpdate  = "Update failed"
-	errReconcileDelete  = "Delete failed"
+	errReconcileConnect = "connect failed"
+	errReconcileObserve = "observe failed"
+	errReconcileCreate  = "create failed"
+	errReconcileUpdate  = "update failed"
+	errReconcileDelete  = "delete failed"
 )
 
 // ConnectionDetails created or updated during an operation on an external
