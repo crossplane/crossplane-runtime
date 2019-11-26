@@ -31,7 +31,7 @@ import (
 )
 
 // These functions are mostly copied from the Kubernetes controller-runtime
-// project. They can be removed following the implemntation of
+// project. They can be removed following the implementation of
 // https://github.com/kubernetes-sigs/controller-runtime/issues/691
 // https://github.com/kubernetes-sigs/controller-runtime/blob/master/pkg/envtest/crd.go
 
@@ -86,11 +86,10 @@ func readDocuments(fp string) ([][]byte, error) {
 	for {
 		// Read document
 		doc, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
 		if err != nil {
-			if err == io.EOF {
-				break
-			}
-
 			return nil, err
 		}
 

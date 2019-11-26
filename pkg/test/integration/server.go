@@ -34,18 +34,18 @@ import (
 
 const (
 	syncPeriod = "30s"
-	errCleanup = "failure in athodyd default cleanup"
+	errCleanup = "failure in default cleanup"
 )
 
 // OperationFn is a function that uses a Kubernetes client to perform and
 // operation
 type OperationFn func(*envtest.Environment, client.Client) error
 
-// Config is a set of configuration values for Athodyd setup.
+// Config is a set of configuration values for setup.
 type Config struct {
 	CRDDirectoryPaths []string
 	Builder           OperationFn
-	Cleaner           OperationFn
+	Cleaners          []OperationFn
 	ManagerOptions    manager.Options
 }
 
@@ -56,9 +56,9 @@ func NewBuilder() OperationFn {
 	}
 }
 
-// NewCleaner returns a new Cleaner that deletes all installed CRDs from the API
-// server.
-func NewCleaner() OperationFn {
+// NewCRDCleaner returns a new Cleaner that deletes all installed CRDs from the
+// API server.
+func NewCRDCleaner() OperationFn {
 	return func(e *envtest.Environment, c client.Client) error {
 		cs, err := clientset.NewForConfig(e.Config)
 		if err != nil {
@@ -82,31 +82,31 @@ func NewCleaner() OperationFn {
 	}
 }
 
-// An Option configures an Athodyd Config.
+// An Option configures a Config.
 type Option func(*Config)
 
-// WithBuilder sets a custom builder function for an Athodyd Config.
+// WithBuilder sets a custom builder function for a Config.
 func WithBuilder(builder OperationFn) Option {
 	return func(c *Config) {
 		c.Builder = builder
 	}
 }
 
-// WithCleaner sets a custom cleaner function for an Athodyd Config.
-func WithCleaner(cleaner OperationFn) Option {
+// WithCleaner sets a custom cleaner function for a Config.
+func WithCleaner(cleaners ...OperationFn) Option {
 	return func(c *Config) {
-		c.Cleaner = cleaner
+		c.Cleaners = cleaners
 	}
 }
 
-// WithCRDDirectoryPaths sets custom CRD locations for an Athodyd Config.
+// WithCRDDirectoryPaths sets custom CRD locations for a Config.
 func WithCRDDirectoryPaths(crds ...string) Option {
 	return func(c *Config) {
 		c.CRDDirectoryPaths = crds
 	}
 }
 
-// WithManagerOptions sets custom options for the manager configured by Athodyd
+// WithManagerOptions sets custom options for the manager configured by
 // Config.
 func WithManagerOptions(m manager.Options) Option {
 	return func(c *Config) {
@@ -123,7 +123,7 @@ func defaultConfig() *Config {
 	return &Config{
 		CRDDirectoryPaths: []string{},
 		Builder:           NewBuilder(),
-		Cleaner:           NewCleaner(),
+		Cleaners:          []OperationFn{NewCRDCleaner()},
 		ManagerOptions:    manager.Options{SyncPeriod: &t},
 	}
 }
@@ -131,13 +131,13 @@ func defaultConfig() *Config {
 // Manager wraps a controller-runtime manager with additional functionality.
 type Manager struct {
 	manager.Manager
-	channel chan struct{}
-	env     *envtest.Environment
-	client  client.Client
-	c       *Config
+	stop   chan struct{}
+	env    *envtest.Environment
+	client client.Client
+	c      *Config
 }
 
-// New creates a new Athodyd Manager.
+// New creates a new Manager.
 func New(cfg *rest.Config, o ...Option) (*Manager, error) {
 	var useExisting bool
 	if cfg != nil {
@@ -174,14 +174,14 @@ func New(cfg *rest.Config, o ...Option) (*Manager, error) {
 		return nil, err
 	}
 
-	channel := make(chan struct{})
-	return &Manager{mgr, channel, e, client, c}, nil
+	stop := make(chan struct{})
+	return &Manager{mgr, stop, e, client, c}, nil
 }
 
-// Run starts a controller-runtime manager with Athodyd's channel.
+// Run starts a controller-runtime manager with a signal channel.
 func (m *Manager) Run() {
 	go func() {
-		if err := m.Start(m.channel); err != nil {
+		if err := m.Start(m.stop); err != nil {
 			panic(err)
 		}
 	}()
@@ -194,9 +194,12 @@ func (m *Manager) GetClient() client.Client {
 
 // Cleanup runs the supplied cleanup or defaults to deleting all CRDs.
 func (m *Manager) Cleanup() error {
-	close(m.channel)
-	if err := m.c.Cleaner(m.env, m.client); err != nil {
-		return err
+	close(m.stop)
+	for _, clean := range m.c.Cleaners {
+		if err := clean(m.env, m.client); err != nil {
+			return err
+		}
 	}
+
 	return m.env.Stop()
 }
