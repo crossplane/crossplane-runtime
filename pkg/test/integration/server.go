@@ -17,6 +17,7 @@ limitations under the License.
 package integration
 
 import (
+	"os"
 	"time"
 
 	"github.com/pkg/errors"
@@ -33,8 +34,10 @@ import (
 )
 
 const (
-	syncPeriod = "30s"
-	errCleanup = "failure in default cleanup"
+	syncPeriod   = "30s"
+	errCleanup   = "failure in default cleanup"
+	errGetRemote = "unable to download CRDs from remote location"
+	remotePath   = "./tmp-test"
 )
 
 // OperationFn is a function that uses a Kubernetes client to perform and
@@ -43,6 +46,7 @@ type OperationFn func(*envtest.Environment, client.Client) error
 
 // Config is a set of configuration values for setup.
 type Config struct {
+	RemoteCRDPaths    []string
 	CRDDirectoryPaths []string
 	Builder           OperationFn
 	Cleaners          []OperationFn
@@ -82,6 +86,14 @@ func NewCRDCleaner() OperationFn {
 	}
 }
 
+// NewRemoteDirCleaner cleans up the default directory where remote CRDs were
+// downloaded.
+func NewRemoteDirCleaner() OperationFn {
+	return func(e *envtest.Environment, c client.Client) error {
+		return os.RemoveAll(remotePath)
+	}
+}
+
 // An Option configures a Config.
 type Option func(*Config)
 
@@ -92,8 +104,8 @@ func WithBuilder(builder OperationFn) Option {
 	}
 }
 
-// WithCleaner sets a custom cleaner function for a Config.
-func WithCleaner(cleaners ...OperationFn) Option {
+// WithCleaners sets custom cleaner functios for a Config.
+func WithCleaners(cleaners ...OperationFn) Option {
 	return func(c *Config) {
 		c.Cleaners = cleaners
 	}
@@ -103,6 +115,13 @@ func WithCleaner(cleaners ...OperationFn) Option {
 func WithCRDDirectoryPaths(crds ...string) Option {
 	return func(c *Config) {
 		c.CRDDirectoryPaths = crds
+	}
+}
+
+// WithRemoteCRDPaths sets custom remote CRD locations for a Config.
+func WithRemoteCRDPaths(urls ...string) Option {
+	return func(c *Config) {
+		c.RemoteCRDPaths = urls
 	}
 }
 
@@ -121,6 +140,7 @@ func defaultConfig() *Config {
 	}
 
 	return &Config{
+		RemoteCRDPaths:    []string{},
 		CRDDirectoryPaths: []string{},
 		Builder:           NewBuilder(),
 		Cleaners:          []OperationFn{NewCRDCleaner()},
@@ -148,6 +168,14 @@ func New(cfg *rest.Config, o ...Option) (*Manager, error) {
 	for _, op := range o {
 		op(c)
 	}
+
+	for _, url := range c.RemoteCRDPaths {
+		if err := downloadPath(url, remotePath); err != nil {
+			return nil, errors.Wrap(err, errGetRemote)
+		}
+	}
+
+	c.CRDDirectoryPaths = append(c.CRDDirectoryPaths, remotePath)
 
 	e := &envtest.Environment{
 		CRDDirectoryPaths:  c.CRDDirectoryPaths,
