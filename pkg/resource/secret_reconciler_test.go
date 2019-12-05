@@ -18,6 +18,8 @@ package resource
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -60,71 +62,17 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 		args args
 		want want
 	}{
-		"FromNotFound": {
-			args: args{
-				m: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
-							switch n.Name {
-							case fromName:
-								return kerrors.NewNotFound(schema.GroupResource{}, "")
-							default:
-								return errors.New("unexpected secret name")
-							}
-						},
-					},
-				},
-			},
-			want: want{
-				result: reconcile.Result{},
-			},
-		},
-		"GetFromError": {
-			args: args{
-				m: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
-							switch n.Name {
-							case fromName:
-								return errBoom
-							default:
-								return errors.New("unexpected secret name")
-							}
-						},
-					},
-				},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errGetSecret),
-			},
-		},
 		"ToNotFound": {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
-							s := o.(*corev1.Secret)
 							switch n.Name {
-							case fromName:
-								*s = corev1.Secret{
-									ObjectMeta: metav1.ObjectMeta{
-										Namespace: ns,
-										Name:      fromName,
-										UID:       fromUID,
-										Annotations: map[string]string{
-											AnnotationKeyPropagateToNamespace: ns,
-											AnnotationKeyPropagateToName:      toName,
-											AnnotationKeyPropagateToUID:       string(toUID),
-										},
-									},
-									Data: fromData,
-								}
 							case toName:
 								return kerrors.NewNotFound(schema.GroupResource{}, "")
 							default:
 								return errors.New("unexpected secret name")
 							}
-							return nil
 						},
 					},
 				},
@@ -138,23 +86,72 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
+							switch n.Name {
+							case toName:
+								return errBoom
+							default:
+								return errors.New("unexpected secret name")
+							}
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errGetSecret),
+			},
+		},
+		"FromNotFound": {
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
 							s := o.(*corev1.Secret)
 							switch n.Name {
-							case fromName:
+							case toName:
 								*s = corev1.Secret{
 									ObjectMeta: metav1.ObjectMeta{
 										Namespace: ns,
-										Name:      fromName,
-										UID:       fromUID,
+										Name:      toName,
+										UID:       toUID,
 										Annotations: map[string]string{
-											AnnotationKeyPropagateToNamespace: ns,
-											AnnotationKeyPropagateToName:      toName,
-											AnnotationKeyPropagateToUID:       string(toUID),
+											fmt.Sprintf(AnnotationKeyPropagateFromFormat, string(fromUID)): strings.Join([]string{ns, fromName}, "/"),
 										},
 									},
-									Data: fromData,
 								}
+							case fromName:
+								return kerrors.NewNotFound(schema.GroupResource{}, fromName)
+							default:
+								return errors.New("unexpected secret name")
+							}
+							return nil
+						},
+					},
+				},
+			},
+			want: want{
+				result: reconcile.Result{},
+				err:    errors.Wrap(kerrors.NewNotFound(schema.GroupResource{}, fromName), errGetSecret),
+			},
+		},
+		"GetFromError": {
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
+							s := o.(*corev1.Secret)
+							switch n.Name {
 							case toName:
+								*s = corev1.Secret{
+									ObjectMeta: metav1.ObjectMeta{
+										Namespace: ns,
+										Name:      toName,
+										UID:       toUID,
+										Annotations: map[string]string{
+											fmt.Sprintf(AnnotationKeyPropagateFromFormat, string(fromUID)): strings.Join([]string{ns, fromName}, "/"),
+										},
+									},
+								}
+							case fromName:
 								return errBoom
 							default:
 								return errors.New("unexpected secret name")
@@ -168,56 +165,6 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 				err: errors.Wrap(errBoom, errGetSecret),
 			},
 		},
-		"UnexpectedToUID": {
-			args: args{
-				m: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
-							s := o.(*corev1.Secret)
-
-							switch n.Name {
-							case fromName:
-								*s = corev1.Secret{
-									ObjectMeta: metav1.ObjectMeta{
-										Namespace: ns,
-										Name:      fromName,
-										UID:       fromUID,
-										Annotations: map[string]string{
-											AnnotationKeyPropagateToNamespace: ns,
-											AnnotationKeyPropagateToName:      toName,
-											AnnotationKeyPropagateToUID:       "some-other-uuid",
-										},
-									},
-									Data: fromData,
-								}
-							case toName:
-								*s = corev1.Secret{
-									ObjectMeta: metav1.ObjectMeta{
-										Namespace: ns,
-										Name:      toName,
-										UID:       toUID,
-										Annotations: map[string]string{
-											AnnotationKeyPropagateFromNamespace: ns,
-											AnnotationKeyPropagateFromName:      fromName,
-											AnnotationKeyPropagateFromUID:       string(fromUID),
-										},
-									},
-								}
-							default:
-								return errors.New("unexpected secret name")
-							}
-							return nil
-						},
-						MockUpdate: test.NewMockUpdateFn(nil, func(got runtime.Object) error {
-							return errors.New("called unexpectedly")
-						}),
-					},
-				},
-			},
-			want: want{
-				result: reconcile.Result{},
-			},
-		},
 		"UnexpectedFromUID": {
 			args: args{
 				m: &fake.Manager{
@@ -226,20 +173,6 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 							s := o.(*corev1.Secret)
 
 							switch n.Name {
-							case fromName:
-								*s = corev1.Secret{
-									ObjectMeta: metav1.ObjectMeta{
-										Namespace: ns,
-										Name:      fromName,
-										UID:       fromUID,
-										Annotations: map[string]string{
-											AnnotationKeyPropagateToNamespace: ns,
-											AnnotationKeyPropagateToName:      toName,
-											AnnotationKeyPropagateToUID:       string(toUID),
-										},
-									},
-									Data: fromData,
-								}
 							case toName:
 								*s = corev1.Secret{
 									ObjectMeta: metav1.ObjectMeta{
@@ -247,11 +180,22 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 										Name:      toName,
 										UID:       toUID,
 										Annotations: map[string]string{
-											AnnotationKeyPropagateFromNamespace: ns,
-											AnnotationKeyPropagateFromName:      fromName,
-											AnnotationKeyPropagateFromUID:       "some-other-uuid",
+											fmt.Sprintf(AnnotationKeyPropagateFromFormat, "some-other-uid"): strings.Join([]string{ns, fromName}, "/"),
 										},
 									},
+									Data: fromData,
+								}
+							case fromName:
+								*s = corev1.Secret{
+									ObjectMeta: metav1.ObjectMeta{
+										Namespace: ns,
+										Name:      fromName,
+										UID:       fromUID,
+										Annotations: map[string]string{
+											fmt.Sprintf(AnnotationKeyPropagateToFormat, string(toUID)): strings.Join([]string{ns, toName}, "/"),
+										},
+									},
+									Data: fromData,
 								}
 							default:
 								return errors.New("unexpected secret name")
@@ -266,6 +210,55 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 			},
 			want: want{
 				result: reconcile.Result{},
+				err:    errors.New(errUnexpectedFromUID),
+			},
+		},
+		"UnexpectedToUID": {
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
+							s := o.(*corev1.Secret)
+
+							switch n.Name {
+							case toName:
+								*s = corev1.Secret{
+									ObjectMeta: metav1.ObjectMeta{
+										Namespace: ns,
+										Name:      toName,
+										UID:       toUID,
+										Annotations: map[string]string{
+											fmt.Sprintf(AnnotationKeyPropagateFromFormat, string(fromUID)): strings.Join([]string{ns, fromName}, "/"),
+										},
+									},
+									Data: fromData,
+								}
+							case fromName:
+								*s = corev1.Secret{
+									ObjectMeta: metav1.ObjectMeta{
+										Namespace: ns,
+										Name:      fromName,
+										UID:       fromUID,
+										Annotations: map[string]string{
+											fmt.Sprintf(AnnotationKeyPropagateToFormat, "some-other-uid"): strings.Join([]string{ns, toName}, "/"),
+										},
+									},
+									Data: fromData,
+								}
+							default:
+								return errors.New("unexpected secret name")
+							}
+							return nil
+						},
+						MockUpdate: test.NewMockUpdateFn(nil, func(got runtime.Object) error {
+							return errors.New("called unexpectedly")
+						}),
+					},
+				},
+			},
+			want: want{
+				result: reconcile.Result{},
+				err:    errors.New(errUnexpectedToUID),
 			},
 		},
 		"UpdateToError": {
@@ -276,20 +269,6 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 							s := o.(*corev1.Secret)
 
 							switch n.Name {
-							case fromName:
-								*s = corev1.Secret{
-									ObjectMeta: metav1.ObjectMeta{
-										Namespace: ns,
-										Name:      fromName,
-										UID:       fromUID,
-										Annotations: map[string]string{
-											AnnotationKeyPropagateToNamespace: ns,
-											AnnotationKeyPropagateToName:      toName,
-											AnnotationKeyPropagateToUID:       string(toUID),
-										},
-									},
-									Data: fromData,
-								}
 							case toName:
 								*s = corev1.Secret{
 									ObjectMeta: metav1.ObjectMeta{
@@ -297,11 +276,22 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 										Name:      toName,
 										UID:       toUID,
 										Annotations: map[string]string{
-											AnnotationKeyPropagateFromNamespace: ns,
-											AnnotationKeyPropagateFromName:      fromName,
-											AnnotationKeyPropagateFromUID:       string(fromUID),
+											fmt.Sprintf(AnnotationKeyPropagateFromFormat, string(fromUID)): strings.Join([]string{ns, fromName}, "/"),
 										},
 									},
+									Data: fromData,
+								}
+							case fromName:
+								*s = corev1.Secret{
+									ObjectMeta: metav1.ObjectMeta{
+										Namespace: ns,
+										Name:      fromName,
+										UID:       fromUID,
+										Annotations: map[string]string{
+											fmt.Sprintf(AnnotationKeyPropagateToFormat, string(toUID)): strings.Join([]string{ns, toName}, "/"),
+										},
+									},
+									Data: fromData,
 								}
 							default:
 								return errors.New("unexpected secret name")
@@ -318,7 +308,7 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 				err: errors.Wrap(errBoom, errUpdateSecret),
 			},
 		},
-		"Successful": {
+		"SuccessfulSingle": {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
@@ -326,20 +316,6 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 							s := o.(*corev1.Secret)
 
 							switch n.Name {
-							case fromName:
-								*s = corev1.Secret{
-									ObjectMeta: metav1.ObjectMeta{
-										Namespace: ns,
-										Name:      fromName,
-										UID:       fromUID,
-										Annotations: map[string]string{
-											AnnotationKeyPropagateToNamespace: ns,
-											AnnotationKeyPropagateToName:      toName,
-											AnnotationKeyPropagateToUID:       string(toUID),
-										},
-									},
-									Data: fromData,
-								}
 							case toName:
 								*s = corev1.Secret{
 									ObjectMeta: metav1.ObjectMeta{
@@ -347,11 +323,22 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 										Name:      toName,
 										UID:       toUID,
 										Annotations: map[string]string{
-											AnnotationKeyPropagateFromNamespace: ns,
-											AnnotationKeyPropagateFromName:      fromName,
-											AnnotationKeyPropagateFromUID:       string(fromUID),
+											fmt.Sprintf(AnnotationKeyPropagateFromFormat, string(fromUID)): strings.Join([]string{ns, fromName}, "/"),
 										},
 									},
+									Data: fromData,
+								}
+							case fromName:
+								*s = corev1.Secret{
+									ObjectMeta: metav1.ObjectMeta{
+										Namespace: ns,
+										Name:      fromName,
+										UID:       fromUID,
+										Annotations: map[string]string{
+											fmt.Sprintf(AnnotationKeyPropagateToFormat, string(toUID)): strings.Join([]string{ns, toName}, "/"),
+										},
+									},
+									Data: fromData,
 								}
 							default:
 								return errors.New("unexpected secret name")
@@ -365,9 +352,70 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 									Name:      toName,
 									UID:       toUID,
 									Annotations: map[string]string{
-										AnnotationKeyPropagateFromNamespace: ns,
-										AnnotationKeyPropagateFromName:      fromName,
-										AnnotationKeyPropagateFromUID:       string(fromUID),
+										fmt.Sprintf(AnnotationKeyPropagateFromFormat, string(fromUID)): strings.Join([]string{ns, fromName}, "/"),
+									},
+								},
+								Data: fromData,
+							}
+							if diff := cmp.Diff(want, got); diff != "" {
+								t.Errorf("-want, +got:\n%s", diff)
+							}
+							return nil
+						}),
+					},
+				},
+			},
+			want: want{
+				result: reconcile.Result{},
+			},
+		},
+		"SuccessfulMultiple": {
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
+							s := o.(*corev1.Secret)
+
+							switch n.Name {
+							case toName:
+								*s = corev1.Secret{
+									ObjectMeta: metav1.ObjectMeta{
+										Namespace: ns,
+										Name:      toName,
+										UID:       toUID,
+										Annotations: map[string]string{
+											fmt.Sprintf(AnnotationKeyPropagateFromFormat, string(fromUID)): strings.Join([]string{ns, fromName}, "/"),
+										},
+									},
+									Data: fromData,
+								}
+							case fromName:
+								*s = corev1.Secret{
+									ObjectMeta: metav1.ObjectMeta{
+										Namespace: ns,
+										Name:      fromName,
+										UID:       fromUID,
+										Annotations: map[string]string{
+											fmt.Sprintf(AnnotationKeyPropagateToFormat, string(toUID)):            strings.Join([]string{ns, toName}, "/"),
+											fmt.Sprintf(AnnotationKeyPropagateToFormat, string("some-uid")):       strings.Join([]string{ns, toName}, "/"),
+											fmt.Sprintf(AnnotationKeyPropagateToFormat, string("some-other-uid")): strings.Join([]string{ns, toName}, "/"),
+										},
+									},
+									Data: fromData,
+								}
+							default:
+								return errors.New("unexpected secret name")
+							}
+							return nil
+						},
+						MockUpdate: test.NewMockUpdateFn(nil, func(got runtime.Object) error {
+							want := &corev1.Secret{
+								ObjectMeta: metav1.ObjectMeta{
+									Namespace: ns,
+									Name:      toName,
+									UID:       toUID,
+									Annotations: map[string]string{
+										fmt.Sprintf(AnnotationKeyPropagateFromFormat, string(fromUID)): strings.Join([]string{ns, fromName}, "/"),
 									},
 								},
 								Data: fromData,
@@ -389,7 +437,7 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewSecretPropagatingReconciler(tc.args.m)
-			got, err := r.Reconcile(reconcile.Request{NamespacedName: types.NamespacedName{Namespace: ns, Name: fromName}})
+			got, err := r.Reconcile(reconcile.Request{NamespacedName: types.NamespacedName{Namespace: ns, Name: toName}})
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("r.Reconcile(...): -want error, +got error:\n%s", diff)
