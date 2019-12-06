@@ -25,6 +25,7 @@ import (
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -78,9 +79,9 @@ func TestGetRunningPod(t *testing.T) {
 				podName:      "foo",
 				podNamespace: "foo-ns",
 			},
-			kube: fake.NewFakeClient(&v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "foo-ns"}}),
+			kube: fake.NewFakeClientWithScheme(scheme.Scheme, &v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "foo-ns"}}),
 			want: want{
-				pod: &v1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "foo-ns"}},
+				pod: &v1.Pod{TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "Pod"}, ObjectMeta: metav1.ObjectMeta{Name: "foo", Namespace: "foo-ns"}},
 				err: nil,
 			},
 		},
