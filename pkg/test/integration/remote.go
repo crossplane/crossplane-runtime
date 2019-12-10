@@ -35,7 +35,9 @@ func downloadPath(url, path string) (string, error) {
 
 	// Subdirectory is given name of md5 hash of url.
 	hasher := md5.New()
-	hasher.Write([]byte(url))
+	if _, err = hasher.Write([]byte(url)); err != nil {
+		return "", err
+	}
 	dst := filepath.Join(path, hex.EncodeToString(hasher.Sum(nil)))
 
 	c := getter.Client{
