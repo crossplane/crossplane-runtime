@@ -18,7 +18,6 @@ package resource
 
 import (
 	"context"
-	"github.com/crossplaneio/crossplane-runtime/pkg/resource/fake"
 	"testing"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -34,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 )
 
@@ -63,30 +63,30 @@ func TestManagedReconciler(t *testing.T) {
 		"GetManagedError": {
 			reason: "Any error (except not found) encountered while getting the resource under reconciliation should be returned.",
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
-					s: MockSchemeWith(&fake.MockManaged{}),
+				m: &fake.MockManager{
+					Client: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
+					Scheme: fake.MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
+				mg: ManagedKind(fake.MockGVK(&fake.MockManaged{})),
 			},
 			want: want{err: errors.Wrap(errBoom, errGetManaged)},
 		},
 		"ManagedNotFound": {
 			reason: "Not found errors encountered while getting the resource under reconciliation should be ignored.",
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, ""))},
-					s: MockSchemeWith(&fake.MockManaged{}),
+				m: &fake.MockManager{
+					Client: &test.MockClient{MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, ""))},
+					Scheme: fake.MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
+				mg: ManagedKind(fake.MockGVK(&fake.MockManaged{})),
 			},
 			want: want{result: reconcile.Result{}},
 		},
 		"ExternalConnectError": {
 			reason: "Errors connecting to the provider should trigger a requeue after a short wait.",
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.MockManager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, got runtime.Object, _ ...client.UpdateOption) error {
 							want := &fake.MockManaged{}
@@ -98,9 +98,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&fake.MockManaged{}),
+					Scheme: fake.MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
+				mg: ManagedKind(fake.MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
 						return nil, errBoom
@@ -112,8 +112,8 @@ func TestManagedReconciler(t *testing.T) {
 		"InitializeError": {
 			reason: "Errors initializing the managed resource should trigger a requeue after a short wait.",
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.MockManager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &fake.MockManaged{}
@@ -125,9 +125,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&fake.MockManaged{}),
+					Scheme: fake.MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
+				mg: ManagedKind(fake.MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithExternalConnecter(&NopConnecter{}),
 					WithManagedInitializers(ManagedInitializerFn(func(_ context.Context, mg Managed) error {
@@ -140,8 +140,8 @@ func TestManagedReconciler(t *testing.T) {
 		"ResolveReferencesNotReadyError": {
 			reason: "Dependencies on unready references should trigger a requeue after a short wait.",
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.MockManager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &fake.MockManaged{}
@@ -153,9 +153,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&fake.MockManaged{}),
+					Scheme: fake.MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
+				mg: ManagedKind(fake.MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithExternalConnecter(&NopConnecter{}),
@@ -169,8 +169,8 @@ func TestManagedReconciler(t *testing.T) {
 		"ResolveReferencesError": {
 			reason: "Errors during reference resolution references should trigger a requeue after a short wait.",
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.MockManager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &fake.MockManaged{}
@@ -182,9 +182,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&fake.MockManaged{}),
+					Scheme: fake.MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
+				mg: ManagedKind(fake.MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithExternalConnecter(&NopConnecter{}),
@@ -198,8 +198,8 @@ func TestManagedReconciler(t *testing.T) {
 		"ExternalObserveError": {
 			reason: "Errors observing the external resource should trigger a requeue after a short wait.",
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.MockManager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &fake.MockManaged{}
@@ -212,9 +212,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&fake.MockManaged{}),
+					Scheme: fake.MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
+				mg: ManagedKind(fake.MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
@@ -232,8 +232,8 @@ func TestManagedReconciler(t *testing.T) {
 		"ExternalDeleteError": {
 			reason: "Errors deleting the external resource should trigger a requeue after a short wait.",
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.MockManager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
 							mg := obj.(*fake.MockManaged)
 							mg.SetDeletionTimestamp(&now)
@@ -252,9 +252,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&fake.MockManaged{}),
+					Scheme: fake.MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
+				mg: ManagedKind(fake.MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
@@ -276,8 +276,8 @@ func TestManagedReconciler(t *testing.T) {
 		"ExternalDeleteSuccessful": {
 			reason: "A deleted managed resource with the 'delete' reclaim policy should delete its external resource then requeue after a short wait.",
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.MockManager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
 							mg := obj.(*fake.MockManaged)
 							mg.SetDeletionTimestamp(&now)
@@ -296,9 +296,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&fake.MockManaged{}),
+					Scheme: fake.MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
+				mg: ManagedKind(fake.MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
@@ -320,8 +320,8 @@ func TestManagedReconciler(t *testing.T) {
 		"UnpublishConnectionDetailsError": {
 			reason: "Errors unpublishing connection details should trigger a requeue after a short wait.",
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.MockManager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
 							mg := obj.(*fake.MockManaged)
 							mg.SetDeletionTimestamp(&now)
@@ -338,9 +338,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&fake.MockManaged{}),
+					Scheme: fake.MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
+				mg: ManagedKind(fake.MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
@@ -362,8 +362,8 @@ func TestManagedReconciler(t *testing.T) {
 		"RemoveFinalizerError": {
 			reason: "Errors removing the managed resource finalizer should trigger a requeue after a short wait.",
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.MockManager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
 							mg := obj.(*fake.MockManaged)
 							mg.SetDeletionTimestamp(&now)
@@ -380,9 +380,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&fake.MockManaged{}),
+					Scheme: fake.MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
+				mg: ManagedKind(fake.MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
@@ -403,17 +403,17 @@ func TestManagedReconciler(t *testing.T) {
 		"DeleteSuccessful": {
 			reason: "Successful managed resource deletion should not trigger a requeue or status update.",
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.MockManager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
 							mg := obj.(*fake.MockManaged)
 							mg.SetDeletionTimestamp(&now)
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&fake.MockManaged{}),
+					Scheme: fake.MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
+				mg: ManagedKind(fake.MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
@@ -434,8 +434,8 @@ func TestManagedReconciler(t *testing.T) {
 		"PublishObservationConnectionDetailsError": {
 			reason: "Errors publishing connection details after observation should trigger a requeue after a short wait.",
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.MockManager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &fake.MockManaged{}
@@ -448,9 +448,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&fake.MockManaged{}),
+					Scheme: fake.MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
+				mg: ManagedKind(fake.MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
@@ -465,8 +465,8 @@ func TestManagedReconciler(t *testing.T) {
 		"AddFinalizerError": {
 			reason: "Errors adding a finalizer should trigger a requeue after a short wait.",
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.MockManager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &fake.MockManaged{}
@@ -479,9 +479,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&fake.MockManaged{}),
+					Scheme: fake.MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
+				mg: ManagedKind(fake.MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
@@ -495,8 +495,8 @@ func TestManagedReconciler(t *testing.T) {
 		"CreateExternalError": {
 			reason: "Errors while creating an external resource should trigger a requeue after a short wait.",
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.MockManager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &fake.MockManaged{}
@@ -509,9 +509,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&fake.MockManaged{}),
+					Scheme: fake.MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
+				mg: ManagedKind(fake.MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
@@ -535,8 +535,8 @@ func TestManagedReconciler(t *testing.T) {
 		"PublishCreationConnectionDetailsError": {
 			reason: "Errors publishing connection details after creation should trigger a requeue after a short wait.",
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.MockManager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &fake.MockManaged{}
@@ -549,9 +549,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&fake.MockManaged{}),
+					Scheme: fake.MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
+				mg: ManagedKind(fake.MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
@@ -586,8 +586,8 @@ func TestManagedReconciler(t *testing.T) {
 		"CreateSuccessful": {
 			reason: "Successful managed resource creation should trigger a requeue after a short wait.",
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.MockManager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &fake.MockManaged{}
@@ -600,9 +600,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&fake.MockManaged{}),
+					Scheme: fake.MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
+				mg: ManagedKind(fake.MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
@@ -616,8 +616,8 @@ func TestManagedReconciler(t *testing.T) {
 		"ExternalResourceUpToDate": {
 			reason: "When the external resource exists and is up to date a requeue should be triggered after a long wait.",
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.MockManager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &fake.MockManaged{}
@@ -630,9 +630,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&fake.MockManaged{}),
+					Scheme: fake.MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
+				mg: ManagedKind(fake.MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
@@ -653,8 +653,8 @@ func TestManagedReconciler(t *testing.T) {
 		"UpdateExternalError": {
 			reason: "Errors while updating an external resource should trigger a requeue after a short wait.",
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.MockManager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &fake.MockManaged{}
@@ -667,9 +667,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&fake.MockManaged{}),
+					Scheme: fake.MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
+				mg: ManagedKind(fake.MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
@@ -693,8 +693,8 @@ func TestManagedReconciler(t *testing.T) {
 		"PublishUpdateConnectionDetailsError": {
 			reason: "Errors publishing connection details after an update should trigger a requeue after a short wait.",
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.MockManager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &fake.MockManaged{}
@@ -707,9 +707,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&fake.MockManaged{}),
+					Scheme: fake.MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
+				mg: ManagedKind(fake.MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
@@ -744,8 +744,8 @@ func TestManagedReconciler(t *testing.T) {
 		"UpdateSuccessful": {
 			reason: "A successful managed resource update should trigger a requeue after a long wait.",
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.MockManager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &fake.MockManaged{}
@@ -758,9 +758,9 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&fake.MockManaged{}),
+					Scheme: fake.MockSchemeWith(&fake.MockManaged{}),
 				},
-				mg: ManagedKind(MockGVK(&fake.MockManaged{})),
+				mg: ManagedKind(fake.MockGVK(&fake.MockManaged{})),
 				o: []ManagedReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),

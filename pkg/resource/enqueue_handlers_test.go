@@ -17,8 +17,9 @@ limitations under the License.
 package resource
 
 import (
-	"github.com/crossplaneio/crossplane-runtime/pkg/resource/fake"
 	"testing"
+
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource/fake"
 
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"

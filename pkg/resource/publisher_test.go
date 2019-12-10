@@ -18,8 +18,9 @@ package resource
 
 import (
 	"context"
-	"github.com/crossplaneio/crossplane-runtime/pkg/resource/fake"
 	"testing"
+
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource/fake"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
@@ -161,7 +162,7 @@ func TestAPISecretPublisher(t *testing.T) {
 					},
 					MockUpdate: test.NewMockUpdateFn(nil),
 				},
-				typer: MockSchemeWith(&fake.MockManaged{}),
+				typer: fake.MockSchemeWith(&fake.MockManaged{}),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -184,7 +185,7 @@ func TestAPISecretPublisher(t *testing.T) {
 					},
 					MockUpdate: test.NewMockUpdateFn(nil),
 				},
-				typer: MockSchemeWith(&fake.MockManaged{}),
+				typer: fake.MockSchemeWith(&fake.MockManaged{}),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -208,8 +209,8 @@ func TestAPISecretPublisher(t *testing.T) {
 						want.SetName(mgcsname)
 						want.SetOwnerReferences([]metav1.OwnerReference{{
 							Name:       mgname,
-							APIVersion: MockGVK(&fake.MockManaged{}).GroupVersion().String(),
-							Kind:       MockGVK(&fake.MockManaged{}).Kind,
+							APIVersion: fake.MockGVK(&fake.MockManaged{}).GroupVersion().String(),
+							Kind:       fake.MockGVK(&fake.MockManaged{}).Kind,
 							Controller: &controller,
 						}})
 						want.Data = cddata
@@ -219,7 +220,7 @@ func TestAPISecretPublisher(t *testing.T) {
 						return nil
 					}),
 				},
-				typer: MockSchemeWith(&fake.MockManaged{}),
+				typer: fake.MockSchemeWith(&fake.MockManaged{}),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -243,8 +244,8 @@ func TestAPISecretPublisher(t *testing.T) {
 						s.SetName(mgcsname)
 						s.SetOwnerReferences([]metav1.OwnerReference{{
 							Name:       mgname,
-							APIVersion: MockGVK(&fake.MockManaged{}).GroupVersion().String(),
-							Kind:       MockGVK(&fake.MockManaged{}).Kind,
+							APIVersion: fake.MockGVK(&fake.MockManaged{}).GroupVersion().String(),
+							Kind:       fake.MockGVK(&fake.MockManaged{}).Kind,
 							Controller: &controller,
 						}})
 						*o.(*corev1.Secret) = *s
@@ -256,8 +257,8 @@ func TestAPISecretPublisher(t *testing.T) {
 						want.SetName(mgcsname)
 						want.SetOwnerReferences([]metav1.OwnerReference{{
 							Name:       mgname,
-							APIVersion: MockGVK(&fake.MockManaged{}).GroupVersion().String(),
-							Kind:       MockGVK(&fake.MockManaged{}).Kind,
+							APIVersion: fake.MockGVK(&fake.MockManaged{}).GroupVersion().String(),
+							Kind:       fake.MockGVK(&fake.MockManaged{}).Kind,
 							Controller: &controller,
 						}})
 						want.Data = cddata
@@ -267,7 +268,7 @@ func TestAPISecretPublisher(t *testing.T) {
 						return nil
 					}),
 				},
-				typer: MockSchemeWith(&fake.MockManaged{}),
+				typer: fake.MockSchemeWith(&fake.MockManaged{}),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -291,8 +292,8 @@ func TestAPISecretPublisher(t *testing.T) {
 						s.SetName(mgcsname)
 						s.SetOwnerReferences([]metav1.OwnerReference{{
 							Name:       mgname,
-							APIVersion: MockGVK(&fake.MockManaged{}).GroupVersion().String(),
-							Kind:       MockGVK(&fake.MockManaged{}).Kind,
+							APIVersion: fake.MockGVK(&fake.MockManaged{}).GroupVersion().String(),
+							Kind:       fake.MockGVK(&fake.MockManaged{}).Kind,
 							Controller: &controller,
 						}})
 						s.Data = mgcsdata
@@ -305,8 +306,8 @@ func TestAPISecretPublisher(t *testing.T) {
 						want.SetName(mgcsname)
 						want.SetOwnerReferences([]metav1.OwnerReference{{
 							Name:       mgname,
-							APIVersion: MockGVK(&fake.MockManaged{}).GroupVersion().String(),
-							Kind:       MockGVK(&fake.MockManaged{}).Kind,
+							APIVersion: fake.MockGVK(&fake.MockManaged{}).GroupVersion().String(),
+							Kind:       fake.MockGVK(&fake.MockManaged{}).Kind,
 							Controller: &controller,
 						}})
 						want.Data = map[string][]byte{
@@ -320,7 +321,7 @@ func TestAPISecretPublisher(t *testing.T) {
 						return nil
 					}),
 				},
-				typer: MockSchemeWith(&fake.MockManaged{}),
+				typer: fake.MockSchemeWith(&fake.MockManaged{}),
 			},
 			args: args{
 				ctx: context.Background(),

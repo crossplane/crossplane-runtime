@@ -18,8 +18,9 @@ package resource
 
 import (
 	"context"
-	"github.com/crossplaneio/crossplane-runtime/pkg/resource/fake"
 	"testing"
+
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource/fake"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"

@@ -17,8 +17,9 @@ limitations under the License.
 package resource
 
 import (
-	"github.com/crossplaneio/crossplane-runtime/pkg/resource/fake"
 	"testing"
+
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource/fake"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
@@ -110,24 +111,24 @@ func TestHasManagedResourceReferenceKind(t *testing.T) {
 	}{
 		"NotAClassReferencer": {
 			c:    &test.MockClient{},
-			kind: ManagedKind(MockGVK(&fake.MockManaged{})),
+			kind: ManagedKind(fake.MockGVK(&fake.MockManaged{})),
 			want: false,
 		},
 		"HasNoResourceReference": {
 			obj:  &fake.MockClaim{},
-			kind: ManagedKind(MockGVK(&fake.MockManaged{})),
+			kind: ManagedKind(fake.MockGVK(&fake.MockManaged{})),
 			want: false,
 		},
 		"HasCorrectResourceReference": {
 			obj: &fake.MockClaim{
 				MockManagedResourceReferencer: fake.MockManagedResourceReferencer{
 					Ref: &corev1.ObjectReference{
-						APIVersion: MockGVK(&fake.MockManaged{}).GroupVersion().String(),
-						Kind:       MockGVK(&fake.MockManaged{}).Kind,
+						APIVersion: fake.MockGVK(&fake.MockManaged{}).GroupVersion().String(),
+						Kind:       fake.MockGVK(&fake.MockManaged{}).Kind,
 					},
 				},
 			},
-			kind: ManagedKind(MockGVK(&fake.MockManaged{})),
+			kind: ManagedKind(fake.MockGVK(&fake.MockManaged{})),
 			want: true,
 		},
 	}
@@ -151,24 +152,24 @@ func TestHasClassReferenceKind(t *testing.T) {
 	}{
 		"NotAClassReferencer": {
 			c:    &test.MockClient{},
-			kind: ClassKind(MockGVK(&fake.MockClass{})),
+			kind: ClassKind(fake.MockGVK(&fake.MockClass{})),
 			want: false,
 		},
 		"HasNoClassReference": {
 			obj:  &fake.MockClaim{},
-			kind: ClassKind(MockGVK(&fake.MockClass{})),
+			kind: ClassKind(fake.MockGVK(&fake.MockClass{})),
 			want: false,
 		},
 		"HasCorrectClassReference": {
 			obj: &fake.MockClaim{
 				MockClassReferencer: fake.MockClassReferencer{
 					Ref: &corev1.ObjectReference{
-						APIVersion: MockGVK(&fake.MockClass{}).GroupVersion().String(),
-						Kind:       MockGVK(&fake.MockClass{}).Kind,
+						APIVersion: fake.MockGVK(&fake.MockClass{}).GroupVersion().String(),
+						Kind:       fake.MockGVK(&fake.MockClass{}).Kind,
 					},
 				},
 			},
-			kind: ClassKind(MockGVK(&fake.MockClass{})),
+			kind: ClassKind(fake.MockGVK(&fake.MockClass{})),
 			want: true,
 		},
 	}
@@ -191,17 +192,17 @@ func TestIsManagedKind(t *testing.T) {
 		want bool
 	}{
 		"IsKind": {
-			kind: ManagedKind(MockGVK(&fake.MockManaged{})),
-			ot:   MockTyper{GVKs: []schema.GroupVersionKind{MockGVK(&fake.MockManaged{})}},
+			kind: ManagedKind(fake.MockGVK(&fake.MockManaged{})),
+			ot:   MockTyper{GVKs: []schema.GroupVersionKind{fake.MockGVK(&fake.MockManaged{})}},
 			want: true,
 		},
 		"IsNotKind": {
-			kind: ManagedKind(MockGVK(&fake.MockManaged{})),
-			ot:   MockTyper{GVKs: []schema.GroupVersionKind{MockGVK(&fake.MockClaim{})}},
+			kind: ManagedKind(fake.MockGVK(&fake.MockManaged{})),
+			ot:   MockTyper{GVKs: []schema.GroupVersionKind{fake.MockGVK(&fake.MockClaim{})}},
 			want: false,
 		},
 		"ErrorDeterminingKind": {
-			kind: ManagedKind(MockGVK(&fake.MockManaged{})),
+			kind: ManagedKind(fake.MockGVK(&fake.MockManaged{})),
 			ot:   MockTyper{Error: errors.New("boom")},
 			want: false,
 		},
@@ -233,31 +234,31 @@ func TestIsControlledByKind(t *testing.T) {
 			want: false,
 		},
 		"WrongAPIVersion": {
-			kind: MockGVK(&fake.MockManaged{}),
+			kind: fake.MockGVK(&fake.MockManaged{}),
 			obj: &corev1.Secret{ObjectMeta: v1.ObjectMeta{OwnerReferences: []v1.OwnerReference{
 				{
-					Kind:       MockGVK(&fake.MockManaged{}).Kind,
+					Kind:       fake.MockGVK(&fake.MockManaged{}).Kind,
 					Controller: &controller,
 				},
 			}}},
 			want: false,
 		},
 		"WrongKind": {
-			kind: MockGVK(&fake.MockManaged{}),
+			kind: fake.MockGVK(&fake.MockManaged{}),
 			obj: &corev1.Secret{ObjectMeta: v1.ObjectMeta{OwnerReferences: []v1.OwnerReference{
 				{
-					APIVersion: MockGVK(&fake.MockManaged{}).GroupVersion().String(),
+					APIVersion: fake.MockGVK(&fake.MockManaged{}).GroupVersion().String(),
 					Controller: &controller,
 				},
 			}}},
 			want: false,
 		},
 		"IsControlledByKind": {
-			kind: MockGVK(&fake.MockManaged{}),
+			kind: fake.MockGVK(&fake.MockManaged{}),
 			obj: &corev1.Secret{ObjectMeta: v1.ObjectMeta{OwnerReferences: []v1.OwnerReference{
 				{
-					APIVersion: MockGVK(&fake.MockManaged{}).GroupVersion().String(),
-					Kind:       MockGVK(&fake.MockManaged{}).Kind,
+					APIVersion: fake.MockGVK(&fake.MockManaged{}).GroupVersion().String(),
+					Kind:       fake.MockGVK(&fake.MockManaged{}).Kind,
 					Controller: &controller,
 				},
 			}}},

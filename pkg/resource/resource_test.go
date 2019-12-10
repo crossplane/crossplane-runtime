@@ -17,7 +17,6 @@ limitations under the License.
 package resource
 
 import (
-	"github.com/crossplaneio/crossplane-runtime/pkg/resource/fake"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -29,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 )
 
@@ -204,10 +204,10 @@ func TestGetKind(t *testing.T) {
 	}{
 		"KindFound": {
 			args: args{
-				ot: MockTyper{GVKs: []schema.GroupVersionKind{MockGVK(&fake.MockManaged{})}},
+				ot: MockTyper{GVKs: []schema.GroupVersionKind{fake.MockGVK(&fake.MockManaged{})}},
 			},
 			want: want{
-				kind: MockGVK(&fake.MockManaged{}),
+				kind: fake.MockGVK(&fake.MockManaged{}),
 			},
 		},
 		"KindError": {
@@ -237,8 +237,8 @@ func TestGetKind(t *testing.T) {
 		"TooManyKinds": {
 			args: args{
 				ot: MockTyper{GVKs: []schema.GroupVersionKind{
-					MockGVK(&fake.MockClaim{}),
-					MockGVK(&fake.MockManaged{}),
+					fake.MockGVK(&fake.MockClaim{}),
+					fake.MockGVK(&fake.MockManaged{}),
 				}},
 			},
 			want: want{
@@ -270,8 +270,8 @@ func TestMustCreateObject(t *testing.T) {
 	}{
 		"KindRegistered": {
 			args: args{
-				kind: MockGVK(&fake.MockClaim{}),
-				oc:   MockSchemeWith(&fake.MockClaim{}),
+				kind: fake.MockGVK(&fake.MockClaim{}),
+				oc:   fake.MockSchemeWith(&fake.MockClaim{}),
 			},
 			want: &fake.MockClaim{},
 		},

@@ -18,11 +18,14 @@ package fake
 
 import (
 	"encoding/json"
+	"reflect"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 )
@@ -153,17 +156,19 @@ type MockClaim struct {
 	v1alpha1.BindingStatus
 }
 
+// GetObjectKind returns schema.ObjectKind.
 func (m *MockClaim) GetObjectKind() schema.ObjectKind {
 	return schema.EmptyObjectKind
 }
 
+// DeepCopyObject returns a copy of the object as runtime.Object
 func (m *MockClaim) DeepCopyObject() runtime.Object {
 	out := &MockClaim{}
 	j, err := json.Marshal(m)
 	if err != nil {
 		panic(err)
 	}
-	json.Unmarshal(j, out)
+	_ = json.Unmarshal(j, out)
 	return out
 }
 
@@ -173,17 +178,19 @@ type MockClass struct {
 	MockReclaimer
 }
 
+// GetObjectKind returns schema.ObjectKind.
 func (m *MockClass) GetObjectKind() schema.ObjectKind {
 	return schema.EmptyObjectKind
 }
 
+// DeepCopyObject returns a copy of the object as runtime.Object
 func (m *MockClass) DeepCopyObject() runtime.Object {
 	out := &MockClass{}
 	j, err := json.Marshal(m)
 	if err != nil {
 		panic(err)
 	}
-	json.Unmarshal(j, out)
+	_ = json.Unmarshal(j, out)
 	return out
 }
 
@@ -198,17 +205,19 @@ type MockManaged struct {
 	v1alpha1.BindingStatus
 }
 
+// GetObjectKind returns schema.ObjectKind.
 func (m *MockManaged) GetObjectKind() schema.ObjectKind {
 	return schema.EmptyObjectKind
 }
 
+// DeepCopyObject returns a copy of the object as runtime.Object
 func (m *MockManaged) DeepCopyObject() runtime.Object {
 	out := &MockManaged{}
 	j, err := json.Marshal(m)
 	if err != nil {
 		panic(err)
 	}
-	json.Unmarshal(j, out)
+	_ = json.Unmarshal(j, out)
 	return out
 }
 
@@ -223,13 +232,42 @@ func (m *MockProvider) GetObjectKind() schema.ObjectKind {
 	return schema.EmptyObjectKind
 }
 
-// GetObjectKind returns a deep copy of MockProvider as runtime.Object.
+// DeepCopyObject returns a deep copy of MockProvider as runtime.Object.
 func (m *MockProvider) DeepCopyObject() runtime.Object {
 	out := &MockProvider{}
 	j, err := json.Marshal(m)
 	if err != nil {
 		panic(err)
 	}
-	json.Unmarshal(j, out)
+	_ = json.Unmarshal(j, out)
 	return out
+}
+
+// MockManager is a mock object that satisfies manager.Manager interface.
+type MockManager struct {
+	manager.Manager
+
+	Client client.Client
+	Scheme *runtime.Scheme
+}
+
+// GetClient returns the client.
+func (m *MockManager) GetClient() client.Client { return m.Client }
+
+// GetScheme returns the scheme.
+func (m *MockManager) GetScheme() *runtime.Scheme { return m.Scheme }
+
+// MockGV returns a mock schema.GroupVersion.
+var MockGV = schema.GroupVersion{Group: "g", Version: "v"}
+
+// MockGVK returns the mock GVK of the given object.
+func MockGVK(o runtime.Object) schema.GroupVersionKind {
+	return MockGV.WithKind(reflect.TypeOf(o).Elem().Name())
+}
+
+// MockSchemeWith returns a scheme with list of `runtime.Object`s registered.
+func MockSchemeWith(o ...runtime.Object) *runtime.Scheme {
+	s := runtime.NewScheme()
+	s.AddKnownTypes(MockGV, o...)
+	return s
 }
