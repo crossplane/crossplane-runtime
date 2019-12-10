@@ -80,6 +80,15 @@ type MockReclaimer struct{ Policy v1alpha1.ReclaimPolicy }
 func (m *MockReclaimer) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) { m.Policy = p }
 func (m *MockReclaimer) GetReclaimPolicy() v1alpha1.ReclaimPolicy  { return m.Policy }
 
+type MockCredentialsSecretReferencer struct{ Ref *v1alpha1.SecretKeySelector }
+
+func (m *MockCredentialsSecretReferencer) SetCredentialsSecretReference(r *v1alpha1.SecretKeySelector) {
+	m.Ref = r
+}
+func (m *MockCredentialsSecretReferencer) GetCredentialsSecretReference() *v1alpha1.SecretKeySelector {
+	return m.Ref
+}
+
 var _ Claim = &MockClaim{}
 
 type MockClaim struct {
@@ -145,6 +154,27 @@ func (m *MockManaged) GetObjectKind() schema.ObjectKind {
 
 func (m *MockManaged) DeepCopyObject() runtime.Object {
 	out := &MockManaged{}
+	j, err := json.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	json.Unmarshal(j, out)
+	return out
+}
+
+var _ Provider = &MockProvider{}
+
+type MockProvider struct {
+	metav1.ObjectMeta
+	MockCredentialsSecretReferencer
+}
+
+func (m *MockProvider) GetObjectKind() schema.ObjectKind {
+	return schema.EmptyObjectKind
+}
+
+func (m *MockProvider) DeepCopyObject() runtime.Object {
+	out := &MockProvider{}
 	j, err := json.Marshal(m)
 	if err != nil {
 		panic(err)

@@ -82,6 +82,13 @@ type Reclaimer interface {
 	GetReclaimPolicy() v1alpha1.ReclaimPolicy
 }
 
+// A CredentialsSecretReferencer may refer to a credential secret in an arbitrary
+// namespace.
+type CredentialsSecretReferencer interface {
+	GetCredentialsSecretReference() *v1alpha1.SecretKeySelector
+	SetCredentialsSecretReference(r *v1alpha1.SecretKeySelector)
+}
+
 // A Claim is a Kubernetes object representing an abstract resource claim (e.g.
 // an SQL database) that may be bound to a concrete managed resource (e.g. a
 // CloudSQL instance).
@@ -120,4 +127,13 @@ type Managed interface {
 
 	Conditioned
 	Bindable
+}
+
+// A Provider is a Kubernetes object that refers to credentials to connect
+// to an external system.
+type Provider interface {
+	runtime.Object
+	metav1.Object
+
+	CredentialsSecretReferencer
 }
