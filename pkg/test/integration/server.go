@@ -17,6 +17,7 @@ limitations under the License.
 package integration
 
 import (
+	"io/ioutil"
 	"os"
 	"time"
 
@@ -34,42 +35,43 @@ import (
 )
 
 const (
-	syncPeriod   = "30s"
-	errCleanup   = "failure in default cleanup"
-	errGetRemote = "unable to download CRDs from remote location"
-	remotePath   = "./tmp-test"
+	syncPeriod      = "30s"
+	errCleanup      = "failure in default cleanup"
+	errCreateTmpDir = "unable to create temporary directory for CRDs"
+	errGetCRDs      = "unable to download CRDs"
 )
 
-// OperationFn is a function that uses a Kubernetes client to perform and
-// operation
-type OperationFn func(*envtest.Environment, client.Client) error
+// BuilderFn is a function that performs operations prior to starting test controllers
+type BuilderFn func(client.Client) error
+
+// CleanerFn is a function that performs test cleanup
+type CleanerFn func(*Manager) error
 
 // Config is a set of configuration values for setup.
 type Config struct {
-	RemoteCRDPaths    []string
-	CRDDirectoryPaths []string
-	Builder           OperationFn
-	Cleaners          []OperationFn
-	ManagerOptions    manager.Options
+	CRDPaths       []string
+	Builder        BuilderFn
+	Cleaners       []CleanerFn
+	ManagerOptions manager.Options
 }
 
 // NewBuilder returns a new no-op Builder
-func NewBuilder() OperationFn {
-	return func(*envtest.Environment, client.Client) error {
+func NewBuilder() BuilderFn {
+	return func(client.Client) error {
 		return nil
 	}
 }
 
 // NewCRDCleaner returns a new Cleaner that deletes all installed CRDs from the
 // API server.
-func NewCRDCleaner() OperationFn {
-	return func(e *envtest.Environment, c client.Client) error {
-		cs, err := clientset.NewForConfig(e.Config)
+func NewCRDCleaner() CleanerFn {
+	return func(m *Manager) error {
+		cs, err := clientset.NewForConfig(m.env.Config)
 		if err != nil {
 			return errors.Wrap(err, errCleanup)
 		}
 		var crds []*apiextensionsv1beta1.CustomResourceDefinition
-		for _, path := range e.CRDDirectoryPaths {
+		for _, path := range m.env.CRDDirectoryPaths {
 			crd, err := readCRDs(path)
 			if err != nil {
 				return errors.Wrap(err, errCleanup)
@@ -86,11 +88,11 @@ func NewCRDCleaner() OperationFn {
 	}
 }
 
-// NewRemoteDirCleaner cleans up the default directory where remote CRDs were
+// NewCRDDirCleaner cleans up the tmp directory where CRDs were
 // downloaded.
-func NewRemoteDirCleaner() OperationFn {
-	return func(e *envtest.Environment, c client.Client) error {
-		return os.RemoveAll(remotePath)
+func NewCRDDirCleaner() CleanerFn {
+	return func(m *Manager) error {
+		return os.RemoveAll(m.tmpDir)
 	}
 }
 
@@ -98,30 +100,23 @@ func NewRemoteDirCleaner() OperationFn {
 type Option func(*Config)
 
 // WithBuilder sets a custom builder function for a Config.
-func WithBuilder(builder OperationFn) Option {
+func WithBuilder(builder BuilderFn) Option {
 	return func(c *Config) {
 		c.Builder = builder
 	}
 }
 
 // WithCleaners sets custom cleaner functios for a Config.
-func WithCleaners(cleaners ...OperationFn) Option {
+func WithCleaners(cleaners ...CleanerFn) Option {
 	return func(c *Config) {
 		c.Cleaners = cleaners
 	}
 }
 
-// WithCRDDirectoryPaths sets custom CRD locations for a Config.
-func WithCRDDirectoryPaths(crds ...string) Option {
+// WithCRDPaths sets custom CRD locations for a Config.
+func WithCRDPaths(crds ...string) Option {
 	return func(c *Config) {
-		c.CRDDirectoryPaths = crds
-	}
-}
-
-// WithRemoteCRDPaths sets custom remote CRD locations for a Config.
-func WithRemoteCRDPaths(urls ...string) Option {
-	return func(c *Config) {
-		c.RemoteCRDPaths = urls
+		c.CRDPaths = crds
 	}
 }
 
@@ -140,11 +135,10 @@ func defaultConfig() *Config {
 	}
 
 	return &Config{
-		RemoteCRDPaths:    []string{},
-		CRDDirectoryPaths: []string{},
-		Builder:           NewBuilder(),
-		Cleaners:          []OperationFn{NewCRDCleaner()},
-		ManagerOptions:    manager.Options{SyncPeriod: &t},
+		CRDPaths:       []string{},
+		Builder:        NewBuilder(),
+		Cleaners:       []CleanerFn{NewCRDDirCleaner(), NewCRDCleaner()},
+		ManagerOptions: manager.Options{SyncPeriod: &t},
 	}
 }
 
@@ -155,6 +149,7 @@ type Manager struct {
 	env    *envtest.Environment
 	client client.Client
 	c      *Config
+	tmpDir string
 }
 
 // New creates a new Manager.
@@ -169,41 +164,54 @@ func New(cfg *rest.Config, o ...Option) (*Manager, error) {
 		op(c)
 	}
 
-	for _, url := range c.RemoteCRDPaths {
-		if err := downloadPath(url, remotePath); err != nil {
-			return nil, errors.Wrap(err, errGetRemote)
-		}
+	// Create temporary directory for CRDs.
+	dir, err := ioutil.TempDir(".", "")
+	if err != nil {
+		return nil, errors.Wrap(err, errCreateTmpDir)
 	}
 
-	c.CRDDirectoryPaths = append(c.CRDDirectoryPaths, remotePath)
+	// Download CRDs into subdirectories of temp.
+	crdPaths := []string{}
+	for _, path := range c.CRDPaths {
+		dst, err := downloadPath(path, dir)
+		if err != nil {
+			return nil, errors.Wrap(err, errGetCRDs)
+		}
+		crdPaths = append(crdPaths, dst)
+	}
 
+	// Create environment configuration.
 	e := &envtest.Environment{
-		CRDDirectoryPaths:  c.CRDDirectoryPaths,
+		CRDDirectoryPaths:  crdPaths,
 		Config:             cfg,
 		UseExistingCluster: &useExisting,
 	}
 
-	cfg, err := e.Start()
+	// Start environment.
+	cfg, err = e.Start()
 	if err != nil {
 		return nil, err
 	}
 
+	// Create new client for environment.
 	client, err := client.New(cfg, client.Options{})
 	if err != nil {
 		return nil, err
 	}
 
-	if err := c.Builder(e, client); err != nil {
+	// Perform any necessary operations prior to starting controllers.
+	if err := c.Builder(client); err != nil {
 		return nil, err
 	}
 
+	// Start controller manager.
 	mgr, err := manager.New(cfg, c.ManagerOptions)
 	if err != nil {
 		return nil, err
 	}
 
 	stop := make(chan struct{})
-	return &Manager{mgr, stop, e, client, c}, nil
+	return &Manager{mgr, stop, e, client, c, dir}, nil
 }
 
 // Run starts a controller-runtime manager with a signal channel.
@@ -224,7 +232,7 @@ func (m *Manager) GetClient() client.Client {
 func (m *Manager) Cleanup() error {
 	close(m.stop)
 	for _, clean := range m.c.Cleaners {
-		if err := clean(m.env, m.client); err != nil {
+		if err := clean(m); err != nil {
 			return err
 		}
 	}

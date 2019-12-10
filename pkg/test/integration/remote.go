@@ -17,9 +17,32 @@ limitations under the License.
 package integration
 
 import (
+	"crypto/md5"
+	"encoding/hex"
+	"os"
+	"path/filepath"
+
 	getter "github.com/hashicorp/go-getter"
 )
 
-func downloadPath(url, path string) error {
-	return getter.GetAny(path, url)
+// Downloads the given url into a subdirectory in the given path.
+func downloadPath(url, path string) (string, error) {
+	// Pwd is necessary for downloading local files via relative path.
+	pwd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+
+	// Subdirectory is given name of md5 hash of url.
+	hasher := md5.New()
+	hasher.Write([]byte(url))
+	dst := filepath.Join(path, hex.EncodeToString(hasher.Sum(nil)))
+
+	c := getter.Client{
+		Src:  url,
+		Dst:  dst,
+		Pwd:  pwd,
+		Mode: getter.ClientModeAny,
+	}
+	return dst, c.Get()
 }
