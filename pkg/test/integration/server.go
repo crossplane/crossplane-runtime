@@ -17,6 +17,8 @@ limitations under the License.
 package integration
 
 import (
+	"io/ioutil"
+	"os"
 	"time"
 
 	"github.com/pkg/errors"
@@ -33,39 +35,43 @@ import (
 )
 
 const (
-	syncPeriod = "30s"
-	errCleanup = "failure in default cleanup"
+	syncPeriod      = "30s"
+	errCleanup      = "failure in default cleanup"
+	errCreateTmpDir = "unable to create temporary directory for CRDs"
+	errGetCRDs      = "unable to download CRDs"
 )
 
-// OperationFn is a function that uses a Kubernetes client to perform and
-// operation
-type OperationFn func(*envtest.Environment, client.Client) error
+// BuilderFn is a function that performs operations prior to starting test controllers
+type BuilderFn func(client.Client) error
+
+// CleanerFn is a function that performs test cleanup
+type CleanerFn func(*Manager) error
 
 // Config is a set of configuration values for setup.
 type Config struct {
-	CRDDirectoryPaths []string
-	Builder           OperationFn
-	Cleaners          []OperationFn
-	ManagerOptions    manager.Options
+	CRDPaths       []string
+	Builder        BuilderFn
+	Cleaners       []CleanerFn
+	ManagerOptions manager.Options
 }
 
 // NewBuilder returns a new no-op Builder
-func NewBuilder() OperationFn {
-	return func(*envtest.Environment, client.Client) error {
+func NewBuilder() BuilderFn {
+	return func(client.Client) error {
 		return nil
 	}
 }
 
 // NewCRDCleaner returns a new Cleaner that deletes all installed CRDs from the
 // API server.
-func NewCRDCleaner() OperationFn {
-	return func(e *envtest.Environment, c client.Client) error {
-		cs, err := clientset.NewForConfig(e.Config)
+func NewCRDCleaner() CleanerFn {
+	return func(m *Manager) error {
+		cs, err := clientset.NewForConfig(m.env.Config)
 		if err != nil {
 			return errors.Wrap(err, errCleanup)
 		}
 		var crds []*apiextensionsv1beta1.CustomResourceDefinition
-		for _, path := range e.CRDDirectoryPaths {
+		for _, path := range m.env.CRDDirectoryPaths {
 			crd, err := readCRDs(path)
 			if err != nil {
 				return errors.Wrap(err, errCleanup)
@@ -82,27 +88,35 @@ func NewCRDCleaner() OperationFn {
 	}
 }
 
+// NewCRDDirCleaner cleans up the tmp directory where CRDs were
+// downloaded.
+func NewCRDDirCleaner() CleanerFn {
+	return func(m *Manager) error {
+		return os.RemoveAll(m.tmpDir)
+	}
+}
+
 // An Option configures a Config.
 type Option func(*Config)
 
 // WithBuilder sets a custom builder function for a Config.
-func WithBuilder(builder OperationFn) Option {
+func WithBuilder(builder BuilderFn) Option {
 	return func(c *Config) {
 		c.Builder = builder
 	}
 }
 
-// WithCleaner sets a custom cleaner function for a Config.
-func WithCleaner(cleaners ...OperationFn) Option {
+// WithCleaners sets custom cleaner functios for a Config.
+func WithCleaners(cleaners ...CleanerFn) Option {
 	return func(c *Config) {
 		c.Cleaners = cleaners
 	}
 }
 
-// WithCRDDirectoryPaths sets custom CRD locations for a Config.
-func WithCRDDirectoryPaths(crds ...string) Option {
+// WithCRDPaths sets custom CRD locations for a Config.
+func WithCRDPaths(crds ...string) Option {
 	return func(c *Config) {
-		c.CRDDirectoryPaths = crds
+		c.CRDPaths = crds
 	}
 }
 
@@ -121,10 +135,10 @@ func defaultConfig() *Config {
 	}
 
 	return &Config{
-		CRDDirectoryPaths: []string{},
-		Builder:           NewBuilder(),
-		Cleaners:          []OperationFn{NewCRDCleaner()},
-		ManagerOptions:    manager.Options{SyncPeriod: &t},
+		CRDPaths:       []string{},
+		Builder:        NewBuilder(),
+		Cleaners:       []CleanerFn{NewCRDDirCleaner(), NewCRDCleaner()},
+		ManagerOptions: manager.Options{SyncPeriod: &t},
 	}
 }
 
@@ -135,6 +149,7 @@ type Manager struct {
 	env    *envtest.Environment
 	client client.Client
 	c      *Config
+	tmpDir string
 }
 
 // New creates a new Manager.
@@ -149,13 +164,27 @@ func New(cfg *rest.Config, o ...Option) (*Manager, error) {
 		op(c)
 	}
 
+	dir, err := ioutil.TempDir("", "")
+	if err != nil {
+		return nil, errors.Wrap(err, errCreateTmpDir)
+	}
+
+	crdPaths := []string{}
+	for _, path := range c.CRDPaths {
+		dst, err := downloadPath(path, dir)
+		if err != nil {
+			return nil, errors.Wrap(err, errGetCRDs)
+		}
+		crdPaths = append(crdPaths, dst)
+	}
+
 	e := &envtest.Environment{
-		CRDDirectoryPaths:  c.CRDDirectoryPaths,
+		CRDDirectoryPaths:  crdPaths,
 		Config:             cfg,
 		UseExistingCluster: &useExisting,
 	}
 
-	cfg, err := e.Start()
+	cfg, err = e.Start()
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +194,7 @@ func New(cfg *rest.Config, o ...Option) (*Manager, error) {
 		return nil, err
 	}
 
-	if err := c.Builder(e, client); err != nil {
+	if err := c.Builder(client); err != nil {
 		return nil, err
 	}
 
@@ -175,7 +204,7 @@ func New(cfg *rest.Config, o ...Option) (*Manager, error) {
 	}
 
 	stop := make(chan struct{})
-	return &Manager{mgr, stop, e, client, c}, nil
+	return &Manager{mgr, stop, e, client, c, dir}, nil
 }
 
 // Run starts a controller-runtime manager with a signal channel.
@@ -196,7 +225,7 @@ func (m *Manager) GetClient() client.Client {
 func (m *Manager) Cleanup() error {
 	close(m.stop)
 	for _, clean := range m.c.Cleaners {
-		if err := clean(m.env, m.client); err != nil {
+		if err := clean(m); err != nil {
 			return err
 		}
 	}
