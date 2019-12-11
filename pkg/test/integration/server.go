@@ -164,13 +164,11 @@ func New(cfg *rest.Config, o ...Option) (*Manager, error) {
 		op(c)
 	}
 
-	// Create temporary directory for CRDs.
-	dir, err := ioutil.TempDir(".", "")
+	dir, err := ioutil.TempDir("", "")
 	if err != nil {
 		return nil, errors.Wrap(err, errCreateTmpDir)
 	}
 
-	// Download CRDs into subdirectories of temp.
 	crdPaths := []string{}
 	for _, path := range c.CRDPaths {
 		dst, err := downloadPath(path, dir)
@@ -180,31 +178,26 @@ func New(cfg *rest.Config, o ...Option) (*Manager, error) {
 		crdPaths = append(crdPaths, dst)
 	}
 
-	// Create environment configuration.
 	e := &envtest.Environment{
 		CRDDirectoryPaths:  crdPaths,
 		Config:             cfg,
 		UseExistingCluster: &useExisting,
 	}
 
-	// Start environment.
 	cfg, err = e.Start()
 	if err != nil {
 		return nil, err
 	}
 
-	// Create new client for environment.
 	client, err := client.New(cfg, client.Options{})
 	if err != nil {
 		return nil, err
 	}
 
-	// Perform any necessary operations prior to starting controllers.
 	if err := c.Builder(client); err != nil {
 		return nil, err
 	}
 
-	// Start controller manager.
 	mgr, err := manager.New(cfg, c.ManagerOptions)
 	if err != nil {
 		return nil, err

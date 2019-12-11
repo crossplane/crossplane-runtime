@@ -17,8 +17,7 @@ limitations under the License.
 package integration
 
 import (
-	"crypto/md5"
-	"encoding/hex"
+	"hash/fnv"
 	"os"
 	"path/filepath"
 
@@ -33,12 +32,12 @@ func downloadPath(url, path string) (string, error) {
 		return "", err
 	}
 
-	// Subdirectory is given name of md5 hash of url.
-	hasher := md5.New()
+	// Subdirectory is given name of fnv hash of url.
+	hasher := fnv.New32a()
 	if _, err = hasher.Write([]byte(url)); err != nil {
 		return "", err
 	}
-	dst := filepath.Join(path, hex.EncodeToString(hasher.Sum(nil)))
+	dst := filepath.Join(path, string(hasher.Sum32()))
 
 	c := getter.Client{
 		Src:  url,
