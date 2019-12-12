@@ -20,14 +20,13 @@ import (
 	"context"
 	"testing"
 
-	"github.com/crossplaneio/crossplane-runtime/pkg/resource/fake"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 )
 
@@ -56,9 +55,9 @@ func TestConfiguratorChain(t *testing.T) {
 			cc: ConfiguratorChain{},
 			args: args{
 				ctx: context.Background(),
-				cm:  &fake.MockClaim{},
-				cs:  &fake.MockClass{},
-				mg:  &fake.MockManaged{},
+				cm:  &fake.Claim{},
+				cs:  &fake.Class{},
+				mg:  &fake.Managed{},
 			},
 			want: nil,
 		},
@@ -70,9 +69,9 @@ func TestConfiguratorChain(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				cm:  &fake.MockClaim{},
-				cs:  &fake.MockClass{},
-				mg:  &fake.MockManaged{},
+				cm:  &fake.Claim{},
+				cs:  &fake.Class{},
+				mg:  &fake.Managed{},
 			},
 			want: nil,
 		},
@@ -84,9 +83,9 @@ func TestConfiguratorChain(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				cm:  &fake.MockClaim{},
-				cs:  &fake.MockClass{},
-				mg:  &fake.MockManaged{},
+				cm:  &fake.Claim{},
+				cs:  &fake.Class{},
+				mg:  &fake.Managed{},
 			},
 			want: errBoom,
 		},
@@ -126,16 +125,16 @@ func TestNameConfigurators(t *testing.T) {
 		"Successful": {
 			args: args{
 				ctx: context.Background(),
-				cm: &fake.MockClaim{
+				cm: &fake.Claim{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace:   claimNS,
 						Name:        claimName,
 						Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName},
 					}},
-				mg: &fake.MockManaged{},
+				mg: &fake.Managed{},
 			},
 			want: want{
-				mg: &fake.MockManaged{
+				mg: &fake.Managed{
 					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: claimNS + "-" + claimName + "-",
 						Annotations:  map[string]string{meta.ExternalNameAnnotationKey: externalName},
@@ -201,33 +200,33 @@ func TestConfigureReclaimPolicy(t *testing.T) {
 			reason: "Existing managed resource reclaim policies should be respected.",
 			args: args{
 				ctx: context.Background(),
-				cs:  &fake.MockClass{MockReclaimer: fake.MockReclaimer{Policy: v1alpha1.ReclaimDelete}},
-				mg:  &fake.MockManaged{MockReclaimer: fake.MockReclaimer{Policy: v1alpha1.ReclaimRetain}},
+				cs:  &fake.Class{Reclaimer: fake.Reclaimer{Policy: v1alpha1.ReclaimDelete}},
+				mg:  &fake.Managed{Reclaimer: fake.Reclaimer{Policy: v1alpha1.ReclaimRetain}},
 			},
 			want: want{
-				mg: &fake.MockManaged{MockReclaimer: fake.MockReclaimer{Policy: v1alpha1.ReclaimRetain}},
+				mg: &fake.Managed{Reclaimer: fake.Reclaimer{Policy: v1alpha1.ReclaimRetain}},
 			},
 		},
 		"SetByClass": {
 			reason: "The class's reclaim policy should be propagated to the managed resource.",
 			args: args{
 				ctx: context.Background(),
-				cs:  &fake.MockClass{MockReclaimer: fake.MockReclaimer{Policy: v1alpha1.ReclaimRetain}},
-				mg:  &fake.MockManaged{},
+				cs:  &fake.Class{Reclaimer: fake.Reclaimer{Policy: v1alpha1.ReclaimRetain}},
+				mg:  &fake.Managed{},
 			},
 			want: want{
-				mg: &fake.MockManaged{MockReclaimer: fake.MockReclaimer{Policy: v1alpha1.ReclaimRetain}},
+				mg: &fake.Managed{Reclaimer: fake.Reclaimer{Policy: v1alpha1.ReclaimRetain}},
 			},
 		},
 		"DefaultToDelete": {
 			reason: "If neither the class nor managed resource set a reclaim policy, it should default to Delete.",
 			args: args{
 				ctx: context.Background(),
-				cs:  &fake.MockClass{},
-				mg:  &fake.MockManaged{},
+				cs:  &fake.Class{},
+				mg:  &fake.Managed{},
 			},
 			want: want{
-				mg: &fake.MockManaged{MockReclaimer: fake.MockReclaimer{Policy: v1alpha1.ReclaimDelete}},
+				mg: &fake.Managed{Reclaimer: fake.Reclaimer{Policy: v1alpha1.ReclaimDelete}},
 			},
 		},
 	}

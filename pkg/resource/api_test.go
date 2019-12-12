@@ -20,8 +20,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/crossplaneio/crossplane-runtime/pkg/resource/fake"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -32,6 +30,7 @@ import (
 
 	"github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 )
 
@@ -73,13 +72,13 @@ func TestCreate(t *testing.T) {
 				client: &test.MockClient{
 					MockCreate: test.NewMockCreateFn(errBoom),
 				},
-				typer: fake.MockSchemeWith(&fake.MockClaim{}, &fake.MockClass{}, &fake.MockManaged{}),
+				typer: fake.SchemeWith(&fake.Claim{}, &fake.Class{}, &fake.Managed{}),
 			},
 			args: args{
 				ctx: context.Background(),
-				cm:  &fake.MockClaim{},
-				cs:  &fake.MockClass{},
-				mg:  &fake.MockManaged{},
+				cm:  &fake.Claim{},
+				cs:  &fake.Class{},
+				mg:  &fake.Managed{},
 			},
 			want: errors.Wrap(errBoom, errCreateManaged),
 		},
@@ -89,13 +88,13 @@ func TestCreate(t *testing.T) {
 					MockCreate: test.NewMockCreateFn(nil),
 					MockUpdate: test.NewMockUpdateFn(errBoom),
 				},
-				typer: fake.MockSchemeWith(&fake.MockClaim{}, &fake.MockClass{}, &fake.MockManaged{}),
+				typer: fake.SchemeWith(&fake.Claim{}, &fake.Class{}, &fake.Managed{}),
 			},
 			args: args{
 				ctx: context.Background(),
-				cm:  &fake.MockClaim{},
-				cs:  &fake.MockClass{},
-				mg:  &fake.MockManaged{},
+				cm:  &fake.Claim{},
+				cs:  &fake.Class{},
+				mg:  &fake.Managed{},
 			},
 			want: errors.Wrap(errBoom, errUpdateClaim),
 		},
@@ -103,17 +102,17 @@ func TestCreate(t *testing.T) {
 			fields: fields{
 				client: &test.MockClient{
 					MockCreate: test.NewMockCreateFn(nil, func(got runtime.Object) error {
-						want := &fake.MockManaged{}
+						want := &fake.Managed{}
 						want.SetName(mgname)
 						want.SetClaimReference(&corev1.ObjectReference{
 							Name:       cmname,
-							APIVersion: fake.MockGVK(&fake.MockClaim{}).GroupVersion().String(),
-							Kind:       fake.MockGVK(&fake.MockClaim{}).Kind,
+							APIVersion: fake.GVK(&fake.Claim{}).GroupVersion().String(),
+							Kind:       fake.GVK(&fake.Claim{}).Kind,
 						})
 						want.SetClassReference(&corev1.ObjectReference{
 							Name:       csname,
-							APIVersion: fake.MockGVK(&fake.MockClass{}).GroupVersion().String(),
-							Kind:       fake.MockGVK(&fake.MockClass{}).Kind,
+							APIVersion: fake.GVK(&fake.Class{}).GroupVersion().String(),
+							Kind:       fake.GVK(&fake.Class{}).Kind,
 						})
 						if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 							t.Errorf("-want, +got:\n%s", diff)
@@ -121,12 +120,12 @@ func TestCreate(t *testing.T) {
 						return nil
 					}),
 					MockUpdate: test.NewMockUpdateFn(nil, func(got runtime.Object) error {
-						want := &fake.MockClaim{}
+						want := &fake.Claim{}
 						want.SetName(cmname)
 						want.SetResourceReference(&corev1.ObjectReference{
 							Name:       mgname,
-							APIVersion: fake.MockGVK(&fake.MockManaged{}).GroupVersion().String(),
-							Kind:       fake.MockGVK(&fake.MockManaged{}).Kind,
+							APIVersion: fake.GVK(&fake.Managed{}).GroupVersion().String(),
+							Kind:       fake.GVK(&fake.Managed{}).Kind,
 						})
 						if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 							t.Errorf("-want, +got:\n%s", diff)
@@ -134,13 +133,13 @@ func TestCreate(t *testing.T) {
 						return nil
 					}),
 				},
-				typer: fake.MockSchemeWith(&fake.MockClaim{}, &fake.MockClass{}, &fake.MockManaged{}),
+				typer: fake.SchemeWith(&fake.Claim{}, &fake.Class{}, &fake.Managed{}),
 			},
 			args: args{
 				ctx: context.Background(),
-				cm:  &fake.MockClaim{ObjectMeta: metav1.ObjectMeta{Name: cmname}},
-				cs:  &fake.MockClass{ObjectMeta: metav1.ObjectMeta{Name: csname}},
-				mg:  &fake.MockManaged{ObjectMeta: metav1.ObjectMeta{Name: mgname}},
+				cm:  &fake.Claim{ObjectMeta: metav1.ObjectMeta{Name: cmname}},
+				cs:  &fake.Class{ObjectMeta: metav1.ObjectMeta{Name: csname}},
+				mg:  &fake.Managed{ObjectMeta: metav1.ObjectMeta{Name: mgname}},
 			},
 			want: nil,
 		},
@@ -186,9 +185,9 @@ func TestPropagateConnection(t *testing.T) {
 		"ClaimDoesNotWantConnectionSecret": {
 			args: args{
 				ctx: context.Background(),
-				cm:  &fake.MockClaim{},
-				mg: &fake.MockManaged{
-					MockConnectionSecretWriterTo: fake.MockConnectionSecretWriterTo{
+				cm:  &fake.Claim{},
+				mg: &fake.Managed{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{
 						Ref: &v1alpha1.SecretReference{Namespace: mgcsnamespace, Name: mgcsname},
 					},
 				},
@@ -198,12 +197,12 @@ func TestPropagateConnection(t *testing.T) {
 		"ManagedDoesNotExposeConnectionSecret": {
 			args: args{
 				ctx: context.Background(),
-				cm: &fake.MockClaim{
-					MockLocalConnectionSecretWriterTo: fake.MockLocalConnectionSecretWriterTo{
+				cm: &fake.Claim{
+					LocalConnectionSecretWriterTo: fake.LocalConnectionSecretWriterTo{
 						Ref: &v1alpha1.LocalSecretReference{Name: mgcsname},
 					},
 				},
-				mg: &fake.MockManaged{},
+				mg: &fake.Managed{},
 			},
 			want: nil,
 		},
@@ -213,13 +212,13 @@ func TestPropagateConnection(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				cm: &fake.MockClaim{
-					MockLocalConnectionSecretWriterTo: fake.MockLocalConnectionSecretWriterTo{
+				cm: &fake.Claim{
+					LocalConnectionSecretWriterTo: fake.LocalConnectionSecretWriterTo{
 						Ref: &v1alpha1.LocalSecretReference{Name: cmcsname},
 					},
 				},
-				mg: &fake.MockManaged{
-					MockConnectionSecretWriterTo: fake.MockConnectionSecretWriterTo{
+				mg: &fake.Managed{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{
 						Ref: &v1alpha1.SecretReference{Namespace: mgcsnamespace, Name: mgcsname},
 					},
 				},
@@ -252,19 +251,19 @@ func TestPropagateConnection(t *testing.T) {
 					},
 					MockUpdate: test.NewMockUpdateFn(nil),
 				},
-				typer: fake.MockSchemeWith(&fake.MockClaim{}, &fake.MockManaged{}),
+				typer: fake.SchemeWith(&fake.Claim{}, &fake.Managed{}),
 			},
 			args: args{
 				ctx: context.Background(),
-				cm: &fake.MockClaim{
+				cm: &fake.Claim{
 					ObjectMeta: metav1.ObjectMeta{Name: cmname},
-					MockLocalConnectionSecretWriterTo: fake.MockLocalConnectionSecretWriterTo{
+					LocalConnectionSecretWriterTo: fake.LocalConnectionSecretWriterTo{
 						Ref: &v1alpha1.LocalSecretReference{Name: cmcsname},
 					},
 				},
-				mg: &fake.MockManaged{
+				mg: &fake.Managed{
 					ObjectMeta: metav1.ObjectMeta{Name: mgname, UID: uid},
-					MockConnectionSecretWriterTo: fake.MockConnectionSecretWriterTo{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{
 						Ref: &v1alpha1.SecretReference{Namespace: mgcsnamespace, Name: mgcsname},
 					},
 				},
@@ -293,19 +292,19 @@ func TestPropagateConnection(t *testing.T) {
 					},
 					MockUpdate: test.NewMockUpdateFn(nil),
 				},
-				typer: fake.MockSchemeWith(&fake.MockClaim{}, &fake.MockManaged{}),
+				typer: fake.SchemeWith(&fake.Claim{}, &fake.Managed{}),
 			},
 			args: args{
 				ctx: context.Background(),
-				cm: &fake.MockClaim{
+				cm: &fake.Claim{
 					ObjectMeta: metav1.ObjectMeta{Name: cmname},
-					MockLocalConnectionSecretWriterTo: fake.MockLocalConnectionSecretWriterTo{
+					LocalConnectionSecretWriterTo: fake.LocalConnectionSecretWriterTo{
 						Ref: &v1alpha1.LocalSecretReference{Name: cmcsname},
 					},
 				},
-				mg: &fake.MockManaged{
+				mg: &fake.Managed{
 					ObjectMeta: metav1.ObjectMeta{Name: mgname, UID: uid},
-					MockConnectionSecretWriterTo: fake.MockConnectionSecretWriterTo{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{
 						Ref: &v1alpha1.SecretReference{Namespace: mgcsnamespace, Name: mgcsname},
 					},
 				},
@@ -343,19 +342,19 @@ func TestPropagateConnection(t *testing.T) {
 						return nil
 					}),
 				},
-				typer: fake.MockSchemeWith(&fake.MockClaim{}, &fake.MockManaged{}),
+				typer: fake.SchemeWith(&fake.Claim{}, &fake.Managed{}),
 			},
 			args: args{
 				ctx: context.Background(),
-				cm: &fake.MockClaim{
+				cm: &fake.Claim{
 					ObjectMeta: metav1.ObjectMeta{Name: cmname},
-					MockLocalConnectionSecretWriterTo: fake.MockLocalConnectionSecretWriterTo{
+					LocalConnectionSecretWriterTo: fake.LocalConnectionSecretWriterTo{
 						Ref: &v1alpha1.LocalSecretReference{Name: cmcsname},
 					},
 				},
-				mg: &fake.MockManaged{
+				mg: &fake.Managed{
 					ObjectMeta: metav1.ObjectMeta{Name: mgname, UID: uid},
-					MockConnectionSecretWriterTo: fake.MockConnectionSecretWriterTo{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{
 						Ref: &v1alpha1.SecretReference{Namespace: mgcsnamespace, Name: mgcsname},
 					},
 				},
@@ -418,19 +417,19 @@ func TestPropagateConnection(t *testing.T) {
 						return nil
 					}),
 				},
-				typer: fake.MockSchemeWith(&fake.MockClaim{}, &fake.MockManaged{}),
+				typer: fake.SchemeWith(&fake.Claim{}, &fake.Managed{}),
 			},
 			args: args{
 				ctx: context.Background(),
-				cm: &fake.MockClaim{
+				cm: &fake.Claim{
 					ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: cmname, UID: uid},
-					MockLocalConnectionSecretWriterTo: fake.MockLocalConnectionSecretWriterTo{
+					LocalConnectionSecretWriterTo: fake.LocalConnectionSecretWriterTo{
 						Ref: &v1alpha1.LocalSecretReference{Name: cmcsname},
 					},
 				},
-				mg: &fake.MockManaged{
+				mg: &fake.Managed{
 					ObjectMeta: metav1.ObjectMeta{Name: mgname, UID: uid},
-					MockConnectionSecretWriterTo: fake.MockConnectionSecretWriterTo{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{
 						Ref: &v1alpha1.SecretReference{Namespace: mgcsnamespace, Name: mgcsname},
 					},
 				},
@@ -475,95 +474,95 @@ func TestBind(t *testing.T) {
 		"UpdateManagedError": {
 			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil, func(obj runtime.Object) error {
 				switch obj.(type) {
-				case *fake.MockManaged:
+				case *fake.Managed:
 					return errBoom
 				default:
 					return errors.New("unexpected object kind")
 				}
 			})},
-			typer: fake.MockSchemeWith(&fake.MockClaim{}),
+			typer: fake.SchemeWith(&fake.Claim{}),
 			args: args{
 				ctx: context.Background(),
-				cm:  &fake.MockClaim{},
-				mg:  &fake.MockManaged{},
+				cm:  &fake.Claim{},
+				mg:  &fake.Managed{},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateManaged),
-				cm:  &fake.MockClaim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
-				mg: &fake.MockManaged{
-					MockClaimReferencer: fake.MockClaimReferencer{meta.ReferenceTo(&fake.MockClaim{}, fake.MockGVK(&fake.MockClaim{}))},
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
+				cm:  &fake.Claim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
+				mg: &fake.Managed{
+					ClaimReferencer: fake.ClaimReferencer{meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
+					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
 			},
 		},
 		"UpdateClaimError": {
 			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil, func(obj runtime.Object) error {
 				switch obj.(type) {
-				case *fake.MockManaged:
+				case *fake.Managed:
 					return nil
-				case *fake.MockClaim:
+				case *fake.Claim:
 					return errBoom
 				default:
 					return errors.New("unexpected object kind")
 				}
 			})},
-			typer: fake.MockSchemeWith(&fake.MockClaim{}),
+			typer: fake.SchemeWith(&fake.Claim{}),
 			args: args{
 				ctx: context.Background(),
-				cm:  &fake.MockClaim{},
-				mg: &fake.MockManaged{
+				cm:  &fake.Claim{},
+				mg: &fake.Managed{
 					ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
 				},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateClaim),
-				cm: &fake.MockClaim{
+				cm: &fake.Claim{
 					ObjectMeta:    metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
 					BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
-				mg: &fake.MockManaged{
-					ObjectMeta:          metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
-					MockClaimReferencer: fake.MockClaimReferencer{meta.ReferenceTo(&fake.MockClaim{}, fake.MockGVK(&fake.MockClaim{}))},
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
+				mg: &fake.Managed{
+					ObjectMeta:      metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
+					ClaimReferencer: fake.ClaimReferencer{meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
+					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
 			},
 		},
 		"SuccessfulWithoutExternalName": {
 			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil)},
-			typer:  fake.MockSchemeWith(&fake.MockClaim{}),
+			typer:  fake.SchemeWith(&fake.Claim{}),
 			args: args{
 				ctx: context.Background(),
-				cm:  &fake.MockClaim{},
-				mg:  &fake.MockManaged{},
+				cm:  &fake.Claim{},
+				mg:  &fake.Managed{},
 			},
 			want: want{
 				err: nil,
-				cm:  &fake.MockClaim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
-				mg: &fake.MockManaged{
-					MockClaimReferencer: fake.MockClaimReferencer{meta.ReferenceTo(&fake.MockClaim{}, fake.MockGVK(&fake.MockClaim{}))},
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
+				cm:  &fake.Claim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
+				mg: &fake.Managed{
+					ClaimReferencer: fake.ClaimReferencer{meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
+					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
 			},
 		},
 		"SuccessfulWithExternalName": {
 			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil)},
-			typer:  fake.MockSchemeWith(&fake.MockClaim{}),
+			typer:  fake.SchemeWith(&fake.Claim{}),
 			args: args{
 				ctx: context.Background(),
-				cm:  &fake.MockClaim{},
-				mg: &fake.MockManaged{
+				cm:  &fake.Claim{},
+				mg: &fake.Managed{
 					ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
 				},
 			},
 			want: want{
 				err: nil,
-				cm: &fake.MockClaim{
+				cm: &fake.Claim{
 					ObjectMeta:    metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
 					BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
-				mg: &fake.MockManaged{
-					ObjectMeta:          metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
-					MockClaimReferencer: fake.MockClaimReferencer{meta.ReferenceTo(&fake.MockClaim{}, fake.MockGVK(&fake.MockClaim{}))},
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
+				mg: &fake.Managed{
+					ObjectMeta:      metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
+					ClaimReferencer: fake.ClaimReferencer{meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
+					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
 			},
 		},
@@ -611,23 +610,23 @@ func TestStatusBind(t *testing.T) {
 		"UpdateManagedError": {
 			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil, func(obj runtime.Object) error {
 				switch obj.(type) {
-				case *fake.MockManaged:
+				case *fake.Managed:
 					return errBoom
 				default:
 					return errors.New("unexpected object kind")
 				}
 			})},
-			typer: fake.MockSchemeWith(&fake.MockClaim{}),
+			typer: fake.SchemeWith(&fake.Claim{}),
 			args: args{
 				ctx: context.Background(),
-				cm:  &fake.MockClaim{},
-				mg:  &fake.MockManaged{},
+				cm:  &fake.Claim{},
+				mg:  &fake.Managed{},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateManaged),
-				cm:  &fake.MockClaim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
-				mg: &fake.MockManaged{
-					MockClaimReferencer: fake.MockClaimReferencer{meta.ReferenceTo(&fake.MockClaim{}, fake.MockGVK(&fake.MockClaim{}))},
+				cm:  &fake.Claim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
+				mg: &fake.Managed{
+					ClaimReferencer: fake.ClaimReferencer{meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
 				},
 			},
 		},
@@ -636,18 +635,18 @@ func TestStatusBind(t *testing.T) {
 				MockUpdate:       test.NewMockUpdateFn(nil),
 				MockStatusUpdate: test.NewMockStatusUpdateFn(errBoom),
 			},
-			typer: fake.MockSchemeWith(&fake.MockClaim{}),
+			typer: fake.SchemeWith(&fake.Claim{}),
 			args: args{
 				ctx: context.Background(),
-				cm:  &fake.MockClaim{},
-				mg:  &fake.MockManaged{},
+				cm:  &fake.Claim{},
+				mg:  &fake.Managed{},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateManagedStatus),
-				cm:  &fake.MockClaim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
-				mg: &fake.MockManaged{
-					MockClaimReferencer: fake.MockClaimReferencer{meta.ReferenceTo(&fake.MockClaim{}, fake.MockGVK(&fake.MockClaim{}))},
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
+				cm:  &fake.Claim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
+				mg: &fake.Managed{
+					ClaimReferencer: fake.ClaimReferencer{meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
+					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
 			},
 		},
@@ -655,9 +654,9 @@ func TestStatusBind(t *testing.T) {
 			client: &test.MockClient{
 				MockUpdate: test.NewMockUpdateFn(nil, func(obj runtime.Object) error {
 					switch obj.(type) {
-					case *fake.MockManaged:
+					case *fake.Managed:
 						return nil
-					case *fake.MockClaim:
+					case *fake.Claim:
 						return errBoom
 					default:
 						return errors.New("unexpected object kind")
@@ -665,24 +664,24 @@ func TestStatusBind(t *testing.T) {
 				}),
 				MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 			},
-			typer: fake.MockSchemeWith(&fake.MockClaim{}),
+			typer: fake.SchemeWith(&fake.Claim{}),
 			args: args{
 				ctx: context.Background(),
-				cm:  &fake.MockClaim{},
-				mg: &fake.MockManaged{
+				cm:  &fake.Claim{},
+				mg: &fake.Managed{
 					ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
 				},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateClaim),
-				cm: &fake.MockClaim{
+				cm: &fake.Claim{
 					ObjectMeta:    metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
 					BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
-				mg: &fake.MockManaged{
-					ObjectMeta:          metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
-					MockClaimReferencer: fake.MockClaimReferencer{meta.ReferenceTo(&fake.MockClaim{}, fake.MockGVK(&fake.MockClaim{}))},
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
+				mg: &fake.Managed{
+					ObjectMeta:      metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
+					ClaimReferencer: fake.ClaimReferencer{meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
+					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
 			},
 		},
@@ -691,18 +690,18 @@ func TestStatusBind(t *testing.T) {
 				MockUpdate:       test.NewMockUpdateFn(nil),
 				MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 			},
-			typer: fake.MockSchemeWith(&fake.MockClaim{}),
+			typer: fake.SchemeWith(&fake.Claim{}),
 			args: args{
 				ctx: context.Background(),
-				cm:  &fake.MockClaim{},
-				mg:  &fake.MockManaged{},
+				cm:  &fake.Claim{},
+				mg:  &fake.Managed{},
 			},
 			want: want{
 				err: nil,
-				cm:  &fake.MockClaim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
-				mg: &fake.MockManaged{
-					MockClaimReferencer: fake.MockClaimReferencer{meta.ReferenceTo(&fake.MockClaim{}, fake.MockGVK(&fake.MockClaim{}))},
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
+				cm:  &fake.Claim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
+				mg: &fake.Managed{
+					ClaimReferencer: fake.ClaimReferencer{meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
+					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
 			},
 		},
@@ -711,24 +710,24 @@ func TestStatusBind(t *testing.T) {
 				MockUpdate:       test.NewMockUpdateFn(nil),
 				MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 			},
-			typer: fake.MockSchemeWith(&fake.MockClaim{}),
+			typer: fake.SchemeWith(&fake.Claim{}),
 			args: args{
 				ctx: context.Background(),
-				cm:  &fake.MockClaim{},
-				mg: &fake.MockManaged{
+				cm:  &fake.Claim{},
+				mg: &fake.Managed{
 					ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
 				},
 			},
 			want: want{
 				err: nil,
-				cm: &fake.MockClaim{
+				cm: &fake.Claim{
 					ObjectMeta:    metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
 					BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
-				mg: &fake.MockManaged{
-					ObjectMeta:          metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
-					MockClaimReferencer: fake.MockClaimReferencer{meta.ReferenceTo(&fake.MockClaim{}, fake.MockGVK(&fake.MockClaim{}))},
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
+				mg: &fake.Managed{
+					ObjectMeta:      metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
+					ClaimReferencer: fake.ClaimReferencer{meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
+					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
 			},
 		},
@@ -777,18 +776,18 @@ func TestUnbind(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				mg: &fake.MockManaged{
-					MockReclaimer:       fake.MockReclaimer{Policy: v1alpha1.ReclaimRetain},
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
-					MockClaimReferencer: fake.MockClaimReferencer{Ref: &corev1.ObjectReference{}},
+				mg: &fake.Managed{
+					Reclaimer:       fake.Reclaimer{Policy: v1alpha1.ReclaimRetain},
+					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
+					ClaimReferencer: fake.ClaimReferencer{Ref: &corev1.ObjectReference{}},
 				},
 			},
 			want: want{
 				err: nil,
-				mg: &fake.MockManaged{
-					MockReclaimer:       fake.MockReclaimer{Policy: v1alpha1.ReclaimRetain},
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseReleased},
-					MockClaimReferencer: fake.MockClaimReferencer{Ref: nil},
+				mg: &fake.Managed{
+					Reclaimer:       fake.Reclaimer{Policy: v1alpha1.ReclaimRetain},
+					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseReleased},
+					ClaimReferencer: fake.ClaimReferencer{Ref: nil},
 				},
 			},
 		},
@@ -799,18 +798,18 @@ func TestUnbind(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				mg: &fake.MockManaged{
-					MockReclaimer:       fake.MockReclaimer{Policy: v1alpha1.ReclaimDelete},
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
-					MockClaimReferencer: fake.MockClaimReferencer{Ref: &corev1.ObjectReference{}},
+				mg: &fake.Managed{
+					Reclaimer:       fake.Reclaimer{Policy: v1alpha1.ReclaimDelete},
+					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
+					ClaimReferencer: fake.ClaimReferencer{Ref: &corev1.ObjectReference{}},
 				},
 			},
 			want: want{
 				err: nil,
-				mg: &fake.MockManaged{
-					MockReclaimer:       fake.MockReclaimer{Policy: v1alpha1.ReclaimDelete},
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseReleased},
-					MockClaimReferencer: fake.MockClaimReferencer{Ref: nil},
+				mg: &fake.Managed{
+					Reclaimer:       fake.Reclaimer{Policy: v1alpha1.ReclaimDelete},
+					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseReleased},
+					ClaimReferencer: fake.ClaimReferencer{Ref: nil},
 				},
 			},
 		},
@@ -820,18 +819,18 @@ func TestUnbind(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				mg: &fake.MockManaged{
-					MockReclaimer:       fake.MockReclaimer{Policy: v1alpha1.ReclaimRetain},
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
-					MockClaimReferencer: fake.MockClaimReferencer{Ref: &corev1.ObjectReference{}},
+				mg: &fake.Managed{
+					Reclaimer:       fake.Reclaimer{Policy: v1alpha1.ReclaimRetain},
+					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
+					ClaimReferencer: fake.ClaimReferencer{Ref: &corev1.ObjectReference{}},
 				},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateManaged),
-				mg: &fake.MockManaged{
-					MockReclaimer:       fake.MockReclaimer{Policy: v1alpha1.ReclaimRetain},
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseReleased},
-					MockClaimReferencer: fake.MockClaimReferencer{Ref: nil},
+				mg: &fake.Managed{
+					Reclaimer:       fake.Reclaimer{Policy: v1alpha1.ReclaimRetain},
+					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseReleased},
+					ClaimReferencer: fake.ClaimReferencer{Ref: nil},
 				},
 			},
 		},
@@ -842,18 +841,18 @@ func TestUnbind(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				mg: &fake.MockManaged{
-					MockReclaimer:       fake.MockReclaimer{Policy: v1alpha1.ReclaimDelete},
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
-					MockClaimReferencer: fake.MockClaimReferencer{Ref: &corev1.ObjectReference{}},
+				mg: &fake.Managed{
+					Reclaimer:       fake.Reclaimer{Policy: v1alpha1.ReclaimDelete},
+					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
+					ClaimReferencer: fake.ClaimReferencer{Ref: &corev1.ObjectReference{}},
 				},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errDeleteManaged),
-				mg: &fake.MockManaged{
-					MockReclaimer:       fake.MockReclaimer{Policy: v1alpha1.ReclaimDelete},
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseReleased},
-					MockClaimReferencer: fake.MockClaimReferencer{Ref: nil},
+				mg: &fake.Managed{
+					Reclaimer:       fake.Reclaimer{Policy: v1alpha1.ReclaimDelete},
+					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseReleased},
+					ClaimReferencer: fake.ClaimReferencer{Ref: nil},
 				},
 			},
 		},
@@ -899,16 +898,16 @@ func TestStatusUnbind(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				mg: &fake.MockManaged{
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
-					MockClaimReferencer: fake.MockClaimReferencer{Ref: &corev1.ObjectReference{}},
+				mg: &fake.Managed{
+					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
+					ClaimReferencer: fake.ClaimReferencer{Ref: &corev1.ObjectReference{}},
 				},
 			},
 			want: want{
 				err: nil,
-				mg: &fake.MockManaged{
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseReleased},
-					MockClaimReferencer: fake.MockClaimReferencer{Ref: nil},
+				mg: &fake.Managed{
+					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseReleased},
+					ClaimReferencer: fake.ClaimReferencer{Ref: nil},
 				},
 			},
 		},
@@ -920,18 +919,18 @@ func TestStatusUnbind(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				mg: &fake.MockManaged{
-					MockReclaimer:       fake.MockReclaimer{Policy: v1alpha1.ReclaimDelete},
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
-					MockClaimReferencer: fake.MockClaimReferencer{Ref: &corev1.ObjectReference{}},
+				mg: &fake.Managed{
+					Reclaimer:       fake.Reclaimer{Policy: v1alpha1.ReclaimDelete},
+					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
+					ClaimReferencer: fake.ClaimReferencer{Ref: &corev1.ObjectReference{}},
 				},
 			},
 			want: want{
 				err: nil,
-				mg: &fake.MockManaged{
-					MockReclaimer:       fake.MockReclaimer{Policy: v1alpha1.ReclaimDelete},
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseReleased},
-					MockClaimReferencer: fake.MockClaimReferencer{Ref: nil},
+				mg: &fake.Managed{
+					Reclaimer:       fake.Reclaimer{Policy: v1alpha1.ReclaimDelete},
+					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseReleased},
+					ClaimReferencer: fake.ClaimReferencer{Ref: nil},
 				},
 			},
 		},
@@ -941,16 +940,16 @@ func TestStatusUnbind(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				mg: &fake.MockManaged{
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
-					MockClaimReferencer: fake.MockClaimReferencer{Ref: &corev1.ObjectReference{}},
+				mg: &fake.Managed{
+					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
+					ClaimReferencer: fake.ClaimReferencer{Ref: &corev1.ObjectReference{}},
 				},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateManaged),
-				mg: &fake.MockManaged{
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
-					MockClaimReferencer: fake.MockClaimReferencer{Ref: nil},
+				mg: &fake.Managed{
+					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
+					ClaimReferencer: fake.ClaimReferencer{Ref: nil},
 				},
 			},
 		},
@@ -961,18 +960,18 @@ func TestStatusUnbind(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				mg: &fake.MockManaged{
-					MockReclaimer:       fake.MockReclaimer{Policy: v1alpha1.ReclaimRetain},
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
-					MockClaimReferencer: fake.MockClaimReferencer{Ref: &corev1.ObjectReference{}},
+				mg: &fake.Managed{
+					Reclaimer:       fake.Reclaimer{Policy: v1alpha1.ReclaimRetain},
+					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
+					ClaimReferencer: fake.ClaimReferencer{Ref: &corev1.ObjectReference{}},
 				},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateManagedStatus),
-				mg: &fake.MockManaged{
-					MockReclaimer:       fake.MockReclaimer{Policy: v1alpha1.ReclaimRetain},
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseReleased},
-					MockClaimReferencer: fake.MockClaimReferencer{Ref: nil},
+				mg: &fake.Managed{
+					Reclaimer:       fake.Reclaimer{Policy: v1alpha1.ReclaimRetain},
+					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseReleased},
+					ClaimReferencer: fake.ClaimReferencer{Ref: nil},
 				},
 			},
 		},
@@ -984,18 +983,18 @@ func TestStatusUnbind(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				mg: &fake.MockManaged{
-					MockReclaimer:       fake.MockReclaimer{Policy: v1alpha1.ReclaimDelete},
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
-					MockClaimReferencer: fake.MockClaimReferencer{Ref: &corev1.ObjectReference{}},
+				mg: &fake.Managed{
+					Reclaimer:       fake.Reclaimer{Policy: v1alpha1.ReclaimDelete},
+					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
+					ClaimReferencer: fake.ClaimReferencer{Ref: &corev1.ObjectReference{}},
 				},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errDeleteManaged),
-				mg: &fake.MockManaged{
-					MockReclaimer:       fake.MockReclaimer{Policy: v1alpha1.ReclaimDelete},
-					BindingStatus:       v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseReleased},
-					MockClaimReferencer: fake.MockClaimReferencer{Ref: nil},
+				mg: &fake.Managed{
+					Reclaimer:       fake.Reclaimer{Policy: v1alpha1.ReclaimDelete},
+					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseReleased},
+					ClaimReferencer: fake.ClaimReferencer{Ref: nil},
 				},
 			},
 		},
@@ -1039,22 +1038,22 @@ func TestClaimRemoveFinalizer(t *testing.T) {
 			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(errBoom)},
 			args: args{
 				ctx: context.Background(),
-				cm:  &fake.MockClaim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
+				cm:  &fake.Claim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateClaim),
-				cm:  &fake.MockClaim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{}}},
+				cm:  &fake.Claim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{}}},
 			},
 		},
 		"Successful": {
 			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil)},
 			args: args{
 				ctx: context.Background(),
-				cm:  &fake.MockClaim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
+				cm:  &fake.Claim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
 			},
 			want: want{
 				err: nil,
-				cm:  &fake.MockClaim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{}}},
+				cm:  &fake.Claim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{}}},
 			},
 		},
 	}
@@ -1097,22 +1096,22 @@ func TestManagedRemoveFinalizer(t *testing.T) {
 			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(errBoom)},
 			args: args{
 				ctx: context.Background(),
-				mg:  &fake.MockManaged{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
+				mg:  &fake.Managed{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateManaged),
-				mg:  &fake.MockManaged{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{}}},
+				mg:  &fake.Managed{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{}}},
 			},
 		},
 		"Successful": {
 			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil)},
 			args: args{
 				ctx: context.Background(),
-				mg:  &fake.MockManaged{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
+				mg:  &fake.Managed{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
 			},
 			want: want{
 				err: nil,
-				mg:  &fake.MockManaged{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{}}},
+				mg:  &fake.Managed{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{}}},
 			},
 		},
 	}
@@ -1155,22 +1154,22 @@ func TestAPIClaimFinalizerAdder(t *testing.T) {
 			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(errBoom)},
 			args: args{
 				ctx: context.Background(),
-				cm:  &fake.MockClaim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{}}},
+				cm:  &fake.Claim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{}}},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateClaim),
-				cm:  &fake.MockClaim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
+				cm:  &fake.Claim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
 			},
 		},
 		"Successful": {
 			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil)},
 			args: args{
 				ctx: context.Background(),
-				cm:  &fake.MockClaim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{}}},
+				cm:  &fake.Claim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{}}},
 			},
 			want: want{
 				err: nil,
-				cm:  &fake.MockClaim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
+				cm:  &fake.Claim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
 			},
 		},
 	}
@@ -1213,22 +1212,22 @@ func TestAPIManagedFinalizerAdder(t *testing.T) {
 			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(errBoom)},
 			args: args{
 				ctx: context.Background(),
-				mg:  &fake.MockManaged{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{}}},
+				mg:  &fake.Managed{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{}}},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateManaged),
-				mg:  &fake.MockManaged{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
+				mg:  &fake.Managed{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
 			},
 		},
 		"Successful": {
 			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil)},
 			args: args{
 				ctx: context.Background(),
-				mg:  &fake.MockManaged{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{}}},
+				mg:  &fake.Managed{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{}}},
 			},
 			want: want{
 				err: nil,
-				mg:  &fake.MockManaged{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
+				mg:  &fake.Managed{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
 			},
 		},
 	}
@@ -1270,11 +1269,11 @@ func TestManagedNameAsExternalName(t *testing.T) {
 			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(errBoom)},
 			args: args{
 				ctx: context.Background(),
-				mg:  &fake.MockManaged{ObjectMeta: metav1.ObjectMeta{Name: testExternalName}},
+				mg:  &fake.Managed{ObjectMeta: metav1.ObjectMeta{Name: testExternalName}},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateManaged),
-				mg: &fake.MockManaged{ObjectMeta: metav1.ObjectMeta{
+				mg: &fake.Managed{ObjectMeta: metav1.ObjectMeta{
 					Name:        testExternalName,
 					Annotations: map[string]string{meta.ExternalNameAnnotationKey: testExternalName},
 				}},
@@ -1284,11 +1283,11 @@ func TestManagedNameAsExternalName(t *testing.T) {
 			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil)},
 			args: args{
 				ctx: context.Background(),
-				mg:  &fake.MockManaged{ObjectMeta: metav1.ObjectMeta{Name: testExternalName}},
+				mg:  &fake.Managed{ObjectMeta: metav1.ObjectMeta{Name: testExternalName}},
 			},
 			want: want{
 				err: nil,
-				mg: &fake.MockManaged{ObjectMeta: metav1.ObjectMeta{
+				mg: &fake.Managed{ObjectMeta: metav1.ObjectMeta{
 					Name:        testExternalName,
 					Annotations: map[string]string{meta.ExternalNameAnnotationKey: testExternalName},
 				}},
@@ -1297,14 +1296,14 @@ func TestManagedNameAsExternalName(t *testing.T) {
 		"UpdateNotNeeded": {
 			args: args{
 				ctx: context.Background(),
-				mg: &fake.MockManaged{ObjectMeta: metav1.ObjectMeta{
+				mg: &fake.Managed{ObjectMeta: metav1.ObjectMeta{
 					Name:        testExternalName,
 					Annotations: map[string]string{meta.ExternalNameAnnotationKey: "some-name"},
 				}},
 			},
 			want: want{
 				err: nil,
-				mg: &fake.MockManaged{ObjectMeta: metav1.ObjectMeta{
+				mg: &fake.Managed{ObjectMeta: metav1.ObjectMeta{
 					Name:        testExternalName,
 					Annotations: map[string]string{meta.ExternalNameAnnotationKey: "some-name"},
 				}},

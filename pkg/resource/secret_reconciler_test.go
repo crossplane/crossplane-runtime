@@ -62,7 +62,7 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 	}{
 		"FromNotFound": {
 			args: args{
-				m: &fake.MockManager{
+				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
 							switch n.Name {
@@ -81,7 +81,7 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 		},
 		"GetFromError": {
 			args: args{
-				m: &fake.MockManager{
+				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
 							switch n.Name {
@@ -100,7 +100,7 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 		},
 		"ToNotFound": {
 			args: args{
-				m: &fake.MockManager{
+				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
 							s := o.(*corev1.Secret)
@@ -135,7 +135,7 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 		},
 		"GetToError": {
 			args: args{
-				m: &fake.MockManager{
+				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
 							s := o.(*corev1.Secret)
@@ -170,7 +170,7 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 		},
 		"UnexpectedToUID": {
 			args: args{
-				m: &fake.MockManager{
+				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
 							s := o.(*corev1.Secret)
@@ -220,7 +220,7 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 		},
 		"UnexpectedFromUID": {
 			args: args{
-				m: &fake.MockManager{
+				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
 							s := o.(*corev1.Secret)
@@ -270,7 +270,7 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 		},
 		"UpdateToError": {
 			args: args{
-				m: &fake.MockManager{
+				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
 							s := o.(*corev1.Secret)
@@ -320,7 +320,7 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 		},
 		"Successful": {
 			args: args{
-				m: &fake.MockManager{
+				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
 							s := o.(*corev1.Secret)

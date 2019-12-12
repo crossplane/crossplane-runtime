@@ -204,10 +204,10 @@ func TestGetKind(t *testing.T) {
 	}{
 		"KindFound": {
 			args: args{
-				ot: MockTyper{GVKs: []schema.GroupVersionKind{fake.MockGVK(&fake.MockManaged{})}},
+				ot: MockTyper{GVKs: []schema.GroupVersionKind{fake.GVK(&fake.Managed{})}},
 			},
 			want: want{
-				kind: fake.MockGVK(&fake.MockManaged{}),
+				kind: fake.GVK(&fake.Managed{}),
 			},
 		},
 		"KindError": {
@@ -237,8 +237,8 @@ func TestGetKind(t *testing.T) {
 		"TooManyKinds": {
 			args: args{
 				ot: MockTyper{GVKs: []schema.GroupVersionKind{
-					fake.MockGVK(&fake.MockClaim{}),
-					fake.MockGVK(&fake.MockManaged{}),
+					fake.GVK(&fake.Claim{}),
+					fake.GVK(&fake.Managed{}),
 				}},
 			},
 			want: want{
@@ -270,10 +270,10 @@ func TestMustCreateObject(t *testing.T) {
 	}{
 		"KindRegistered": {
 			args: args{
-				kind: fake.MockGVK(&fake.MockClaim{}),
-				oc:   fake.MockSchemeWith(&fake.MockClaim{}),
+				kind: fake.GVK(&fake.Claim{}),
+				oc:   fake.SchemeWith(&fake.Claim{}),
 			},
-			want: &fake.MockClaim{},
+			want: &fake.Claim{},
 		},
 	}
 
@@ -377,19 +377,19 @@ func TestSetBindable(t *testing.T) {
 		want v1alpha1.BindingPhase
 	}{
 		"BindableIsUnbindable": {
-			b:    &fake.MockClaim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseUnbindable}},
+			b:    &fake.Claim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseUnbindable}},
 			want: v1alpha1.BindingPhaseUnbound,
 		},
 		"BindableIsUnbound": {
-			b:    &fake.MockClaim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseUnbound}},
+			b:    &fake.Claim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseUnbound}},
 			want: v1alpha1.BindingPhaseUnbound,
 		},
 		"BindableIsBound": {
-			b:    &fake.MockClaim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
+			b:    &fake.Claim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
 			want: v1alpha1.BindingPhaseBound,
 		},
 		"BindableIsReleased": {
-			b:    &fake.MockClaim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseReleased}},
+			b:    &fake.Claim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseReleased}},
 			want: v1alpha1.BindingPhaseReleased,
 		},
 	}

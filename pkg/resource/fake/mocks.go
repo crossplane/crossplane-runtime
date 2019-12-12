@@ -30,140 +30,140 @@ import (
 	"github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 )
 
-// MockBindable is a mock that implements Bindable interface.
-type MockBindable struct{ Phase v1alpha1.BindingPhase }
+// Bindable is a mock that implements Bindable interface.
+type Bindable struct{ Phase v1alpha1.BindingPhase }
 
 // SetBindingPhase sets the BindingPhase.
-func (m *MockBindable) SetBindingPhase(p v1alpha1.BindingPhase) { m.Phase = p }
+func (m *Bindable) SetBindingPhase(p v1alpha1.BindingPhase) { m.Phase = p }
 
 // GetBindingPhase sets the BindingPhase.
-func (m *MockBindable) GetBindingPhase() v1alpha1.BindingPhase { return m.Phase }
+func (m *Bindable) GetBindingPhase() v1alpha1.BindingPhase { return m.Phase }
 
-// MockConditioned is a mock that implements Conditioned interface.
-type MockConditioned struct{ Conditions []v1alpha1.Condition }
+// Conditioned is a mock that implements Conditioned interface.
+type Conditioned struct{ Conditions []v1alpha1.Condition }
 
 // SetConditions sets the Conditions.
-func (m *MockConditioned) SetConditions(c ...v1alpha1.Condition) { m.Conditions = c }
+func (m *Conditioned) SetConditions(c ...v1alpha1.Condition) { m.Conditions = c }
 
 // GetCondition get the Condition with the given ConditionType.
-func (m *MockConditioned) GetCondition(ct v1alpha1.ConditionType) v1alpha1.Condition {
+func (m *Conditioned) GetCondition(ct v1alpha1.ConditionType) v1alpha1.Condition {
 	return v1alpha1.Condition{Type: ct, Status: corev1.ConditionUnknown}
 }
 
-// MockClaimReferencer is a mock that implements ClaimReferencer interface.
-type MockClaimReferencer struct{ Ref *corev1.ObjectReference }
+// ClaimReferencer is a mock that implements ClaimReferencer interface.
+type ClaimReferencer struct{ Ref *corev1.ObjectReference }
 
 // SetClaimReference sets the ClaimReference.
-func (m *MockClaimReferencer) SetClaimReference(r *corev1.ObjectReference) { m.Ref = r }
+func (m *ClaimReferencer) SetClaimReference(r *corev1.ObjectReference) { m.Ref = r }
 
 // GetClaimReference gets the ClaimReference.
-func (m *MockClaimReferencer) GetClaimReference() *corev1.ObjectReference { return m.Ref }
+func (m *ClaimReferencer) GetClaimReference() *corev1.ObjectReference { return m.Ref }
 
-// MockClassSelector is a mock that implements ClassSelector interface.
-type MockClassSelector struct{ Sel *metav1.LabelSelector }
+// ClassSelector is a mock that implements ClassSelector interface.
+type ClassSelector struct{ Sel *metav1.LabelSelector }
 
 // SetClassSelector sets the ClassSelector.
-func (m *MockClassSelector) SetClassSelector(s *metav1.LabelSelector) {
+func (m *ClassSelector) SetClassSelector(s *metav1.LabelSelector) {
 	m.Sel = s
 }
 
 // GetClassSelector gets the ClassSelector.
-func (m *MockClassSelector) GetClassSelector() *metav1.LabelSelector {
+func (m *ClassSelector) GetClassSelector() *metav1.LabelSelector {
 	return m.Sel
 }
 
-// MockClassReferencer is a mock that implements ClassReferencer interface.
-type MockClassReferencer struct{ Ref *corev1.ObjectReference }
+// ClassReferencer is a mock that implements ClassReferencer interface.
+type ClassReferencer struct{ Ref *corev1.ObjectReference }
 
 // SetClassReference sets the ClassReference.
-func (m *MockClassReferencer) SetClassReference(r *corev1.ObjectReference) {
+func (m *ClassReferencer) SetClassReference(r *corev1.ObjectReference) {
 	m.Ref = r
 }
 
 // GetClassReference gets the ClassReference.
-func (m *MockClassReferencer) GetClassReference() *corev1.ObjectReference {
+func (m *ClassReferencer) GetClassReference() *corev1.ObjectReference {
 	return m.Ref
 }
 
-// MockManagedResourceReferencer is a mock that implements ManagedResourceReferencer interface.
-type MockManagedResourceReferencer struct{ Ref *corev1.ObjectReference }
+// ManagedResourceReferencer is a mock that implements ManagedResourceReferencer interface.
+type ManagedResourceReferencer struct{ Ref *corev1.ObjectReference }
 
 // SetResourceReference sets the ResourceReference.
-func (m *MockManagedResourceReferencer) SetResourceReference(r *corev1.ObjectReference) { m.Ref = r }
+func (m *ManagedResourceReferencer) SetResourceReference(r *corev1.ObjectReference) { m.Ref = r }
 
 // GetResourceReference gets the ResourceReference.
-func (m *MockManagedResourceReferencer) GetResourceReference() *corev1.ObjectReference { return m.Ref }
+func (m *ManagedResourceReferencer) GetResourceReference() *corev1.ObjectReference { return m.Ref }
 
-// MockLocalConnectionSecretWriterTo is a mock that implements LocalConnectionSecretWriterTo interface.
-type MockLocalConnectionSecretWriterTo struct {
+// LocalConnectionSecretWriterTo is a mock that implements LocalConnectionSecretWriterTo interface.
+type LocalConnectionSecretWriterTo struct {
 	Ref *v1alpha1.LocalSecretReference
 }
 
 // SetWriteConnectionSecretToReference sets the WriteConnectionSecretToReference.
-func (m *MockLocalConnectionSecretWriterTo) SetWriteConnectionSecretToReference(r *v1alpha1.LocalSecretReference) {
+func (m *LocalConnectionSecretWriterTo) SetWriteConnectionSecretToReference(r *v1alpha1.LocalSecretReference) {
 	m.Ref = r
 }
 
 // GetWriteConnectionSecretToReference gets the WriteConnectionSecretToReference.
-func (m *MockLocalConnectionSecretWriterTo) GetWriteConnectionSecretToReference() *v1alpha1.LocalSecretReference {
+func (m *LocalConnectionSecretWriterTo) GetWriteConnectionSecretToReference() *v1alpha1.LocalSecretReference {
 	return m.Ref
 }
 
-// MockConnectionSecretWriterTo is a mock that implements ConnectionSecretWriterTo interface.
-type MockConnectionSecretWriterTo struct{ Ref *v1alpha1.SecretReference }
+// ConnectionSecretWriterTo is a mock that implements ConnectionSecretWriterTo interface.
+type ConnectionSecretWriterTo struct{ Ref *v1alpha1.SecretReference }
 
 // SetWriteConnectionSecretToReference sets the WriteConnectionSecretToReference.
-func (m *MockConnectionSecretWriterTo) SetWriteConnectionSecretToReference(r *v1alpha1.SecretReference) {
+func (m *ConnectionSecretWriterTo) SetWriteConnectionSecretToReference(r *v1alpha1.SecretReference) {
 	m.Ref = r
 }
 
 // GetWriteConnectionSecretToReference gets the WriteConnectionSecretToReference.
-func (m *MockConnectionSecretWriterTo) GetWriteConnectionSecretToReference() *v1alpha1.SecretReference {
+func (m *ConnectionSecretWriterTo) GetWriteConnectionSecretToReference() *v1alpha1.SecretReference {
 	return m.Ref
 }
 
-// MockReclaimer is a mock that implements Reclaimer interface.
-type MockReclaimer struct{ Policy v1alpha1.ReclaimPolicy }
+// Reclaimer is a mock that implements Reclaimer interface.
+type Reclaimer struct{ Policy v1alpha1.ReclaimPolicy }
 
 // SetReclaimPolicy sets the ReclaimPolicy.
-func (m *MockReclaimer) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) { m.Policy = p }
+func (m *Reclaimer) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) { m.Policy = p }
 
-// MockCredentialsSecretReferencer is a mock that satisfies CredentialsSecretReferencer
+// GetReclaimPolicy gets the ReclaimPolicy.
+func (m *Reclaimer) GetReclaimPolicy() v1alpha1.ReclaimPolicy { return m.Policy }
+
+// CredentialsSecretReferencer is a mock that satisfies CredentialsSecretReferencer
 // interface.
-type MockCredentialsSecretReferencer struct{ Ref *v1alpha1.SecretKeySelector }
+type CredentialsSecretReferencer struct{ Ref *v1alpha1.SecretKeySelector }
 
 // SetCredentialsSecretReference sets CredentialsSecretReference.
-func (m *MockCredentialsSecretReferencer) SetCredentialsSecretReference(r *v1alpha1.SecretKeySelector) {
+func (m *CredentialsSecretReferencer) SetCredentialsSecretReference(r *v1alpha1.SecretKeySelector) {
 	m.Ref = r
 }
 
 // GetCredentialsSecretReference gets CredentialsSecretReference.
-func (m *MockCredentialsSecretReferencer) GetCredentialsSecretReference() *v1alpha1.SecretKeySelector {
+func (m *CredentialsSecretReferencer) GetCredentialsSecretReference() *v1alpha1.SecretKeySelector {
 	return m.Ref
 }
 
-// GetReclaimPolicy gets the ReclaimPolicy.
-func (m *MockReclaimer) GetReclaimPolicy() v1alpha1.ReclaimPolicy { return m.Policy }
-
-// MockClaim is a mock that implements Claim interface.
-type MockClaim struct {
+// Claim is a mock that implements Claim interface.
+type Claim struct {
 	metav1.ObjectMeta
-	MockClassSelector
-	MockClassReferencer
-	MockManagedResourceReferencer
-	MockLocalConnectionSecretWriterTo
+	ClassSelector
+	ClassReferencer
+	ManagedResourceReferencer
+	LocalConnectionSecretWriterTo
 	v1alpha1.ConditionedStatus
 	v1alpha1.BindingStatus
 }
 
 // GetObjectKind returns schema.ObjectKind.
-func (m *MockClaim) GetObjectKind() schema.ObjectKind {
+func (m *Claim) GetObjectKind() schema.ObjectKind {
 	return schema.EmptyObjectKind
 }
 
 // DeepCopyObject returns a copy of the object as runtime.Object
-func (m *MockClaim) DeepCopyObject() runtime.Object {
-	out := &MockClaim{}
+func (m *Claim) DeepCopyObject() runtime.Object {
+	out := &Claim{}
 	j, err := json.Marshal(m)
 	if err != nil {
 		panic(err)
@@ -172,20 +172,20 @@ func (m *MockClaim) DeepCopyObject() runtime.Object {
 	return out
 }
 
-// MockClass is a mock that implements Class interface.
-type MockClass struct {
+// Class is a mock that implements Class interface.
+type Class struct {
 	metav1.ObjectMeta
-	MockReclaimer
+	Reclaimer
 }
 
 // GetObjectKind returns schema.ObjectKind.
-func (m *MockClass) GetObjectKind() schema.ObjectKind {
+func (m *Class) GetObjectKind() schema.ObjectKind {
 	return schema.EmptyObjectKind
 }
 
 // DeepCopyObject returns a copy of the object as runtime.Object
-func (m *MockClass) DeepCopyObject() runtime.Object {
-	out := &MockClass{}
+func (m *Class) DeepCopyObject() runtime.Object {
+	out := &Class{}
 	j, err := json.Marshal(m)
 	if err != nil {
 		panic(err)
@@ -194,25 +194,25 @@ func (m *MockClass) DeepCopyObject() runtime.Object {
 	return out
 }
 
-// MockManaged is a mock that implements Managed interface.
-type MockManaged struct {
+// Managed is a mock that implements Managed interface.
+type Managed struct {
 	metav1.ObjectMeta
-	MockClassReferencer
-	MockClaimReferencer
-	MockConnectionSecretWriterTo
-	MockReclaimer
+	ClassReferencer
+	ClaimReferencer
+	ConnectionSecretWriterTo
+	Reclaimer
 	v1alpha1.ConditionedStatus
 	v1alpha1.BindingStatus
 }
 
 // GetObjectKind returns schema.ObjectKind.
-func (m *MockManaged) GetObjectKind() schema.ObjectKind {
+func (m *Managed) GetObjectKind() schema.ObjectKind {
 	return schema.EmptyObjectKind
 }
 
 // DeepCopyObject returns a copy of the object as runtime.Object
-func (m *MockManaged) DeepCopyObject() runtime.Object {
-	out := &MockManaged{}
+func (m *Managed) DeepCopyObject() runtime.Object {
+	out := &Managed{}
 	j, err := json.Marshal(m)
 	if err != nil {
 		panic(err)
@@ -221,20 +221,20 @@ func (m *MockManaged) DeepCopyObject() runtime.Object {
 	return out
 }
 
-// MockProvider is a mock that satisfies Provider interface.
-type MockProvider struct {
+// Provider is a mock that satisfies Provider interface.
+type Provider struct {
 	metav1.ObjectMeta
-	MockCredentialsSecretReferencer
+	CredentialsSecretReferencer
 }
 
 // GetObjectKind returns schema.ObjectKind.
-func (m *MockProvider) GetObjectKind() schema.ObjectKind {
+func (m *Provider) GetObjectKind() schema.ObjectKind {
 	return schema.EmptyObjectKind
 }
 
-// DeepCopyObject returns a deep copy of MockProvider as runtime.Object.
-func (m *MockProvider) DeepCopyObject() runtime.Object {
-	out := &MockProvider{}
+// DeepCopyObject returns a deep copy of Provider as runtime.Object.
+func (m *Provider) DeepCopyObject() runtime.Object {
+	out := &Provider{}
 	j, err := json.Marshal(m)
 	if err != nil {
 		panic(err)
@@ -243,8 +243,8 @@ func (m *MockProvider) DeepCopyObject() runtime.Object {
 	return out
 }
 
-// MockManager is a mock object that satisfies manager.Manager interface.
-type MockManager struct {
+// Manager is a mock object that satisfies manager.Manager interface.
+type Manager struct {
 	manager.Manager
 
 	Client client.Client
@@ -252,22 +252,22 @@ type MockManager struct {
 }
 
 // GetClient returns the client.
-func (m *MockManager) GetClient() client.Client { return m.Client }
+func (m *Manager) GetClient() client.Client { return m.Client }
 
 // GetScheme returns the scheme.
-func (m *MockManager) GetScheme() *runtime.Scheme { return m.Scheme }
+func (m *Manager) GetScheme() *runtime.Scheme { return m.Scheme }
 
-// MockGV returns a mock schema.GroupVersion.
-var MockGV = schema.GroupVersion{Group: "g", Version: "v"}
+// GV returns a mock schema.GroupVersion.
+var GV = schema.GroupVersion{Group: "g", Version: "v"}
 
-// MockGVK returns the mock GVK of the given object.
-func MockGVK(o runtime.Object) schema.GroupVersionKind {
-	return MockGV.WithKind(reflect.TypeOf(o).Elem().Name())
+// GVK returns the mock GVK of the given object.
+func GVK(o runtime.Object) schema.GroupVersionKind {
+	return GV.WithKind(reflect.TypeOf(o).Elem().Name())
 }
 
-// MockSchemeWith returns a scheme with list of `runtime.Object`s registered.
-func MockSchemeWith(o ...runtime.Object) *runtime.Scheme {
+// SchemeWith returns a scheme with list of `runtime.Object`s registered.
+func SchemeWith(o ...runtime.Object) *runtime.Scheme {
 	s := runtime.NewScheme()
-	s.AddKnownTypes(MockGV, o...)
+	s.AddKnownTypes(GV, o...)
 	return s
 }

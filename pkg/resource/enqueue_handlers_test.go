@@ -19,8 +19,6 @@ package resource
 import (
 	"testing"
 
-	"github.com/crossplaneio/crossplane-runtime/pkg/resource/fake"
-
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,6 +26,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource/fake"
 )
 
 var (
@@ -52,11 +52,11 @@ func TestAddClaim(t *testing.T) {
 			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
 		},
 		"ObjectHasNilClaimReference": {
-			obj:   &fake.MockManaged{},
+			obj:   &fake.Managed{},
 			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
 		},
 		"ObjectHasClaimReference": {
-			obj: &fake.MockManaged{MockClaimReferencer: fake.MockClaimReferencer{Ref: &corev1.ObjectReference{
+			obj: &fake.Managed{ClaimReferencer: fake.ClaimReferencer{Ref: &corev1.ObjectReference{
 				Namespace: ns,
 				Name:      name,
 			}}},
@@ -86,19 +86,19 @@ func TestAddPropagator(t *testing.T) {
 			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
 		},
 		"ObjectMissing" + AnnotationKeyPropagateFromNamespace: {
-			obj: &fake.MockManaged{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+			obj: &fake.Managed{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
 				AnnotationKeyPropagateFromName: name,
 			}}},
 			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
 		},
 		"ObjectMissing" + AnnotationKeyPropagateFromName: {
-			obj: &fake.MockManaged{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+			obj: &fake.Managed{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
 				AnnotationKeyPropagateFromNamespace: ns,
 			}}},
 			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
 		},
 		"IsPropagatedObject": {
-			obj: &fake.MockManaged{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+			obj: &fake.Managed{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
 				AnnotationKeyPropagateFromNamespace: ns,
 				AnnotationKeyPropagateFromName:      name,
 			}}},
