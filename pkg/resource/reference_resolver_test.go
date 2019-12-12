@@ -25,6 +25,7 @@ import (
 	"github.com/pkg/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 )
 
@@ -128,7 +129,7 @@ func TestResolveReferences(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				res: &MockManaged{},
+				res: &fake.Managed{},
 			},
 			want: errors.Wrap(errBoom, errBuildAttribute),
 		},
@@ -153,7 +154,7 @@ func TestResolveReferences(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				res: &MockManaged{},
+				res: &fake.Managed{},
 			},
 			want: errors.Wrap(errBoom, errAssignAttribute),
 		},
@@ -181,7 +182,7 @@ func TestResolveReferences(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				res: &MockManaged{},
+				res: &fake.Managed{},
 			},
 			want: nil,
 		},
@@ -207,7 +208,7 @@ func TestResolveReferences(t *testing.T) {
 								}
 
 								// Simulate assignment by changing something about the resource.
-								res.(*MockManaged).SetAnnotations(map[string]string{"assigned": "true"})
+								res.(*fake.Managed).SetAnnotations(map[string]string{"assigned": "true"})
 								return nil
 							},
 						},
@@ -216,7 +217,7 @@ func TestResolveReferences(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				res: &MockManaged{},
+				res: &fake.Managed{},
 			},
 			want: nil,
 		},
@@ -237,7 +238,7 @@ func TestResolveReferences(t *testing.T) {
 							},
 							MockAssign: func(res CanReference, _ string) error {
 								// Simulate assignment by changing something about the resource.
-								res.(*MockManaged).SetAnnotations(map[string]string{"assigned": "true"})
+								res.(*fake.Managed).SetAnnotations(map[string]string{"assigned": "true"})
 
 								return nil
 							},
@@ -247,7 +248,7 @@ func TestResolveReferences(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				res: &MockManaged{},
+				res: &fake.Managed{},
 			},
 			want: errors.Wrap(errBoom, errUpdateReferencer),
 		},
@@ -340,8 +341,8 @@ func TestFindReferencers(t *testing.T) {
 			want: []AttributeReferencer{},
 		},
 		"MockManagedIsNotAttributeReferencer": {
-			reason: "MockManaged is relatively complex, but should not break findReferencers",
-			obj:    &MockManaged{},
+			reason: "Managed is relatively complex, but should not break findReferencers",
+			obj:    &fake.Managed{},
 		},
 	}
 

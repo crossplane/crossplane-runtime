@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 )
 
@@ -57,7 +58,7 @@ func TestPublisherChain(t *testing.T) {
 			p: PublisherChain{},
 			args: args{
 				ctx: context.Background(),
-				mg:  &MockManaged{},
+				mg:  &fake.Managed{},
 				c:   ConnectionDetails{},
 			},
 			want: nil,
@@ -75,7 +76,7 @@ func TestPublisherChain(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				mg:  &MockManaged{},
+				mg:  &fake.Managed{},
 				c:   ConnectionDetails{},
 			},
 			want: nil,
@@ -93,7 +94,7 @@ func TestPublisherChain(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				mg:  &MockManaged{},
+				mg:  &fake.Managed{},
 				c:   ConnectionDetails{},
 			},
 			want: errBoom,
@@ -143,7 +144,7 @@ func TestAPISecretPublisher(t *testing.T) {
 		"ResourceDoesNotPublishSecret": {
 			args: args{
 				ctx: context.Background(),
-				mg:  &MockManaged{},
+				mg:  &fake.Managed{},
 			},
 		},
 		"ManagedSecretConflictError": {
@@ -160,12 +161,12 @@ func TestAPISecretPublisher(t *testing.T) {
 					},
 					MockUpdate: test.NewMockUpdateFn(nil),
 				},
-				typer: MockSchemeWith(&MockManaged{}),
+				typer: fake.SchemeWith(&fake.Managed{}),
 			},
 			args: args{
 				ctx: context.Background(),
-				mg: &MockManaged{
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: &v1alpha1.SecretReference{
+				mg: &fake.Managed{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: &v1alpha1.SecretReference{
 						Namespace: mgcsnamespace,
 						Name:      mgcsname,
 					}},
@@ -183,12 +184,12 @@ func TestAPISecretPublisher(t *testing.T) {
 					},
 					MockUpdate: test.NewMockUpdateFn(nil),
 				},
-				typer: MockSchemeWith(&MockManaged{}),
+				typer: fake.SchemeWith(&fake.Managed{}),
 			},
 			args: args{
 				ctx: context.Background(),
-				mg: &MockManaged{
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: &v1alpha1.SecretReference{
+				mg: &fake.Managed{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: &v1alpha1.SecretReference{
 						Namespace: mgcsnamespace,
 						Name:      mgcsname,
 					}},
@@ -207,8 +208,8 @@ func TestAPISecretPublisher(t *testing.T) {
 						want.SetName(mgcsname)
 						want.SetOwnerReferences([]metav1.OwnerReference{{
 							Name:       mgname,
-							APIVersion: MockGVK(&MockManaged{}).GroupVersion().String(),
-							Kind:       MockGVK(&MockManaged{}).Kind,
+							APIVersion: fake.GVK(&fake.Managed{}).GroupVersion().String(),
+							Kind:       fake.GVK(&fake.Managed{}).Kind,
 							Controller: &controller,
 						}})
 						want.Data = cddata
@@ -218,13 +219,13 @@ func TestAPISecretPublisher(t *testing.T) {
 						return nil
 					}),
 				},
-				typer: MockSchemeWith(&MockManaged{}),
+				typer: fake.SchemeWith(&fake.Managed{}),
 			},
 			args: args{
 				ctx: context.Background(),
-				mg: &MockManaged{
+				mg: &fake.Managed{
 					ObjectMeta: metav1.ObjectMeta{Name: mgname},
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: &v1alpha1.SecretReference{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: &v1alpha1.SecretReference{
 						Namespace: mgcsnamespace,
 						Name:      mgcsname,
 					}},
@@ -242,8 +243,8 @@ func TestAPISecretPublisher(t *testing.T) {
 						s.SetName(mgcsname)
 						s.SetOwnerReferences([]metav1.OwnerReference{{
 							Name:       mgname,
-							APIVersion: MockGVK(&MockManaged{}).GroupVersion().String(),
-							Kind:       MockGVK(&MockManaged{}).Kind,
+							APIVersion: fake.GVK(&fake.Managed{}).GroupVersion().String(),
+							Kind:       fake.GVK(&fake.Managed{}).Kind,
 							Controller: &controller,
 						}})
 						*o.(*corev1.Secret) = *s
@@ -255,8 +256,8 @@ func TestAPISecretPublisher(t *testing.T) {
 						want.SetName(mgcsname)
 						want.SetOwnerReferences([]metav1.OwnerReference{{
 							Name:       mgname,
-							APIVersion: MockGVK(&MockManaged{}).GroupVersion().String(),
-							Kind:       MockGVK(&MockManaged{}).Kind,
+							APIVersion: fake.GVK(&fake.Managed{}).GroupVersion().String(),
+							Kind:       fake.GVK(&fake.Managed{}).Kind,
 							Controller: &controller,
 						}})
 						want.Data = cddata
@@ -266,13 +267,13 @@ func TestAPISecretPublisher(t *testing.T) {
 						return nil
 					}),
 				},
-				typer: MockSchemeWith(&MockManaged{}),
+				typer: fake.SchemeWith(&fake.Managed{}),
 			},
 			args: args{
 				ctx: context.Background(),
-				mg: &MockManaged{
+				mg: &fake.Managed{
 					ObjectMeta: metav1.ObjectMeta{Name: mgname},
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: &v1alpha1.SecretReference{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: &v1alpha1.SecretReference{
 						Namespace: mgcsnamespace,
 						Name:      mgcsname,
 					}},
@@ -290,8 +291,8 @@ func TestAPISecretPublisher(t *testing.T) {
 						s.SetName(mgcsname)
 						s.SetOwnerReferences([]metav1.OwnerReference{{
 							Name:       mgname,
-							APIVersion: MockGVK(&MockManaged{}).GroupVersion().String(),
-							Kind:       MockGVK(&MockManaged{}).Kind,
+							APIVersion: fake.GVK(&fake.Managed{}).GroupVersion().String(),
+							Kind:       fake.GVK(&fake.Managed{}).Kind,
 							Controller: &controller,
 						}})
 						s.Data = mgcsdata
@@ -304,8 +305,8 @@ func TestAPISecretPublisher(t *testing.T) {
 						want.SetName(mgcsname)
 						want.SetOwnerReferences([]metav1.OwnerReference{{
 							Name:       mgname,
-							APIVersion: MockGVK(&MockManaged{}).GroupVersion().String(),
-							Kind:       MockGVK(&MockManaged{}).Kind,
+							APIVersion: fake.GVK(&fake.Managed{}).GroupVersion().String(),
+							Kind:       fake.GVK(&fake.Managed{}).Kind,
 							Controller: &controller,
 						}})
 						want.Data = map[string][]byte{
@@ -319,13 +320,13 @@ func TestAPISecretPublisher(t *testing.T) {
 						return nil
 					}),
 				},
-				typer: MockSchemeWith(&MockManaged{}),
+				typer: fake.SchemeWith(&fake.Managed{}),
 			},
 			args: args{
 				ctx: context.Background(),
-				mg: &MockManaged{
+				mg: &fake.Managed{
 					ObjectMeta: metav1.ObjectMeta{Name: mgname},
-					MockConnectionSecretWriterTo: MockConnectionSecretWriterTo{Ref: &v1alpha1.SecretReference{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: &v1alpha1.SecretReference{
 						Namespace: mgcsnamespace,
 						Name:      mgcsname,
 					}},

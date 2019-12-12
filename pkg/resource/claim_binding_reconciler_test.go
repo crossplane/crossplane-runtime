@@ -18,7 +18,6 @@ package resource
 
 import (
 	"context"
-	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -28,37 +27,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 )
 
 var _ reconcile.Reconciler = &ClaimReconciler{}
-
-type MockManager struct {
-	manager.Manager
-
-	c client.Client
-	s *runtime.Scheme
-}
-
-func (m *MockManager) GetClient() client.Client   { return m.c }
-func (m *MockManager) GetScheme() *runtime.Scheme { return m.s }
-
-var MockGV = schema.GroupVersion{Group: "g", Version: "v"}
-
-func MockGVK(o runtime.Object) schema.GroupVersionKind {
-	return MockGV.WithKind(reflect.TypeOf(o).Elem().Name())
-}
-
-func MockSchemeWith(o ...runtime.Object) *runtime.Scheme {
-	s := runtime.NewScheme()
-	s.AddKnownTypes(MockGV, o...)
-	return s
-}
 
 func TestClaimReconciler(t *testing.T) {
 	type args struct {
@@ -84,35 +61,35 @@ func TestClaimReconciler(t *testing.T) {
 	}{
 		"GetClaimError": {
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
-					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
+				m: &fake.Manager{
+					Client: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
+					Scheme: fake.SchemeWith(&fake.Claim{}, &fake.Class{}, &fake.Managed{}),
 				},
-				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKind(MockGVK(&MockClass{})),
-				with: ManagedKind(MockGVK(&MockManaged{})),
+				of:   ClaimKind(fake.GVK(&fake.Claim{})),
+				use:  ClassKind(fake.GVK(&fake.Class{})),
+				with: ManagedKind(fake.GVK(&fake.Managed{})),
 			},
 			want: want{err: errors.Wrap(errBoom, errGetClaim)},
 		},
 		"GetManagedError": {
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.Manager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 							switch o := o.(type) {
-							case *MockClaim:
-								cm := &MockClaim{}
+							case *fake.Claim:
+								cm := &fake.Claim{}
 								cm.SetResourceReference(&corev1.ObjectReference{})
 								*o = *cm
 								return nil
-							case *MockManaged:
+							case *fake.Managed:
 								return errBoom
 							default:
 								return errUnexpected
 							}
 						}),
 						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
-							want := &MockClaim{}
+							want := &fake.Claim{}
 							want.SetResourceReference(&corev1.ObjectReference{})
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
@@ -121,33 +98,33 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
+					Scheme: fake.SchemeWith(&fake.Claim{}, &fake.Class{}, &fake.Managed{}),
 				},
-				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKind(MockGVK(&MockClass{})),
-				with: ManagedKind(MockGVK(&MockManaged{})),
+				of:   ClaimKind(fake.GVK(&fake.Claim{})),
+				use:  ClassKind(fake.GVK(&fake.Class{})),
+				with: ManagedKind(fake.GVK(&fake.Managed{})),
 			},
 			want: want{result: reconcile.Result{RequeueAfter: aShortWait}},
 		},
 		"ManagedNotFound": {
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.Manager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 							switch o := o.(type) {
-							case *MockClaim:
-								cm := &MockClaim{}
+							case *fake.Claim:
+								cm := &fake.Claim{}
 								cm.SetResourceReference(&corev1.ObjectReference{})
 								*o = *cm
 								return nil
-							case *MockManaged:
+							case *fake.Managed:
 								return kerrors.NewNotFound(schema.GroupResource{}, "")
 							default:
 								return errUnexpected
 							}
 						}),
 						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
-							want := &MockClaim{}
+							want := &fake.Claim{}
 							want.SetResourceReference(&corev1.ObjectReference{})
 							want.SetConditions(Binding(), v1alpha1.ReconcileSuccess())
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
@@ -156,22 +133,22 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
+					Scheme: fake.SchemeWith(&fake.Claim{}, &fake.Class{}, &fake.Managed{}),
 				},
-				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKind(MockGVK(&MockClass{})),
-				with: ManagedKind(MockGVK(&MockManaged{})),
+				of:   ClaimKind(fake.GVK(&fake.Claim{})),
+				use:  ClassKind(fake.GVK(&fake.Class{})),
+				with: ManagedKind(fake.GVK(&fake.Managed{})),
 			},
 			want: want{result: reconcile.Result{RequeueAfter: aShortWait}},
 		},
 		"UnbindError": {
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.Manager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 							switch o := o.(type) {
-							case *MockClaim:
-								cm := &MockClaim{}
+							case *fake.Claim:
+								cm := &fake.Claim{}
 								cm.SetDeletionTimestamp(&now)
 								*o = *cm
 								return nil
@@ -180,7 +157,7 @@ func TestClaimReconciler(t *testing.T) {
 							}
 						}),
 						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
-							want := &MockClaim{}
+							want := &fake.Claim{}
 							want.SetDeletionTimestamp(&now)
 							want.SetConditions(v1alpha1.Deleting(), v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
@@ -189,11 +166,11 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
+					Scheme: fake.SchemeWith(&fake.Claim{}, &fake.Class{}, &fake.Managed{}),
 				},
-				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKind(MockGVK(&MockClass{})),
-				with: ManagedKind(MockGVK(&MockManaged{})),
+				of:   ClaimKind(fake.GVK(&fake.Claim{})),
+				use:  ClassKind(fake.GVK(&fake.Class{})),
+				with: ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ClaimReconcilerOption{
 					WithBinder(BinderFns{UnbindFn: func(_ context.Context, _ Claim, _ Managed) error { return errBoom }}),
 				},
@@ -202,12 +179,12 @@ func TestClaimReconciler(t *testing.T) {
 		},
 		"UnbindSuccess": {
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.Manager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 							switch o := o.(type) {
-							case *MockClaim:
-								cm := &MockClaim{}
+							case *fake.Claim:
+								cm := &fake.Claim{}
 								cm.SetDeletionTimestamp(&now)
 								*o = *cm
 								return nil
@@ -216,7 +193,7 @@ func TestClaimReconciler(t *testing.T) {
 							}
 						}),
 						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
-							want := &MockClaim{}
+							want := &fake.Claim{}
 							want.SetDeletionTimestamp(&now)
 							want.SetConditions(v1alpha1.Deleting(), v1alpha1.ReconcileSuccess())
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
@@ -225,11 +202,11 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
+					Scheme: fake.SchemeWith(&fake.Claim{}, &fake.Class{}, &fake.Managed{}),
 				},
-				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKind(MockGVK(&MockClass{})),
-				with: ManagedKind(MockGVK(&MockManaged{})),
+				of:   ClaimKind(fake.GVK(&fake.Claim{})),
+				use:  ClassKind(fake.GVK(&fake.Class{})),
+				with: ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ClaimReconcilerOption{
 					WithBinder(BinderFns{UnbindFn: func(_ context.Context, _ Claim, _ Managed) error { return nil }}),
 					WithClaimFinalizer(ClaimFinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ Claim) error { return nil }}),
@@ -239,12 +216,12 @@ func TestClaimReconciler(t *testing.T) {
 		},
 		"RemoveClaimFinalizerError": {
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.Manager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 							switch o := o.(type) {
-							case *MockClaim:
-								cm := &MockClaim{}
+							case *fake.Claim:
+								cm := &fake.Claim{}
 								cm.SetDeletionTimestamp(&now)
 								*o = *cm
 								return nil
@@ -253,7 +230,7 @@ func TestClaimReconciler(t *testing.T) {
 							}
 						}),
 						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
-							want := &MockClaim{}
+							want := &fake.Claim{}
 							want.SetDeletionTimestamp(&now)
 							want.SetConditions(v1alpha1.Deleting(), v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
@@ -262,11 +239,11 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
+					Scheme: fake.SchemeWith(&fake.Claim{}, &fake.Class{}, &fake.Managed{}),
 				},
-				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKind(MockGVK(&MockClass{})),
-				with: ManagedKind(MockGVK(&MockManaged{})),
+				of:   ClaimKind(fake.GVK(&fake.Claim{})),
+				use:  ClassKind(fake.GVK(&fake.Class{})),
+				with: ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ClaimReconcilerOption{
 					WithBinder(BinderFns{UnbindFn: func(_ context.Context, _ Claim, _ Managed) error { return nil }}),
 					WithClaimFinalizer(ClaimFinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ Claim) error { return errBoom }}),
@@ -276,12 +253,12 @@ func TestClaimReconciler(t *testing.T) {
 		},
 		"SuccessfulDelete": {
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.Manager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 							switch o := o.(type) {
-							case *MockClaim:
-								cm := &MockClaim{}
+							case *fake.Claim:
+								cm := &fake.Claim{}
 								cm.SetDeletionTimestamp(&now)
 								*o = *cm
 								return nil
@@ -290,11 +267,11 @@ func TestClaimReconciler(t *testing.T) {
 							}
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
+					Scheme: fake.SchemeWith(&fake.Claim{}, &fake.Class{}, &fake.Managed{}),
 				},
-				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKind(MockGVK(&MockClass{})),
-				with: ManagedKind(MockGVK(&MockManaged{})),
+				of:   ClaimKind(fake.GVK(&fake.Claim{})),
+				use:  ClassKind(fake.GVK(&fake.Class{})),
+				with: ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ClaimReconcilerOption{
 					WithBinder(BinderFns{UnbindFn: func(_ context.Context, _ Claim, _ Managed) error { return nil }}),
 					WithClaimFinalizer(ClaimFinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ Claim) error { return nil }}),
@@ -304,21 +281,21 @@ func TestClaimReconciler(t *testing.T) {
 		},
 		"ClassReferenceNotSet": {
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.Manager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 							switch o := o.(type) {
-							case *MockClaim:
-								*o = MockClaim{}
+							case *fake.Claim:
+								*o = fake.Claim{}
 								return nil
-							case *MockManaged:
+							case *fake.Managed:
 								return nil
 							default:
 								return errUnexpected
 							}
 						}),
 						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
-							want := &MockClaim{}
+							want := &fake.Claim{}
 							want.SetConditions(Binding(), v1alpha1.ReconcileSuccess())
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -326,33 +303,33 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
+					Scheme: fake.SchemeWith(&fake.Claim{}, &fake.Class{}, &fake.Managed{}),
 				},
-				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKind(MockGVK(&MockClass{})),
-				with: ManagedKind(MockGVK(&MockManaged{})),
+				of:   ClaimKind(fake.GVK(&fake.Claim{})),
+				use:  ClassKind(fake.GVK(&fake.Class{})),
+				with: ManagedKind(fake.GVK(&fake.Managed{})),
 			},
 			want: want{result: reconcile.Result{RequeueAfter: aShortWait}},
 		},
 		"GetResourceClassError": {
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.Manager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 							switch o := o.(type) {
-							case *MockClaim:
-								cm := &MockClaim{}
+							case *fake.Claim:
+								cm := &fake.Claim{}
 								cm.SetClassReference(&corev1.ObjectReference{})
 								*o = *cm
 								return nil
-							case *MockClass:
+							case *fake.Class:
 								return errBoom
 							default:
 								return errUnexpected
 							}
 						}),
 						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
-							want := &MockClaim{}
+							want := &fake.Claim{}
 							want.SetClassReference(&corev1.ObjectReference{})
 							want.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
@@ -361,33 +338,33 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
+					Scheme: fake.SchemeWith(&fake.Claim{}, &fake.Class{}, &fake.Managed{}),
 				},
-				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKind(MockGVK(&MockClass{})),
-				with: ManagedKind(MockGVK(&MockManaged{})),
+				of:   ClaimKind(fake.GVK(&fake.Claim{})),
+				use:  ClassKind(fake.GVK(&fake.Class{})),
+				with: ManagedKind(fake.GVK(&fake.Managed{})),
 			},
 			want: want{result: reconcile.Result{RequeueAfter: aShortWait}},
 		},
 		"ConfigureManagedError": {
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.Manager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 							switch o := o.(type) {
-							case *MockClaim:
-								cm := &MockClaim{}
+							case *fake.Claim:
+								cm := &fake.Claim{}
 								cm.SetClassReference(&corev1.ObjectReference{})
 								*o = *cm
 								return nil
-							case *MockClass:
+							case *fake.Class:
 								return nil
 							default:
 								return errUnexpected
 							}
 						}),
 						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
-							want := &MockClaim{}
+							want := &fake.Claim{}
 							want.SetClassReference(&corev1.ObjectReference{})
 							want.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
@@ -396,11 +373,11 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
+					Scheme: fake.SchemeWith(&fake.Claim{}, &fake.Class{}, &fake.Managed{}),
 				},
-				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKind(MockGVK(&MockClass{})),
-				with: ManagedKind(MockGVK(&MockManaged{})),
+				of:   ClaimKind(fake.GVK(&fake.Claim{})),
+				use:  ClassKind(fake.GVK(&fake.Class{})),
+				with: ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ClaimReconcilerOption{WithManagedConfigurators(ManagedConfiguratorFn(
 					func(_ context.Context, _ Claim, _ Class, _ Managed) error { return errBoom },
 				))},
@@ -409,23 +386,23 @@ func TestClaimReconciler(t *testing.T) {
 		},
 		"CreateManagedError": {
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.Manager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 							switch o := o.(type) {
-							case *MockClaim:
-								cm := &MockClaim{}
+							case *fake.Claim:
+								cm := &fake.Claim{}
 								cm.SetClassReference(&corev1.ObjectReference{})
 								*o = *cm
 								return nil
-							case *MockClass:
+							case *fake.Class:
 								return nil
 							default:
 								return errUnexpected
 							}
 						}),
 						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
-							want := &MockClaim{}
+							want := &fake.Claim{}
 							want.SetClassReference(&corev1.ObjectReference{})
 							want.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
@@ -434,11 +411,11 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
+					Scheme: fake.SchemeWith(&fake.Claim{}, &fake.Class{}, &fake.Managed{}),
 				},
-				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKind(MockGVK(&MockClass{})),
-				with: ManagedKind(MockGVK(&MockManaged{})),
+				of:   ClaimKind(fake.GVK(&fake.Claim{})),
+				use:  ClassKind(fake.GVK(&fake.Class{})),
+				with: ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ClaimReconcilerOption{
 					WithManagedConfigurators(ManagedConfiguratorFn(
 						func(_ context.Context, _ Claim, _ Class, _ Managed) error { return nil },
@@ -455,20 +432,20 @@ func TestClaimReconciler(t *testing.T) {
 		},
 		"ManagedIsInUnknownBindingPhase": {
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.Manager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 							switch o := o.(type) {
-							case *MockClaim:
-								cm := &MockClaim{}
+							case *fake.Claim:
+								cm := &fake.Claim{}
 								cm.SetResourceReference(&corev1.ObjectReference{})
 								*o = *cm
 								return nil
-							case *MockManaged:
+							case *fake.Managed:
 								// We do not explicitly set a BindingPhase here
 								// because the zero value of BindingPhase is
 								// BindingPhaseUnset.
-								mg := &MockManaged{}
+								mg := &fake.Managed{}
 								mg.SetClaimReference(&corev1.ObjectReference{})
 								mg.SetCreationTimestamp(now)
 								*o = *mg
@@ -478,7 +455,7 @@ func TestClaimReconciler(t *testing.T) {
 							}
 						}),
 						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
-							want := &MockClaim{}
+							want := &fake.Claim{}
 							want.SetResourceReference(&corev1.ObjectReference{})
 							want.SetConditions(Binding(), v1alpha1.ReconcileSuccess())
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
@@ -487,27 +464,27 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
+					Scheme: fake.SchemeWith(&fake.Claim{}, &fake.Class{}, &fake.Managed{}),
 				},
-				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKind(MockGVK(&MockClass{})),
-				with: ManagedKind(MockGVK(&MockManaged{})),
+				of:   ClaimKind(fake.GVK(&fake.Claim{})),
+				use:  ClassKind(fake.GVK(&fake.Class{})),
+				with: ManagedKind(fake.GVK(&fake.Managed{})),
 			},
 			want: want{result: reconcile.Result{Requeue: false}},
 		},
 		"ManagedIsInUnbindableBindingPhase": {
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.Manager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 							switch o := o.(type) {
-							case *MockClaim:
-								cm := &MockClaim{}
+							case *fake.Claim:
+								cm := &fake.Claim{}
 								cm.SetResourceReference(&corev1.ObjectReference{})
 								*o = *cm
 								return nil
-							case *MockManaged:
-								mg := &MockManaged{}
+							case *fake.Managed:
+								mg := &fake.Managed{}
 								mg.SetCreationTimestamp(now)
 								mg.SetClaimReference(&corev1.ObjectReference{})
 								mg.SetBindingPhase(v1alpha1.BindingPhaseUnbindable)
@@ -518,7 +495,7 @@ func TestClaimReconciler(t *testing.T) {
 							}
 						}),
 						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
-							want := &MockClaim{}
+							want := &fake.Claim{}
 							want.SetResourceReference(&corev1.ObjectReference{})
 							want.SetConditions(Binding(), v1alpha1.ReconcileSuccess())
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
@@ -527,27 +504,27 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
+					Scheme: fake.SchemeWith(&fake.Claim{}, &fake.Class{}, &fake.Managed{}),
 				},
-				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKind(MockGVK(&MockClass{})),
-				with: ManagedKind(MockGVK(&MockManaged{})),
+				of:   ClaimKind(fake.GVK(&fake.Claim{})),
+				use:  ClassKind(fake.GVK(&fake.Class{})),
+				with: ManagedKind(fake.GVK(&fake.Managed{})),
 			},
 			want: want{result: reconcile.Result{Requeue: false}},
 		},
 		"PropagateConnectionError": {
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.Manager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 							switch o := o.(type) {
-							case *MockClaim:
-								cm := &MockClaim{}
+							case *fake.Claim:
+								cm := &fake.Claim{}
 								cm.SetResourceReference(&corev1.ObjectReference{})
 								*o = *cm
 								return nil
-							case *MockManaged:
-								mg := &MockManaged{}
+							case *fake.Managed:
+								mg := &fake.Managed{}
 								mg.SetCreationTimestamp(now)
 								mg.SetBindingPhase(v1alpha1.BindingPhaseUnbound)
 								*o = *mg
@@ -557,7 +534,7 @@ func TestClaimReconciler(t *testing.T) {
 							}
 						}),
 						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
-							want := &MockClaim{}
+							want := &fake.Claim{}
 							want.SetResourceReference(&corev1.ObjectReference{})
 							want.SetConditions(Binding(), v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
@@ -566,11 +543,11 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
+					Scheme: fake.SchemeWith(&fake.Claim{}, &fake.Class{}, &fake.Managed{}),
 				},
-				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKind(MockGVK(&MockClass{})),
-				with: ManagedKind(MockGVK(&MockManaged{})),
+				of:   ClaimKind(fake.GVK(&fake.Claim{})),
+				use:  ClassKind(fake.GVK(&fake.Class{})),
+				with: ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ClaimReconcilerOption{
 					WithManagedConnectionPropagator(ManagedConnectionPropagatorFn(
 						func(_ context.Context, _ Claim, _ Managed) error { return errBoom },
@@ -581,17 +558,17 @@ func TestClaimReconciler(t *testing.T) {
 		},
 		"AddFinalizerError": {
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.Manager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 							switch o := o.(type) {
-							case *MockClaim:
-								cm := &MockClaim{}
+							case *fake.Claim:
+								cm := &fake.Claim{}
 								cm.SetResourceReference(&corev1.ObjectReference{})
 								*o = *cm
 								return nil
-							case *MockManaged:
-								mg := &MockManaged{}
+							case *fake.Managed:
+								mg := &fake.Managed{}
 								mg.SetCreationTimestamp(now)
 								mg.SetBindingPhase(v1alpha1.BindingPhaseUnbound)
 								*o = *mg
@@ -601,7 +578,7 @@ func TestClaimReconciler(t *testing.T) {
 							}
 						}),
 						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
-							want := &MockClaim{}
+							want := &fake.Claim{}
 							want.SetResourceReference(&corev1.ObjectReference{})
 							want.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
@@ -610,11 +587,11 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
+					Scheme: fake.SchemeWith(&fake.Claim{}, &fake.Class{}, &fake.Managed{}),
 				},
-				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKind(MockGVK(&MockClass{})),
-				with: ManagedKind(MockGVK(&MockManaged{})),
+				of:   ClaimKind(fake.GVK(&fake.Claim{})),
+				use:  ClassKind(fake.GVK(&fake.Class{})),
+				with: ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ClaimReconcilerOption{
 					WithManagedConnectionPropagator(ManagedConnectionPropagatorFn(
 						func(_ context.Context, _ Claim, _ Managed) error { return nil },
@@ -628,17 +605,17 @@ func TestClaimReconciler(t *testing.T) {
 		},
 		"BindError": {
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.Manager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 							switch o := o.(type) {
-							case *MockClaim:
-								cm := &MockClaim{}
+							case *fake.Claim:
+								cm := &fake.Claim{}
 								cm.SetResourceReference(&corev1.ObjectReference{})
 								*o = *cm
 								return nil
-							case *MockManaged:
-								mg := &MockManaged{}
+							case *fake.Managed:
+								mg := &fake.Managed{}
 								mg.SetCreationTimestamp(now)
 								mg.SetBindingPhase(v1alpha1.BindingPhaseUnbound)
 								*o = *mg
@@ -648,7 +625,7 @@ func TestClaimReconciler(t *testing.T) {
 							}
 						}),
 						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
-							want := &MockClaim{}
+							want := &fake.Claim{}
 							want.SetResourceReference(&corev1.ObjectReference{})
 							want.SetConditions(Binding(), v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
@@ -657,11 +634,11 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
+					Scheme: fake.SchemeWith(&fake.Claim{}, &fake.Class{}, &fake.Managed{}),
 				},
-				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKind(MockGVK(&MockClass{})),
-				with: ManagedKind(MockGVK(&MockManaged{})),
+				of:   ClaimKind(fake.GVK(&fake.Claim{})),
+				use:  ClassKind(fake.GVK(&fake.Class{})),
+				with: ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ClaimReconcilerOption{
 					WithManagedConnectionPropagator(ManagedConnectionPropagatorFn(
 						func(_ context.Context, _ Claim, _ Managed) error { return nil },
@@ -678,17 +655,17 @@ func TestClaimReconciler(t *testing.T) {
 		},
 		"Successful": {
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.Manager{
+					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 							switch o := o.(type) {
-							case *MockClaim:
-								cm := &MockClaim{}
+							case *fake.Claim:
+								cm := &fake.Claim{}
 								cm.SetResourceReference(&corev1.ObjectReference{})
 								*o = *cm
 								return nil
-							case *MockManaged:
-								mg := &MockManaged{}
+							case *fake.Managed:
+								mg := &fake.Managed{}
 								mg.SetCreationTimestamp(now)
 								mg.SetBindingPhase(v1alpha1.BindingPhaseBound)
 								*o = *mg
@@ -698,7 +675,7 @@ func TestClaimReconciler(t *testing.T) {
 							}
 						}),
 						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
-							want := &MockClaim{}
+							want := &fake.Claim{}
 							want.SetResourceReference(&corev1.ObjectReference{})
 							want.SetConditions(v1alpha1.Available(), v1alpha1.ReconcileSuccess())
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
@@ -707,11 +684,11 @@ func TestClaimReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					s: MockSchemeWith(&MockClaim{}, &MockClass{}, &MockManaged{}),
+					Scheme: fake.SchemeWith(&fake.Claim{}, &fake.Class{}, &fake.Managed{}),
 				},
-				of:   ClaimKind(MockGVK(&MockClaim{})),
-				use:  ClassKind(MockGVK(&MockClass{})),
-				with: ManagedKind(MockGVK(&MockManaged{})),
+				of:   ClaimKind(fake.GVK(&fake.Claim{})),
+				use:  ClassKind(fake.GVK(&fake.Class{})),
+				with: ManagedKind(fake.GVK(&fake.Managed{})),
 			},
 			want: want{result: reconcile.Result{Requeue: false}},
 		},

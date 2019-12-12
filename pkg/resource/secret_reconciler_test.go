@@ -31,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 )
 
@@ -61,8 +62,8 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 	}{
 		"FromNotFound": {
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.Manager{
+					Client: &test.MockClient{
 						MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
 							switch n.Name {
 							case fromName:
@@ -80,8 +81,8 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 		},
 		"GetFromError": {
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.Manager{
+					Client: &test.MockClient{
 						MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
 							switch n.Name {
 							case fromName:
@@ -99,8 +100,8 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 		},
 		"ToNotFound": {
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.Manager{
+					Client: &test.MockClient{
 						MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
 							s := o.(*corev1.Secret)
 							switch n.Name {
@@ -134,8 +135,8 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 		},
 		"GetToError": {
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.Manager{
+					Client: &test.MockClient{
 						MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
 							s := o.(*corev1.Secret)
 							switch n.Name {
@@ -169,8 +170,8 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 		},
 		"UnexpectedToUID": {
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.Manager{
+					Client: &test.MockClient{
 						MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
 							s := o.(*corev1.Secret)
 
@@ -219,8 +220,8 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 		},
 		"UnexpectedFromUID": {
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.Manager{
+					Client: &test.MockClient{
 						MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
 							s := o.(*corev1.Secret)
 
@@ -269,8 +270,8 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 		},
 		"UpdateToError": {
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.Manager{
+					Client: &test.MockClient{
 						MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
 							s := o.(*corev1.Secret)
 
@@ -319,8 +320,8 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 		},
 		"Successful": {
 			args: args{
-				m: &MockManager{
-					c: &test.MockClient{
+				m: &fake.Manager{
+					Client: &test.MockClient{
 						MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
 							s := o.(*corev1.Secret)
 
