@@ -200,3 +200,11 @@ type ClassSpecTemplate struct {
 	// +kubebuilder:validation:Enum=Retain;Delete
 	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
+
+// A ProviderSpec defines the common way to get to the necessary objects to connect
+// to the provider.
+type ProviderSpec struct {
+	// CredentialsSecretRef references a specific secret's key that contains
+	// the credentials that are used to connect to the provider.
+	CredentialsSecretRef SecretKeySelector `json:"credentialsSecretRef"`
+}
