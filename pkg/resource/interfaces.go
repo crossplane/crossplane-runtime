@@ -85,8 +85,8 @@ type Reclaimer interface {
 // A CredentialsSecretReferencer may refer to a credential secret in an arbitrary
 // namespace.
 type CredentialsSecretReferencer interface {
-	GetCredentialsSecretReference() *v1alpha1.SecretKeySelector
-	SetCredentialsSecretReference(r *v1alpha1.SecretKeySelector)
+	GetCredentialsSecretReference() v1alpha1.SecretKeySelector
+	SetCredentialsSecretReference(r v1alpha1.SecretKeySelector)
 }
 
 // A Claim is a Kubernetes object representing an abstract resource claim (e.g.
