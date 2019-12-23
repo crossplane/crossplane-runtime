@@ -563,7 +563,7 @@ func TestBind(t *testing.T) {
 				err: errors.Wrap(errBoom, errUpdateManaged),
 				cm:  &fake.Claim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
 				mg: &fake.Managed{
-					ClaimReferencer: fake.ClaimReferencer{meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
+					ClaimReferencer: fake.ClaimReferencer{Ref: meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
 					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
 			},
@@ -595,7 +595,7 @@ func TestBind(t *testing.T) {
 				},
 				mg: &fake.Managed{
 					ObjectMeta:      metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
-					ClaimReferencer: fake.ClaimReferencer{meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
+					ClaimReferencer: fake.ClaimReferencer{Ref: meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
 					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
 			},
@@ -612,7 +612,7 @@ func TestBind(t *testing.T) {
 				err: nil,
 				cm:  &fake.Claim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
 				mg: &fake.Managed{
-					ClaimReferencer: fake.ClaimReferencer{meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
+					ClaimReferencer: fake.ClaimReferencer{Ref: meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
 					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
 			},
@@ -634,7 +634,7 @@ func TestBind(t *testing.T) {
 					BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
 				mg: &fake.Managed{
 					ObjectMeta:      metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
-					ClaimReferencer: fake.ClaimReferencer{meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
+					ClaimReferencer: fake.ClaimReferencer{Ref: meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
 					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
 			},
@@ -699,7 +699,7 @@ func TestStatusBind(t *testing.T) {
 				err: errors.Wrap(errBoom, errUpdateManaged),
 				cm:  &fake.Claim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
 				mg: &fake.Managed{
-					ClaimReferencer: fake.ClaimReferencer{meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
+					ClaimReferencer: fake.ClaimReferencer{Ref: meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
 				},
 			},
 		},
@@ -718,7 +718,7 @@ func TestStatusBind(t *testing.T) {
 				err: errors.Wrap(errBoom, errUpdateManagedStatus),
 				cm:  &fake.Claim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
 				mg: &fake.Managed{
-					ClaimReferencer: fake.ClaimReferencer{meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
+					ClaimReferencer: fake.ClaimReferencer{Ref: meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
 					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
 			},
@@ -753,7 +753,7 @@ func TestStatusBind(t *testing.T) {
 				},
 				mg: &fake.Managed{
 					ObjectMeta:      metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
-					ClaimReferencer: fake.ClaimReferencer{meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
+					ClaimReferencer: fake.ClaimReferencer{Ref: meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
 					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
 			},
@@ -773,7 +773,7 @@ func TestStatusBind(t *testing.T) {
 				err: nil,
 				cm:  &fake.Claim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
 				mg: &fake.Managed{
-					ClaimReferencer: fake.ClaimReferencer{meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
+					ClaimReferencer: fake.ClaimReferencer{Ref: meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
 					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
 			},
@@ -799,7 +799,7 @@ func TestStatusBind(t *testing.T) {
 				},
 				mg: &fake.Managed{
 					ObjectMeta:      metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
-					ClaimReferencer: fake.ClaimReferencer{meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
+					ClaimReferencer: fake.ClaimReferencer{Ref: meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
 					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
 			},
