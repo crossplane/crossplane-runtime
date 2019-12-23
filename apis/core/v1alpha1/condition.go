@@ -36,7 +36,11 @@ const (
 	TypeSynced ConditionType = "Synced"
 
 	// TypeReferencesResolved resources' references are resolved
-	TypeReferencesResolved = "ReferencesResolved"
+	TypeReferencesResolved ConditionType = "ReferencesResolved"
+
+	// TypeSecretPropagated resources have had connection information propagated
+	// to their secret reference.
+	TypeSecretPropagated ConditionType = "SecretPropagated"
 )
 
 // A ConditionReason represents the reason a resource is in a condition.
@@ -56,10 +60,16 @@ const (
 	ReasonReconcileError   ConditionReason = "Encountered an error during resource reconciliation"
 )
 
-// Reason references for a resource are or are not resolved
+// Reason references for a resource are or are not resolved.
 const (
 	ReasonReferenceResolveSuccess  ConditionReason = "Successfully resolved resource references to other resources"
 	ReasonResolveReferencesBlocked ConditionReason = "One or more referenced resources do not exist, or are not yet Ready"
+)
+
+// Reason a referenced secret has or has not been propagated to.
+const (
+	ReasonSecretPropagatedSuccess ConditionReason = "Successfully propagated connection data to referenced secret"
+	ReasonSecretPropagatedError   ConditionReason = "Unable to propagate connection data to referenced secret"
 )
 
 // A Condition that may apply to a resource.
@@ -281,6 +291,31 @@ func ReferenceResolutionBlocked(err error) Condition {
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonResolveReferencesBlocked,
+		Message:            err.Error(),
+	}
+}
+
+// SecretPropagatedSuccess returns a condition indicating that Crossplane
+// successfully propagated connection data to the referenced secret.
+func SecretPropagatedSuccess() Condition {
+	return Condition{
+		Type:               TypeSecretPropagated,
+		Status:             corev1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonSecretPropagatedSuccess,
+	}
+}
+
+// SecretPropagatedError returns a condition indicating that Crossplane was
+// unable to propagate connection data to the referenced secret. This could be
+// because it was unable to find the managed resource that owns the secret to be
+// propagated.
+func SecretPropagatedError(err error) Condition {
+	return Condition{
+		Type:               TypeSecretPropagated,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonSecretPropagatedError,
 		Message:            err.Error(),
 	}
 }
