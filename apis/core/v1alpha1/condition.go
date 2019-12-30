@@ -28,14 +28,14 @@ type ConditionType string
 
 // Condition types.
 const (
-	// TypeReady managed resources are believed to be ready to handle work.
+	// TypeReady resources are believed to be ready to handle work.
 	TypeReady ConditionType = "Ready"
 
-	// TypeSynced managed resources are believed to be in sync with the
+	// TypeSynced resources are believed to be in sync with the
 	// Kubernetes resources that manage their lifecycle.
 	TypeSynced ConditionType = "Synced"
 
-	// TypeReferencesResolved managed resources' references are resolved
+	// TypeReferencesResolved resources' references are resolved
 	TypeReferencesResolved = "ReferencesResolved"
 )
 
@@ -44,25 +44,25 @@ type ConditionReason string
 
 // Reasons a resource is or is not ready.
 const (
-	ReasonAvailable   ConditionReason = "Managed resource is available for use"
-	ReasonUnavailable ConditionReason = "Managed resource is not available for use"
-	ReasonCreating    ConditionReason = "Managed resource is being created"
-	ReasonDeleting    ConditionReason = "Managed resource is being deleted"
+	ReasonAvailable   ConditionReason = "Resource is available for use"
+	ReasonUnavailable ConditionReason = "Resource is not available for use"
+	ReasonCreating    ConditionReason = "Resource is being created"
+	ReasonDeleting    ConditionReason = "Resource is being deleted"
 )
 
 // Reasons a resource is or is not synced.
 const (
-	ReasonReconcileSuccess ConditionReason = "Successfully reconciled managed resource"
-	ReasonReconcileError   ConditionReason = "Encountered an error during managed resource reconciliation"
+	ReasonReconcileSuccess ConditionReason = "Successfully reconciled resource"
+	ReasonReconcileError   ConditionReason = "Encountered an error during resource reconciliation"
 )
 
 // Reason references for a resource are or are not resolved
 const (
-	ReasonReferenceResolveSuccess  ConditionReason = "Successfully resolved managed resource references to other resources"
+	ReasonReferenceResolveSuccess  ConditionReason = "Successfully resolved resource references to other resources"
 	ReasonResolveReferencesBlocked ConditionReason = "One or more referenced resources do not exist, or are not yet Ready"
 )
 
-// A Condition that may apply to a managed resource.
+// A Condition that may apply to a resource.
 type Condition struct {
 	// Type of this condition. At most one of each condition type may apply to
 	// a resource at any point in time.
@@ -107,7 +107,7 @@ func (c Condition) WithMessage(msg string) Condition {
 
 // NOTE(negz): Do not manipulate Conditions directly. Use the Set method.
 
-// A ConditionedStatus reflects the observed status of a managed resource. Only
+// A ConditionedStatus reflects the observed status of a resource. Only
 // one condition of each type may exist.
 type ConditionedStatus struct {
 	// Conditions of the resource.
@@ -189,7 +189,7 @@ func (s *ConditionedStatus) Equal(other *ConditionedStatus) bool {
 	return true
 }
 
-// Creating returns a condition that indicates the managed resource is currently
+// Creating returns a condition that indicates the resource is currently
 // being created.
 func Creating() Condition {
 	return Condition{
@@ -200,7 +200,7 @@ func Creating() Condition {
 	}
 }
 
-// Deleting returns a condition that indicates the managed resource is currently
+// Deleting returns a condition that indicates the resource is currently
 // being deleted.
 func Deleting() Condition {
 	return Condition{
@@ -211,7 +211,7 @@ func Deleting() Condition {
 	}
 }
 
-// Available returns a condition that indicates the managed resource is
+// Available returns a condition that indicates the resource is
 // currently observed to be available for use.
 func Available() Condition {
 	return Condition{
@@ -222,9 +222,9 @@ func Available() Condition {
 	}
 }
 
-// Unavailable returns a condition that indicates the managed resource is not
+// Unavailable returns a condition that indicates the resource is not
 // currently available for use. Unavailable should be set only when Crossplane
-// expects the managed resource to be available but knows it is not, for example
+// expects the resource to be available but knows it is not, for example
 // because its API reports it is unhealthy.
 func Unavailable() Condition {
 	return Condition{
@@ -236,7 +236,7 @@ func Unavailable() Condition {
 }
 
 // ReconcileSuccess returns a condition indicating that Crossplane successfully
-// completed the most recent reconciliation of the managed resource.
+// completed the most recent reconciliation of the resource.
 func ReconcileSuccess() Condition {
 	return Condition{
 		Type:               TypeSynced,
@@ -247,10 +247,9 @@ func ReconcileSuccess() Condition {
 }
 
 // ReconcileError returns a condition indicating that Crossplane encountered an
-// error while reconciling the managed resource. This could mean Crossplane was
-// unable to update the managed resource to reflect its desired state, or that
-// Crossplane was unable to determine the current actual state of the managed
-// resource.
+// error while reconciling the resource. This could mean Crossplane was
+// unable to update the resource to reflect its desired state, or that
+// Crossplane was unable to determine the current actual state of the resource.
 func ReconcileError(err error) Condition {
 	return Condition{
 		Type:               TypeSynced,
@@ -262,7 +261,7 @@ func ReconcileError(err error) Condition {
 }
 
 // ReferenceResolutionSuccess returns a condition indicating that Crossplane
-// successfully resolved the references used in the managed resource.
+// successfully resolved the references used in the resource.
 func ReferenceResolutionSuccess() Condition {
 	return Condition{
 		Type:               TypeReferencesResolved,
@@ -273,7 +272,7 @@ func ReferenceResolutionSuccess() Condition {
 }
 
 // ReferenceResolutionBlocked returns a condition indicating that Crossplane is
-// unable to resolve the references used in the managed resource. This could
+// unable to resolve the references used in the resource. This could
 // mean that one or more of referred resources do not yet exist, or are not yet
 // Ready.
 func ReferenceResolutionBlocked(err error) Condition {
