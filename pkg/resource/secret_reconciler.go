@@ -88,6 +88,12 @@ func NewSecretPropagatingReconciler(m manager.Manager) reconcile.Reconciler { //
 		var fromNamespace string
 
 		for key, val := range toAnnotations {
+			// If this is a 'from' secret we do not want to reconcile and will
+			// instead defer to the enqueued request for the 'to' secret
+			if strings.HasPrefix(key, AnnotationKeyPropagateTo) {
+				return reconcile.Result{}, nil
+			}
+
 			if strings.HasPrefix(key, AnnotationKeyPropagateFrom) {
 				fromUID = strings.TrimPrefix(key, AnnotationKeyPropagateFrom)
 				f := strings.Split(val, "/")
@@ -120,7 +126,7 @@ func NewSecretPropagatingReconciler(m manager.Manager) reconcile.Reconciler { //
 			// from does not exist. We assume we have a watch on that secret and
 			// will be queued if/when it is created. Otherwise we'll be requeued
 			// implicitly because we return an error.
-			return reconcile.Result{}, errors.Wrap(err, errGetSecret)
+			return reconcile.Result{}, errors.Wrap(IgnoreNotFound(err), errGetSecret)
 		}
 
 		if fromUID != string(from.GetUID()) {
