@@ -130,7 +130,6 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 			},
 			want: want{
 				result: reconcile.Result{},
-				err:    errors.Wrap(kerrors.NewNotFound(schema.GroupResource{}, fromName), errGetSecret),
 			},
 		},
 		"GetFromError": {
