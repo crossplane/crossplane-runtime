@@ -18,7 +18,6 @@ package resource
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -396,7 +395,9 @@ func TestPropagateConnection(t *testing.T) {
 						case cmcsname:
 							want.SetName(cmcsname)
 							want.SetAnnotations(map[string]string{
-								fmt.Sprintf(AnnotationKeyPropagateFromFormat, string(uid)): strings.Join([]string{namespace, mgcsname}, "/"),
+								AnnotationKeyPropagateFromNamespace: namespace,
+								AnnotationKeyPropagateFromName:      mgcsname,
+								AnnotationKeyPropagateFromUID:       string(uid),
 							})
 							if diff := cmp.Diff(want, got); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -404,7 +405,7 @@ func TestPropagateConnection(t *testing.T) {
 						case mgcsname:
 							want.SetName(mgcsname)
 							want.SetAnnotations(map[string]string{
-								fmt.Sprintf(AnnotationKeyPropagateToFormat, string(uid)): strings.Join([]string{namespace, cmcsname}, "/"),
+								strings.Join([]string{AnnotationKeyPropagateToPrefix, string(uid)}, SlashDelimeter): strings.Join([]string{namespace, cmcsname}, SlashDelimeter),
 							})
 							if diff := cmp.Diff(want, got); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -447,7 +448,7 @@ func TestPropagateConnection(t *testing.T) {
 						case mgcsname:
 							s.SetName(mgcsname)
 							meta.AddAnnotations(&s, map[string]string{
-								fmt.Sprintf(AnnotationKeyPropagateToFormat, "existing-uid"): "existing-namespace/existing-name",
+								strings.Join([]string{AnnotationKeyPropagateToPrefix, "existing-uid"}, SlashDelimeter): "existing-namespace/existing-name",
 							})
 							s.Data = mgcsdata
 							*o.(*corev1.Secret) = s
@@ -470,7 +471,9 @@ func TestPropagateConnection(t *testing.T) {
 						case cmcsname:
 							want.SetName(cmcsname)
 							want.SetAnnotations(map[string]string{
-								fmt.Sprintf(AnnotationKeyPropagateFromFormat, string(uid)): strings.Join([]string{namespace, mgcsname}, "/"),
+								AnnotationKeyPropagateFromNamespace: namespace,
+								AnnotationKeyPropagateFromName:      mgcsname,
+								AnnotationKeyPropagateFromUID:       string(uid),
 							})
 							if diff := cmp.Diff(want, got); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
@@ -478,8 +481,8 @@ func TestPropagateConnection(t *testing.T) {
 						case mgcsname:
 							want.SetName(mgcsname)
 							want.SetAnnotations(map[string]string{
-								fmt.Sprintf(AnnotationKeyPropagateToFormat, "existing-uid"): "existing-namespace/existing-name",
-								fmt.Sprintf(AnnotationKeyPropagateToFormat, string(uid)):    strings.Join([]string{namespace, cmcsname}, "/"),
+								strings.Join([]string{AnnotationKeyPropagateToPrefix, "existing-uid"}, SlashDelimeter): "existing-namespace/existing-name",
+								strings.Join([]string{AnnotationKeyPropagateToPrefix, string(uid)}, SlashDelimeter):    strings.Join([]string{namespace, cmcsname}, SlashDelimeter),
 							})
 							if diff := cmp.Diff(want, got); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)

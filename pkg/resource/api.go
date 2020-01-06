@@ -18,7 +18,6 @@ package resource
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -126,7 +125,9 @@ func (a *APIManagedConnectionPropagator) PropagateConnection(ctx context.Context
 		}
 		cmcs.Data = mgcs.Data
 		meta.AddAnnotations(cmcs, map[string]string{
-			fmt.Sprintf(AnnotationKeyPropagateFromFormat, string(mgcs.GetUID())): strings.Join([]string{mgcs.GetNamespace(), mgcs.GetName()}, "/"),
+			AnnotationKeyPropagateFromNamespace: mgcs.GetNamespace(),
+			AnnotationKeyPropagateFromName:      mgcs.GetName(),
+			AnnotationKeyPropagateFromUID:       string(mgcs.GetUID()),
 		})
 		return nil
 	}); err != nil {
@@ -134,7 +135,7 @@ func (a *APIManagedConnectionPropagator) PropagateConnection(ctx context.Context
 	}
 
 	meta.AddAnnotations(mgcs, map[string]string{
-		fmt.Sprintf(AnnotationKeyPropagateToFormat, string(cmcs.GetUID())): strings.Join([]string{cmcs.GetNamespace(), cmcs.GetName()}, "/"),
+		strings.Join([]string{AnnotationKeyPropagateToPrefix, string(cmcs.GetUID())}, SlashDelimeter): strings.Join([]string{cmcs.GetNamespace(), cmcs.GetName()}, SlashDelimeter),
 	})
 
 	return errors.Wrap(a.client.Update(ctx, mgcs), errUpdateSecret)

@@ -136,9 +136,8 @@ func IsPropagator() PredicateFn {
 			return false
 		}
 
-		a := ao.GetAnnotations()
-		for key := range a {
-			if strings.HasPrefix(key, AnnotationKeyPropagateTo) {
+		for key := range ao.GetAnnotations() {
+			if strings.HasPrefix(key, AnnotationKeyPropagateToPrefix) {
 				return true
 			}
 		}
@@ -157,13 +156,16 @@ func IsPropagated() PredicateFn {
 		}
 
 		a := ao.GetAnnotations()
-		for key := range a {
-			if strings.HasPrefix(key, AnnotationKeyPropagateFrom) {
-				return true
-			}
+		switch {
+		case a[AnnotationKeyPropagateFromNamespace] == "":
+			return false
+		case a[AnnotationKeyPropagateFromName] == "":
+			return false
+		case a[AnnotationKeyPropagateFromUID] == "":
+			return false
+		default:
+			return true
 		}
-
-		return false
 	}
 }
 

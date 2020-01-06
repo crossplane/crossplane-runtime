@@ -17,7 +17,6 @@ limitations under the License.
 package resource
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -88,7 +87,7 @@ func TestAddPropagated(t *testing.T) {
 		"ObjectIsNotAnnotated": {
 			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
 		},
-		"ObjectMissing" + AnnotationKeyPropagateTo: {
+		"ObjectMissing" + AnnotationKeyPropagateToPrefix: {
 			obj: &fake.Managed{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
 				"some.annotation": "some-value",
 			}}},
@@ -96,7 +95,7 @@ func TestAddPropagated(t *testing.T) {
 		},
 		"IsPropagatorObject": {
 			obj: &fake.Managed{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
-				fmt.Sprintf(AnnotationKeyPropagateToFormat, uid): strings.Join([]string{ns, name}, "/"),
+				strings.Join([]string{AnnotationKeyPropagateToPrefix, uid}, SlashDelimeter): strings.Join([]string{ns, name}, SlashDelimeter),
 			}}},
 			queue: addFn(func(got interface{}) {
 				want := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: ns, Name: name}}

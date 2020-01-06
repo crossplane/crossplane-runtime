@@ -18,7 +18,6 @@ package resource
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
 
@@ -35,10 +34,12 @@ import (
 // propagated to the named resource of the same kind, assuming it exists and
 // consents to propagation.
 const (
-	AnnotationKeyPropagateTo         = "to.propagate.crossplane.io/"
-	AnnotationKeyPropagateToFormat   = "to.propagate.crossplane.io/%s"
-	AnnotationKeyPropagateFrom       = "from.propagate.crossplane.io/"
-	AnnotationKeyPropagateFromFormat = "from.propagate.crossplane.io/%s"
+	AnnotationKeyPropagateToPrefix = "to.propagate.crossplane.io"
+	SlashDelimeter                 = "/"
+
+	AnnotationKeyPropagateFromNamespace = "crossplane.io/propagate-from-namespace"
+	AnnotationKeyPropagateFromName      = "crossplane.io/propagate-from-name"
+	AnnotationKeyPropagateFromUID       = "crossplane.io/propagate-from-uid"
 )
 
 type annotated interface {
@@ -46,11 +47,10 @@ type annotated interface {
 }
 
 const (
-	secretControllerName      = "secretpropagator.crossplane.io"
-	secretReconcileTimeout    = 1 * time.Minute
-	errInvalidPropagateFormat = "invalid format in propagated secret annotations"
-	errUnexpectedFromUID      = "unexpected propagate from uid on propagated secret"
-	errUnexpectedToUID        = "unexpected propagate to uid on propagator secret"
+	secretControllerName   = "secretpropagator.crossplane.io"
+	secretReconcileTimeout = 1 * time.Minute
+	errUnexpectedFromUID   = "unexpected propagate from uid on propagated secret"
+	errUnexpectedToUID     = "unexpected propagate to uid on propagator secret"
 )
 
 // NewSecretPropagatingReconciler returns a Reconciler that reconciles secrets
@@ -81,45 +81,11 @@ func NewSecretPropagatingReconciler(m manager.Manager) reconcile.Reconciler { //
 			// implicitly because we return an error.
 			return reconcile.Result{}, errors.Wrap(IgnoreNotFound(err), errGetSecret)
 		}
-
-		toAnnotations := to.GetAnnotations()
-		var fromUID string
-		var fromName string
-		var fromNamespace string
-
-		for key, val := range toAnnotations {
-			// If this is a 'from' secret we do not want to reconcile and will
-			// instead defer to the enqueued request for the 'to' secret
-			if strings.HasPrefix(key, AnnotationKeyPropagateTo) {
-				return reconcile.Result{}, nil
-			}
-
-			if strings.HasPrefix(key, AnnotationKeyPropagateFrom) {
-				fromUID = strings.TrimPrefix(key, AnnotationKeyPropagateFrom)
-				f := strings.Split(val, "/")
-				if len(f) != 2 {
-					return reconcile.Result{}, errors.New(errInvalidPropagateFormat)
-				}
-				fromNamespace = f[0]
-				fromName = f[1]
-				break
-			}
-		}
-
-		switch {
-		case fromUID == "":
-			return reconcile.Result{}, errors.New(errInvalidPropagateFormat)
-		case fromName == "":
-			return reconcile.Result{}, errors.New(errInvalidPropagateFormat)
-		case fromNamespace == "":
-			return reconcile.Result{}, errors.New(errInvalidPropagateFormat)
-		}
-
 		// The 'from' secret is also know as the 'propagating' secret.
 		from := &corev1.Secret{}
 		n := types.NamespacedName{
-			Namespace: fromNamespace,
-			Name:      fromName,
+			Namespace: to.GetAnnotations()[AnnotationKeyPropagateFromNamespace],
+			Name:      to.GetAnnotations()[AnnotationKeyPropagateFromName],
 		}
 		if err := client.Get(ctx, n, from); err != nil {
 			// There's no propagation to be done if the secret we're propagating
@@ -129,14 +95,14 @@ func NewSecretPropagatingReconciler(m manager.Manager) reconcile.Reconciler { //
 			return reconcile.Result{}, errors.Wrap(IgnoreNotFound(err), errGetSecret)
 		}
 
-		if fromUID != string(from.GetUID()) {
+		if to.GetAnnotations()[AnnotationKeyPropagateFromUID] != string(from.GetUID()) {
 			// The propagated secret expected a different propagating secret. We
 			// assume we have a watch on both secrets, and will be requeued if
 			// and when this situation is remedied.
 			return reconcile.Result{}, errors.New(errUnexpectedFromUID)
 		}
 
-		if _, ok := from.GetAnnotations()[fmt.Sprintf(AnnotationKeyPropagateToFormat, to.GetUID())]; !ok {
+		if _, ok := from.GetAnnotations()[strings.Join([]string{AnnotationKeyPropagateToPrefix, string(to.GetUID())}, SlashDelimeter)]; !ok {
 			// The propagating secret expected a different propagated secret. We
 			// assume we have a watch on both secrets, and will be requeued if
 			// and when this situation is remedied.

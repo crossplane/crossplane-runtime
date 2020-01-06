@@ -106,25 +106,23 @@ func addPropagated(obj runtime.Object, queue adder) {
 	a := ao.GetAnnotations()
 
 	for key, val := range a {
-		if strings.HasPrefix(key, AnnotationKeyPropagateTo) {
-			t := strings.Split(val, "/")
-			if len(t) != 2 {
-				continue
-			}
-			toNamespace := t[0]
-			toName := t[1]
-
-			switch {
-			case toName == "":
-				continue
-			case toNamespace == "":
-				continue
-			default:
-				queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{
-					Namespace: toNamespace,
-					Name:      toName,
-				}})
-			}
+		if !strings.HasPrefix(key, AnnotationKeyPropagateToPrefix) {
+			continue
+		}
+		t := strings.Split(val, SlashDelimeter)
+		if len(t) != 2 {
+			continue
+		}
+		switch {
+		case t[0] == "":
+			continue
+		case t[1] == "":
+			continue
+		default:
+			queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{
+				Namespace: t[0],
+				Name:      t[1],
+			}})
 		}
 	}
 }

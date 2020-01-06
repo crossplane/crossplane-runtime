@@ -291,14 +291,14 @@ func TestIsPropagator(t *testing.T) {
 		},
 		"IsPropagator": {
 			obj: &corev1.Secret{ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{
-				AnnotationKeyPropagateTo + "cool-uid": "cool-namespace/cool-name",
+				AnnotationKeyPropagateToPrefix + "cool-uid": "cool-namespace/cool-name",
 			}}},
 			want: true,
 		},
 		"IsMultiPropagator": {
 			obj: &corev1.Secret{ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{
-				AnnotationKeyPropagateTo + "cool-uid":     "cool-namespace/cool-name",
-				AnnotationKeyPropagateTo + "cool-uid-two": "cool-namespace/cool-name-2",
+				AnnotationKeyPropagateToPrefix + "cool-uid":     "cool-namespace/cool-name",
+				AnnotationKeyPropagateToPrefix + "cool-uid-two": "cool-namespace/cool-name-2",
 			}}},
 			want: true,
 		},
@@ -330,7 +330,9 @@ func TestIsPropagated(t *testing.T) {
 		},
 		"IsPropagated": {
 			obj: &corev1.Secret{ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{
-				AnnotationKeyPropagateFrom + "cool-uid": "cool-namespace/cool-name",
+				AnnotationKeyPropagateFromNamespace: namespace,
+				AnnotationKeyPropagateFromName:      name,
+				AnnotationKeyPropagateFromUID:       string(uid),
 			}}},
 			want: true,
 		},
