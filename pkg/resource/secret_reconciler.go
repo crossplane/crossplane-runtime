@@ -37,9 +37,9 @@ const (
 	AnnotationKeyPropagateToPrefix = "to.propagate.crossplane.io"
 	SlashDelimeter                 = "/"
 
-	AnnotationKeyPropagateFromNamespace = "crossplane.io/propagate-from-namespace"
-	AnnotationKeyPropagateFromName      = "crossplane.io/propagate-from-name"
-	AnnotationKeyPropagateFromUID       = "crossplane.io/propagate-from-uid"
+	AnnotationKeyPropagateFromNamespace = "from.propagate.crossplane.io/namespace"
+	AnnotationKeyPropagateFromName      = "from.propagate.crossplane.io/name"
+	AnnotationKeyPropagateFromUID       = "from.propagate.crossplane.io/uid"
 )
 
 type annotated interface {
