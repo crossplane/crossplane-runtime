@@ -18,6 +18,7 @@ package resource
 
 import (
 	"context"
+	"strings"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -134,9 +135,7 @@ func (a *APIManagedConnectionPropagator) PropagateConnection(ctx context.Context
 	}
 
 	meta.AddAnnotations(mgcs, map[string]string{
-		AnnotationKeyPropagateToNamespace: cmcs.GetNamespace(),
-		AnnotationKeyPropagateToName:      cmcs.GetName(),
-		AnnotationKeyPropagateToUID:       string(cmcs.GetUID()),
+		strings.Join([]string{AnnotationKeyPropagateToPrefix, string(cmcs.GetUID())}, SlashDelimeter): strings.Join([]string{cmcs.GetNamespace(), cmcs.GetName()}, SlashDelimeter),
 	})
 
 	return errors.Wrap(a.client.Update(ctx, mgcs), errUpdateSecret)

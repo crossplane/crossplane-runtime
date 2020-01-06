@@ -17,6 +17,7 @@ limitations under the License.
 package resource
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -74,9 +75,10 @@ func TestAddClaim(t *testing.T) {
 	}
 }
 
-func TestAddPropagator(t *testing.T) {
+func TestAddPropagated(t *testing.T) {
 	ns := "coolns"
 	name := "coolname"
+	uid := "a-cool-uid"
 
 	cases := map[string]struct {
 		obj   runtime.Object
@@ -85,22 +87,15 @@ func TestAddPropagator(t *testing.T) {
 		"ObjectIsNotAnnotated": {
 			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
 		},
-		"ObjectMissing" + AnnotationKeyPropagateFromNamespace: {
+		"ObjectMissing" + AnnotationKeyPropagateToPrefix: {
 			obj: &fake.Managed{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
-				AnnotationKeyPropagateFromName: name,
+				"some.annotation": "some-value",
 			}}},
 			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
 		},
-		"ObjectMissing" + AnnotationKeyPropagateFromName: {
+		"IsPropagatorObject": {
 			obj: &fake.Managed{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
-				AnnotationKeyPropagateFromNamespace: ns,
-			}}},
-			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
-		},
-		"IsPropagatedObject": {
-			obj: &fake.Managed{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
-				AnnotationKeyPropagateFromNamespace: ns,
-				AnnotationKeyPropagateFromName:      name,
+				strings.Join([]string{AnnotationKeyPropagateToPrefix, uid}, SlashDelimeter): strings.Join([]string{ns, name}, SlashDelimeter),
 			}}},
 			queue: addFn(func(got interface{}) {
 				want := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: ns, Name: name}}
@@ -112,6 +107,6 @@ func TestAddPropagator(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		addPropagator(tc.obj, tc.queue)
+		addPropagated(tc.obj, tc.queue)
 	}
 }

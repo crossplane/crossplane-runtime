@@ -17,6 +17,8 @@ limitations under the License.
 package resource
 
 import (
+	"strings"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -134,17 +136,13 @@ func IsPropagator() PredicateFn {
 			return false
 		}
 
-		a := ao.GetAnnotations()
-		switch {
-		case a[AnnotationKeyPropagateToNamespace] == "":
-			return false
-		case a[AnnotationKeyPropagateToName] == "":
-			return false
-		case a[AnnotationKeyPropagateToUID] == "":
-			return false
-		default:
-			return true
+		for key := range ao.GetAnnotations() {
+			if strings.HasPrefix(key, AnnotationKeyPropagateToPrefix) {
+				return true
+			}
 		}
+
+		return false
 	}
 }
 

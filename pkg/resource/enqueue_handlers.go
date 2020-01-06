@@ -17,6 +17,8 @@ limitations under the License.
 package resource
 
 import (
+	"strings"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
@@ -65,52 +67,62 @@ func addClaim(obj runtime.Object, queue adder) {
 	}
 }
 
-// EnqueueRequestForPropagator enqueues a reconcile.Request for the
+// EnqueueRequestForPropagated enqueues a reconcile.Request for the
 // NamespacedName of a propagated object, i.e. an object with propagation
 // metadata annotations.
-type EnqueueRequestForPropagator struct{}
+type EnqueueRequestForPropagated struct{}
 
 // Create adds a NamespacedName for the supplied CreateEvent if its Object is
 // propagated.
-func (e *EnqueueRequestForPropagator) Create(evt event.CreateEvent, q workqueue.RateLimitingInterface) {
-	addPropagator(evt.Object, q)
+func (e *EnqueueRequestForPropagated) Create(evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+	addPropagated(evt.Object, q)
 }
 
 // Update adds a NamespacedName for the supplied UpdateEvent if its Objects are
 // propagated.
-func (e *EnqueueRequestForPropagator) Update(evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
-	addPropagator(evt.ObjectOld, q)
-	addPropagator(evt.ObjectNew, q)
+func (e *EnqueueRequestForPropagated) Update(evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+	addPropagated(evt.ObjectOld, q)
+	addPropagated(evt.ObjectNew, q)
 }
 
 // Delete adds a NamespacedName for the supplied DeleteEvent if its Object is
 // propagated.
-func (e *EnqueueRequestForPropagator) Delete(evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
-	addPropagator(evt.Object, q)
+func (e *EnqueueRequestForPropagated) Delete(evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+	addPropagated(evt.Object, q)
 }
 
 // Generic adds a NamespacedName for the supplied GenericEvent if its Object is
 // propagated.
-func (e *EnqueueRequestForPropagator) Generic(evt event.GenericEvent, q workqueue.RateLimitingInterface) {
-	addPropagator(evt.Object, q)
+func (e *EnqueueRequestForPropagated) Generic(evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+	addPropagated(evt.Object, q)
 }
 
-func addPropagator(obj runtime.Object, queue adder) {
+func addPropagated(obj runtime.Object, queue adder) {
 	ao, ok := obj.(annotated)
 	if !ok {
 		return
 	}
 
 	a := ao.GetAnnotations()
-	switch {
-	case a[AnnotationKeyPropagateFromNamespace] == "":
-		return
-	case a[AnnotationKeyPropagateFromName] == "":
-		return
-	default:
-		queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{
-			Namespace: a[AnnotationKeyPropagateFromNamespace],
-			Name:      a[AnnotationKeyPropagateFromName],
-		}})
+
+	for key, val := range a {
+		if !strings.HasPrefix(key, AnnotationKeyPropagateToPrefix) {
+			continue
+		}
+		t := strings.Split(val, SlashDelimeter)
+		if len(t) != 2 {
+			continue
+		}
+		switch {
+		case t[0] == "":
+			continue
+		case t[1] == "":
+			continue
+		default:
+			queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{
+				Namespace: t[0],
+				Name:      t[1],
+			}})
+		}
 	}
 }

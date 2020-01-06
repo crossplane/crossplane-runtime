@@ -283,32 +283,22 @@ func TestIsPropagator(t *testing.T) {
 		"NotAnAnnotator": {
 			want: false,
 		},
-		"Missing" + AnnotationKeyPropagateToNamespace: {
+		"NotAPropagator": {
 			obj: &corev1.Secret{ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{
-				AnnotationKeyPropagateToName: name,
-				AnnotationKeyPropagateToUID:  string(uid),
-			}}},
-			want: false,
-		},
-		"Missing" + AnnotationKeyPropagateToName: {
-			obj: &corev1.Secret{ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{
-				AnnotationKeyPropagateToNamespace: namespace,
-				AnnotationKeyPropagateToUID:       string(uid),
-			}}},
-			want: false,
-		},
-		"Missing" + AnnotationKeyPropagateToUID: {
-			obj: &corev1.Secret{ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{
-				AnnotationKeyPropagateToNamespace: namespace,
-				AnnotationKeyPropagateToName:      name,
+				"some.annotation": "someValue",
 			}}},
 			want: false,
 		},
 		"IsPropagator": {
 			obj: &corev1.Secret{ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{
-				AnnotationKeyPropagateToNamespace: namespace,
-				AnnotationKeyPropagateToName:      name,
-				AnnotationKeyPropagateToUID:       string(uid),
+				AnnotationKeyPropagateToPrefix + "cool-uid": "cool-namespace/cool-name",
+			}}},
+			want: true,
+		},
+		"IsMultiPropagator": {
+			obj: &corev1.Secret{ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{
+				AnnotationKeyPropagateToPrefix + "cool-uid":     "cool-namespace/cool-name",
+				AnnotationKeyPropagateToPrefix + "cool-uid-two": "cool-namespace/cool-name-2",
 			}}},
 			want: true,
 		},
@@ -332,24 +322,9 @@ func TestIsPropagated(t *testing.T) {
 		"NotAnAnnotator": {
 			want: false,
 		},
-		"Missing" + AnnotationKeyPropagateFromNamespace: {
+		"NotPropagated": {
 			obj: &corev1.Secret{ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{
-				AnnotationKeyPropagateFromName: name,
-				AnnotationKeyPropagateFromUID:  string(uid),
-			}}},
-			want: false,
-		},
-		"Missing" + AnnotationKeyPropagateFromName: {
-			obj: &corev1.Secret{ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{
-				AnnotationKeyPropagateFromNamespace: namespace,
-				AnnotationKeyPropagateFromUID:       string(uid),
-			}}},
-			want: false,
-		},
-		"Missing" + AnnotationKeyPropagateFromUID: {
-			obj: &corev1.Secret{ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{
-				AnnotationKeyPropagateFromNamespace: namespace,
-				AnnotationKeyPropagateFromName:      name,
+				"some.annotation": "someValue",
 			}}},
 			want: false,
 		},
