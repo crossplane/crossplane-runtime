@@ -54,9 +54,9 @@ type TargetReconciler struct {
 	propagator ManagedConnectionPropagator
 }
 
-// NewTargetReconciler returns a Reconciler that reconciles
-// KubernetesTarget by setting their ConnectionSecretRef to that of the
-// referenced Kubernetes cluster implementation.
+// NewTargetReconciler returns a Reconciler that reconciles KubernetesTargets by
+// propagating the referenced Kubernetes cluster's connection Secret to the
+// namespace of the KubernetesTarget.
 func NewTargetReconciler(m manager.Manager, of TargetKind, with ManagedKind) *TargetReconciler {
 	nt := func() Target { return MustCreateObject(schema.GroupVersionKind(of), m.GetScheme()).(Target) }
 	nr := func() Managed { return MustCreateObject(schema.GroupVersionKind(with), m.GetScheme()).(Managed) }

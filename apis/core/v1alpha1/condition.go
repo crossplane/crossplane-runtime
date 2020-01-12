@@ -38,9 +38,9 @@ const (
 	// TypeReferencesResolved resources' references are resolved
 	TypeReferencesResolved ConditionType = "ReferencesResolved"
 
-	// TypeSecretPropagated resources have had connection information propagated
-	// to their secret reference.
-	TypeSecretPropagated ConditionType = "SecretPropagated"
+	// TypeConnectionSecretPropagated resources have had connection information
+	// propagated to their secret reference.
+	TypeConnectionSecretPropagated ConditionType = "SecretPropagated"
 )
 
 // A ConditionReason represents the reason a resource is in a condition.
@@ -68,8 +68,8 @@ const (
 
 // Reason a referenced secret has or has not been propagated to.
 const (
-	ReasonSecretPropagatedSuccess ConditionReason = "Successfully propagated connection data to referenced secret"
-	ReasonSecretPropagatedError   ConditionReason = "Unable to propagate connection data to referenced secret"
+	ReasonSecretPropagationSuccess ConditionReason = "Successfully propagated connection data to referenced secret"
+	ReasonSecretPropagationError   ConditionReason = "Unable to propagate connection data to referenced secret"
 )
 
 // A Condition that may apply to a resource.
@@ -299,10 +299,10 @@ func ReferenceResolutionBlocked(err error) Condition {
 // successfully propagated connection data to the referenced secret.
 func SecretPropagatedSuccess() Condition {
 	return Condition{
-		Type:               TypeSecretPropagated,
+		Type:               TypeConnectionSecretPropagated,
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonSecretPropagatedSuccess,
+		Reason:             ReasonSecretPropagationSuccess,
 	}
 }
 
@@ -312,10 +312,10 @@ func SecretPropagatedSuccess() Condition {
 // propagated.
 func SecretPropagatedError(err error) Condition {
 	return Condition{
-		Type:               TypeSecretPropagated,
+		Type:               TypeConnectionSecretPropagated,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonSecretPropagatedError,
+		Reason:             ReasonSecretPropagationError,
 		Message:            err.Error(),
 	}
 }

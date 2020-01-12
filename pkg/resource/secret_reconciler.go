@@ -57,9 +57,7 @@ const (
 // by propagating their data to another secret. Both secrets must consent to
 // this process by including propagation annotations. The Reconciler assumes it
 // has a watch on both propagating (from) and propagated (to) secrets.
-func NewSecretPropagatingReconciler(m manager.Manager) reconcile.Reconciler { // nolint:gocyclo
-	// NOTE(hasheddan): This function is over our cyclomatic complexity goal.
-	// Be wary of adding additional complexity.
+func NewSecretPropagatingReconciler(m manager.Manager) reconcile.Reconciler {
 	client := m.GetClient()
 
 	return reconcile.Func(func(req reconcile.Request) (reconcile.Result, error) {
