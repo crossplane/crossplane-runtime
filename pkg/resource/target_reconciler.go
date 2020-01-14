@@ -90,7 +90,7 @@ func (r *TargetReconciler) Reconcile(req reconcile.Request) (reconcile.Result, e
 
 	if target.GetWriteConnectionSecretToReference() == nil {
 		// If the ConnectionSecretRef is not set on this Target, we generate a
-		// Secret name that matches the UID of the Target. We implicitly
+		// Secret name that matches the UID of the Target. We are implicitly
 		// requeued because of the Target update.
 		target.SetWriteConnectionSecretToReference(&v1alpha1.LocalSecretReference{Name: string(target.GetUID())})
 		return reconcile.Result{}, errors.Wrap(r.client.Update(ctx, target), errUpdateTarget)
