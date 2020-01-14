@@ -17,6 +17,8 @@ limitations under the License.
 package resource
 
 import (
+	"context"
+
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -28,11 +30,64 @@ import (
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 )
 
+// Supported resources with all of these annotations will be fully or partially
+// propagated to the named resource of the same kind, assuming it exists and
+// consents to propagation.
+const (
+	AnnotationKeyPropagateToPrefix = "to.propagate.crossplane.io"
+
+	AnnotationKeyPropagateFromNamespace = "from.propagate.crossplane.io/namespace"
+	AnnotationKeyPropagateFromName      = "from.propagate.crossplane.io/name"
+	AnnotationKeyPropagateFromUID       = "from.propagate.crossplane.io/uid"
+
+	AnnotationDelimiter = "/"
+)
+
+// A ClaimKind contains the type metadata for a kind of resource claim.
+type ClaimKind schema.GroupVersionKind
+
+// A ClassKind contains the type metadata for a kind of resource class.
+type ClassKind schema.GroupVersionKind
+
+// List returns the list kind associated with a ClassKind.
+func (k ClassKind) List() schema.GroupVersionKind {
+	return schema.GroupVersionKind{
+		Group:   k.Group,
+		Version: k.Version,
+		Kind:    k.Kind + "List",
+	}
+}
+
+// A ManagedKind contains the type metadata for a kind of managed
+type ManagedKind schema.GroupVersionKind
+
+// A TargetKind contains the type metadata for a kind of target resource.
+type TargetKind schema.GroupVersionKind
+
 // A LocalConnectionSecretOwner may create and manage a connection secret in its
 // own namespace.
 type LocalConnectionSecretOwner interface {
+	runtime.Object
 	metav1.Object
+
 	LocalConnectionSecretWriterTo
+}
+
+// A ManagedConnectionPropagator is responsible for propagating information
+// required to connect to a managed resource (for example the connection secret)
+// from the managed resource to its resource claim.
+type ManagedConnectionPropagator interface {
+	PropagateConnection(ctx context.Context, o LocalConnectionSecretOwner, mg Managed) error
+}
+
+// A ManagedConnectionPropagatorFn is a function that satisfies the
+// ManagedConnectionPropagator interface.
+type ManagedConnectionPropagatorFn func(ctx context.Context, o LocalConnectionSecretOwner, mg Managed) error
+
+// PropagateConnection information from the supplied managed resource to the
+// supplied resource claim.
+func (fn ManagedConnectionPropagatorFn) PropagateConnection(ctx context.Context, o LocalConnectionSecretOwner, mg Managed) error {
+	return fn(ctx, o, mg)
 }
 
 // LocalConnectionSecretFor creates a connection secret in the namespace of the
@@ -51,7 +106,9 @@ func LocalConnectionSecretFor(o LocalConnectionSecretOwner, kind schema.GroupVer
 // A ConnectionSecretOwner may create and manage a connection secret in an
 // arbitrary namespace.
 type ConnectionSecretOwner interface {
+	runtime.Object
 	metav1.Object
+
 	ConnectionSecretWriterTo
 }
 
@@ -155,13 +212,13 @@ func SetBindable(b Bindable) {
 }
 
 // IsBindable returns true if the supplied Bindable is ready for binding to
-// another Bindable, such as a resource claim or managed resource.
+// another Bindable, such as a resource claim or managed
 func IsBindable(b Bindable) bool {
 	return b.GetBindingPhase() == v1alpha1.BindingPhaseUnbound
 }
 
 // IsBound returns true if the supplied Bindable is bound to another Bindable,
-// such as a resource claim or managed resource.
+// such as a resource claim or managed
 func IsBound(b Bindable) bool {
 	return b.GetBindingPhase() == v1alpha1.BindingPhaseBound
 }

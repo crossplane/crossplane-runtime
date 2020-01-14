@@ -26,6 +26,7 @@ import (
 
 	"github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 	"github.com/crossplaneio/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 )
@@ -41,9 +42,9 @@ func TestConfiguratorChain(t *testing.T) {
 
 	type args struct {
 		ctx context.Context
-		cm  Claim
-		cs  Class
-		mg  Managed
+		cm  resource.Claim
+		cs  resource.Class
+		mg  resource.Managed
 	}
 
 	cases := map[string]struct {
@@ -63,7 +64,7 @@ func TestConfiguratorChain(t *testing.T) {
 		},
 		"SuccessulConfigurator": {
 			cc: ConfiguratorChain{
-				ManagedConfiguratorFn(func(_ context.Context, _ Claim, _ Class, _ Managed) error {
+				ManagedConfiguratorFn(func(_ context.Context, _ resource.Claim, _ resource.Class, _ resource.Managed) error {
 					return nil
 				}),
 			},
@@ -77,7 +78,7 @@ func TestConfiguratorChain(t *testing.T) {
 		},
 		"ConfiguratorReturnsError": {
 			cc: ConfiguratorChain{
-				ManagedConfiguratorFn(func(_ context.Context, _ Claim, _ Class, _ Managed) error {
+				ManagedConfiguratorFn(func(_ context.Context, _ resource.Claim, _ resource.Class, _ resource.Managed) error {
 					return errBoom
 				}),
 			},
@@ -108,14 +109,14 @@ func TestNameConfigurators(t *testing.T) {
 
 	type args struct {
 		ctx context.Context
-		cm  Claim
-		cs  Class
-		mg  Managed
+		cm  resource.Claim
+		cs  resource.Class
+		mg  resource.Managed
 	}
 
 	type want struct {
 		err error
-		mg  Managed
+		mg  resource.Managed
 	}
 
 	cases := map[string]struct {
@@ -181,14 +182,14 @@ func TestNameConfigurators(t *testing.T) {
 func TestConfigureReclaimPolicy(t *testing.T) {
 	type args struct {
 		ctx context.Context
-		cm  Claim
-		cs  Class
-		mg  Managed
+		cm  resource.Claim
+		cs  resource.Class
+		mg  resource.Managed
 	}
 
 	type want struct {
 		err error
-		mg  Managed
+		mg  resource.Managed
 	}
 
 	cases := map[string]struct {

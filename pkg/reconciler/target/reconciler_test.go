@@ -33,15 +33,16 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 	"github.com/crossplaneio/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 )
 
-func TestTargetReconciler(t *testing.T) {
+func TestReconciler(t *testing.T) {
 	type args struct {
 		m    manager.Manager
-		of   TargetKind
-		with ManagedKind
+		of   resource.TargetKind
+		with resource.ManagedKind
 	}
 
 	type want struct {
@@ -87,8 +88,8 @@ func TestTargetReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Target{}, &fake.Managed{}),
 				},
-				of:   TargetKind(fake.GVK(&fake.Target{})),
-				with: ManagedKind(fake.GVK(&fake.Managed{})),
+				of:   resource.TargetKind(fake.GVK(&fake.Target{})),
+				with: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 			},
 			want: want{
 				result: reconcile.Result{},
@@ -135,8 +136,8 @@ func TestTargetReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Target{}, &fake.Managed{}),
 				},
-				of:   TargetKind(fake.GVK(&fake.Target{})),
-				with: ManagedKind(fake.GVK(&fake.Managed{})),
+				of:   resource.TargetKind(fake.GVK(&fake.Target{})),
+				with: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 			},
 			want: want{
 				result: reconcile.Result{},
@@ -170,8 +171,8 @@ func TestTargetReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Target{}, &fake.Managed{}),
 				},
-				of:   TargetKind(fake.GVK(&fake.Target{})),
-				with: ManagedKind(fake.GVK(&fake.Managed{})),
+				of:   resource.TargetKind(fake.GVK(&fake.Target{})),
+				with: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 			},
 			want: want{
 				result: reconcile.Result{Requeue: false},
@@ -193,8 +194,8 @@ func TestTargetReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Target{}, &fake.Managed{}),
 				},
-				of:   TargetKind(fake.GVK(&fake.Target{})),
-				with: ManagedKind(fake.GVK(&fake.Managed{})),
+				of:   resource.TargetKind(fake.GVK(&fake.Target{})),
+				with: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 			},
 			want: want{
 				result: reconcile.Result{},
@@ -245,8 +246,8 @@ func TestTargetReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Target{}, &fake.Managed{}),
 				},
-				of:   TargetKind(fake.GVK(&fake.Target{})),
-				with: ManagedKind(fake.GVK(&fake.Managed{})),
+				of:   resource.TargetKind(fake.GVK(&fake.Target{})),
+				with: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 			},
 			want: want{
 				result: reconcile.Result{RequeueAfter: aShortWait},
@@ -306,8 +307,8 @@ func TestTargetReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Target{}, &fake.Managed{}),
 				},
-				of:   TargetKind(fake.GVK(&fake.Target{})),
-				with: ManagedKind(fake.GVK(&fake.Managed{})),
+				of:   resource.TargetKind(fake.GVK(&fake.Target{})),
+				with: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 			},
 			want: want{
 				result: reconcile.Result{RequeueAfter: aShortWait},
@@ -391,8 +392,8 @@ func TestTargetReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Target{}, &fake.Managed{}),
 				},
-				of:   TargetKind(fake.GVK(&fake.Target{})),
-				with: ManagedKind(fake.GVK(&fake.Managed{})),
+				of:   resource.TargetKind(fake.GVK(&fake.Target{})),
+				with: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 			},
 			want: want{
 				result: reconcile.Result{RequeueAfter: aShortWait},
@@ -473,9 +474,9 @@ func TestTargetReconciler(t *testing.T) {
 								want.SetUID(tgcsuid)
 								want.SetOwnerReferences([]metav1.OwnerReference{{UID: tguid, Controller: &controller}})
 								want.SetAnnotations(map[string]string{
-									AnnotationKeyPropagateFromNamespace: mgcsnamespace,
-									AnnotationKeyPropagateFromName:      mgcsname,
-									AnnotationKeyPropagateFromUID:       string(mgcsuid),
+									resource.AnnotationKeyPropagateFromNamespace: mgcsnamespace,
+									resource.AnnotationKeyPropagateFromName:      mgcsname,
+									resource.AnnotationKeyPropagateFromUID:       string(mgcsuid),
 								})
 								if diff := cmp.Diff(want, got); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -486,7 +487,7 @@ func TestTargetReconciler(t *testing.T) {
 								want.SetUID(mgcsuid)
 								want.SetOwnerReferences([]metav1.OwnerReference{{UID: mguid, Controller: &controller}})
 								want.SetAnnotations(map[string]string{
-									strings.Join([]string{AnnotationKeyPropagateToPrefix, string(tgcsuid)}, SlashDelimeter): strings.Join([]string{ns, tgcsname}, SlashDelimeter),
+									strings.Join([]string{resource.AnnotationKeyPropagateToPrefix, string(tgcsuid)}, resource.AnnotationDelimiter): strings.Join([]string{ns, tgcsname}, resource.AnnotationDelimiter),
 								})
 								if diff := cmp.Diff(want, got); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -514,8 +515,8 @@ func TestTargetReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Target{}, &fake.Managed{}),
 				},
-				of:   TargetKind(fake.GVK(&fake.Target{})),
-				with: ManagedKind(fake.GVK(&fake.Managed{})),
+				of:   resource.TargetKind(fake.GVK(&fake.Target{})),
+				with: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 			},
 			want: want{
 				result: reconcile.Result{Requeue: false},
@@ -525,7 +526,7 @@ func TestTargetReconciler(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewTargetReconciler(tc.args.m, tc.args.of, tc.args.with)
+			r := NewReconciler(tc.args.m, tc.args.of, tc.args.with)
 			got, err := r.Reconcile(reconcile.Request{})
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {

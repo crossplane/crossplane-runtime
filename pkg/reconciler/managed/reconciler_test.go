@@ -33,17 +33,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 	"github.com/crossplaneio/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 )
 
-var _ reconcile.Reconciler = &ManagedReconciler{}
+var _ reconcile.Reconciler = &Reconciler{}
 
-func TestManagedReconciler(t *testing.T) {
+func TestReconciler(t *testing.T) {
 	type args struct {
 		m  manager.Manager
-		mg ManagedKind
-		o  []ManagedReconcilerOption
+		mg resource.ManagedKind
+		o  []ReconcilerOption
 	}
 
 	type want struct {
@@ -67,7 +68,7 @@ func TestManagedReconciler(t *testing.T) {
 					Client: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
 					Scheme: fake.SchemeWith(&fake.Managed{}),
 				},
-				mg: ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 			},
 			want: want{err: errors.Wrap(errBoom, errGetManaged)},
 		},
@@ -78,7 +79,7 @@ func TestManagedReconciler(t *testing.T) {
 					Client: &test.MockClient{MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, ""))},
 					Scheme: fake.SchemeWith(&fake.Managed{}),
 				},
-				mg: ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 			},
 			want: want{result: reconcile.Result{}},
 		},
@@ -100,9 +101,9 @@ func TestManagedReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Managed{}),
 				},
-				mg: ManagedKind(fake.GVK(&fake.Managed{})),
-				o: []ManagedReconcilerOption{
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
 						return nil, errBoom
 					})),
 				},
@@ -127,10 +128,10 @@ func TestManagedReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Managed{}),
 				},
-				mg: ManagedKind(fake.GVK(&fake.Managed{})),
-				o: []ManagedReconcilerOption{
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
 					WithExternalConnecter(&NopConnecter{}),
-					WithManagedInitializers(ManagedInitializerFn(func(_ context.Context, mg Managed) error {
+					WithManagedInitializers(ManagedInitializerFn(func(_ context.Context, mg resource.Managed) error {
 						return errBoom
 					})),
 				},
@@ -155,8 +156,8 @@ func TestManagedReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Managed{}),
 				},
-				mg: ManagedKind(fake.GVK(&fake.Managed{})),
-				o: []ManagedReconcilerOption{
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
 					WithManagedInitializers(),
 					WithExternalConnecter(&NopConnecter{}),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, res CanReference) error {
@@ -184,8 +185,8 @@ func TestManagedReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Managed{}),
 				},
-				mg: ManagedKind(fake.GVK(&fake.Managed{})),
-				o: []ManagedReconcilerOption{
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
 					WithManagedInitializers(),
 					WithExternalConnecter(&NopConnecter{}),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, res CanReference) error {
@@ -214,12 +215,12 @@ func TestManagedReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Managed{}),
 				},
-				mg: ManagedKind(fake.GVK(&fake.Managed{})),
-				o: []ManagedReconcilerOption{
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
 					WithManagedInitializers(),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
 								return ExternalObservation{}, errBoom
 							},
 						}
@@ -254,16 +255,16 @@ func TestManagedReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Managed{}),
 				},
-				mg: ManagedKind(fake.GVK(&fake.Managed{})),
-				o: []ManagedReconcilerOption{
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
 								return ExternalObservation{ResourceExists: true}, nil
 							},
-							DeleteFn: func(_ context.Context, _ Managed) error {
+							DeleteFn: func(_ context.Context, _ resource.Managed) error {
 								return errBoom
 							},
 						}
@@ -298,16 +299,16 @@ func TestManagedReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Managed{}),
 				},
-				mg: ManagedKind(fake.GVK(&fake.Managed{})),
-				o: []ManagedReconcilerOption{
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
 								return ExternalObservation{ResourceExists: true}, nil
 							},
-							DeleteFn: func(_ context.Context, _ Managed) error {
+							DeleteFn: func(_ context.Context, _ resource.Managed) error {
 								return nil
 							},
 						}
@@ -340,20 +341,20 @@ func TestManagedReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Managed{}),
 				},
-				mg: ManagedKind(fake.GVK(&fake.Managed{})),
-				o: []ManagedReconcilerOption{
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
 								return ExternalObservation{ResourceExists: false}, nil
 							},
 						}
 						return c, nil
 					})),
 					WithManagedConnectionPublishers(ManagedConnectionPublisherFns{
-						UnpublishConnectionFn: func(_ context.Context, _ Managed, _ ConnectionDetails) error { return errBoom },
+						UnpublishConnectionFn: func(_ context.Context, _ resource.Managed, _ ConnectionDetails) error { return errBoom },
 					}),
 				},
 			},
@@ -382,20 +383,20 @@ func TestManagedReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Managed{}),
 				},
-				mg: ManagedKind(fake.GVK(&fake.Managed{})),
-				o: []ManagedReconcilerOption{
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
 								return ExternalObservation{ResourceExists: false}, nil
 							},
 						}
 						return c, nil
 					})),
 					WithManagedConnectionPublishers(),
-					WithManagedFinalizer(ManagedFinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ Managed) error { return errBoom }}),
+					WithManagedFinalizer(ManagedFinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Managed) error { return errBoom }}),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
@@ -413,20 +414,20 @@ func TestManagedReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Managed{}),
 				},
-				mg: ManagedKind(fake.GVK(&fake.Managed{})),
-				o: []ManagedReconcilerOption{
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
 								return ExternalObservation{ResourceExists: false}, nil
 							},
 						}
 						return c, nil
 					})),
 					WithManagedConnectionPublishers(),
-					WithManagedFinalizer(ManagedFinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ Managed) error { return nil }}),
+					WithManagedFinalizer(ManagedFinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Managed) error { return nil }}),
 				},
 			},
 			want: want{result: reconcile.Result{Requeue: false}},
@@ -450,13 +451,13 @@ func TestManagedReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Managed{}),
 				},
-				mg: ManagedKind(fake.GVK(&fake.Managed{})),
-				o: []ManagedReconcilerOption{
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
 					WithExternalConnecter(&NopConnecter{}),
 					WithManagedConnectionPublishers(ManagedConnectionPublisherFns{
-						PublishConnectionFn: func(_ context.Context, _ Managed, _ ConnectionDetails) error { return errBoom },
+						PublishConnectionFn: func(_ context.Context, _ resource.Managed, _ ConnectionDetails) error { return errBoom },
 					}),
 				},
 			},
@@ -481,13 +482,13 @@ func TestManagedReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Managed{}),
 				},
-				mg: ManagedKind(fake.GVK(&fake.Managed{})),
-				o: []ManagedReconcilerOption{
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
 					WithExternalConnecter(&NopConnecter{}),
 					WithManagedConnectionPublishers(),
-					WithManagedFinalizer(ManagedFinalizerFns{AddFinalizerFn: func(_ context.Context, _ Managed) error { return errBoom }}),
+					WithManagedFinalizer(ManagedFinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Managed) error { return errBoom }}),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
@@ -511,23 +512,23 @@ func TestManagedReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Managed{}),
 				},
-				mg: ManagedKind(fake.GVK(&fake.Managed{})),
-				o: []ManagedReconcilerOption{
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
 								return ExternalObservation{ResourceExists: false}, nil
 							},
-							CreateFn: func(_ context.Context, _ Managed) (ExternalCreation, error) {
+							CreateFn: func(_ context.Context, _ resource.Managed) (ExternalCreation, error) {
 								return ExternalCreation{}, errBoom
 							},
 						}
 						return c, nil
 					})),
 					WithManagedConnectionPublishers(),
-					WithManagedFinalizer(ManagedFinalizerFns{AddFinalizerFn: func(_ context.Context, _ Managed) error { return nil }}),
+					WithManagedFinalizer(ManagedFinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Managed) error { return nil }}),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
@@ -551,16 +552,16 @@ func TestManagedReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Managed{}),
 				},
-				mg: ManagedKind(fake.GVK(&fake.Managed{})),
-				o: []ManagedReconcilerOption{
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
 								return ExternalObservation{ResourceExists: false}, nil
 							},
-							CreateFn: func(_ context.Context, _ Managed) (ExternalCreation, error) {
+							CreateFn: func(_ context.Context, _ resource.Managed) (ExternalCreation, error) {
 								cd := ConnectionDetails{"create": []byte{}}
 								return ExternalCreation{ConnectionDetails: cd}, nil
 							},
@@ -568,7 +569,7 @@ func TestManagedReconciler(t *testing.T) {
 						return c, nil
 					})),
 					WithManagedConnectionPublishers(ManagedConnectionPublisherFns{
-						PublishConnectionFn: func(_ context.Context, _ Managed, cd ConnectionDetails) error {
+						PublishConnectionFn: func(_ context.Context, _ resource.Managed, cd ConnectionDetails) error {
 							// We're called after observe, create, and update
 							// but we only want to fail when publishing details
 							// after a creation.
@@ -578,7 +579,7 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						},
 					}),
-					WithManagedFinalizer(ManagedFinalizerFns{AddFinalizerFn: func(_ context.Context, _ Managed) error { return nil }}),
+					WithManagedFinalizer(ManagedFinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Managed) error { return nil }}),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
@@ -602,13 +603,13 @@ func TestManagedReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Managed{}),
 				},
-				mg: ManagedKind(fake.GVK(&fake.Managed{})),
-				o: []ManagedReconcilerOption{
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
 					WithExternalConnecter(&NopConnecter{}),
 					WithManagedConnectionPublishers(),
-					WithManagedFinalizer(ManagedFinalizerFns{AddFinalizerFn: func(_ context.Context, _ Managed) error { return nil }}),
+					WithManagedFinalizer(ManagedFinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Managed) error { return nil }}),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
@@ -632,20 +633,20 @@ func TestManagedReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Managed{}),
 				},
-				mg: ManagedKind(fake.GVK(&fake.Managed{})),
-				o: []ManagedReconcilerOption{
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
 								return ExternalObservation{ResourceExists: true, ResourceUpToDate: true}, nil
 							},
 						}
 						return c, nil
 					})),
 					WithManagedConnectionPublishers(),
-					WithManagedFinalizer(ManagedFinalizerFns{AddFinalizerFn: func(_ context.Context, _ Managed) error { return nil }}),
+					WithManagedFinalizer(ManagedFinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Managed) error { return nil }}),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedLongWait}},
@@ -669,23 +670,23 @@ func TestManagedReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Managed{}),
 				},
-				mg: ManagedKind(fake.GVK(&fake.Managed{})),
-				o: []ManagedReconcilerOption{
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
 								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false}, nil
 							},
-							UpdateFn: func(_ context.Context, _ Managed) (ExternalUpdate, error) {
+							UpdateFn: func(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
 								return ExternalUpdate{}, errBoom
 							},
 						}
 						return c, nil
 					})),
 					WithManagedConnectionPublishers(),
-					WithManagedFinalizer(ManagedFinalizerFns{AddFinalizerFn: func(_ context.Context, _ Managed) error { return nil }}),
+					WithManagedFinalizer(ManagedFinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Managed) error { return nil }}),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
@@ -709,16 +710,16 @@ func TestManagedReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Managed{}),
 				},
-				mg: ManagedKind(fake.GVK(&fake.Managed{})),
-				o: []ManagedReconcilerOption{
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
 								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false}, nil
 							},
-							UpdateFn: func(_ context.Context, _ Managed) (ExternalUpdate, error) {
+							UpdateFn: func(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
 								cd := ConnectionDetails{"update": []byte{}}
 								return ExternalUpdate{ConnectionDetails: cd}, nil
 							},
@@ -726,7 +727,7 @@ func TestManagedReconciler(t *testing.T) {
 						return c, nil
 					})),
 					WithManagedConnectionPublishers(ManagedConnectionPublisherFns{
-						PublishConnectionFn: func(_ context.Context, _ Managed, cd ConnectionDetails) error {
+						PublishConnectionFn: func(_ context.Context, _ resource.Managed, cd ConnectionDetails) error {
 							// We're called after observe, create, and update
 							// but we only want to fail when publishing details
 							// after an update.
@@ -736,7 +737,7 @@ func TestManagedReconciler(t *testing.T) {
 							return nil
 						},
 					}),
-					WithManagedFinalizer(ManagedFinalizerFns{AddFinalizerFn: func(_ context.Context, _ Managed) error { return nil }}),
+					WithManagedFinalizer(ManagedFinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Managed) error { return nil }}),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
@@ -760,23 +761,23 @@ func TestManagedReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Managed{}),
 				},
-				mg: ManagedKind(fake.GVK(&fake.Managed{})),
-				o: []ManagedReconcilerOption{
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
 					WithManagedInitializers(),
 					WithManagedReferenceResolver(ManagedReferenceResolverFn(func(_ context.Context, _ CanReference) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg Managed) (ExternalClient, error) {
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ Managed) (ExternalObservation, error) {
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
 								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false}, nil
 							},
-							UpdateFn: func(_ context.Context, _ Managed) (ExternalUpdate, error) {
+							UpdateFn: func(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
 								return ExternalUpdate{}, nil
 							},
 						}
 						return c, nil
 					})),
 					WithManagedConnectionPublishers(),
-					WithManagedFinalizer(ManagedFinalizerFns{AddFinalizerFn: func(_ context.Context, _ Managed) error { return nil }}),
+					WithManagedFinalizer(ManagedFinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Managed) error { return nil }}),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedLongWait}},
@@ -785,7 +786,7 @@ func TestManagedReconciler(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewManagedReconciler(tc.args.m, tc.args.mg, tc.args.o...)
+			r := NewReconciler(tc.args.m, tc.args.mg, tc.args.o...)
 			got, err := r.Reconcile(reconcile.Request{})
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {

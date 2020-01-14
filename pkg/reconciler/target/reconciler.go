@@ -29,53 +29,59 @@ import (
 	"github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 )
 
 const (
 	targetControllerName   = "kubernetestarget.crossplane.io"
 	targetReconcileTimeout = 1 * time.Minute
+	aShortWait             = 30 * time.Second
 
 	errGetTarget                 = "unable to get Target"
 	errManagedResourceIsNotBound = "managed resource in Target clusterRef is unbound"
 	errUpdateTarget              = "unable to update Target"
+	errSecretConflict            = "cannot establish control of existing connection secret"
 )
 
-// A TargetKind contains the type metadata for a kind of target resource.
-type TargetKind schema.GroupVersionKind
+var log = logging.Logger.WithName("controller")
 
-// A TargetReconciler reconciles targets by propagating the secret of the
+// A Reconciler reconciles targets by propagating the secret of the
 // referenced managed resource.
-type TargetReconciler struct {
+type Reconciler struct {
 	client     client.Client
-	newTarget  func() Target
-	newManaged func() Managed
+	newTarget  func() resource.Target
+	newManaged func() resource.Managed
 
-	propagator ManagedConnectionPropagator
+	propagator resource.ManagedConnectionPropagator
 }
 
-// NewTargetReconciler returns a Reconciler that reconciles KubernetesTargets by
+// NewReconciler returns a Reconciler that reconciles KubernetesTargets by
 // propagating the referenced Kubernetes cluster's connection Secret to the
 // namespace of the KubernetesTarget.
-func NewTargetReconciler(m manager.Manager, of TargetKind, with ManagedKind) *TargetReconciler {
-	nt := func() Target { return MustCreateObject(schema.GroupVersionKind(of), m.GetScheme()).(Target) }
-	nr := func() Managed { return MustCreateObject(schema.GroupVersionKind(with), m.GetScheme()).(Managed) }
+func NewReconciler(m manager.Manager, of resource.TargetKind, with resource.ManagedKind) *Reconciler {
+	nt := func() resource.Target {
+		return resource.MustCreateObject(schema.GroupVersionKind(of), m.GetScheme()).(resource.Target)
+	}
+	nr := func() resource.Managed {
+		return resource.MustCreateObject(schema.GroupVersionKind(with), m.GetScheme()).(resource.Managed)
+	}
 
 	// Panic early if we've been asked to reconcile a target or resource kind
 	// that has not been registered with our controller manager's scheme.
 	_, _ = nt(), nr()
 
-	r := &TargetReconciler{
+	r := &Reconciler{
 		client:     m.GetClient(),
 		newTarget:  nt,
 		newManaged: nr,
-		propagator: NewAPIManagedConnectionPropagator(m.GetClient(), m.GetScheme()),
+		propagator: resource.NewAPIManagedConnectionPropagator(m.GetClient(), m.GetScheme()),
 	}
 
 	return r
 }
 
 // Reconcile a target with a concrete managed resource.
-func (r *TargetReconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
+func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
 	log.V(logging.Debug).Info("Reconciling", "controller", targetControllerName, "request", req)
 
 	ctx, cancel := context.WithTimeout(context.Background(), targetReconcileTimeout)
@@ -85,7 +91,7 @@ func (r *TargetReconciler) Reconcile(req reconcile.Request) (reconcile.Result, e
 	if err := r.client.Get(ctx, req.NamespacedName, target); err != nil {
 		// There's no need to requeue if we no longer exist. Otherwise we'll be
 		// requeued implicitly because we return an error.
-		return reconcile.Result{}, errors.Wrap(IgnoreNotFound(err), errGetTarget)
+		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetTarget)
 	}
 
 	if target.GetWriteConnectionSecretToReference() == nil {
@@ -107,7 +113,7 @@ func (r *TargetReconciler) Reconcile(req reconcile.Request) (reconcile.Result, e
 		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, target), errUpdateTarget)
 	}
 
-	if !IsBound(managed) {
+	if !resource.IsBound(managed) {
 		target.SetConditions(v1alpha1.SecretPropagationError(errors.New(errManagedResourceIsNotBound)))
 		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, target), errUpdateTarget)
 	}

@@ -45,7 +45,9 @@ var MockOwnerGVK = schema.GroupVersionKind{
 }
 
 type MockLocalOwner struct {
+	runtime.Object
 	metav1.ObjectMeta
+
 	Ref *v1alpha1.LocalSecretReference
 }
 
@@ -110,7 +112,9 @@ func TestLocalConnectionSecretFor(t *testing.T) {
 }
 
 type MockOwner struct {
+	runtime.Object
 	metav1.ObjectMeta
+
 	Ref *v1alpha1.SecretReference
 }
 

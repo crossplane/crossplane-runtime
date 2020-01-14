@@ -131,7 +131,9 @@ func IsControlledByKind(k schema.GroupVersionKind) PredicateFn {
 // to another object of the same kind.
 func IsPropagator() PredicateFn {
 	return func(obj runtime.Object) bool {
-		ao, ok := obj.(annotated)
+		ao, ok := obj.(interface {
+			GetAnnotations() map[string]string
+		})
 		if !ok {
 			return false
 		}
@@ -150,7 +152,9 @@ func IsPropagator() PredicateFn {
 // from another object of the same kind.
 func IsPropagated() PredicateFn {
 	return func(obj runtime.Object) bool {
-		ao, ok := obj.(annotated)
+		ao, ok := obj.(interface {
+			GetAnnotations() map[string]string
+		})
 		if !ok {
 			return false
 		}

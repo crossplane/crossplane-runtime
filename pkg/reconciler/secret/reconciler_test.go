@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package resource
+package secret
 
 import (
 	"context"
@@ -32,11 +32,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 	"github.com/crossplaneio/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 )
 
-func TestSecretPropagatingReconciler(t *testing.T) {
+func TestReconciler(t *testing.T) {
 	type args struct {
 		m manager.Manager
 	}
@@ -113,9 +114,9 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 										Name:      toName,
 										UID:       toUID,
 										Annotations: map[string]string{
-											AnnotationKeyPropagateFromName:      fromName,
-											AnnotationKeyPropagateFromNamespace: ns,
-											AnnotationKeyPropagateFromUID:       string(fromUID),
+											resource.AnnotationKeyPropagateFromName:      fromName,
+											resource.AnnotationKeyPropagateFromNamespace: ns,
+											resource.AnnotationKeyPropagateFromUID:       string(fromUID),
 										},
 									},
 								}
@@ -147,9 +148,9 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 										Name:      toName,
 										UID:       toUID,
 										Annotations: map[string]string{
-											AnnotationKeyPropagateFromName:      fromName,
-											AnnotationKeyPropagateFromNamespace: ns,
-											AnnotationKeyPropagateFromUID:       string(fromUID),
+											resource.AnnotationKeyPropagateFromName:      fromName,
+											resource.AnnotationKeyPropagateFromNamespace: ns,
+											resource.AnnotationKeyPropagateFromUID:       string(fromUID),
 										},
 									},
 								}
@@ -182,9 +183,9 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 										Name:      toName,
 										UID:       toUID,
 										Annotations: map[string]string{
-											AnnotationKeyPropagateFromName:      fromName,
-											AnnotationKeyPropagateFromNamespace: ns,
-											AnnotationKeyPropagateFromUID:       "some-other-UID",
+											resource.AnnotationKeyPropagateFromName:      fromName,
+											resource.AnnotationKeyPropagateFromNamespace: ns,
+											resource.AnnotationKeyPropagateFromUID:       "some-other-UID",
 										},
 									},
 									Data: fromData,
@@ -196,7 +197,7 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 										Name:      fromName,
 										UID:       fromUID,
 										Annotations: map[string]string{
-											strings.Join([]string{AnnotationKeyPropagateToPrefix, string(toUID)}, SlashDelimeter): strings.Join([]string{ns, toName}, SlashDelimeter),
+											strings.Join([]string{resource.AnnotationKeyPropagateToPrefix, string(toUID)}, resource.AnnotationDelimiter): strings.Join([]string{ns, toName}, resource.AnnotationDelimiter),
 										},
 									},
 									Data: fromData,
@@ -232,9 +233,9 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 										Name:      toName,
 										UID:       toUID,
 										Annotations: map[string]string{
-											AnnotationKeyPropagateFromName:      fromName,
-											AnnotationKeyPropagateFromNamespace: ns,
-											AnnotationKeyPropagateFromUID:       string(fromUID),
+											resource.AnnotationKeyPropagateFromName:      fromName,
+											resource.AnnotationKeyPropagateFromNamespace: ns,
+											resource.AnnotationKeyPropagateFromUID:       string(fromUID),
 										},
 									},
 									Data: fromData,
@@ -246,7 +247,7 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 										Name:      fromName,
 										UID:       fromUID,
 										Annotations: map[string]string{
-											strings.Join([]string{AnnotationKeyPropagateToPrefix, "some-other-uid"}, SlashDelimeter): strings.Join([]string{ns, toName}, SlashDelimeter),
+											strings.Join([]string{resource.AnnotationKeyPropagateToPrefix, "some-other-uid"}, resource.AnnotationDelimiter): strings.Join([]string{ns, toName}, resource.AnnotationDelimiter),
 										},
 									},
 									Data: fromData,
@@ -282,9 +283,9 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 										Name:      toName,
 										UID:       toUID,
 										Annotations: map[string]string{
-											AnnotationKeyPropagateFromName:      fromName,
-											AnnotationKeyPropagateFromNamespace: ns,
-											AnnotationKeyPropagateFromUID:       string(fromUID),
+											resource.AnnotationKeyPropagateFromName:      fromName,
+											resource.AnnotationKeyPropagateFromNamespace: ns,
+											resource.AnnotationKeyPropagateFromUID:       string(fromUID),
 										},
 									},
 									Data: fromData,
@@ -296,7 +297,7 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 										Name:      fromName,
 										UID:       fromUID,
 										Annotations: map[string]string{
-											strings.Join([]string{AnnotationKeyPropagateToPrefix, string(toUID)}, SlashDelimeter): strings.Join([]string{ns, toName}, SlashDelimeter),
+											strings.Join([]string{resource.AnnotationKeyPropagateToPrefix, string(toUID)}, resource.AnnotationDelimiter): strings.Join([]string{ns, toName}, resource.AnnotationDelimiter),
 										},
 									},
 									Data: fromData,
@@ -331,9 +332,9 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 										Name:      toName,
 										UID:       toUID,
 										Annotations: map[string]string{
-											AnnotationKeyPropagateFromName:      fromName,
-											AnnotationKeyPropagateFromNamespace: ns,
-											AnnotationKeyPropagateFromUID:       string(fromUID),
+											resource.AnnotationKeyPropagateFromName:      fromName,
+											resource.AnnotationKeyPropagateFromNamespace: ns,
+											resource.AnnotationKeyPropagateFromUID:       string(fromUID),
 										},
 									},
 									Data: fromData,
@@ -345,7 +346,7 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 										Name:      fromName,
 										UID:       fromUID,
 										Annotations: map[string]string{
-											strings.Join([]string{AnnotationKeyPropagateToPrefix, string(toUID)}, SlashDelimeter): strings.Join([]string{ns, toName}, SlashDelimeter),
+											strings.Join([]string{resource.AnnotationKeyPropagateToPrefix, string(toUID)}, resource.AnnotationDelimiter): strings.Join([]string{ns, toName}, resource.AnnotationDelimiter),
 										},
 									},
 									Data: fromData,
@@ -362,9 +363,9 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 									Name:      toName,
 									UID:       toUID,
 									Annotations: map[string]string{
-										AnnotationKeyPropagateFromName:      fromName,
-										AnnotationKeyPropagateFromNamespace: ns,
-										AnnotationKeyPropagateFromUID:       string(fromUID),
+										resource.AnnotationKeyPropagateFromName:      fromName,
+										resource.AnnotationKeyPropagateFromNamespace: ns,
+										resource.AnnotationKeyPropagateFromUID:       string(fromUID),
 									},
 								},
 								Data: fromData,
@@ -396,9 +397,9 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 										Name:      toName,
 										UID:       toUID,
 										Annotations: map[string]string{
-											AnnotationKeyPropagateFromName:      fromName,
-											AnnotationKeyPropagateFromNamespace: ns,
-											AnnotationKeyPropagateFromUID:       string(fromUID),
+											resource.AnnotationKeyPropagateFromName:      fromName,
+											resource.AnnotationKeyPropagateFromNamespace: ns,
+											resource.AnnotationKeyPropagateFromUID:       string(fromUID),
 										},
 									},
 									Data: fromData,
@@ -410,9 +411,9 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 										Name:      fromName,
 										UID:       fromUID,
 										Annotations: map[string]string{
-											strings.Join([]string{AnnotationKeyPropagateToPrefix, string(toUID)}, SlashDelimeter):    strings.Join([]string{ns, toName}, SlashDelimeter),
-											strings.Join([]string{AnnotationKeyPropagateToPrefix, "some-uid"}, SlashDelimeter):       strings.Join([]string{ns, toName}, SlashDelimeter),
-											strings.Join([]string{AnnotationKeyPropagateToPrefix, "some-other-uid"}, SlashDelimeter): strings.Join([]string{ns, toName}, SlashDelimeter),
+											strings.Join([]string{resource.AnnotationKeyPropagateToPrefix, string(toUID)}, resource.AnnotationDelimiter):    strings.Join([]string{ns, toName}, resource.AnnotationDelimiter),
+											strings.Join([]string{resource.AnnotationKeyPropagateToPrefix, "some-uid"}, resource.AnnotationDelimiter):       strings.Join([]string{ns, toName}, resource.AnnotationDelimiter),
+											strings.Join([]string{resource.AnnotationKeyPropagateToPrefix, "some-other-uid"}, resource.AnnotationDelimiter): strings.Join([]string{ns, toName}, resource.AnnotationDelimiter),
 										},
 									},
 									Data: fromData,
@@ -429,9 +430,9 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 									Name:      toName,
 									UID:       toUID,
 									Annotations: map[string]string{
-										AnnotationKeyPropagateFromName:      fromName,
-										AnnotationKeyPropagateFromNamespace: ns,
-										AnnotationKeyPropagateFromUID:       string(fromUID),
+										resource.AnnotationKeyPropagateFromName:      fromName,
+										resource.AnnotationKeyPropagateFromNamespace: ns,
+										resource.AnnotationKeyPropagateFromUID:       string(fromUID),
 									},
 								},
 								Data: fromData,
@@ -452,7 +453,7 @@ func TestSecretPropagatingReconciler(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewSecretPropagatingReconciler(tc.args.m)
+			r := NewReconciler(tc.args.m)
 			got, err := r.Reconcile(reconcile.Request{NamespacedName: types.NamespacedName{Namespace: ns, Name: toName}})
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {

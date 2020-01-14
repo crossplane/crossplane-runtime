@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package resource
+package secret
 
 import (
 	"context"
@@ -28,36 +28,26 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 )
-
-// Supported resources with all of these annotations will be fully or partially
-// propagated to the named resource of the same kind, assuming it exists and
-// consents to propagation.
-const (
-	AnnotationKeyPropagateToPrefix = "to.propagate.crossplane.io"
-	SlashDelimeter                 = "/"
-
-	AnnotationKeyPropagateFromNamespace = "from.propagate.crossplane.io/namespace"
-	AnnotationKeyPropagateFromName      = "from.propagate.crossplane.io/name"
-	AnnotationKeyPropagateFromUID       = "from.propagate.crossplane.io/uid"
-)
-
-type annotated interface {
-	GetAnnotations() map[string]string
-}
 
 const (
 	secretControllerName   = "secretpropagator.crossplane.io"
 	secretReconcileTimeout = 1 * time.Minute
-	errUnexpectedFromUID   = "unexpected propagate from uid on propagated secret"
-	errUnexpectedToUID     = "unexpected propagate to uid on propagator secret"
+
+	errGetSecret         = "cannot get managed resource's connection secret"
+	errUpdateSecret      = "cannot update connection secret"
+	errUnexpectedFromUID = "unexpected propagate from uid on propagated secret"
+	errUnexpectedToUID   = "unexpected propagate to uid on propagator secret"
 )
 
-// NewSecretPropagatingReconciler returns a Reconciler that reconciles secrets
-// by propagating their data to another secret. Both secrets must consent to
-// this process by including propagation annotations. The Reconciler assumes it
-// has a watch on both propagating (from) and propagated (to) secrets.
-func NewSecretPropagatingReconciler(m manager.Manager) reconcile.Reconciler {
+var log = logging.Logger.WithName("controller")
+
+// NewReconciler returns a Reconciler that reconciles secrets by propagating
+// their data to another secret. Both secrets must consent to this process by
+// including propagation annotations. The Reconciler assumes it has a watch on
+// both propagating (from) and propagated (to) secrets.
+func NewReconciler(m manager.Manager) reconcile.Reconciler {
 	client := m.GetClient()
 
 	return reconcile.Func(func(req reconcile.Request) (reconcile.Result, error) {
@@ -77,30 +67,30 @@ func NewSecretPropagatingReconciler(m manager.Manager) reconcile.Reconciler {
 			// does not exist. We assume we have a watch on that secret and will
 			// be queued if/when it is created. Otherwise we'll be requeued
 			// implicitly because we return an error.
-			return reconcile.Result{}, errors.Wrap(IgnoreNotFound(err), errGetSecret)
+			return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetSecret)
 		}
 		// The 'from' secret is also know as the 'propagating' secret.
 		from := &corev1.Secret{}
 		n := types.NamespacedName{
-			Namespace: to.GetAnnotations()[AnnotationKeyPropagateFromNamespace],
-			Name:      to.GetAnnotations()[AnnotationKeyPropagateFromName],
+			Namespace: to.GetAnnotations()[resource.AnnotationKeyPropagateFromNamespace],
+			Name:      to.GetAnnotations()[resource.AnnotationKeyPropagateFromName],
 		}
 		if err := client.Get(ctx, n, from); err != nil {
 			// There's no propagation to be done if the secret we're propagating
 			// from does not exist. We assume we have a watch on that secret and
 			// will be queued if/when it is created. Otherwise we'll be requeued
 			// implicitly because we return an error.
-			return reconcile.Result{}, errors.Wrap(IgnoreNotFound(err), errGetSecret)
+			return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetSecret)
 		}
 
-		if to.GetAnnotations()[AnnotationKeyPropagateFromUID] != string(from.GetUID()) {
+		if to.GetAnnotations()[resource.AnnotationKeyPropagateFromUID] != string(from.GetUID()) {
 			// The propagated secret expected a different propagating secret. We
 			// assume we have a watch on both secrets, and will be requeued if
 			// and when this situation is remedied.
 			return reconcile.Result{}, errors.New(errUnexpectedFromUID)
 		}
 
-		if _, ok := from.GetAnnotations()[strings.Join([]string{AnnotationKeyPropagateToPrefix, string(to.GetUID())}, SlashDelimeter)]; !ok {
+		if _, ok := from.GetAnnotations()[strings.Join([]string{resource.AnnotationKeyPropagateToPrefix, string(to.GetUID())}, resource.AnnotationDelimiter)]; !ok {
 			// The propagating secret expected a different propagated secret. We
 			// assume we have a watch on both secrets, and will be requeued if
 			// and when this situation is remedied.
