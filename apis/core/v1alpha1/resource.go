@@ -208,3 +208,26 @@ type ProviderSpec struct {
 	// the credentials that are used to connect to the provider.
 	CredentialsSecretRef SecretKeySelector `json:"credentialsSecretRef"`
 }
+
+// A TargetSpec defines the common fields of objects used for exposing
+// infrastructure to workloads that can be scheduled to.
+type TargetSpec struct {
+	// WriteConnectionSecretToReference specifies the name of a Secret, in the
+	// same namespace as this target, to which any connection details for this
+	// target should be written or already exist. Connection secrets referenced
+	// by a target should contain information for connecting to a resource that
+	// allows for scheduling of workloads.
+	// +optional
+	WriteConnectionSecretToReference *LocalSecretReference `json:"connectionSecretRef,omitempty"`
+
+	// A ResourceReference specifies an existing managed resource, in any
+	// namespace, which this target should attempt to propagate a connection
+	// secret from.
+	// +optional
+	ResourceReference *corev1.ObjectReference `json:"clusterRef,omitempty"`
+}
+
+// A TargetStatus defines the observed status a target.
+type TargetStatus struct {
+	ConditionedStatus `json:",inline"`
+}

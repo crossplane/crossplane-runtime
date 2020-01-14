@@ -137,3 +137,15 @@ type Provider interface {
 
 	CredentialsSecretReferencer
 }
+
+// A Target is a Kubernetes object that refers to credentials to connect
+// to a deployment target. Target is a subset of the Claim interface.
+type Target interface {
+	runtime.Object
+	metav1.Object
+
+	LocalConnectionSecretWriterTo
+	ManagedResourceReferencer
+
+	Conditioned
+}

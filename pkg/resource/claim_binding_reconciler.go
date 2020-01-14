@@ -107,16 +107,16 @@ func (fn ManagedCreatorFn) Create(ctx context.Context, cm Claim, cs Class, mg Ma
 // required to connect to a managed resource (for example the connection secret)
 // from the managed resource to its resource claim.
 type ManagedConnectionPropagator interface {
-	PropagateConnection(ctx context.Context, cm Claim, mg Managed) error
+	PropagateConnection(ctx context.Context, cm Target, mg Managed) error
 }
 
 // A ManagedConnectionPropagatorFn is a function that satisfies the
 // ManagedConnectionPropagator interface.
-type ManagedConnectionPropagatorFn func(ctx context.Context, cm Claim, mg Managed) error
+type ManagedConnectionPropagatorFn func(ctx context.Context, cm Target, mg Managed) error
 
 // PropagateConnection information from the supplied managed resource to the
 // supplied resource claim.
-func (fn ManagedConnectionPropagatorFn) PropagateConnection(ctx context.Context, cm Claim, mg Managed) error {
+func (fn ManagedConnectionPropagatorFn) PropagateConnection(ctx context.Context, cm Target, mg Managed) error {
 	return fn(ctx, cm, mg)
 }
 

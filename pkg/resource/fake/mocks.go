@@ -133,15 +133,15 @@ func (m *Reclaimer) GetReclaimPolicy() v1alpha1.ReclaimPolicy { return m.Policy 
 
 // CredentialsSecretReferencer is a mock that satisfies CredentialsSecretReferencer
 // interface.
-type CredentialsSecretReferencer struct{ Ref *v1alpha1.SecretKeySelector }
+type CredentialsSecretReferencer struct{ Ref v1alpha1.SecretKeySelector }
 
 // SetCredentialsSecretReference sets CredentialsSecretReference.
-func (m *CredentialsSecretReferencer) SetCredentialsSecretReference(r *v1alpha1.SecretKeySelector) {
+func (m *CredentialsSecretReferencer) SetCredentialsSecretReference(r v1alpha1.SecretKeySelector) {
 	m.Ref = r
 }
 
 // GetCredentialsSecretReference gets CredentialsSecretReference.
-func (m *CredentialsSecretReferencer) GetCredentialsSecretReference() *v1alpha1.SecretKeySelector {
+func (m *CredentialsSecretReferencer) GetCredentialsSecretReference() v1alpha1.SecretKeySelector {
 	return m.Ref
 }
 
@@ -235,6 +235,30 @@ func (m *Provider) GetObjectKind() schema.ObjectKind {
 // DeepCopyObject returns a deep copy of Provider as runtime.Object.
 func (m *Provider) DeepCopyObject() runtime.Object {
 	out := &Provider{}
+	j, err := json.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	_ = json.Unmarshal(j, out)
+	return out
+}
+
+// Target is a mock that implements Target interface.
+type Target struct {
+	metav1.ObjectMeta
+	ManagedResourceReferencer
+	LocalConnectionSecretWriterTo
+	v1alpha1.ConditionedStatus
+}
+
+// GetObjectKind returns schema.ObjectKind.
+func (m *Target) GetObjectKind() schema.ObjectKind {
+	return schema.EmptyObjectKind
+}
+
+// DeepCopyObject returns a deep copy of Target as runtime.Object.
+func (m *Target) DeepCopyObject() runtime.Object {
+	out := &Target{}
 	j, err := json.Marshal(m)
 	if err != nil {
 		panic(err)

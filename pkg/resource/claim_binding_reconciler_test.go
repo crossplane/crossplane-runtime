@@ -550,7 +550,7 @@ func TestClaimReconciler(t *testing.T) {
 				with: ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ClaimReconcilerOption{
 					WithManagedConnectionPropagator(ManagedConnectionPropagatorFn(
-						func(_ context.Context, _ Claim, _ Managed) error { return errBoom },
+						func(_ context.Context, _ Target, _ Managed) error { return errBoom },
 					)),
 				},
 			},
@@ -594,7 +594,7 @@ func TestClaimReconciler(t *testing.T) {
 				with: ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ClaimReconcilerOption{
 					WithManagedConnectionPropagator(ManagedConnectionPropagatorFn(
-						func(_ context.Context, _ Claim, _ Managed) error { return nil },
+						func(_ context.Context, _ Target, _ Managed) error { return nil },
 					)),
 					WithClaimFinalizer(ClaimFinalizerFns{
 						AddFinalizerFn: func(_ context.Context, _ Claim) error { return errBoom }},
@@ -641,7 +641,7 @@ func TestClaimReconciler(t *testing.T) {
 				with: ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ClaimReconcilerOption{
 					WithManagedConnectionPropagator(ManagedConnectionPropagatorFn(
-						func(_ context.Context, _ Claim, _ Managed) error { return nil },
+						func(_ context.Context, _ Target, _ Managed) error { return nil },
 					)),
 					WithClaimFinalizer(ClaimFinalizerFns{
 						AddFinalizerFn: func(_ context.Context, _ Claim) error { return nil }},

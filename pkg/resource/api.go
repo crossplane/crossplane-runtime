@@ -91,10 +91,10 @@ func NewAPIManagedConnectionPropagator(c client.Client, t runtime.ObjectTyper) *
 }
 
 // PropagateConnection details from the supplied resource to the supplied claim.
-func (a *APIManagedConnectionPropagator) PropagateConnection(ctx context.Context, cm Claim, mg Managed) error {
+func (a *APIManagedConnectionPropagator) PropagateConnection(ctx context.Context, tr Target, mg Managed) error {
 	// Either this resource does not expose a connection secret, or this claim
 	// does not want one.
-	if mg.GetWriteConnectionSecretToReference() == nil || cm.GetWriteConnectionSecretToReference() == nil {
+	if mg.GetWriteConnectionSecretToReference() == nil || tr.GetWriteConnectionSecretToReference() == nil {
 		return nil
 	}
 
@@ -115,12 +115,12 @@ func (a *APIManagedConnectionPropagator) PropagateConnection(ctx context.Context
 		return errors.New(errSecretConflict)
 	}
 
-	cmcs := LocalConnectionSecretFor(cm, MustGetKind(cm, a.typer))
+	cmcs := LocalConnectionSecretFor(tr, MustGetKind(tr, a.typer))
 	if _, err := util.CreateOrUpdate(ctx, a.client, cmcs, func() error {
 		// Inside this anonymous function cmcs could either be unchanged (if
 		// it does not exist in the API server) or updated to reflect its
 		// current state according to the API server.
-		if c := metav1.GetControllerOf(cmcs); c == nil || c.UID != cm.GetUID() {
+		if c := metav1.GetControllerOf(cmcs); c == nil || c.UID != tr.GetUID() {
 			return errors.New(errSecretConflict)
 		}
 		cmcs.Data = mgcs.Data
