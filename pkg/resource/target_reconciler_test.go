@@ -95,7 +95,7 @@ func TestTargetReconciler(t *testing.T) {
 				err:    errors.Wrap(errBoom, errGetTarget),
 			},
 		},
-		"ErrorTargetHasNoSecretRef": {
+		"SuccessTargetHasNoSecretRef": {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
@@ -116,7 +116,7 @@ func TestTargetReconciler(t *testing.T) {
 								return errUnexpected
 							}
 						},
-						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
+						MockUpdate: test.NewMockUpdateFn(nil, func(got runtime.Object) error {
 							want := &fake.Target{}
 							want.SetName(tgname)
 							want.SetNamespace(ns)
@@ -124,7 +124,9 @@ func TestTargetReconciler(t *testing.T) {
 							want.SetResourceReference(&corev1.ObjectReference{
 								Name: mgname,
 							})
-							want.SetConditions(v1alpha1.SecretPropagatedError(errors.New(errMissingSecretRef)))
+							want.SetWriteConnectionSecretToReference(&v1alpha1.LocalSecretReference{
+								Name: string(tguid),
+							})
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
@@ -234,7 +236,7 @@ func TestTargetReconciler(t *testing.T) {
 								Name: mgname,
 							})
 							want.SetWriteConnectionSecretToReference(&v1alpha1.LocalSecretReference{Name: tgcsname})
-							want.SetConditions(v1alpha1.SecretPropagatedError(errBoom))
+							want.SetConditions(v1alpha1.SecretPropagationError(errBoom))
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
@@ -295,7 +297,7 @@ func TestTargetReconciler(t *testing.T) {
 								Name: mgname,
 							})
 							want.SetWriteConnectionSecretToReference(&v1alpha1.LocalSecretReference{Name: tgcsname})
-							want.SetConditions(v1alpha1.SecretPropagatedError(errors.New(errManagedResourceIsNotBound)))
+							want.SetConditions(v1alpha1.SecretPropagationError(errors.New(errManagedResourceIsNotBound)))
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
@@ -380,7 +382,7 @@ func TestTargetReconciler(t *testing.T) {
 								Name: mgname,
 							})
 							want.SetWriteConnectionSecretToReference(&v1alpha1.LocalSecretReference{Name: tgcsname})
-							want.SetConditions(v1alpha1.SecretPropagatedError(errors.New(errSecretConflict)))
+							want.SetConditions(v1alpha1.SecretPropagationError(errors.New(errSecretConflict)))
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
@@ -503,7 +505,7 @@ func TestTargetReconciler(t *testing.T) {
 								Name: mgname,
 							})
 							want.SetWriteConnectionSecretToReference(&v1alpha1.LocalSecretReference{Name: tgcsname})
-							want.SetConditions(v1alpha1.SecretPropagatedSuccess())
+							want.SetConditions(v1alpha1.SecretPropagationSuccess())
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}

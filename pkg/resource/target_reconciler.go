@@ -36,7 +36,6 @@ const (
 	targetReconcileTimeout = 1 * time.Minute
 
 	errGetTarget                 = "unable to get Target"
-	errMissingSecretRef          = "no secretRef specified for Target with a clusterRef"
 	errManagedResourceIsNotBound = "managed resource in Target clusterRef is unbound"
 	errUpdateTarget              = "unable to update Target"
 )
@@ -90,11 +89,11 @@ func (r *TargetReconciler) Reconcile(req reconcile.Request) (reconcile.Result, e
 	}
 
 	if target.GetWriteConnectionSecretToReference() == nil {
-		// If the ConnectionSecretRef is not set on this Target, we will not
-		// know where to propagate the secret. We do not explicitly requeue
-		// because we have a watch on updates to the KubernetesTarget.
-		target.SetConditions(v1alpha1.SecretPropagatedError(errors.New(errMissingSecretRef)))
-		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, target), errUpdateTarget)
+		// If the ConnectionSecretRef is not set on this Target, we generate a
+		// Secret name that matches the UID of the Target. We implicitly
+		// requeued because of the Target update.
+		target.SetWriteConnectionSecretToReference(&v1alpha1.LocalSecretReference{Name: string(target.GetUID())})
+		return reconcile.Result{}, errors.Wrap(r.client.Update(ctx, target), errUpdateTarget)
 	}
 
 	if meta.WasDeleted(target) {
@@ -104,18 +103,18 @@ func (r *TargetReconciler) Reconcile(req reconcile.Request) (reconcile.Result, e
 
 	managed := r.newManaged()
 	if err := r.client.Get(ctx, meta.NamespacedNameOf(target.GetResourceReference()), managed); err != nil {
-		target.SetConditions(v1alpha1.SecretPropagatedError(err))
+		target.SetConditions(v1alpha1.SecretPropagationError(err))
 		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, target), errUpdateTarget)
 	}
 
 	if !IsBound(managed) {
-		target.SetConditions(v1alpha1.SecretPropagatedError(errors.New(errManagedResourceIsNotBound)))
+		target.SetConditions(v1alpha1.SecretPropagationError(errors.New(errManagedResourceIsNotBound)))
 		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, target), errUpdateTarget)
 	}
 
 	if err := r.propagator.PropagateConnection(ctx, target, managed); err != nil {
 		// If we fail to propagate the connection secret of a bound managed resource, we try again after a short wait.
-		target.SetConditions(v1alpha1.SecretPropagatedError(err))
+		target.SetConditions(v1alpha1.SecretPropagationError(err))
 		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, target), errUpdateTarget)
 	}
 

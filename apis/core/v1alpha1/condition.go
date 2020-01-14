@@ -38,9 +38,9 @@ const (
 	// TypeReferencesResolved resources' references are resolved
 	TypeReferencesResolved ConditionType = "ReferencesResolved"
 
-	// TypeConnectionSecretPropagated resources have had connection information
+	// TypeSecretPropagated resources have had connection information
 	// propagated to their secret reference.
-	TypeConnectionSecretPropagated ConditionType = "SecretPropagated"
+	TypeSecretPropagated ConditionType = "ConnectionSecretPropagated"
 )
 
 // A ConditionReason represents the reason a resource is in a condition.
@@ -295,24 +295,24 @@ func ReferenceResolutionBlocked(err error) Condition {
 	}
 }
 
-// SecretPropagatedSuccess returns a condition indicating that Crossplane
+// SecretPropagationSuccess returns a condition indicating that Crossplane
 // successfully propagated connection data to the referenced secret.
-func SecretPropagatedSuccess() Condition {
+func SecretPropagationSuccess() Condition {
 	return Condition{
-		Type:               TypeConnectionSecretPropagated,
+		Type:               TypeSecretPropagated,
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonSecretPropagationSuccess,
 	}
 }
 
-// SecretPropagatedError returns a condition indicating that Crossplane was
+// SecretPropagationError returns a condition indicating that Crossplane was
 // unable to propagate connection data to the referenced secret. This could be
 // because it was unable to find the managed resource that owns the secret to be
 // propagated.
-func SecretPropagatedError(err error) Condition {
+func SecretPropagationError(err error) Condition {
 	return Condition{
-		Type:               TypeConnectionSecretPropagated,
+		Type:               TypeSecretPropagated,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonSecretPropagationError,
