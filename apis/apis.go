@@ -1,3 +1,5 @@
+// +build generate
+
 /*
 Copyright 2019 The Crossplane Authors.
 
@@ -14,8 +16,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Generate deepcopy for apis
-//go:generate ${CONTROLLERGEN} object:headerFile=../hack/boilerplate.go.txt paths=./...
+// NOTE(negz): See the below link for details on what is happening here.
+// https://github.com/golang/go/wiki/Modules#how-can-i-track-tool-dependencies-for-a-module
+
+// Generate deepcopy methodsets
+//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./...
+
+// Generate crossplane-runtime methodsets (resource.Claim, etc)
+//go:generate go run -tags generate github.com/crossplaneio/crossplane-tools/cmd/angryjet generate-methodsets --header-file=../hack/boilerplate.go.txt ./...
 
 // Package apis contains Kubernetes API groups
 package apis
+
+import (
+	_ "github.com/crossplaneio/crossplane-tools/cmd/angryjet" //nolint:typecheck
+	_ "sigs.k8s.io/controller-tools/cmd/controller-gen"       //nolint:typecheck
+)
