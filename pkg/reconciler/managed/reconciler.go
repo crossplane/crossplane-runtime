@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package resource
+package managed
 
 import (
 	"context"
@@ -58,10 +58,10 @@ var log = logging.Logger.WithName("controller")
 // resource, for example usernames, passwords, endpoints, ports, etc.
 type ConnectionDetails map[string][]byte
 
-// A ManagedConnectionPublisher manages the supplied ConnectionDetails for the
+// A ConnectionPublisher manages the supplied ConnectionDetails for the
 // supplied Managed resource. ManagedPublishers must handle the case in which
 // the supplied ConnectionDetails are empty.
-type ManagedConnectionPublisher interface {
+type ConnectionPublisher interface {
 	// PublishConnection details for the supplied Managed resource. Publishing
 	// must be additive; i.e. if details (a, b, c) are published, subsequently
 	// publicing details (b, c, d) should update (b, c) but not remove a.
@@ -71,33 +71,33 @@ type ManagedConnectionPublisher interface {
 	UnpublishConnection(ctx context.Context, mg resource.Managed, c ConnectionDetails) error
 }
 
-// ManagedConnectionPublisherFns is the pluggable struct to produce objects with ManagedConnectionPublisher interface.
-type ManagedConnectionPublisherFns struct {
+// ConnectionPublisherFns is the pluggable struct to produce objects with ConnectionPublisher interface.
+type ConnectionPublisherFns struct {
 	PublishConnectionFn   func(ctx context.Context, mg resource.Managed, c ConnectionDetails) error
 	UnpublishConnectionFn func(ctx context.Context, mg resource.Managed, c ConnectionDetails) error
 }
 
 // PublishConnection details for the supplied Managed resource.
-func (fn ManagedConnectionPublisherFns) PublishConnection(ctx context.Context, mg resource.Managed, c ConnectionDetails) error {
+func (fn ConnectionPublisherFns) PublishConnection(ctx context.Context, mg resource.Managed, c ConnectionDetails) error {
 	return fn.PublishConnectionFn(ctx, mg, c)
 }
 
 // UnpublishConnection details for the supplied Managed resource.
-func (fn ManagedConnectionPublisherFns) UnpublishConnection(ctx context.Context, mg resource.Managed, c ConnectionDetails) error {
+func (fn ConnectionPublisherFns) UnpublishConnection(ctx context.Context, mg resource.Managed, c ConnectionDetails) error {
 	return fn.UnpublishConnectionFn(ctx, mg, c)
 }
 
-// A ManagedInitializer establishes ownership of the supplied Managed resource.
+// A Initializer establishes ownership of the supplied Managed resource.
 // This typically involves the operations that are run before calling any
 // ExternalClient methods.
-type ManagedInitializer interface {
+type Initializer interface {
 	Initialize(ctx context.Context, mg resource.Managed) error
 }
 
 // A InitializerChain chains multiple managed initializers.
-type InitializerChain []ManagedInitializer
+type InitializerChain []Initializer
 
-// Initialize calls each ManagedInitializer serially. It returns the first
+// Initialize calls each Initializer serially. It returns the first
 // error it encounters, if any.
 func (cc InitializerChain) Initialize(ctx context.Context, mg resource.Managed) error {
 	for _, c := range cc {
@@ -108,8 +108,8 @@ func (cc InitializerChain) Initialize(ctx context.Context, mg resource.Managed) 
 	return nil
 }
 
-// A ManagedFinalizer finalizes the deletion of a resource claim.
-type ManagedFinalizer interface {
+// A Finalizer finalizes the deletion of a resource claim.
+type Finalizer interface {
 	// AddFinalizer to the supplied Managed resource.
 	AddFinalizer(ctx context.Context, mg resource.Managed) error
 
@@ -117,33 +117,33 @@ type ManagedFinalizer interface {
 	RemoveFinalizer(ctx context.Context, mg resource.Managed) error
 }
 
-// A ManagedFinalizerFns satisfy the ManagedFinalizer interface.
-type ManagedFinalizerFns struct {
+// A FinalizerFns satisfy the Finalizer interface.
+type FinalizerFns struct {
 	AddFinalizerFn    func(ctx context.Context, mg resource.Managed) error
 	RemoveFinalizerFn func(ctx context.Context, mg resource.Managed) error
 }
 
 // AddFinalizer to the supplied Managed resource.
-func (f ManagedFinalizerFns) AddFinalizer(ctx context.Context, mg resource.Managed) error {
+func (f FinalizerFns) AddFinalizer(ctx context.Context, mg resource.Managed) error {
 	return f.AddFinalizerFn(ctx, mg)
 }
 
 // RemoveFinalizer from the supplied Managed resource.
-func (f ManagedFinalizerFns) RemoveFinalizer(ctx context.Context, mg resource.Managed) error {
+func (f FinalizerFns) RemoveFinalizer(ctx context.Context, mg resource.Managed) error {
 	return f.RemoveFinalizerFn(ctx, mg)
 }
 
-// A ManagedInitializerFn is a function that satisfies the ManagedInitializer
+// A InitializerFn is a function that satisfies the Initializer
 // interface.
-type ManagedInitializerFn func(ctx context.Context, mg resource.Managed) error
+type InitializerFn func(ctx context.Context, mg resource.Managed) error
 
-// Initialize calls ManagedInitializerFn function.
-func (m ManagedInitializerFn) Initialize(ctx context.Context, mg resource.Managed) error {
+// Initialize calls InitializerFn function.
+func (m InitializerFn) Initialize(ctx context.Context, mg resource.Managed) error {
 	return m(ctx, mg)
 }
 
-// A ManagedReferenceResolver resolves references to other managed resources.
-type ManagedReferenceResolver interface {
+// A ReferenceResolver resolves references to other managed resources.
+type ReferenceResolver interface {
 	// ResolveReferences finds all fields in the supplied CanReference that are
 	// references to Kubernetes resources, then uses the fields of those
 	// resources to update corresponding fields in CanReference, for example
@@ -152,12 +152,12 @@ type ManagedReferenceResolver interface {
 	ResolveReferences(ctx context.Context, res CanReference) error
 }
 
-// A ManagedReferenceResolverFn is a function that satisfies the
-// ManagedReferenceResolver interface.
-type ManagedReferenceResolverFn func(context.Context, CanReference) error
+// A ReferenceResolverFn is a function that satisfies the
+// ReferenceResolver interface.
+type ReferenceResolverFn func(context.Context, CanReference) error
 
-// ResolveReferences calls ManagedReferenceResolverFn function
-func (m ManagedReferenceResolverFn) ResolveReferences(ctx context.Context, res CanReference) error {
+// ResolveReferences calls ReferenceResolverFn function
+func (m ReferenceResolverFn) ResolveReferences(ctx context.Context, res CanReference) error {
 	return m(ctx, res)
 }
 
@@ -306,18 +306,18 @@ type Reconciler struct {
 }
 
 type mrManaged struct {
-	ManagedConnectionPublisher
-	ManagedFinalizer
-	ManagedInitializer
-	ManagedReferenceResolver
+	ConnectionPublisher
+	Finalizer
+	Initializer
+	ReferenceResolver
 }
 
 func defaultMRManaged(m manager.Manager) mrManaged {
 	return mrManaged{
-		ManagedConnectionPublisher: NewAPISecretPublisher(m.GetClient(), m.GetScheme()),
-		ManagedFinalizer:           NewAPIManagedFinalizer(m.GetClient(), managedFinalizerName),
-		ManagedInitializer:         NewManagedNameAsExternalName(m.GetClient()),
-		ManagedReferenceResolver:   NewAPIManagedReferenceResolver(m.GetClient()),
+		ConnectionPublisher: NewAPISecretPublisher(m.GetClient(), m.GetScheme()),
+		Finalizer:           NewAPIFinalizer(m.GetClient(), managedFinalizerName),
+		Initializer:         NewNameAsExternalName(m.GetClient()),
+		ReferenceResolver:   NewAPIReferenceResolver(m.GetClient()),
 	}
 }
 
@@ -363,35 +363,35 @@ func WithExternalConnecter(c ExternalConnecter) ReconcilerOption {
 	}
 }
 
-// WithManagedConnectionPublishers specifies how the Reconciler should publish
+// WithConnectionPublishers specifies how the Reconciler should publish
 // its connection details such as credentials and endpoints.
-func WithManagedConnectionPublishers(p ...ManagedConnectionPublisher) ReconcilerOption {
+func WithConnectionPublishers(p ...ConnectionPublisher) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.managed.ManagedConnectionPublisher = PublisherChain(p)
+		r.managed.ConnectionPublisher = PublisherChain(p)
 	}
 }
 
-// WithManagedInitializers specifies how the Reconciler should initialize a
+// WithInitializers specifies how the Reconciler should initialize a
 // managed resource before calling any of the ExternalClient functions.
-func WithManagedInitializers(i ...ManagedInitializer) ReconcilerOption {
+func WithInitializers(i ...Initializer) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.managed.ManagedInitializer = InitializerChain(i)
+		r.managed.Initializer = InitializerChain(i)
 	}
 }
 
-// WithManagedFinalizer specifies how the Reconciler should add and remove
+// WithFinalizer specifies how the Reconciler should add and remove
 // finalizers to and from the managed resource.
-func WithManagedFinalizer(f ManagedFinalizer) ReconcilerOption {
+func WithFinalizer(f Finalizer) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.managed.ManagedFinalizer = f
+		r.managed.Finalizer = f
 	}
 }
 
-// WithManagedReferenceResolver specifies how the Reconciler should resolve any
+// WithReferenceResolver specifies how the Reconciler should resolve any
 // inter-resource references it encounters while reconciling managed resources.
-func WithManagedReferenceResolver(rr ManagedReferenceResolver) ReconcilerOption {
+func WithReferenceResolver(rr ReferenceResolver) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.managed.ManagedReferenceResolver = rr
+		r.managed.ReferenceResolver = rr
 	}
 }
 

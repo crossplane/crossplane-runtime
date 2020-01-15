@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package resource
+package managed
 
 import (
 	"context"
@@ -29,8 +29,8 @@ import (
 )
 
 var (
-	_ ManagedConnectionPublisher = &APISecretPublisher{}
-	_ ManagedConnectionPublisher = PublisherChain{}
+	_ ConnectionPublisher = &APISecretPublisher{}
+	_ ConnectionPublisher = PublisherChain{}
 )
 
 func TestPublisherChain(t *testing.T) {
@@ -43,7 +43,7 @@ func TestPublisherChain(t *testing.T) {
 	errBoom := errors.New("boom")
 
 	cases := map[string]struct {
-		p    ManagedConnectionPublisher
+		p    ConnectionPublisher
 		args args
 		want error
 	}{
@@ -58,7 +58,7 @@ func TestPublisherChain(t *testing.T) {
 		},
 		"SuccessfulPublisher": {
 			p: PublisherChain{
-				ManagedConnectionPublisherFns{
+				ConnectionPublisherFns{
 					PublishConnectionFn: func(_ context.Context, mg resource.Managed, c ConnectionDetails) error {
 						return nil
 					},
@@ -76,7 +76,7 @@ func TestPublisherChain(t *testing.T) {
 		},
 		"PublisherReturnsError": {
 			p: PublisherChain{
-				ManagedConnectionPublisherFns{
+				ConnectionPublisherFns{
 					PublishConnectionFn: func(_ context.Context, mg resource.Managed, c ConnectionDetails) error {
 						return errBoom
 					},

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package resource
+package managed
 
 import (
 	"context"
@@ -132,32 +132,32 @@ func (fn AttributeReferencerFinderFn) FindReferencers(obj interface{}) []Attribu
 	return fn(obj)
 }
 
-// An APIManagedReferenceResolver finds and resolves a resource's references,
+// An APIReferenceResolver finds and resolves a resource's references,
 // then updates it in the Kubernetes API.
-type APIManagedReferenceResolver struct {
+type APIReferenceResolver struct {
 	client client.Client
 	finder AttributeReferencerFinder
 }
 
-// An APIManagedReferenceResolverOption configures an
-// APIManagedReferenceResolver.
-type APIManagedReferenceResolverOption func(*APIManagedReferenceResolver)
+// An APIReferenceResolverOption configures an
+// APIReferenceResolver.
+type APIReferenceResolverOption func(*APIReferenceResolver)
 
 // WithAttributeReferencerFinder specifies an AttributeReferencerFinder used to
 // find AttributeReferencers.
-func WithAttributeReferencerFinder(f AttributeReferencerFinder) APIManagedReferenceResolverOption {
-	return func(r *APIManagedReferenceResolver) {
+func WithAttributeReferencerFinder(f AttributeReferencerFinder) APIReferenceResolverOption {
+	return func(r *APIReferenceResolver) {
 		r.finder = f
 	}
 }
 
-// NewAPIManagedReferenceResolver returns an APIManagedReferenceResolver. The
+// NewAPIReferenceResolver returns an APIReferenceResolver. The
 // resolver uses reflection to recursively finds all pointer types in a struct
 // that satisfy AttributeReferencer by default. It assesses only pointers,
 // structs, and slices because it is assumed that only struct fields or slice
 // elements that are pointers to a struct will satisfy AttributeReferencer.
-func NewAPIManagedReferenceResolver(c client.Client, o ...APIManagedReferenceResolverOption) *APIManagedReferenceResolver {
-	r := &APIManagedReferenceResolver{
+func NewAPIReferenceResolver(c client.Client, o ...APIReferenceResolverOption) *APIReferenceResolver {
+	r := &APIReferenceResolver{
 		client: c,
 		finder: AttributeReferencerFinderFn(findReferencers),
 	}
@@ -170,7 +170,7 @@ func NewAPIManagedReferenceResolver(c client.Client, o ...APIManagedReferenceRes
 }
 
 // ResolveReferences resolves references made to other managed resources
-func (r *APIManagedReferenceResolver) ResolveReferences(ctx context.Context, res CanReference) error {
+func (r *APIReferenceResolver) ResolveReferences(ctx context.Context, res CanReference) error {
 	// Retrieve all the referencer fields from the managed resource.
 	referencers := r.finder.FindReferencers(res)
 

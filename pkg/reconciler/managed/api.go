@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package resource
+package managed
 
 import (
 	"context"
@@ -37,19 +37,19 @@ const (
 	errUpdateManagedStatus  = "cannot update managed resource status"
 )
 
-// An APIManagedFinalizer adds and removes finalizers to and from a resource.
-type APIManagedFinalizer struct {
+// An APIFinalizer adds and removes finalizers to and from a resource.
+type APIFinalizer struct {
 	client    client.Client
 	finalizer string
 }
 
-// NewAPIManagedFinalizer returns a new APIManagedFinalizer.
-func NewAPIManagedFinalizer(c client.Client, finalizer string) *APIManagedFinalizer {
-	return &APIManagedFinalizer{client: c, finalizer: finalizer}
+// NewAPIFinalizer returns a new APIFinalizer.
+func NewAPIFinalizer(c client.Client, finalizer string) *APIFinalizer {
+	return &APIFinalizer{client: c, finalizer: finalizer}
 }
 
 // AddFinalizer to the supplied Managed resource.
-func (a *APIManagedFinalizer) AddFinalizer(ctx context.Context, mg resource.Managed) error {
+func (a *APIFinalizer) AddFinalizer(ctx context.Context, mg resource.Managed) error {
 	if meta.FinalizerExists(mg, a.finalizer) {
 		return nil
 	}
@@ -58,23 +58,23 @@ func (a *APIManagedFinalizer) AddFinalizer(ctx context.Context, mg resource.Mana
 }
 
 // RemoveFinalizer from the supplied Managed resource.
-func (a *APIManagedFinalizer) RemoveFinalizer(ctx context.Context, mg resource.Managed) error {
+func (a *APIFinalizer) RemoveFinalizer(ctx context.Context, mg resource.Managed) error {
 	meta.RemoveFinalizer(mg, a.finalizer)
 	return errors.Wrap(resource.IgnoreNotFound(a.client.Update(ctx, mg)), errUpdateManaged)
 }
 
-// ManagedNameAsExternalName writes the name of the managed resource to
+// NameAsExternalName writes the name of the managed resource to
 // the external name annotation field in order to be used as name of
 // the external resource in provider.
-type ManagedNameAsExternalName struct{ client client.Client }
+type NameAsExternalName struct{ client client.Client }
 
-// NewManagedNameAsExternalName returns a new ManagedNameAsExternalName.
-func NewManagedNameAsExternalName(c client.Client) *ManagedNameAsExternalName {
-	return &ManagedNameAsExternalName{client: c}
+// NewNameAsExternalName returns a new NameAsExternalName.
+func NewNameAsExternalName(c client.Client) *NameAsExternalName {
+	return &NameAsExternalName{client: c}
 }
 
 // Initialize the given managed resource.
-func (a *ManagedNameAsExternalName) Initialize(ctx context.Context, mg resource.Managed) error {
+func (a *NameAsExternalName) Initialize(ctx context.Context, mg resource.Managed) error {
 	if meta.GetExternalName(mg) != "" {
 		return nil
 	}
