@@ -24,6 +24,7 @@ import (
 
 	"github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 )
 
 // A ConfiguratorChain chains multiple configurators.
@@ -31,7 +32,7 @@ type ConfiguratorChain []ManagedConfigurator
 
 // Configure calls each ManagedConfigurator serially. It returns the first
 // error it encounters, if any.
-func (cc ConfiguratorChain) Configure(ctx context.Context, cm Claim, cs Class, mg Managed) error {
+func (cc ConfiguratorChain) Configure(ctx context.Context, cm resource.Claim, cs resource.Class, mg resource.Managed) error {
 	for _, c := range cc {
 		if err := c.Configure(ctx, cm, cs, mg); err != nil {
 			return err
@@ -51,7 +52,7 @@ func NewObjectMetaConfigurator(_ runtime.ObjectTyper) *ObjectMetaConfigurator {
 }
 
 // Configure the supplied Managed resource's object metadata.
-func (c *ObjectMetaConfigurator) Configure(ctx context.Context, cm Claim, cs Class, mg Managed) error {
+func (c *ObjectMetaConfigurator) Configure(ctx context.Context, cm resource.Claim, cs resource.Class, mg resource.Managed) error {
 	return ConfigureNames(ctx, cm, cs, mg)
 }
 
@@ -60,7 +61,7 @@ func (c *ObjectMetaConfigurator) Configure(ctx context.Context, cm Claim, cs Cla
 // claim, in the form {claim-namespace}-{claim-name}-{random-string}. The
 // resource claim's external name annotation, if any, is propagated to the
 // managed resource.
-func ConfigureNames(_ context.Context, cm Claim, _ Class, mg Managed) error {
+func ConfigureNames(_ context.Context, cm resource.Claim, _ resource.Class, mg resource.Managed) error {
 	mg.SetGenerateName(fmt.Sprintf("%s-%s-", cm.GetNamespace(), cm.GetName()))
 	if meta.GetExternalName(cm) != "" {
 		meta.SetExternalName(mg, meta.GetExternalName(cm))
@@ -75,7 +76,7 @@ func ConfigureNames(_ context.Context, cm Claim, _ Class, mg Managed) error {
 // reclaim policy is copied from the resource class. If the resource class does
 // not specify a reclaim policy, the managed resource's policy is set to
 // "Delete".
-func ConfigureReclaimPolicy(_ context.Context, _ Claim, cs Class, mg Managed) error {
+func ConfigureReclaimPolicy(_ context.Context, _ resource.Claim, cs resource.Class, mg resource.Managed) error {
 	if mg.GetReclaimPolicy() != "" {
 		return nil
 	}

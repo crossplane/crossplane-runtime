@@ -98,7 +98,9 @@ func (e *EnqueueRequestForPropagated) Generic(evt event.GenericEvent, q workqueu
 }
 
 func addPropagated(obj runtime.Object, queue adder) {
-	ao, ok := obj.(annotated)
+	ao, ok := obj.(interface {
+		GetAnnotations() map[string]string
+	})
 	if !ok {
 		return
 	}
@@ -109,7 +111,7 @@ func addPropagated(obj runtime.Object, queue adder) {
 		if !strings.HasPrefix(key, AnnotationKeyPropagateToPrefix) {
 			continue
 		}
-		t := strings.Split(val, SlashDelimeter)
+		t := strings.Split(val, AnnotationDelimiter)
 		if len(t) != 2 {
 			continue
 		}

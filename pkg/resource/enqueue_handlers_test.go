@@ -95,7 +95,7 @@ func TestAddPropagated(t *testing.T) {
 		},
 		"IsPropagatorObject": {
 			obj: &fake.Managed{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
-				strings.Join([]string{AnnotationKeyPropagateToPrefix, uid}, SlashDelimeter): strings.Join([]string{ns, name}, SlashDelimeter),
+				strings.Join([]string{AnnotationKeyPropagateToPrefix, uid}, "/"): strings.Join([]string{ns, name}, "/"),
 			}}},
 			queue: addFn(func(got interface{}) {
 				want := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: ns, Name: name}}
