@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package resource
+package managed
 
 import (
 	"context"
@@ -38,8 +38,8 @@ import (
 )
 
 var (
-	_ ManagedFinalizer   = &APIManagedFinalizer{}
-	_ ManagedInitializer = &ManagedNameAsExternalName{}
+	_ Finalizer   = &APIFinalizer{}
+	_ Initializer = &NameAsExternalName{}
 )
 
 func TestManagedRemoveFinalizer(t *testing.T) {
@@ -88,7 +88,7 @@ func TestManagedRemoveFinalizer(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			api := NewAPIManagedFinalizer(tc.client, finalizer)
+			api := NewAPIFinalizer(tc.client, finalizer)
 			err := api.RemoveFinalizer(tc.args.ctx, tc.args.mg)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("api.RemoveFinalizer(...): -want error, +got error:\n%s", diff)
@@ -100,7 +100,7 @@ func TestManagedRemoveFinalizer(t *testing.T) {
 	}
 }
 
-func TestAPIManagedFinalizerAdder(t *testing.T) {
+func TestAPIFinalizerAdder(t *testing.T) {
 	finalizer := "veryfinal"
 
 	type args struct {
@@ -146,7 +146,7 @@ func TestAPIManagedFinalizerAdder(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			api := NewAPIManagedFinalizer(tc.client, finalizer)
+			api := NewAPIFinalizer(tc.client, finalizer)
 			err := api.AddFinalizer(tc.args.ctx, tc.args.mg)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("api.Initialize(...): -want error, +got error:\n%s", diff)
@@ -158,7 +158,7 @@ func TestAPIManagedFinalizerAdder(t *testing.T) {
 	}
 }
 
-func TestManagedNameAsExternalName(t *testing.T) {
+func TestNameAsExternalName(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		mg  resource.Managed
@@ -225,7 +225,7 @@ func TestManagedNameAsExternalName(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			api := NewManagedNameAsExternalName(tc.client)
+			api := NewNameAsExternalName(tc.client)
 			err := api.Initialize(tc.args.ctx, tc.args.mg)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("api.Initialize(...): -want error, +got error:\n%s", diff)

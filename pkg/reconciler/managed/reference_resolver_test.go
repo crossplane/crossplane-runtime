@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package resource
+package managed
 
 import (
 	"context"
@@ -59,13 +59,13 @@ func TestResolveReferences(t *testing.T) {
 	cases := map[string]struct {
 		reason string
 		c      client.Client
-		o      []APIManagedReferenceResolverOption
+		o      []APIReferenceResolverOption
 		args   args
 		want   error
 	}{
 		"NoReferencersFound": {
 			reason: "Should return early without error when no referencers are found.",
-			o: []APIManagedReferenceResolverOption{
+			o: []APIReferenceResolverOption{
 				WithAttributeReferencerFinder(AttributeReferencerFinderFn(func(_ interface{}) []AttributeReferencer {
 					return nil
 				})),
@@ -77,7 +77,7 @@ func TestResolveReferences(t *testing.T) {
 		},
 		"GetStatusError": {
 			reason: "Should return an error when a referencer.GetStatus returns an error.",
-			o: []APIManagedReferenceResolverOption{
+			o: []APIReferenceResolverOption{
 				WithAttributeReferencerFinder(AttributeReferencerFinderFn(func(_ interface{}) []AttributeReferencer {
 					return []AttributeReferencer{
 						&mockReferencer{
@@ -95,7 +95,7 @@ func TestResolveReferences(t *testing.T) {
 		},
 		"ReferencesBlocked": {
 			reason: "Should return a reference access error when a referencer.GetStatus reports unready references.",
-			o: []APIManagedReferenceResolverOption{
+			o: []APIReferenceResolverOption{
 				WithAttributeReferencerFinder(AttributeReferencerFinderFn(func(_ interface{}) []AttributeReferencer {
 					return []AttributeReferencer{
 						&mockReferencer{
@@ -113,7 +113,7 @@ func TestResolveReferences(t *testing.T) {
 		},
 		"BuildValueError": {
 			reason: "Should return an error when a referencer.Build returns an error.",
-			o: []APIManagedReferenceResolverOption{
+			o: []APIReferenceResolverOption{
 				WithAttributeReferencerFinder(AttributeReferencerFinderFn(func(_ interface{}) []AttributeReferencer {
 					return []AttributeReferencer{
 						&mockReferencer{
@@ -135,7 +135,7 @@ func TestResolveReferences(t *testing.T) {
 		},
 		"AssignValueError": {
 			reason: "Should return an error when a referencer.Assign returns an error.",
-			o: []APIManagedReferenceResolverOption{
+			o: []APIReferenceResolverOption{
 				WithAttributeReferencerFinder(AttributeReferencerFinderFn(func(_ interface{}) []AttributeReferencer {
 					return []AttributeReferencer{
 						&mockReferencer{
@@ -163,7 +163,7 @@ func TestResolveReferences(t *testing.T) {
 			c: &test.MockClient{
 				MockUpdate: test.NewMockUpdateFn(nil),
 			},
-			o: []APIManagedReferenceResolverOption{
+			o: []APIReferenceResolverOption{
 				WithAttributeReferencerFinder(AttributeReferencerFinderFn(func(_ interface{}) []AttributeReferencer {
 					return []AttributeReferencer{
 						&mockReferencer{
@@ -191,7 +191,7 @@ func TestResolveReferences(t *testing.T) {
 			c: &test.MockClient{
 				MockUpdate: test.NewMockUpdateFn(nil),
 			},
-			o: []APIManagedReferenceResolverOption{
+			o: []APIReferenceResolverOption{
 				WithAttributeReferencerFinder(AttributeReferencerFinderFn(func(_ interface{}) []AttributeReferencer {
 					return []AttributeReferencer{
 						&mockReferencer{
@@ -226,7 +226,7 @@ func TestResolveReferences(t *testing.T) {
 			c: &test.MockClient{
 				MockUpdate: test.NewMockUpdateFn(errBoom),
 			},
-			o: []APIManagedReferenceResolverOption{
+			o: []APIReferenceResolverOption{
 				WithAttributeReferencerFinder(AttributeReferencerFinderFn(func(_ interface{}) []AttributeReferencer {
 					return []AttributeReferencer{
 						&mockReferencer{
@@ -256,7 +256,7 @@ func TestResolveReferences(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewAPIManagedReferenceResolver(tc.c, tc.o...)
+			r := NewAPIReferenceResolver(tc.c, tc.o...)
 			got := r.ResolveReferences(tc.args.ctx, tc.args.res)
 			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\nReason: %s\r.ResolveReferences(...): -want, +got:\n%s", tc.reason, diff)

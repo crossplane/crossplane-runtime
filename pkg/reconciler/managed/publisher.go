@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package resource
+package managed
 
 import (
 	"context"
@@ -23,9 +23,9 @@ import (
 )
 
 // A PublisherChain chains multiple ManagedPublishers.
-type PublisherChain []ManagedConnectionPublisher
+type PublisherChain []ConnectionPublisher
 
-// PublishConnection calls each ManagedConnectionPublisher.PublishConnection serially. It returns the first error it
+// PublishConnection calls each ConnectionPublisher.PublishConnection serially. It returns the first error it
 // encounters, if any.
 func (pc PublisherChain) PublishConnection(ctx context.Context, mg resource.Managed, c ConnectionDetails) error {
 	for _, p := range pc {
@@ -36,7 +36,7 @@ func (pc PublisherChain) PublishConnection(ctx context.Context, mg resource.Mana
 	return nil
 }
 
-// UnpublishConnection calls each ManagedConnectionPublisher.UnpublishConnection serially. It returns the first error it
+// UnpublishConnection calls each ConnectionPublisher.UnpublishConnection serially. It returns the first error it
 // encounters, if any.
 func (pc PublisherChain) UnpublishConnection(ctx context.Context, mg resource.Managed, c ConnectionDetails) error {
 	for _, p := range pc {
