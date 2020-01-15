@@ -20,7 +20,7 @@ package logging
 
 import (
 	"github.com/go-logr/logr"
-	runtimelog "sigs.k8s.io/controller-runtime/pkg/runtime/log"
+	runtimelog "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 // Logging levels.
