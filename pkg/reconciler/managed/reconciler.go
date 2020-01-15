@@ -149,15 +149,15 @@ type ReferenceResolver interface {
 	// resources to update corresponding fields in CanReference, for example
 	// setting .spec.network to the name of the Network resource specified as
 	// .spec.networkRef.
-	ResolveReferences(ctx context.Context, res CanReference) error
+	ResolveReferences(ctx context.Context, res resource.CanReference) error
 }
 
 // A ReferenceResolverFn is a function that satisfies the
 // ReferenceResolver interface.
-type ReferenceResolverFn func(context.Context, CanReference) error
+type ReferenceResolverFn func(context.Context, resource.CanReference) error
 
 // ResolveReferences calls ReferenceResolverFn function
-func (m ReferenceResolverFn) ResolveReferences(ctx context.Context, res CanReference) error {
+func (m ReferenceResolverFn) ResolveReferences(ctx context.Context, res resource.CanReference) error {
 	return m(ctx, res)
 }
 
