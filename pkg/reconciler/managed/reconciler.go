@@ -18,6 +18,7 @@ package managed
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -27,15 +28,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/event"
 	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 )
 
 const (
-	managedControllerName = "managedresource.crossplane.io"
-	managedFinalizerName  = "finalizer." + managedControllerName
-
+	managedFinalizerName    = "finalizer.managedresource.crossplane.io"
 	managedReconcileTimeout = 1 * time.Minute
 
 	defaultManagedShortWait = 30 * time.Second
@@ -52,7 +52,28 @@ const (
 	errReconcileDelete  = "delete failed"
 )
 
-var log = logging.Logger.WithName("controller")
+// Event reasons.
+const (
+	reasonCannotConnect     event.Reason = "CannotConnectToProvider"
+	reasonCannotInitialize  event.Reason = "CannotInitializeManagedResource"
+	reasonCannotResolveRefs event.Reason = "CannotResolveResourceReferences"
+	reasonCannotObserve     event.Reason = "CannotObserveExternalResource"
+	reasonCannotCreate      event.Reason = "CannotCreateExternalResource"
+	reasonCannotDelete      event.Reason = "CannotDeleteExternalResource"
+	reasonCannotPublish     event.Reason = "CannotPublishConnectionDetails"
+	reasonCannotUnpublish   event.Reason = "CannotUnpublishConnectionDetails"
+	reasonCannotUpdate      event.Reason = "CannotUpdateExternalResource"
+
+	reasonDeleted event.Reason = "DeletedExternalResource"
+	reasonCreated event.Reason = "CreatedExternalResource"
+	reasonUpdated event.Reason = "UpdatedExternalResource"
+)
+
+// ControllerName returns the recommended name for controllers that use this
+// package to reconcile a particular kind of managed resource.
+func ControllerName(kind string) string {
+	return "managed/" + strings.ToLower(kind)
+}
 
 // ConnectionDetails created or updated during an operation on an external
 // resource, for example usernames, passwords, endpoints, ports, etc.
@@ -303,6 +324,9 @@ type Reconciler struct {
 	// r.managed.Delete(), etc.
 	external mrExternal
 	managed  mrManaged
+
+	log    logging.Logger
+	record event.Recorder
 }
 
 type mrManaged struct {
@@ -395,6 +419,20 @@ func WithReferenceResolver(rr ReferenceResolver) ReconcilerOption {
 	}
 }
 
+// WithLogger specifies how the Reconciler should log messages.
+func WithLogger(l logging.Logger) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.log = l
+	}
+}
+
+// WithRecorder specifies how the Reconciler should record events.
+func WithRecorder(er event.Recorder) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.record = er
+	}
+}
+
 // NewReconciler returns a Reconciler that reconciles managed resources of the
 // supplied ManagedKind with resources in an external system such as a cloud
 // provider API. It panics if asked to reconcile a managed resource kind that is
@@ -418,6 +456,8 @@ func NewReconciler(m manager.Manager, of resource.ManagedKind, o ...ReconcilerOp
 		longWait:   defaultManagedLongWait,
 		managed:    defaultMRManaged(m),
 		external:   defaultMRExternal(),
+		log:        logging.NewNopLogger(),
+		record:     event.NewNopRecorder(),
 	}
 
 	for _, ro := range o {
@@ -432,7 +472,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	// NOTE(negz): This method is a well over our cyclomatic complexity goal.
 	// Be wary of adding additional complexity.
 
-	log.V(logging.Debug).Info("Reconciling", "controller", managedControllerName, "request", req)
+	log := r.log.WithValues("request", req)
+	log.Debug("Reconciling")
 
 	ctx, cancel := context.WithTimeout(context.Background(), managedReconcileTimeout)
 	defer cancel()
@@ -441,8 +482,16 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	if err := r.client.Get(ctx, req.NamespacedName, managed); err != nil {
 		// There's no need to requeue if we no longer exist. Otherwise we'll be
 		// requeued implicitly because we return an error.
+		log.Debug("Cannot get managed resource", "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetManaged)
 	}
+
+	record := r.record.WithAnnotations("external-name", meta.GetExternalName(managed))
+	log = log.WithValues(
+		"uid", managed.GetUID(),
+		"version", managed.GetResourceVersion(),
+		"external-name", meta.GetExternalName(managed),
+	)
 
 	external, err := r.external.Connect(ctx, managed)
 	if err != nil {
@@ -450,6 +499,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// or invalid. If this is first time we encounter this issue we'll be
 		// requeued implicitly when we update our status with the new error
 		// condition. If not, we want to try again after a short wait.
+		log.Debug("Cannot connect to provider", "error", err, "requeue-after", time.Now().Add(r.shortWait))
+		record.Event(managed, event.Warning(reasonCannotConnect, err))
 		managed.SetConditions(v1alpha1.ReconcileError(errors.Wrap(err, errReconcileConnect)))
 		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
@@ -458,6 +509,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// If this is the first time we encounter this issue we'll be requeued
 		// implicitly when we update our status with the new error condition.
 		// If not, we want to try again after a short wait.
+		log.Debug("Cannot initialize managed resource", "error", err, "requeue-after", time.Now().Add(r.shortWait))
+		record.Event(managed, event.Warning(reasonCannotInitialize, err))
 		managed.SetConditions(v1alpha1.ReconcileError(err))
 		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
@@ -482,6 +535,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// encountered an error resolving them) we want to try again after a
 			// short wait. If this is the first time we encounter this situation
 			// we'll be requeued implicitly due to the status update.
+			log.Debug("Cannot resolve managed resource references", "error", err, "requeue-after", time.Now().Add(r.shortWait))
+			record.Event(managed, event.Warning(reasonCannotResolveRefs, err))
 			managed.SetConditions(condition)
 			return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 		}
@@ -495,11 +550,15 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// concerned with. If this is the first time we encounter this issue
 		// we'll be requeued implicitly when we update our status with the new
 		// error condition. If not, we want to try again after a short wait.
+		log.Debug("Cannot observe external resource", "error", err, "requeue-after", time.Now().Add(r.shortWait))
+		record.Event(managed, event.Warning(reasonCannotObserve, err))
 		managed.SetConditions(v1alpha1.ReconcileError(errors.Wrap(err, errReconcileObserve)))
 		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
 	if meta.WasDeleted(managed) {
+		log = log.WithValues("deletion-timestamp", managed.GetDeletionTimestamp())
+
 		if observation.ResourceExists && managed.GetReclaimPolicy() == v1alpha1.ReclaimDelete {
 			if err := external.Delete(ctx, managed); err != nil {
 				// We'll hit this condition if we can't delete our external
@@ -508,6 +567,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 				// issue we'll be requeued implicitly when we update our status with
 				// the new error condition. If not, we want to try again after a
 				// short wait.
+				log.Debug("Cannot delete external resource", "error", err, "requeue-after", time.Now().Add(r.shortWait))
+				record.Event(managed, event.Warning(reasonCannotDelete, err))
 				managed.SetConditions(v1alpha1.ReconcileError(errors.Wrap(err, errReconcileDelete)))
 				return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 			}
@@ -519,6 +580,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// we'll skip this block on the next reconcile and proceed to
 			// unpublish and finalize. If it still exists we'll re-enter this
 			// block and try again.
+			log.Debug("Successfully requested deletion of external resource", "requeue-after", time.Now().Add(r.shortWait))
+			record.Event(managed, event.Normal(reasonDeleted, "Successfully requested deletion of external resource"))
 			managed.SetConditions(v1alpha1.ReconcileSuccess())
 			return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 		}
@@ -526,6 +589,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// If this is the first time we encounter this issue we'll be
 			// requeued implicitly when we update our status with the new error
 			// condition. If not, we want to try again after a short wait.
+			log.Debug("Cannot unpublish connection details", "error", err, "requeue-after", time.Now().Add(r.shortWait))
+			record.Event(managed, event.Warning(reasonCannotUnpublish, err))
 			managed.SetConditions(v1alpha1.ReconcileError(err))
 			return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(resource.IgnoreNotFound(r.client.Status().Update(ctx, managed)), errUpdateManagedStatus)
 		}
@@ -533,6 +598,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// If this is the first time we encounter this issue we'll be
 			// requeued implicitly when we update our status with the new error
 			// condition. If not, we want to try again after a short wait.
+			log.Debug("Cannot remove managed resource finalizer", "error", err, "requeue-after", time.Now().Add(r.shortWait))
 			managed.SetConditions(v1alpha1.ReconcileError(err))
 			return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(resource.IgnoreNotFound(r.client.Status().Update(ctx, managed)), errUpdateManagedStatus)
 		}
@@ -541,6 +607,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// removed our finalizer. If we assume we were the only controller that
 		// added a finalizer to this resource then it should no longer exist and
 		// thus there is no point trying to update its status.
+		log.Debug("Successfully deleted managed resource")
 		return reconcile.Result{Requeue: false}, nil
 	}
 
@@ -548,6 +615,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// If this is the first time we encounter this issue we'll be requeued
 		// implicitly when we update our status with the new error condition. If
 		// not, we want to try again after a short wait.
+		log.Debug("Cannot publish connection details", "error", err, "requeue-after", time.Now().Add(r.shortWait))
+		record.Event(managed, event.Warning(reasonCannotPublish, err))
 		managed.SetConditions(v1alpha1.ReconcileError(err))
 		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
@@ -556,6 +625,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// If this is the first time we encounter this issue we'll be
 		// requeued implicitly when we update our status with the new error
 		// condition. If not, we want to try again after a short wait.
+		log.Debug("Cannot add finalizer", "error", err, "requeue-after", time.Now().Add(r.shortWait))
 		managed.SetConditions(v1alpha1.ReconcileError(err))
 		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(resource.IgnoreNotFound(r.client.Status().Update(ctx, managed)), errUpdateManagedStatus)
 	}
@@ -569,6 +639,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// issue we'll be requeued implicitly when we update our status with
 			// the new error condition. If not, we want to try again after a
 			// short wait.
+			log.Debug("Cannot create external resource", "error", err, "requeue-after", time.Now().Add(r.shortWait))
+			record.Event(managed, event.Warning(reasonCannotCreate, err))
 			managed.SetConditions(v1alpha1.ReconcileError(errors.Wrap(err, errReconcileCreate)))
 			return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 		}
@@ -577,6 +649,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// If this is the first time we encounter this issue we'll be
 			// requeued implicitly when we update our status with the new error
 			// condition. If not, we want to try again after a short wait.
+			log.Debug("Cannot publish connection details", "error", err, "requeue-after", time.Now().Add(r.shortWait))
+			record.Event(managed, event.Warning(reasonCannotPublish, err))
 			managed.SetConditions(v1alpha1.ReconcileError(err))
 			return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 		}
@@ -585,6 +659,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// creation process takes a little time to finish. We requeue a short
 		// wait in order to observe the external resource to determine whether
 		// it's ready for use.
+		log.Debug("Successfully requested creation of external resource", "requeue-after", time.Now().Add(r.shortWait))
+		record.Event(managed, event.Normal(reasonCreated, "Successfully requested creation of external resource"))
 		managed.SetConditions(v1alpha1.ReconcileSuccess())
 		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
@@ -595,6 +671,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// resource we manage changes, so we requeue a speculative reconcile
 		// after a long wait in order to observe it and react accordingly.
 		// https://github.com/crossplaneio/crossplane/issues/289
+		log.Debug("External resource is up to date", "requeue-after", time.Now().Add(r.longWait))
 		managed.SetConditions(v1alpha1.ReconcileSuccess())
 		return reconcile.Result{RequeueAfter: r.longWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
@@ -606,6 +683,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// it. If this is the first time we encounter this issue we'll be
 		// requeued implicitly when we update our status with the new error
 		// condition. If not, we want to try again after a short wait.
+		log.Debug("Cannot update external resource", "requeue-after", time.Now().Add(r.shortWait))
+		record.Event(managed, event.Warning(reasonCannotUpdate, err))
 		managed.SetConditions(v1alpha1.ReconcileError(errors.Wrap(err, errReconcileUpdate)))
 		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
@@ -614,6 +693,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// If this is the first time we encounter this issue we'll be requeued
 		// implicitly when we update our status with the new error condition. If
 		// not, we want to try again after a short wait.
+		log.Debug("Cannot publish connection details", "error", err, "requeue-after", time.Now().Add(r.shortWait))
+		record.Event(managed, event.Warning(reasonCannotPublish, err))
 		managed.SetConditions(v1alpha1.ReconcileError(err))
 		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
@@ -623,6 +704,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	// changes, so we requeue a speculative reconcile after a long wait in order
 	// to observe it and react accordingly.
 	// https://github.com/crossplaneio/crossplane/issues/289
+	log.Debug("Successfully requested update of external resource", "requeue-after", time.Now().Add(r.longWait))
+	record.Event(managed, event.Normal(reasonUpdated, "Successfully requested update of external resource"))
 	managed.SetConditions(v1alpha1.ReconcileSuccess())
 	return reconcile.Result{RequeueAfter: r.longWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 }
