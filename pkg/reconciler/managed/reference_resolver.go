@@ -23,9 +23,9 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
-	"k8s.io/apimachinery/pkg/runtime"
-
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 )
 
 // Error strings
@@ -36,45 +36,17 @@ const (
 	errAssignAttribute     = "could not assign the attribute"
 )
 
-// ReferenceStatusType is an enum type for the possible values for a Reference Status
-type ReferenceStatusType int
-
-const (
-	// ReferenceStatusUnknown is the default value
-	ReferenceStatusUnknown ReferenceStatusType = iota
-	// ReferenceNotFound shows that the reference is not found
-	ReferenceNotFound
-	// ReferenceNotReady shows that the reference is not ready
-	ReferenceNotReady
-	// ReferenceReady shows that the reference is ready
-	ReferenceReady
-)
-
-func (t ReferenceStatusType) String() string {
-	return []string{"Unknown", "NotFound", "NotReady", "Ready"}[t]
-}
-
-// ReferenceStatus has the name and status of a reference
-type ReferenceStatus struct {
-	Name   string
-	Status ReferenceStatusType
-}
-
-func (r ReferenceStatus) String() string {
-	return fmt.Sprintf("{reference:%s status:%s}", r.Name, r.Status)
-}
-
 // referencesAccessErr is used to indicate that one or more references can not
 // be accessed
 type referencesAccessErr struct {
-	statuses []ReferenceStatus
+	statuses []resource.ReferenceStatus
 }
 
 // newReferenceAccessErr returns a referencesAccessErr if any of the given
 // references are not ready
-func newReferenceAccessErr(statuses []ReferenceStatus) error {
+func newReferenceAccessErr(statuses []resource.ReferenceStatus) error {
 	for _, st := range statuses {
-		if st.Status != ReferenceReady {
+		if st.Status != resource.ReferenceReady {
 			return &referencesAccessErr{statuses}
 		}
 	}
@@ -94,41 +66,17 @@ func IsReferencesAccessError(err error) bool {
 	return result
 }
 
-// A CanReference is a resource that can reference another resource in its
-// spec in order to automatically resolve corresponding spec field values
-// by inspecting the referenced resource.
-type CanReference runtime.Object
-
-// An AttributeReferencer resolves cross-resource attribute references. See
-// https://github.com/crossplaneio/crossplane/blob/master/design/one-pager-cross-resource-referencing.md
-// for more information
-type AttributeReferencer interface {
-	// GetStatus retries the referenced resource, as well as other non-managed
-	// resources (like a `Provider`) and reports their readiness for use as a
-	// referenced resource.
-	GetStatus(ctx context.Context, res CanReference, r client.Reader) ([]ReferenceStatus, error)
-
-	// Build retrieves the referenced resource, as well as other non-managed
-	// resources (like a `Provider`), and builds the referenced attribute,
-	// returning it as a string value.
-	Build(ctx context.Context, res CanReference, r client.Reader) (value string, err error)
-
-	// Assign accepts a managed resource object, and assigns the given value to
-	// its corresponding property.
-	Assign(res CanReference, value string) error
-}
-
 // An AttributeReferencerFinder returns all types within the supplied object
 // that satisfy AttributeReferencer.
 type AttributeReferencerFinder interface {
-	FindReferencers(obj interface{}) []AttributeReferencer
+	FindReferencers(obj interface{}) []resource.AttributeReferencer
 }
 
 // An AttributeReferencerFinderFn satisfies AttributeReferencerFinder.
-type AttributeReferencerFinderFn func(obj interface{}) []AttributeReferencer
+type AttributeReferencerFinderFn func(obj interface{}) []resource.AttributeReferencer
 
 // FindReferencers finds all AttributeReferencers.
-func (fn AttributeReferencerFinderFn) FindReferencers(obj interface{}) []AttributeReferencer {
+func (fn AttributeReferencerFinderFn) FindReferencers(obj interface{}) []resource.AttributeReferencer {
 	return fn(obj)
 }
 
@@ -170,7 +118,7 @@ func NewAPIReferenceResolver(c client.Client, o ...APIReferenceResolverOption) *
 }
 
 // ResolveReferences resolves references made to other managed resources
-func (r *APIReferenceResolver) ResolveReferences(ctx context.Context, res CanReference) error {
+func (r *APIReferenceResolver) ResolveReferences(ctx context.Context, res resource.CanReference) error {
 	// Retrieve all the referencer fields from the managed resource.
 	referencers := r.finder.FindReferencers(res)
 
@@ -180,7 +128,7 @@ func (r *APIReferenceResolver) ResolveReferences(ctx context.Context, res CanRef
 	}
 
 	// Make sure that all the references are ready.
-	allStatuses := []ReferenceStatus{}
+	allStatuses := []resource.ReferenceStatus{}
 	for _, referencer := range referencers {
 		statuses, err := referencer.GetStatus(ctx, res, r.client)
 		if err != nil {
@@ -221,18 +169,18 @@ func (r *APIReferenceResolver) ResolveReferences(ctx context.Context, res CanRef
 // AttributeReferencer. It assesses only pointers, structs, and slices because
 // it is assumed that only struct fields or slice elements that are pointers to
 // a struct will satisfy AttributeReferencer.
-func findReferencers(obj interface{}) []AttributeReferencer { // nolint:gocyclo
+func findReferencers(obj interface{}) []resource.AttributeReferencer { // nolint:gocyclo
 	// NOTE(negz): This function is slightly over our complexity goal, but is
 	// easier to follow as a single function.
 
-	referencers := []AttributeReferencer{}
+	referencers := []resource.AttributeReferencer{}
 
 	switch v := reflect.ValueOf(obj); v.Kind() {
 	case reflect.Ptr:
 		if v.IsNil() || !v.CanInterface() {
 			return nil
 		}
-		if ar, ok := v.Interface().(AttributeReferencer); ok {
+		if ar, ok := v.Interface().(resource.AttributeReferencer); ok {
 			referencers = append(referencers, ar)
 		}
 		if v.Elem().CanInterface() {

@@ -25,25 +25,26 @@ import (
 	"github.com/pkg/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 	"github.com/crossplaneio/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplaneio/crossplane-runtime/pkg/test"
 )
 
 type mockReferencer struct {
-	MockGetStatus func(context.Context, CanReference, client.Reader) ([]ReferenceStatus, error)
-	MockBuild     func(context.Context, CanReference, client.Reader) (string, error)
-	MockAssign    func(CanReference, string) error
+	MockGetStatus func(context.Context, resource.CanReference, client.Reader) ([]resource.ReferenceStatus, error)
+	MockBuild     func(context.Context, resource.CanReference, client.Reader) (string, error)
+	MockAssign    func(resource.CanReference, string) error
 }
 
-func (m *mockReferencer) GetStatus(ctx context.Context, res CanReference, c client.Reader) ([]ReferenceStatus, error) {
+func (m *mockReferencer) GetStatus(ctx context.Context, res resource.CanReference, c client.Reader) ([]resource.ReferenceStatus, error) {
 	return m.MockGetStatus(ctx, res, c)
 }
 
-func (m *mockReferencer) Build(ctx context.Context, res CanReference, c client.Reader) (string, error) {
+func (m *mockReferencer) Build(ctx context.Context, res resource.CanReference, c client.Reader) (string, error) {
 	return m.MockBuild(ctx, res, c)
 }
 
-func (m *mockReferencer) Assign(res CanReference, value string) error {
+func (m *mockReferencer) Assign(res resource.CanReference, value string) error {
 	return m.MockAssign(res, value)
 }
 
@@ -53,7 +54,7 @@ func TestResolveReferences(t *testing.T) {
 
 	type args struct {
 		ctx context.Context
-		res CanReference
+		res resource.CanReference
 	}
 
 	cases := map[string]struct {
@@ -66,7 +67,7 @@ func TestResolveReferences(t *testing.T) {
 		"NoReferencersFound": {
 			reason: "Should return early without error when no referencers are found.",
 			o: []APIReferenceResolverOption{
-				WithAttributeReferencerFinder(AttributeReferencerFinderFn(func(_ interface{}) []AttributeReferencer {
+				WithAttributeReferencerFinder(AttributeReferencerFinderFn(func(_ interface{}) []resource.AttributeReferencer {
 					return nil
 				})),
 			},
@@ -78,10 +79,10 @@ func TestResolveReferences(t *testing.T) {
 		"GetStatusError": {
 			reason: "Should return an error when a referencer.GetStatus returns an error.",
 			o: []APIReferenceResolverOption{
-				WithAttributeReferencerFinder(AttributeReferencerFinderFn(func(_ interface{}) []AttributeReferencer {
-					return []AttributeReferencer{
+				WithAttributeReferencerFinder(AttributeReferencerFinderFn(func(_ interface{}) []resource.AttributeReferencer {
+					return []resource.AttributeReferencer{
 						&mockReferencer{
-							MockGetStatus: func(_ context.Context, _ CanReference, _ client.Reader) ([]ReferenceStatus, error) {
+							MockGetStatus: func(_ context.Context, _ resource.CanReference, _ client.Reader) ([]resource.ReferenceStatus, error) {
 								return nil, errBoom
 							},
 						},
@@ -96,11 +97,11 @@ func TestResolveReferences(t *testing.T) {
 		"ReferencesBlocked": {
 			reason: "Should return a reference access error when a referencer.GetStatus reports unready references.",
 			o: []APIReferenceResolverOption{
-				WithAttributeReferencerFinder(AttributeReferencerFinderFn(func(_ interface{}) []AttributeReferencer {
-					return []AttributeReferencer{
+				WithAttributeReferencerFinder(AttributeReferencerFinderFn(func(_ interface{}) []resource.AttributeReferencer {
+					return []resource.AttributeReferencer{
 						&mockReferencer{
-							MockGetStatus: func(_ context.Context, _ CanReference, _ client.Reader) ([]ReferenceStatus, error) {
-								return []ReferenceStatus{{Status: ReferenceNotReady}}, nil
+							MockGetStatus: func(_ context.Context, _ resource.CanReference, _ client.Reader) ([]resource.ReferenceStatus, error) {
+								return []resource.ReferenceStatus{{Status: resource.ReferenceNotReady}}, nil
 							},
 						},
 					}
@@ -109,18 +110,18 @@ func TestResolveReferences(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 			},
-			want: &referencesAccessErr{statuses: []ReferenceStatus{{Status: ReferenceNotReady}}},
+			want: &referencesAccessErr{statuses: []resource.ReferenceStatus{{Status: resource.ReferenceNotReady}}},
 		},
 		"BuildValueError": {
 			reason: "Should return an error when a referencer.Build returns an error.",
 			o: []APIReferenceResolverOption{
-				WithAttributeReferencerFinder(AttributeReferencerFinderFn(func(_ interface{}) []AttributeReferencer {
-					return []AttributeReferencer{
+				WithAttributeReferencerFinder(AttributeReferencerFinderFn(func(_ interface{}) []resource.AttributeReferencer {
+					return []resource.AttributeReferencer{
 						&mockReferencer{
-							MockGetStatus: func(_ context.Context, _ CanReference, _ client.Reader) ([]ReferenceStatus, error) {
+							MockGetStatus: func(_ context.Context, _ resource.CanReference, _ client.Reader) ([]resource.ReferenceStatus, error) {
 								return nil, nil
 							},
-							MockBuild: func(_ context.Context, _ CanReference, _ client.Reader) (string, error) {
+							MockBuild: func(_ context.Context, _ resource.CanReference, _ client.Reader) (string, error) {
 								return "", errBoom
 							},
 						},
@@ -136,16 +137,16 @@ func TestResolveReferences(t *testing.T) {
 		"AssignValueError": {
 			reason: "Should return an error when a referencer.Assign returns an error.",
 			o: []APIReferenceResolverOption{
-				WithAttributeReferencerFinder(AttributeReferencerFinderFn(func(_ interface{}) []AttributeReferencer {
-					return []AttributeReferencer{
+				WithAttributeReferencerFinder(AttributeReferencerFinderFn(func(_ interface{}) []resource.AttributeReferencer {
+					return []resource.AttributeReferencer{
 						&mockReferencer{
-							MockGetStatus: func(_ context.Context, _ CanReference, _ client.Reader) ([]ReferenceStatus, error) {
+							MockGetStatus: func(_ context.Context, _ resource.CanReference, _ client.Reader) ([]resource.ReferenceStatus, error) {
 								return nil, nil
 							},
-							MockBuild: func(_ context.Context, _ CanReference, _ client.Reader) (string, error) {
+							MockBuild: func(_ context.Context, _ resource.CanReference, _ client.Reader) (string, error) {
 								return "", nil
 							},
-							MockAssign: func(_ CanReference, _ string) error {
+							MockAssign: func(_ resource.CanReference, _ string) error {
 								return errBoom
 							},
 						},
@@ -159,21 +160,21 @@ func TestResolveReferences(t *testing.T) {
 			want: errors.Wrap(errBoom, errAssignAttribute),
 		},
 		"SuccessfulNoop": {
-			reason: "Should return without error when assignment does not change CanReference.",
+			reason: "Should return without error when assignment does not change resource.CanReference.",
 			c: &test.MockClient{
 				MockUpdate: test.NewMockUpdateFn(nil),
 			},
 			o: []APIReferenceResolverOption{
-				WithAttributeReferencerFinder(AttributeReferencerFinderFn(func(_ interface{}) []AttributeReferencer {
-					return []AttributeReferencer{
+				WithAttributeReferencerFinder(AttributeReferencerFinderFn(func(_ interface{}) []resource.AttributeReferencer {
+					return []resource.AttributeReferencer{
 						&mockReferencer{
-							MockGetStatus: func(_ context.Context, _ CanReference, _ client.Reader) ([]ReferenceStatus, error) {
+							MockGetStatus: func(_ context.Context, _ resource.CanReference, _ client.Reader) ([]resource.ReferenceStatus, error) {
 								return nil, nil
 							},
-							MockBuild: func(_ context.Context, _ CanReference, _ client.Reader) (string, error) {
+							MockBuild: func(_ context.Context, _ resource.CanReference, _ client.Reader) (string, error) {
 								return wantValue, nil
 							},
-							MockAssign: func(res CanReference, gotValue string) error {
+							MockAssign: func(res resource.CanReference, gotValue string) error {
 								return nil
 							},
 						},
@@ -192,16 +193,16 @@ func TestResolveReferences(t *testing.T) {
 				MockUpdate: test.NewMockUpdateFn(nil),
 			},
 			o: []APIReferenceResolverOption{
-				WithAttributeReferencerFinder(AttributeReferencerFinderFn(func(_ interface{}) []AttributeReferencer {
-					return []AttributeReferencer{
+				WithAttributeReferencerFinder(AttributeReferencerFinderFn(func(_ interface{}) []resource.AttributeReferencer {
+					return []resource.AttributeReferencer{
 						&mockReferencer{
-							MockGetStatus: func(_ context.Context, _ CanReference, _ client.Reader) ([]ReferenceStatus, error) {
+							MockGetStatus: func(_ context.Context, _ resource.CanReference, _ client.Reader) ([]resource.ReferenceStatus, error) {
 								return nil, nil
 							},
-							MockBuild: func(_ context.Context, _ CanReference, _ client.Reader) (string, error) {
+							MockBuild: func(_ context.Context, _ resource.CanReference, _ client.Reader) (string, error) {
 								return wantValue, nil
 							},
-							MockAssign: func(res CanReference, gotValue string) error {
+							MockAssign: func(res resource.CanReference, gotValue string) error {
 								if diff := cmp.Diff(wantValue, gotValue); diff != "" {
 									reason := "referencer.Assign should be called with the value returned by referencer.Build."
 									t.Errorf("\nReason: %s\nreferencer.Assign(...):\n%s", reason, diff)
@@ -221,22 +222,22 @@ func TestResolveReferences(t *testing.T) {
 			},
 			want: nil,
 		},
-		"UpdateCanReferenceError": {
-			reason: "Should return an error when CanReference cannot be updated.",
+		"Updateresource.CanReferenceError": {
+			reason: "Should return an error when resource.CanReference cannot be updated.",
 			c: &test.MockClient{
 				MockUpdate: test.NewMockUpdateFn(errBoom),
 			},
 			o: []APIReferenceResolverOption{
-				WithAttributeReferencerFinder(AttributeReferencerFinderFn(func(_ interface{}) []AttributeReferencer {
-					return []AttributeReferencer{
+				WithAttributeReferencerFinder(AttributeReferencerFinderFn(func(_ interface{}) []resource.AttributeReferencer {
+					return []resource.AttributeReferencer{
 						&mockReferencer{
-							MockGetStatus: func(_ context.Context, _ CanReference, _ client.Reader) ([]ReferenceStatus, error) {
+							MockGetStatus: func(_ context.Context, _ resource.CanReference, _ client.Reader) ([]resource.ReferenceStatus, error) {
 								return nil, nil
 							},
-							MockBuild: func(_ context.Context, _ CanReference, _ client.Reader) (string, error) {
+							MockBuild: func(_ context.Context, _ resource.CanReference, _ client.Reader) (string, error) {
 								return "", nil
 							},
-							MockAssign: func(res CanReference, _ string) error {
+							MockAssign: func(res resource.CanReference, _ string) error {
 								// Simulate assignment by changing something about the resource.
 								res.(*fake.Managed).SetAnnotations(map[string]string{"assigned": "true"})
 
@@ -269,31 +270,31 @@ func TestFindReferencers(t *testing.T) {
 	cases := map[string]struct {
 		reason string
 		obj    interface{}
-		want   []AttributeReferencer
+		want   []resource.AttributeReferencer
 	}{
 		"ObjIsNil": {
-			reason: "The root object is nil, and therefore should not satisfy AttributeReferencer.",
+			reason: "The root object is nil, and therefore should not satisfy resource.AttributeReferencer.",
 		},
-		"ObjIsNilAttributeReferencer": {
-			reason: "The root object satisfies AttributeReferencer, but is nil and thus presumed unsafe to call.",
+		"ObjIsNilresource.AttributeReferencer": {
+			reason: "The root object satisfies resource.AttributeReferencer, but is nil and thus presumed unsafe to call.",
 			obj:    (*mockReferencer)(nil),
 		},
 		"ObjIsAttributeReferencer": {
-			reason: "The root object should satisfy AttributeReferencer.",
+			reason: "The root object should satisfy resource.AttributeReferencer.",
 			obj:    &mockReferencer{},
-			want:   []AttributeReferencer{&mockReferencer{}},
+			want:   []resource.AttributeReferencer{&mockReferencer{}},
 		},
 		"FieldIsAttributeReferencer": {
-			reason: "The root is a struct with a field object should satisfy AttributeReferencer.",
+			reason: "The root is a struct with a field object should satisfy resource.AttributeReferencer.",
 			obj: struct {
 				Referencer *mockReferencer
 			}{
 				Referencer: &mockReferencer{},
 			},
-			want: []AttributeReferencer{&mockReferencer{}},
+			want: []resource.AttributeReferencer{&mockReferencer{}},
 		},
 		"FieldInPointerToStructIsAttributeReferencer": {
-			reason: "The root object is a pointer to struct with a field that should satisfy AttributeReferencer.",
+			reason: "The root object is a pointer to struct with a field that should satisfy resource.AttributeReferencer.",
 			obj: func() interface{} {
 				obj := struct {
 					Referencer *mockReferencer
@@ -302,45 +303,45 @@ func TestFindReferencers(t *testing.T) {
 				}
 				return &obj
 			}(),
-			want: []AttributeReferencer{&mockReferencer{}},
+			want: []resource.AttributeReferencer{&mockReferencer{}},
 		},
-		"FieldIsNotAttributeReferencer": {
-			reason: "The root object is a struct whose only field should not satisfy AttributeReferencer.",
+		"FieldIsNotresource.AttributeReferencer": {
+			reason: "The root object is a struct whose only field should not satisfy resource.AttributeReferencer.",
 			obj: struct {
 				Unused string
 			}{
 				Unused: "notareferencer",
 			},
-			want: []AttributeReferencer{},
+			want: []resource.AttributeReferencer{},
 		},
 		"FieldIsNotExported": {
-			reason: "The root object is a struct whose only field satisfies AttributeReferencer, but is not exported and should thus fail CanInterface.",
+			reason: "The root object is a struct whose only field satisfies resource.AttributeReferencer, but is not exported and should thus fail CanInterface.",
 			obj: struct {
 				referencer *mockReferencer
 			}{
 				referencer: &mockReferencer{},
 			},
-			want: []AttributeReferencer{},
+			want: []resource.AttributeReferencer{},
 		},
 		"ElementIsAttributeReferencer": {
-			reason: "The root object is a struct whose only field is a slice of elements that should satisfy AttributeReferencer.",
+			reason: "The root object is a struct whose only field is a slice of elements that should satisfy resource.AttributeReferencer.",
 			obj: struct {
-				Referencers []AttributeReferencer
+				Referencers []resource.AttributeReferencer
 			}{
-				Referencers: []AttributeReferencer{&mockReferencer{}},
+				Referencers: []resource.AttributeReferencer{&mockReferencer{}},
 			},
-			want: []AttributeReferencer{&mockReferencer{}},
+			want: []resource.AttributeReferencer{&mockReferencer{}},
 		},
-		"ElementIsNotAttributeReferencer": {
-			reason: "The root object is a struct whose only field is a slice of elements that should not satisfy AttributeReferencer.",
+		"ElementIsNotresource.AttributeReferencer": {
+			reason: "The root object is a struct whose only field is a slice of elements that should not satisfy resource.AttributeReferencer.",
 			obj: struct {
 				Unused []string
 			}{
 				Unused: []string{"notareferencer"},
 			},
-			want: []AttributeReferencer{},
+			want: []resource.AttributeReferencer{},
 		},
-		"MockManagedIsNotAttributeReferencer": {
+		"MockManagedIsNotresource.AttributeReferencer": {
 			reason: "Managed is relatively complex, but should not break findReferencers",
 			obj:    &fake.Managed{},
 		},
