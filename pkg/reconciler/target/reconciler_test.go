@@ -18,7 +18,6 @@ package resource
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -43,6 +42,7 @@ func TestReconciler(t *testing.T) {
 		m    manager.Manager
 		of   resource.TargetKind
 		with resource.ManagedKind
+		o    []ReconcilerOption
 	}
 
 	type want struct {
@@ -56,16 +56,11 @@ func TestReconciler(t *testing.T) {
 	mgname := "coolmanaged"
 	tguid := types.UID("tg-uuid")
 	mguid := types.UID("mg-uuid")
-	tgcsuid := types.UID("tgcs-uuid")
-	mgcsuid := types.UID("mgcs-uuid")
 	tgcsname := "cooltargetsecret"
 	mgcsname := "coolmanagedsecret"
 	mgcsnamespace := "coolns"
-	mgcsdata := map[string][]byte{"cool": []byte("data")}
-	controller := true
 
 	errBoom := errors.New("boom")
-	errUnexpectedSecret := errors.New("unexpected secret name")
 	errUnexpected := errors.New("unexpected object type")
 
 	cases := map[string]struct {
@@ -346,30 +341,6 @@ func TestReconciler(t *testing.T) {
 								mg.SetBindingPhase(v1alpha1.BindingPhaseBound)
 								*o = *mg
 								return nil
-							case *corev1.Secret:
-								switch n.Name {
-								case tgcsname:
-									sc := &corev1.Secret{}
-									sc.SetName(tgcsname)
-									sc.SetNamespace(ns)
-									sc.SetUID(tgcsuid)
-									sc.SetOwnerReferences([]metav1.OwnerReference{{
-										UID:        tguid,
-										Controller: &controller,
-									}})
-									*o = *sc
-									return nil
-								case mgcsname:
-									sc := &corev1.Secret{}
-									sc.SetName(mgcsname)
-									sc.SetNamespace(mgcsnamespace)
-									sc.SetUID(mgcsuid)
-									sc.Data = mgcsdata
-									*o = *sc
-									return nil
-								default:
-									return errUnexpectedSecret
-								}
 							default:
 								return errUnexpected
 							}
@@ -383,7 +354,7 @@ func TestReconciler(t *testing.T) {
 								Name: mgname,
 							})
 							want.SetWriteConnectionSecretToReference(&v1alpha1.LocalSecretReference{Name: tgcsname})
-							want.SetConditions(v1alpha1.SecretPropagationError(errors.New(errSecretConflict)))
+							want.SetConditions(v1alpha1.SecretPropagationError(errBoom))
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
@@ -394,6 +365,13 @@ func TestReconciler(t *testing.T) {
 				},
 				of:   resource.TargetKind(fake.GVK(&fake.Target{})),
 				with: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithManagedConnectionPropagator(resource.ManagedConnectionPropagatorFn(
+						func(_ context.Context, _ resource.LocalConnectionSecretOwner, _ resource.Managed) error {
+							return errBoom
+						},
+					)),
+				},
 			},
 			want: want{
 				result: reconcile.Result{RequeueAfter: aShortWait},
@@ -431,72 +409,10 @@ func TestReconciler(t *testing.T) {
 								mg.SetBindingPhase(v1alpha1.BindingPhaseBound)
 								*o = *mg
 								return nil
-							case *corev1.Secret:
-								switch n.Name {
-								case tgcsname:
-									sc := &corev1.Secret{}
-									sc.SetName(tgcsname)
-									sc.SetNamespace(ns)
-									sc.SetUID(tgcsuid)
-									sc.SetOwnerReferences([]metav1.OwnerReference{{
-										UID:        tguid,
-										Controller: &controller,
-									}})
-									*o = *sc
-									return nil
-								case mgcsname:
-									sc := &corev1.Secret{}
-									sc.SetName(mgcsname)
-									sc.SetNamespace(mgcsnamespace)
-									sc.SetUID(mgcsuid)
-									sc.SetOwnerReferences([]metav1.OwnerReference{{
-										UID:        mguid,
-										Controller: &controller,
-									}})
-									sc.Data = mgcsdata
-									*o = *sc
-									return nil
-								default:
-									return errUnexpectedSecret
-								}
 							default:
 								return errUnexpected
 							}
 						},
-						MockUpdate: test.NewMockUpdateFn(nil, func(got runtime.Object) error {
-							want := &corev1.Secret{}
-							want.Data = mgcsdata
-
-							switch got.(metav1.Object).GetName() {
-							case tgcsname:
-								want.SetName(tgcsname)
-								want.SetNamespace(ns)
-								want.SetUID(tgcsuid)
-								want.SetOwnerReferences([]metav1.OwnerReference{{UID: tguid, Controller: &controller}})
-								want.SetAnnotations(map[string]string{
-									resource.AnnotationKeyPropagateFromNamespace: mgcsnamespace,
-									resource.AnnotationKeyPropagateFromName:      mgcsname,
-									resource.AnnotationKeyPropagateFromUID:       string(mgcsuid),
-								})
-								if diff := cmp.Diff(want, got); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-							case mgcsname:
-								want.SetName(mgcsname)
-								want.SetNamespace(mgcsnamespace)
-								want.SetUID(mgcsuid)
-								want.SetOwnerReferences([]metav1.OwnerReference{{UID: mguid, Controller: &controller}})
-								want.SetAnnotations(map[string]string{
-									strings.Join([]string{resource.AnnotationKeyPropagateToPrefix, string(tgcsuid)}, resource.AnnotationDelimiter): strings.Join([]string{ns, tgcsname}, resource.AnnotationDelimiter),
-								})
-								if diff := cmp.Diff(want, got); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-							default:
-								return errUnexpectedSecret
-							}
-							return nil
-						}),
 						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
 							want := &fake.Target{}
 							want.SetName(tgname)
@@ -517,6 +433,11 @@ func TestReconciler(t *testing.T) {
 				},
 				of:   resource.TargetKind(fake.GVK(&fake.Target{})),
 				with: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithManagedConnectionPropagator(resource.ManagedConnectionPropagatorFn(
+						func(_ context.Context, _ resource.LocalConnectionSecretOwner, _ resource.Managed) error { return nil },
+					)),
+				},
 			},
 			want: want{
 				result: reconcile.Result{Requeue: false},
@@ -526,7 +447,7 @@ func TestReconciler(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewReconciler(tc.args.m, tc.args.of, tc.args.with)
+			r := NewReconciler(tc.args.m, tc.args.of, tc.args.with, tc.args.o...)
 			got, err := r.Reconcile(reconcile.Request{})
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {

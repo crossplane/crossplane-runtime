@@ -40,7 +40,6 @@ const (
 	errGetTarget                 = "unable to get Target"
 	errManagedResourceIsNotBound = "managed resource in Target clusterRef is unbound"
 	errUpdateTarget              = "unable to update Target"
-	errSecretConflict            = "cannot establish control of existing connection secret"
 )
 
 var log = logging.Logger.WithName("controller")
@@ -55,10 +54,21 @@ type Reconciler struct {
 	propagator resource.ManagedConnectionPropagator
 }
 
+// A ReconcilerOption configures a Reconciler.
+type ReconcilerOption func(*Reconciler)
+
+// WithManagedConnectionPropagator specifies which ManagedConnectionPropagator
+// should be used to propagate resource connection details to their target.
+func WithManagedConnectionPropagator(p resource.ManagedConnectionPropagator) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.propagator = p
+	}
+}
+
 // NewReconciler returns a Reconciler that reconciles KubernetesTargets by
 // propagating the referenced Kubernetes cluster's connection Secret to the
 // namespace of the KubernetesTarget.
-func NewReconciler(m manager.Manager, of resource.TargetKind, with resource.ManagedKind) *Reconciler {
+func NewReconciler(m manager.Manager, of resource.TargetKind, with resource.ManagedKind, o ...ReconcilerOption) *Reconciler {
 	nt := func() resource.Target {
 		return resource.MustCreateObject(schema.GroupVersionKind(of), m.GetScheme()).(resource.Target)
 	}
@@ -75,6 +85,10 @@ func NewReconciler(m manager.Manager, of resource.TargetKind, with resource.Mana
 		newTarget:  nt,
 		newManaged: nr,
 		propagator: resource.NewAPIManagedConnectionPropagator(m.GetClient(), m.GetScheme()),
+	}
+
+	for _, ro := range o {
+		ro(r)
 	}
 
 	return r
