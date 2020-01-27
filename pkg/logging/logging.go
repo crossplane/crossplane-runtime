@@ -14,29 +14,81 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package logging provides a logger that satisfies https://github.com/go-logr/logr.
-// It is implemented as a light wrapper around sigs.k8s.io/controller-runtime/pkg/log
+// Package logging provides Crossplane's recommended logging interface.
+//
+// The logging interface defined by this package is inspired by the following:
+//
+// * https://peter.bourgon.org/go-best-practices-2016/#logging-and-instrumentation
+// * https://dave.cheney.net/2015/11/05/lets-talk-about-logging
+// * https://dave.cheney.net/2017/01/23/the-package-level-logger-anti-pattern
+// * https://github.com/crossplaneio/crossplane/blob/c06433/design/one-pager-error-and-event-reporting.md
+//
+// It is similar to other logging interfaces inspired by said article, namely:
+//
+// * https://github.com/go-logr/logr
+// * https://github.com/go-log/log
+//
+// Crossplane prefers not to use go-logr because it desires a simpler API with
+// only two levels (per Dave's article); Info and Debug. Crossplane prefers not
+// to use go-log because it does not support structured logging. This package
+// *is* however a subset of go-logr's functionality, and is intended to wrap
+// go-logr (interfaces all the way down!), in order to maintain compatibility
+// with the https://github.com/kubernetes-sigs/controller-runtime/ log plumbing.
 package logging
 
 import (
 	"github.com/go-logr/logr"
-	runtimelog "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-// Logging levels.
-const (
-	Debug = 1
-)
+// A Logger logs messages. Messages may be supplemented by structured data.
+type Logger interface {
+	// Info logs a message with optional structured data. Structured data must
+	// be supplied as an array that alternates between string keys and values of
+	// an arbitrary type. Use Info for messages that Crossplane operators are
+	// very likely to be concerned with when running Crossplane.
+	Info(msg string, keysAndValues ...interface{})
 
-var (
-	logger = runtimelog.Log
+	// Debug logs a message with optional structured data. Structured data must
+	// be supplied as an array that alternates between string keys and values of
+	// an arbitrary type. Use Debug for messages that Crossplane operators or
+	// developers may be concerned with when debugging Crossplane.
+	Debug(msg string, keysAndValues ...interface{})
 
-	// Logger is the base logger used by Crossplane. It delegates to another
-	// logr.Logger. You *must* call SetLogger to get any actual logging.
-	Logger = logger.WithName("crossplane")
-)
+	// WithValues returns a Logger that will include the supplied structured
+	// data with any subsequent messages it logs. Structured data must
+	// be supplied as an array that alternates between string keys and values of
+	// an arbitrary type.
+	WithValues(keysAndValues ...interface{}) Logger
+}
 
-// SetLogger sets a concrete logging implementation for all deferred Loggers.
-func SetLogger(l logr.Logger) {
-	logger.Fulfill(l)
+// NewNopLogger returns a Logger that does nothing.
+func NewNopLogger() Logger { return nopLogger{} }
+
+type nopLogger struct{}
+
+func (l nopLogger) Info(msg string, keysAndValues ...interface{})  {}
+func (l nopLogger) Debug(msg string, keysAndValues ...interface{}) {}
+func (l nopLogger) WithValues(keysAndValues ...interface{}) Logger { return nopLogger{} }
+
+// NewLogrLogger returns a Logger that is satisfied by the supplied logr.Logger,
+// which may be satisfied in turn by various logging implementations (Zap, klog,
+// etc). Debug messages are logged at V(1).
+func NewLogrLogger(l logr.Logger) Logger {
+	return logrLogger{log: l}
+}
+
+type logrLogger struct {
+	log logr.Logger
+}
+
+func (l logrLogger) Info(msg string, keysAndValues ...interface{}) {
+	l.log.Info(msg, keysAndValues...)
+}
+
+func (l logrLogger) Debug(msg string, keysAndValues ...interface{}) {
+	l.log.V(1).Info(msg, keysAndValues...)
+}
+
+func (l logrLogger) WithValues(keysAndValues ...interface{}) Logger {
+	return logrLogger{log: l.log.WithValues(keysAndValues...)}
 }

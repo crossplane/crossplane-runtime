@@ -18,6 +18,7 @@ package claimbinding
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -30,14 +31,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplaneio/crossplane-runtime/pkg/event"
 	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
 	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 )
 
 const (
-	claimControllerName   = "resourceclaim.crossplane.io"
-	claimFinalizerName    = "finalizer." + claimControllerName
+	claimFinalizerName    = "finalizer.resourceclaim.crossplane.io"
 	claimReconcileTimeout = 1 * time.Minute
 
 	aShortWait = 30 * time.Second
@@ -54,7 +55,28 @@ const (
 	errUpdateClaimStatus = "cannot update resource claim status"
 )
 
-var log = logging.Logger.WithName("controller")
+// Event reasons.
+const (
+	reasonCannotGetResource       event.Reason = "CannotGetManagedResource"
+	reasonCannotGetClass          event.Reason = "CannotGetResourceClass"
+	reasonCannotConfigureResource event.Reason = "CannotConfigureManagedResource"
+	reasonCannotCreateResource    event.Reason = "CannotCreateManagedResource"
+	reasonCannotPropagate         event.Reason = "CannotPropagateConnectionDetails"
+	reasonCannotBind              event.Reason = "CannotBindManagedResource"
+	reasonCannotUnbind            event.Reason = "CannotUnbindManagedResource"
+
+	reasonResourceNotFound event.Reason = "ManagedResourceNotFound"
+	reasonCreatedResource  event.Reason = "CreatedManagedResource"
+	reasonWaitingToBind    event.Reason = "WaitingToBind"
+	reasonBound            event.Reason = "BoundManagedResource"
+	reasonUnbound          event.Reason = "UnboundManagedResource"
+)
+
+// ControllerName returns the recommended name for controllers that use this
+// package to reconcile a particular kind of resource claim.
+func ControllerName(kind string) string {
+	return "claimbinding/" + strings.ToLower(kind)
+}
 
 // A ManagedConfigurator configures a resource, typically by converting it to
 // a known type and populating its spec.
@@ -154,6 +176,9 @@ type Reconciler struct {
 	// the reconciler logic reads r.managed.Create(), r.claim.Finalize(), etc.
 	managed crManaged
 	claim   crClaim
+
+	log    logging.Logger
+	record event.Recorder
 }
 
 type crManaged struct {
@@ -229,6 +254,20 @@ func WithClaimFinalizer(f ClaimFinalizer) ReconcilerOption {
 	}
 }
 
+// WithLogger specifies how the Reconciler should log messages.
+func WithLogger(l logging.Logger) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.log = l
+	}
+}
+
+// WithRecorder specifies how the Reconciler should record events.
+func WithRecorder(er event.Recorder) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.record = er
+	}
+}
+
 // NewReconciler returns a Reconciler that reconciles resource claims
 // of the supplied ClaimKind with resources of the supplied ManagedKind. It
 // panics if asked to reconcile a claim or resource kind that is not registered
@@ -257,6 +296,8 @@ func NewReconciler(m manager.Manager, of resource.ClaimKind, using resource.Clas
 		newManaged: nr,
 		managed:    defaultCRManaged(m),
 		claim:      defaultCRClaim(m),
+		log:        logging.NewNopLogger(),
+		record:     event.NewNopRecorder(),
 	}
 
 	for _, ro := range o {
@@ -271,7 +312,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	// NOTE(negz): This method is well over our cyclomatic complexity goal.
 	// Be wary of adding additional complexity.
 
-	log.V(logging.Debug).Info("Reconciling", "controller", claimControllerName, "request", req)
+	log := r.log.WithValues("request", req)
+	log.Debug("Reconciling")
 
 	ctx, cancel := context.WithTimeout(context.Background(), claimReconcileTimeout)
 	defer cancel()
@@ -280,11 +322,22 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	if err := r.client.Get(ctx, req.NamespacedName, claim); err != nil {
 		// There's no need to requeue if we no longer exist. Otherwise we'll be
 		// requeued implicitly because we return an error.
+		log.Debug("Cannot get resource claim", "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetClaim)
 	}
 
+	record := r.record.WithAnnotations("external-name", meta.GetExternalName(claim))
+	log = log.WithValues(
+		"uid", claim.GetUID(),
+		"version", claim.GetResourceVersion(),
+		"external-name", meta.GetExternalName(claim),
+	)
+
 	managed := r.newManaged()
 	if ref := claim.GetResourceReference(); ref != nil {
+		record = record.WithAnnotations("managed-name", claim.GetResourceReference().Name)
+		log = log.WithValues("managed-name", claim.GetResourceReference().Name)
+
 		err := r.client.Get(ctx, meta.NamespacedNameOf(ref), managed)
 		if kerrors.IsNotFound(err) {
 			// If the managed resource we explicitly reference doesn't exist yet
@@ -293,6 +346,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// handler can only enqueue reconciles for managed resources that
 			// have their claim reference set, so we can't expect to be queued
 			// implicitly when the managed resource we want to bind to appears.
+			log.Debug("Referenced managed resource not found", "requeue-after", time.Now().Add(aShortWait))
+			record.Event(claim, event.Normal(reasonResourceNotFound, "Referenced managed resource not found"))
 			claim.SetConditions(Binding(), v1alpha1.ReconcileSuccess())
 			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, claim), errUpdateClaimStatus)
 		}
@@ -300,24 +355,34 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// If we didn't hit this error last time we'll be requeued
 			// implicitly due to the status update. Otherwise we want to retry
 			// after a brief wait, in case this was a transient error.
+			log.Debug("Cannot get referenced managed resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
+			record.Event(claim, event.Warning(reasonCannotGetResource, err))
 			claim.SetConditions(v1alpha1.ReconcileError(err))
 			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, claim), errUpdateClaimStatus)
 		}
 	}
 
 	if meta.WasDeleted(claim) {
+		log = log.WithValues("deletion-timestamp", claim.GetDeletionTimestamp())
+
 		if err := r.claim.Unbind(ctx, claim, managed); err != nil {
 			// If we didn't hit this error last time we'll be requeued
 			// implicitly due to the status update. Otherwise we want to retry
 			// after a brief wait, in case this was a transient error.
+			log.Debug("Cannot unbind claim", "error", err, "requeue-after", time.Now().Add(aShortWait))
+			record.Event(claim, event.Warning(reasonCannotUnbind, err))
 			claim.SetConditions(v1alpha1.Deleting(), v1alpha1.ReconcileError(err))
 			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, claim), errUpdateClaimStatus)
 		}
+
+		log.Debug("Successfully unbound managed resource")
+		record.Event(claim, event.Normal(reasonUnbound, "Successfully unbound managed resource"))
 
 		if err := r.claim.RemoveFinalizer(ctx, claim); err != nil {
 			// If we didn't hit this error last time we'll be requeued
 			// implicitly due to the status update. Otherwise we want to retry
 			// after a brief wait, in case this was a transient error.
+			log.Debug("Cannot remove finalizer", "error", err, "requeue-after", time.Now().Add(aShortWait))
 			claim.SetConditions(v1alpha1.Deleting(), v1alpha1.ReconcileError(err))
 			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, claim), errUpdateClaimStatus)
 		}
@@ -326,6 +391,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// assume we were the only controller that added a finalizer to this
 		// claim then it should no longer exist and thus there is no point
 		// trying to update its status.
+		log.Debug("Successfully deleted resource claim")
 		return reconcile.Result{Requeue: false}, nil
 	}
 
@@ -337,6 +403,9 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	// that has no resource ref or class ref, so we can't assume the class ref
 	// is always set at this point.
 	if !meta.WasCreated(managed) && claim.GetClassReference() != nil {
+		record = record.WithAnnotations("class-name", claim.GetClassReference().Name)
+		log = log.WithValues("class-name", claim.GetClassReference().Name)
+
 		class := r.newClass()
 		// Class reference should always be set by the time we get this far; we
 		// set it on last reconciliation.
@@ -345,6 +414,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// implicitly due to the status update. Otherwise we want to retry
 			// after a brief wait, in case this was a transient error or the
 			// class is (re)created.
+			log.Debug("Cannot get referenced resource class", "error", err, "requeue-after", time.Now().Add(aShortWait))
+			record.Event(claim, event.Warning(reasonCannotGetClass, err))
 			claim.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(err))
 			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, claim), errUpdateClaimStatus)
 		}
@@ -354,20 +425,35 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// implicitly due to the status update. Otherwise we want to retry
 			// after a brief wait, in case this was a transient error or some
 			// issue with the resource class was resolved.
+			log.Debug("Cannot configure managed resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
+			record.Event(claim, event.Warning(reasonCannotConfigureResource, err))
 			claim.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(err))
 			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, claim), errUpdateClaimStatus)
 		}
+
+		// We'll know our managed resource's name at this point because it was
+		// set by the above configure step.
+		record = record.WithAnnotations("managed-name", managed.GetName())
+		log = log.WithValues("managed-name", managed.GetName())
 
 		if err := r.managed.Create(ctx, claim, class, managed); err != nil {
 			// If we didn't hit this error last time we'll be requeued
 			// implicitly due to the status update. Otherwise we want to retry
 			// after a brief wait, in case this was a transient error.
+			log.Debug("Cannot create managed resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
+			record.Event(claim, event.Warning(reasonCannotCreateResource, err))
 			claim.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(err))
 			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, claim), errUpdateClaimStatus)
 		}
+
+		log.Debug("Successfully created managed resource")
+		record.Event(claim, event.Normal(reasonCreatedResource, "Successfully created managed resource"))
 	}
 
 	if !resource.IsBindable(managed) && !resource.IsBound(managed) {
+		log.Debug("Managed resource is not yet bindable")
+		record.Event(claim, event.Normal(reasonWaitingToBind, "Managed resource is not yet bindable"))
+
 		if managed.GetClaimReference() == nil {
 			// We're waiting to bind to a statically provisioned managed
 			// resource. We must requeue because our EnqueueRequestForClaim
@@ -392,6 +478,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// due to the status update. Otherwise we want to retry after a brief
 			// wait in case this was a transient error, or the resource connection
 			// secret is created.
+			log.Debug("Cannot propagate connection details from managed resource to claim", "error", err, "requeue-after", time.Now().Add(aShortWait))
+			record.Event(claim, event.Warning(reasonCannotPropagate, err))
 			claim.SetConditions(Binding(), v1alpha1.ReconcileError(err))
 			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, claim), errUpdateClaimStatus)
 		}
@@ -400,6 +488,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// If we didn't hit this error last time we'll be requeued
 			// implicitly due to the status update. Otherwise we want to retry
 			// after a brief wait, in case this was a transient error.
+			log.Debug("Cannot add resource claim finalizer", "error", err, "requeue-after", time.Now().Add(aShortWait))
 			claim.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(err))
 			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, claim), errUpdateClaimStatus)
 		}
@@ -408,9 +497,14 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// If we didn't hit this error last time we'll be requeued implicitly
 			// due to the status update. Otherwise we want to retry after a brief
 			// wait, in case this was a transient error.
+			log.Debug("Cannot bind to managed resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
+			record.Event(claim, event.Warning(reasonCannotBind, err))
 			claim.SetConditions(Binding(), v1alpha1.ReconcileError(err))
 			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, claim), errUpdateClaimStatus)
 		}
+
+		log.Debug("Successfully bound managed resource")
+		record.Event(claim, event.Normal(reasonBound, "Successfully bound managed resource"))
 	}
 
 	// No need to requeue. We should be watching both the resource claims and

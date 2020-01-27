@@ -24,83 +24,149 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/crossplaneio/crossplane-runtime/pkg/event"
 	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
 )
 
-const (
-	secretControllerName   = "secretpropagator.crossplane.io"
-	secretReconcileTimeout = 1 * time.Minute
+const secretReconcileTimeout = 1 * time.Minute
 
+// Error messages.
+const (
 	errGetSecret         = "cannot get managed resource's connection secret"
 	errUpdateSecret      = "cannot update connection secret"
 	errUnexpectedFromUID = "unexpected propagate from uid on propagated secret"
 	errUnexpectedToUID   = "unexpected propagate to uid on propagator secret"
 )
 
-var log = logging.Logger.WithName("controller")
+// Event reasons
+const (
+	reasonPropagatedFrom event.Reason = "PropagatedDataFrom"
+	reasonPropagatedTo   event.Reason = "PropagatedDataTo"
+)
+
+// ControllerName returns the recommended name for controllers that use this
+// package to reconcile a particular kind of resource claim.
+func ControllerName(kind string) string {
+	return "secretpropagating/" + strings.ToLower(kind)
+}
+
+// Reconciler reconciles secrets by propagating their data from another secret.
+// Both secrets must consent to this process by including propagation
+// annotations. The Reconciler assumes it has a watch on both propagating (from)
+// and propagated (to) secrets.
+type Reconciler struct {
+	client client.Client
+
+	log    logging.Logger
+	record event.Recorder
+}
+
+// A ReconcilerOption configures a Reconciler.
+type ReconcilerOption func(*Reconciler)
+
+// WithLogger specifies how the Reconciler should log messages.
+func WithLogger(l logging.Logger) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.log = l
+	}
+}
+
+// WithRecorder specifies how the Reconciler should record events.
+func WithRecorder(er event.Recorder) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.record = er
+	}
+}
 
 // NewReconciler returns a Reconciler that reconciles secrets by propagating
-// their data to another secret. Both secrets must consent to this process by
+// their data from another secret. Both secrets must consent to this process by
 // including propagation annotations. The Reconciler assumes it has a watch on
 // both propagating (from) and propagated (to) secrets.
-func NewReconciler(m manager.Manager) reconcile.Reconciler {
-	client := m.GetClient()
+func NewReconciler(m manager.Manager, o ...ReconcilerOption) *Reconciler {
+	r := &Reconciler{
+		client: m.GetClient(),
+		log:    logging.NewNopLogger(),
+		record: event.NewNopRecorder(),
+	}
 
-	return reconcile.Func(func(req reconcile.Request) (reconcile.Result, error) {
-		log.V(logging.Debug).Info("Reconciling", "controller", secretControllerName, "request", req)
+	for _, ro := range o {
+		ro(r)
+	}
 
-		ctx, cancel := context.WithTimeout(context.Background(), secretReconcileTimeout)
-		defer cancel()
+	return r
+}
 
-		// The 'to' secret is also known as the 'propagated' secret. We guard
-		// against abusers of the propagation process by requiring that both
-		// secrets consent to propagation by specifying each other's UID. We
-		// cannot know the UID of a secret that doesn't exist, so the propagated
-		// secret must be created outside of the propagation process.
-		to := &corev1.Secret{}
-		if err := client.Get(ctx, req.NamespacedName, to); err != nil {
-			// There's no propagation to be done if the secret we propagate to
-			// does not exist. We assume we have a watch on that secret and will
-			// be queued if/when it is created. Otherwise we'll be requeued
-			// implicitly because we return an error.
-			return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetSecret)
-		}
-		// The 'from' secret is also know as the 'propagating' secret.
-		from := &corev1.Secret{}
-		n := types.NamespacedName{
-			Namespace: to.GetAnnotations()[resource.AnnotationKeyPropagateFromNamespace],
-			Name:      to.GetAnnotations()[resource.AnnotationKeyPropagateFromName],
-		}
-		if err := client.Get(ctx, n, from); err != nil {
-			// There's no propagation to be done if the secret we're propagating
-			// from does not exist. We assume we have a watch on that secret and
-			// will be queued if/when it is created. Otherwise we'll be requeued
-			// implicitly because we return an error.
-			return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetSecret)
-		}
+// Reconcile a secret by propagating its data from another secret.
+func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
+	log := r.log.WithValues("request", req)
+	log.Debug("Reconciling")
 
-		if to.GetAnnotations()[resource.AnnotationKeyPropagateFromUID] != string(from.GetUID()) {
-			// The propagated secret expected a different propagating secret. We
-			// assume we have a watch on both secrets, and will be requeued if
-			// and when this situation is remedied.
-			return reconcile.Result{}, errors.New(errUnexpectedFromUID)
-		}
+	ctx, cancel := context.WithTimeout(context.Background(), secretReconcileTimeout)
+	defer cancel()
 
-		if _, ok := from.GetAnnotations()[strings.Join([]string{resource.AnnotationKeyPropagateToPrefix, string(to.GetUID())}, resource.AnnotationDelimiter)]; !ok {
-			// The propagating secret expected a different propagated secret. We
-			// assume we have a watch on both secrets, and will be requeued if
-			// and when this situation is remedied.
-			return reconcile.Result{}, errors.New(errUnexpectedToUID)
-		}
+	// The 'to' secret is also known as the 'propagated' secret. We guard
+	// against abusers of the propagation process by requiring that both
+	// secrets consent to propagation by specifying each other's UID. We
+	// cannot know the UID of a secret that doesn't exist, so the propagated
+	// secret must be created outside of the propagation process.
+	to := &corev1.Secret{}
+	if err := r.client.Get(ctx, req.NamespacedName, to); err != nil {
+		// There's no propagation to be done if the secret we propagate to
+		// does not exist. We assume we have a watch on that secret and will
+		// be queued if/when it is created. Otherwise we'll be requeued
+		// implicitly because we return an error.
+		log.Debug("Cannot get propagated secret", "error", err)
+		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetSecret)
+	}
 
-		to.Data = from.Data
+	record := r.record.WithAnnotations("to-namespace", to.GetNamespace(), "to-name", to.GetName())
+	log = log.WithValues("to-namespace", to.GetNamespace(), "to-name", to.GetName())
 
-		// If our update was unsuccessful. Keep trying to update
-		// additional secrets but implicitly requeue when finished.
-		return reconcile.Result{Requeue: false}, errors.Wrap(client.Update(ctx, to), errUpdateSecret)
-	})
+	// The 'from' secret is also know as the 'propagating' secret.
+	from := &corev1.Secret{}
+	n := types.NamespacedName{
+		Namespace: to.GetAnnotations()[resource.AnnotationKeyPropagateFromNamespace],
+		Name:      to.GetAnnotations()[resource.AnnotationKeyPropagateFromName],
+	}
+	if err := r.client.Get(ctx, n, from); err != nil {
+		// There's no propagation to be done if the secret we're propagating
+		// from does not exist. We assume we have a watch on that secret and
+		// will be queued if/when it is created. Otherwise we'll be requeued
+		// implicitly because we return an error.
+		log.Debug("Cannot get propagating secret", "error", err)
+		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetSecret)
+	}
+
+	record = record.WithAnnotations("from-namespace", from.GetNamespace(), "from-name", from.GetName())
+	log = log.WithValues("from-namespace", from.GetNamespace(), "from-name", from.GetName())
+
+	if a := to.GetAnnotations()[resource.AnnotationKeyPropagateFromUID]; a != string(from.GetUID()) {
+		// The propagated secret expected a different propagating secret. We
+		// assume we have a watch on both secrets, and will be requeued if
+		// and when this situation is remedied.
+		log.Debug("Unexpected propagate-from UID", "want", a, "got", string(from.GetUID()))
+		return reconcile.Result{}, errors.New(errUnexpectedFromUID)
+	}
+
+	if a, ok := from.GetAnnotations()[strings.Join([]string{resource.AnnotationKeyPropagateToPrefix, string(to.GetUID())}, resource.AnnotationDelimiter)]; !ok {
+		// The propagating secret did not expect this propagated secret. We
+		// assume we have a watch on both secrets, and will be requeued if and
+		// when this situation is remedied.
+		log.Debug("Unexpected propagate-to UID", "want", a)
+		return reconcile.Result{}, errors.New(errUnexpectedToUID)
+	}
+
+	to.Data = from.Data
+
+	// If our update was unsuccessful. Keep trying to update
+	// additional secrets but implicitly requeue when finished.
+	log.Debug("Propagated secret data")
+	record.Event(to, event.Normal(reasonPropagatedFrom, "Data propagated from secret"))
+	record.Event(from, event.Normal(reasonPropagatedTo, "Data propagated to secret"))
+	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Update(ctx, to), errUpdateSecret)
 }

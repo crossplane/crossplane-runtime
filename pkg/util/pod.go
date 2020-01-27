@@ -24,8 +24,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
 )
 
 const (
@@ -33,10 +31,6 @@ const (
 	PodNameEnvVar = "POD_NAME"
 	// PodNamespaceEnvVar is the env variable for getting the pod namespace via downward api
 	PodNamespaceEnvVar = "POD_NAMESPACE"
-)
-
-var (
-	log = logging.Logger.WithName("util")
 )
 
 // GetRunningPod will get the pod object for the currently running pod.  This assumes that the
@@ -52,7 +46,6 @@ func GetRunningPod(ctx context.Context, kube client.Client) (*v1.Pod, error) {
 	}
 
 	name := types.NamespacedName{Name: podName, Namespace: podNamespace}
-	log.V(logging.Debug).Info("getting pod", "name", name)
 
 	pod := &v1.Pod{}
 	err := kube.Get(ctx, name, pod)
