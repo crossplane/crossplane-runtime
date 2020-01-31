@@ -17,76 +17,18 @@ limitations under the License.
 package util
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
-	"strconv"
 	"strings"
 )
 
-// ToLowerRemoveSpaces returns the supplied string in lowercase with all spaces
-// (not all whitespace) removed.
-func ToLowerRemoveSpaces(input string) string {
-	return strings.ToLower(strings.Replace(input, " ", "", -1))
-}
-
-// String returns a pointer to the string value passed in.
-func String(v string) *string {
-	return &v
-}
-
-// StringValue returns the value of the string pointer passed in or
-// "" if the pointer is nil.
-func StringValue(v *string) string {
-	if v != nil {
-		return *v
-	}
-	return ""
-}
-
-// Split function helper will return an empty slice on empty string and
-// removing empty entries and trimming leading and trailing spaces
-// Example: Split("a ,, b") results in []string{"a","b"}
-func Split(s, sep string) []string {
-	rs := make([]string, 0)
-	if s == "" {
-		return rs
-	}
-
-	for _, r := range strings.Split(s, sep) {
-		if rr := strings.TrimSpace(r); rr != "" {
-			rs = append(rs, rr)
-		}
-	}
-
-	return rs
-}
-
-// ParseMap string encoded map values
-// example: "foo:bar,one:two" -> map[string]string{"foo":"bar","one":"two"}
-func ParseMap(s string) map[string]string {
-	m := map[string]string{}
-	for _, cfg := range strings.Split(s, ",") {
-		if kv := strings.SplitN(cfg, ":", 2); len(kv) == 2 {
-			m[strings.TrimSpace(kv[0])] = strings.TrimSpace(kv[1])
-		}
-	}
-	return m
-}
-
-// ParseBool returns true IFF string value is "true" or "True"
-func ParseBool(s string) bool {
-	b, err := strconv.ParseBool(s)
-	if err != nil {
-		return false
-	}
-	return b
-}
-
-// ConditionalStringFormat returns based on the format string and substitution value.
-// If format is not provided, substitution value is returned
-// If format is provided with '%s' substitution symbol, fmt.Sprintf(fmt, val) is returned.
-//   NOTE: only single %s substitution is supported
-// If name format does not contain '%s' substitution, i.e. a constant string, the
-// constant string value is returned back
+// ConditionalStringFormat returns based on the format string and substitution
+// value. If format is not provided, substitution value is returned If format is
+// provided with '%s' substitution symbol, fmt.Sprintf(fmt, val) is returned.
+// NOTE: only single %s substitution is supported. If name format does not
+// contain '%s' substitution, i.e. a constant string, the constant string value
+// is returned back
 //
 // Examples:
 //   For all examples assume "value" = "test-value"
@@ -102,4 +44,14 @@ func ConditionalStringFormat(format string, value string) string {
 		return fmt.Sprintf(format, value)
 	}
 	return format
+}
+
+// GeneratePassword generates a password using random data of the given length,
+// then encodes to a base64 string.
+func GeneratePassword(dataLen int) (string, error) {
+	randData := make([]byte, dataLen)
+	if _, err := rand.Read(randData); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(randData), nil
 }

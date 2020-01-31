@@ -20,70 +20,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	. "github.com/onsi/gomega"
 )
-
-func TestToLowerRemoveSpaces(t *testing.T) {
-	g := NewGomegaWithT(t)
-
-	cases := []struct {
-		input    string
-		expected string
-	}{
-		{"", ""},
-		{"FOO", "foo"},
-		{"FoO bAr", "foobar"},
-		{"Foo-Bar", "foo-bar"},
-	}
-
-	for _, tt := range cases {
-		actual := ToLowerRemoveSpaces(tt.input)
-		g.Expect(actual).To(Equal(tt.expected))
-	}
-}
-
-func TestParseMap(t *testing.T) {
-	tests := []struct {
-		name string
-		args string
-		want map[string]string
-	}{
-		{name: "Empty", args: "", want: map[string]string{}},
-		{name: "Single", args: "foo:bar", want: map[string]string{"foo": "bar"}},
-		{name: "Multi", args: "foo:bar, one:two", want: map[string]string{"foo": "bar", "one": "two"}},
-		{name: "DupeKey", args: "foo:bar,foo:buz", want: map[string]string{"foo": "buz"}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := ParseMap(tt.args)
-			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Errorf("parseMap() = %v, want %v\n%s", got, tt.want, diff)
-			}
-		})
-	}
-}
-
-func TestParseBool(t *testing.T) {
-	tests := []struct {
-		name string
-		args string
-		want bool
-	}{
-		{name: "Empty", args: "", want: false},
-		{name: "LowerTrue", args: "true", want: true},
-		{name: "UpperTrue", args: "True", want: true},
-		{name: "UpperRTrue", args: "tRue", want: false},
-		{name: "SpaceTrue", args: " true", want: false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := ParseBool(tt.args)
-			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Errorf("parseBool() = %v, want %v\n%s", got, tt.want, diff)
-			}
-		})
-	}
-}
 
 func TestConditionalStringFormat(t *testing.T) {
 	type args struct {
@@ -157,30 +94,6 @@ func TestConditionalStringFormat(t *testing.T) {
 			got := ConditionalStringFormat(tt.args.format, tt.args.value)
 			if diff := cmp.Diff(got, tt.want); diff != "" {
 				t.Errorf("ConditionalStringFormat() = %v, want %v\n%s", got, tt.want, diff)
-			}
-		})
-	}
-}
-
-func TestSplit(t *testing.T) {
-	type args struct {
-		s   string
-		sep string
-	}
-	tests := []struct {
-		name string
-		args args
-		want []string
-	}{
-		{name: "Empty", args: args{s: "", sep: ","}, want: []string{}},
-		{name: "Comma", args: args{s: ",", sep: ","}, want: []string{}},
-		{name: "Values", args: args{s: " a,,b ", sep: ","}, want: []string{"a", "b"}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := Split(tt.args.s, tt.args.sep)
-			if diff := cmp.Diff(got, tt.want); diff != "" {
-				t.Errorf("Split() = %v, want %v\n%s", got, tt.want, diff)
 			}
 		})
 	}
