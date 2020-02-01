@@ -17,8 +17,6 @@ limitations under the License.
 package util
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"fmt"
 	"strings"
 )
@@ -44,14 +42,4 @@ func ConditionalStringFormat(format string, value string) string {
 		return fmt.Sprintf(format, value)
 	}
 	return format
-}
-
-// GeneratePassword generates a password using random data of the given length,
-// then encodes to a base64 string.
-func GeneratePassword(dataLen int) (string, error) {
-	randData := make([]byte, dataLen)
-	if _, err := rand.Read(randData); err != nil {
-		return "", err
-	}
-	return base64.RawURLEncoding.EncodeToString(randData), nil
 }
