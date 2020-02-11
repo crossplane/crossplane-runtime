@@ -206,7 +206,8 @@ type ClassSpecTemplate struct {
 type ProviderSpec struct {
 	// CredentialsSecretRef references a specific secret's key that contains
 	// the credentials that are used to connect to the provider.
-	CredentialsSecretRef SecretKeySelector `json:"credentialsSecretRef"`
+	// +optional
+	CredentialsSecretRef *SecretKeySelector `json:"credentialsSecretRef,omitempty"`
 }
 
 // A TargetSpec defines the common fields of objects used for exposing
