@@ -19,7 +19,7 @@ package managed
 import (
 	"context"
 
-	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
 // A PublisherChain chains multiple ManagedPublishers.

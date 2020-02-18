@@ -29,7 +29,7 @@ I have:
 - [ ] Updated any relevant [documentation], [examples], or [release notes].
 - [ ] Updated the RBAC permissions in [`clusterrole.yaml`] to include any new types.
 
-[documentation]: https://github.com/crossplaneio/crossplane/tree/master/docs
-[examples]: https://github.com/crossplaneio/crossplane/tree/master/cluster/examples
-[release notes]: https://github.com/crossplaneio/crossplane/tree/master/PendingReleaseNotes.md
-[`clusterrole.yaml`]: https://github.com/crossplaneio/crossplane/blob/master/cluster/charts/crossplane/templates/clusterrole.yaml
+[documentation]: https://github.com/crossplane/crossplane/tree/master/docs
+[examples]: https://github.com/crossplane/crossplane/tree/master/cluster/examples
+[release notes]: https://github.com/crossplane/crossplane/tree/master/PendingReleaseNotes.md
+[`clusterrole.yaml`]: https://github.com/crossplane/crossplane/blob/master/cluster/charts/crossplane/templates/clusterrole.yaml

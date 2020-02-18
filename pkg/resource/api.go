@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	util "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 )
 
 // Error strings.
