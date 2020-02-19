@@ -1,4 +1,4 @@
-# crossplane-runtime [![Godoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/github.com/crossplaneio/crossplane-runtime)
+# crossplane-runtime [![Godoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/github.com/crossplane/crossplane-runtime)
 
 ## Overview
 
@@ -47,14 +47,14 @@ crossplane-runtime is under the Apache 2.0 license.
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fcrossplaneio%2Fcrossplane-runtime.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fcrossplaneio%2Fcrossplane-runtime?ref=badge_large)
 
 [developer guide]: https://crossplane.io/docs/master/developer-guide.html
-[API documentation]: https://godoc.org/github.com/crossplaneio/crossplane-runtime
-[contributing]: https://github.com/crossplaneio/crossplane/blob/master/CONTRIBUTING.md
-[issue]: https://github.com/crossplaneio/crossplane-runtime/issues
+[API documentation]: https://godoc.org/github.com/crossplane/crossplane-runtime
+[contributing]: https://github.com/crossplane/crossplane/blob/master/CONTRIBUTING.md
+[issue]: https://github.com/crossplane/crossplane-runtime/issues
 [slack channel]: https://slack.crossplane.io
 [crossplane-dev]: https://groups.google.com/forum/#!forum/crossplane-dev
 [@crossplane_io]: https://twitter.com/crossplane_io
 [info@crossplane.io]: mailto:info@crossplane.io
-[roadmap]: https://github.com/crossplaneio/crossplane/blob/master/ROADMAP.md
-[governance]: https://github.com/crossplaneio/crossplane/blob/master/GOVERNANCE.md
-[ownership]: https://github.com/crossplaneio/crossplane/blob/master/OWNERS.md
-[code of conduct]: https://github.com/crossplaneio/crossplane/blob/master/CODE_OF_CONDUCT.md
+[roadmap]: https://github.com/crossplane/crossplane/blob/master/ROADMAP.md
+[governance]: https://github.com/crossplane/crossplane/blob/master/GOVERNANCE.md
+[ownership]: https://github.com/crossplane/crossplane/blob/master/OWNERS.md
+[code of conduct]: https://github.com/crossplane/crossplane/blob/master/CODE_OF_CONDUCT.md

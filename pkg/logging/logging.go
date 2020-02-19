@@ -21,7 +21,7 @@ limitations under the License.
 // * https://peter.bourgon.org/go-best-practices-2016/#logging-and-instrumentation
 // * https://dave.cheney.net/2015/11/05/lets-talk-about-logging
 // * https://dave.cheney.net/2017/01/23/the-package-level-logger-anti-pattern
-// * https://github.com/crossplaneio/crossplane/blob/c06433/design/one-pager-error-and-event-reporting.md
+// * https://github.com/crossplane/crossplane/blob/c06433/design/one-pager-error-and-event-reporting.md
 //
 // It is similar to other logging interfaces inspired by said article, namely:
 //

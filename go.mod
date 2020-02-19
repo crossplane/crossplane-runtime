@@ -1,4 +1,4 @@
-module github.com/crossplaneio/crossplane-runtime
+module github.com/crossplane/crossplane-runtime
 
 go 1.13
 
@@ -6,7 +6,7 @@ require (
 	github.com/Azure/go-autorest/autorest v0.9.2 // indirect
 	github.com/Azure/go-autorest/autorest/adal v0.8.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/crossplaneio/crossplane-tools v0.0.0-20191220202319-9033bd8a02ce
+	github.com/crossplane/crossplane-tools v0.0.0-20200219001116-bb8b2ce46330
 	github.com/go-logr/logr v0.1.0
 	github.com/go-logr/zapr v0.1.1 // indirect
 	github.com/golang/groupcache v0.0.0-20190702054246-869f871628b6 // indirect

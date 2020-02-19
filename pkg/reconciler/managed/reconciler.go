@@ -27,11 +27,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplaneio/crossplane-runtime/apis/core/v1alpha1"
-	"github.com/crossplaneio/crossplane-runtime/pkg/event"
-	"github.com/crossplaneio/crossplane-runtime/pkg/logging"
-	"github.com/crossplaneio/crossplane-runtime/pkg/meta"
-	"github.com/crossplaneio/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplane/crossplane-runtime/pkg/event"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
 const (
@@ -670,7 +670,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// Per the below issue nothing will notify us if and when the external
 		// resource we manage changes, so we requeue a speculative reconcile
 		// after a long wait in order to observe it and react accordingly.
-		// https://github.com/crossplaneio/crossplane/issues/289
+		// https://github.com/crossplane/crossplane/issues/289
 		log.Debug("External resource is up to date", "requeue-after", time.Now().Add(r.longWait))
 		managed.SetConditions(v1alpha1.ReconcileSuccess())
 		return reconcile.Result{RequeueAfter: r.longWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
@@ -703,7 +703,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	// nothing will notify us if and when the external resource we manage
 	// changes, so we requeue a speculative reconcile after a long wait in order
 	// to observe it and react accordingly.
-	// https://github.com/crossplaneio/crossplane/issues/289
+	// https://github.com/crossplane/crossplane/issues/289
 	log.Debug("Successfully requested update of external resource", "requeue-after", time.Now().Add(r.longWait))
 	record.Event(managed, event.Normal(reasonUpdated, "Successfully requested update of external resource"))
 	managed.SetConditions(v1alpha1.ReconcileSuccess())
