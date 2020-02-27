@@ -17,17 +17,21 @@ limitations under the License.
 package resource
 
 import (
+	"context"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
@@ -436,6 +440,122 @@ func TestIsConditionTrue(t *testing.T) {
 			got := IsConditionTrue(tc.c)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("IsConditionTrue(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+type object struct {
+	runtime.Object
+	metav1.ObjectMeta
+}
+
+func (o *object) DeepCopyObject() runtime.Object {
+	return &object{ObjectMeta: *o.ObjectMeta.DeepCopy()}
+}
+
+type nopeject struct {
+	runtime.Object
+}
+
+func (o *nopeject) DeepCopyObject() runtime.Object {
+	return &nopeject{}
+}
+
+func TestApply(t *testing.T) {
+	errBoom := errors.New("boom")
+
+	type args struct {
+		ctx context.Context
+		c   client.Client
+		o   runtime.Object
+		ao  []ApplyOption
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   error
+	}{
+		"NotAMetadataObject": {
+			reason: "An error should be returned if we can't access the object's metadata",
+			args: args{
+				c: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
+				o: &nopeject{},
+			},
+			want: errors.New("cannot access object metadata"),
+		},
+		"GetError": {
+			reason: "An error should be returned if we can't get the object",
+			args: args{
+				c: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
+				o: &object{},
+			},
+			want: errors.Wrap(errBoom, "cannot get object"),
+		},
+		"CreateError": {
+			reason: "No error should be returned if we successfully create a new object",
+			args: args{
+				c: &test.MockClient{
+					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockCreate: test.NewMockCreateFn(errBoom),
+				},
+				o: &object{},
+			},
+			want: errors.Wrap(errBoom, "cannot create object"),
+		},
+		"ControllerMismatch": {
+			reason: "An error should be returned if controllers must match, but don't",
+			args: args{
+				c: &test.MockClient{MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+					obj := &object{}
+					meta.AddControllerReference(obj, metav1.OwnerReference{UID: types.UID("wat")})
+					*(o.(*object)) = *obj
+					return nil
+				})},
+				o:  &object{},
+				ao: []ApplyOption{ControllersMustMatch()},
+			},
+			want: errors.New("existing object has a different (or no) controller"),
+		},
+		"PatchError": {
+			reason: "An error should be returned if we can't patch the object",
+			args: args{
+				c: &test.MockClient{
+					MockGet:   test.NewMockGetFn(nil),
+					MockPatch: test.NewMockPatchFn(errBoom),
+				},
+				o: &object{},
+			},
+			want: errors.Wrap(errBoom, "cannot patch object"),
+		},
+		"Created": {
+			reason: "No error should be returned if we successfully create a new object",
+			args: args{
+				c: &test.MockClient{
+					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockCreate: test.NewMockCreateFn(nil),
+				},
+				o: &object{},
+			},
+		},
+		"Patched": {
+			reason: "No error should be returned if we successfully patch an existing object",
+			args: args{
+				c: &test.MockClient{
+					MockGet:   test.NewMockGetFn(nil),
+					MockPatch: test.NewMockPatchFn(nil),
+				},
+				o: &object{},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := Apply(tc.args.ctx, tc.args.c, tc.args.o, tc.args.ao...)
+			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nApply(...): -want error, +got error\n%s\n", tc.reason, diff)
 			}
 		})
 	}

@@ -18,6 +18,7 @@ package resource
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -25,6 +26,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
@@ -227,3 +230,57 @@ func IsBound(b Bindable) bool {
 func IsConditionTrue(c v1alpha1.Condition) bool {
 	return c.Status == corev1.ConditionTrue
 }
+
+// ApplyOptions configure how changes are applied to an object.
+type ApplyOptions struct {
+	// ControllersMustMatch requires any existing object to have a controller
+	// reference, and for that controller reference to match the controller
+	// reference of the supplied object.
+	ControllersMustMatch bool
+}
+
+// An ApplyOption configures how changes are applied to an object.
+type ApplyOption func(a *ApplyOptions)
+
+// ControllersMustMatch requires any existing object to have a controller
+// reference, and for that controller reference to match the controller
+// reference of the supplied object.
+func ControllersMustMatch() ApplyOption {
+	return func(a *ApplyOptions) {
+		a.ControllersMustMatch = true
+	}
+}
+
+// Apply changes to the supplied object. The object will be created if it does
+// not exist, or patched if it does.
+func Apply(ctx context.Context, c client.Client, o runtime.Object, ao ...ApplyOption) error {
+	opts := &ApplyOptions{}
+	for _, fn := range ao {
+		fn(opts)
+	}
+
+	existing := o.DeepCopyObject()
+	m, ok := existing.(metav1.Object)
+	if !ok {
+		return errors.New("cannot access object metadata")
+	}
+
+	err := c.Get(ctx, types.NamespacedName{Name: m.GetName(), Namespace: m.GetNamespace()}, existing)
+	if kerrors.IsNotFound(err) {
+		return errors.Wrap(c.Create(ctx, o), "cannot create object")
+	}
+	if err != nil {
+		return errors.Wrap(err, "cannot get object")
+	}
+
+	if opts.ControllersMustMatch && !meta.HaveSameController(o.(metav1.Object), m) {
+		return errors.New("existing object has a different (or no) controller")
+	}
+
+	return errors.Wrap(c.Patch(ctx, existing, &patch{o}), "cannot patch object")
+}
+
+type patch struct{ from runtime.Object }
+
+func (p *patch) Type() types.PatchType                 { return types.MergePatchType }
+func (p *patch) Data(_ runtime.Object) ([]byte, error) { return json.Marshal(p.from) }
