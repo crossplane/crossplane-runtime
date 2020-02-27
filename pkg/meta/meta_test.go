@@ -810,15 +810,13 @@ func TestWasCreated(t *testing.T) {
 }
 
 func TestGetExternalName(t *testing.T) {
-	testName := "my-external-name"
-
 	cases := map[string]struct {
 		o    metav1.Object
 		want string
 	}{
 		"ExternalNameExists": {
-			o:    &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{ExternalNameAnnotationKey: testName}}},
-			want: testName,
+			o:    &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{ExternalNameAnnotationKey: name}}},
+			want: name,
 		},
 		"NoExternalName": {
 			o:    &corev1.Pod{},
@@ -830,15 +828,13 @@ func TestGetExternalName(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			got := GetExternalName(tc.o)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("WasCreated(...): -want, +got:\n%s", diff)
+				t.Errorf("GetExternalName(...): -want, +got:\n%s", diff)
 			}
 		})
 	}
 }
 
 func TestSetExternalName(t *testing.T) {
-	testName := "my-external-name"
-
 	cases := map[string]struct {
 		o    metav1.Object
 		name string
@@ -846,8 +842,8 @@ func TestSetExternalName(t *testing.T) {
 	}{
 		"SetsTheCorrectKey": {
 			o:    &corev1.Pod{},
-			name: testName,
-			want: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{ExternalNameAnnotationKey: testName}}},
+			name: name,
+			want: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{ExternalNameAnnotationKey: name}}},
 		},
 	}
 
@@ -855,7 +851,7 @@ func TestSetExternalName(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			SetExternalName(tc.o, tc.name)
 			if diff := cmp.Diff(tc.want, tc.o); diff != "" {
-				t.Errorf("WasCreated(...): -want, +got:\n%s", diff)
+				t.Errorf("SetExternalName(...): -want, +got:\n%s", diff)
 			}
 		})
 	}

@@ -18,6 +18,7 @@ package resource
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -597,6 +598,39 @@ func TestApply(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.o, tc.args.o); diff != "" {
 				t.Errorf("\n%s\nApply(...): -want, +got\n%s\n", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestGetExternalTags(t *testing.T) {
+	provName := "prov"
+	className := "classy"
+	cases := map[string]struct {
+		o    Managed
+		want map[string]string
+	}{
+		"Successful": {
+			o: &fake.Managed{ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+			},
+				ProviderReferencer: fake.ProviderReferencer{Ref: &corev1.ObjectReference{Name: provName}},
+				ClassReferencer:    fake.ClassReferencer{Ref: &corev1.ObjectReference{Name: className}},
+			},
+			want: map[string]string{
+				ExternalResourceTagKeyKind:     strings.ToLower((&fake.Managed{}).GetObjectKind().GroupVersionKind().GroupKind().String()),
+				ExternalResourceTagKeyName:     name,
+				ExternalResourceTagKeyProvider: provName,
+				ExternalResourceTagKeyClass:    className,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := GetExternalTags(tc.o)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("GetExternalTags(...): -want, +got:\n%s", diff)
 			}
 		})
 	}

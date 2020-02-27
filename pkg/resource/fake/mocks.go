@@ -95,6 +95,15 @@ func (m *ManagedResourceReferencer) SetResourceReference(r *corev1.ObjectReferen
 // GetResourceReference gets the ResourceReference.
 func (m *ManagedResourceReferencer) GetResourceReference() *corev1.ObjectReference { return m.Ref }
 
+// ProviderReferencer is a mock that implements ProviderReferencer interface.
+type ProviderReferencer struct{ Ref *corev1.ObjectReference }
+
+// SetProviderReference sets the ProviderReference.
+func (m *ProviderReferencer) SetProviderReference(p *corev1.ObjectReference) { m.Ref = p }
+
+// GetProviderReference gets the ProviderReference.
+func (m *ProviderReferencer) GetProviderReference() *corev1.ObjectReference { return m.Ref }
+
 // LocalConnectionSecretWriterTo is a mock that implements LocalConnectionSecretWriterTo interface.
 type LocalConnectionSecretWriterTo struct {
 	Ref *v1alpha1.LocalSecretReference
@@ -200,6 +209,7 @@ type Managed struct {
 	metav1.ObjectMeta
 	ClassReferencer
 	ClaimReferencer
+	ProviderReferencer
 	ConnectionSecretWriterTo
 	Reclaimer
 	v1alpha1.ConditionedStatus

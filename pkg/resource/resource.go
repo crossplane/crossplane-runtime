@@ -19,6 +19,7 @@ package resource
 import (
 	"context"
 	"encoding/json"
+	"strings"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -44,6 +45,15 @@ const (
 	AnnotationKeyPropagateFromUID       = "from.propagate.crossplane.io/uid"
 
 	AnnotationDelimiter = "/"
+)
+
+// External resources are tagged/labelled with the following keys in the cloud
+// provider API if the type supports.
+const (
+	ExternalResourceTagKeyKind     = "crossplane-kind"
+	ExternalResourceTagKeyName     = "crossplane-name"
+	ExternalResourceTagKeyClass    = "crossplane-class"
+	ExternalResourceTagKeyProvider = "crossplane-provider"
 )
 
 // A ClaimKind contains the type metadata for a kind of resource claim.
@@ -298,3 +308,19 @@ type patch struct{ from runtime.Object }
 
 func (p *patch) Type() types.PatchType                 { return types.MergePatchType }
 func (p *patch) Data(_ runtime.Object) ([]byte, error) { return json.Marshal(p.from) }
+
+// GetExternalTags returns the identifying tags to be used to tag the external
+// resource in provider API.
+func GetExternalTags(mg Managed) map[string]string {
+	tags := map[string]string{
+		ExternalResourceTagKeyKind: strings.ToLower(mg.GetObjectKind().GroupVersionKind().GroupKind().String()),
+		ExternalResourceTagKeyName: mg.GetName(),
+	}
+	if mg.GetClassReference() != nil {
+		tags[ExternalResourceTagKeyClass] = mg.GetClassReference().Name
+	}
+	if mg.GetProviderReference() != nil {
+		tags[ExternalResourceTagKeyProvider] = mg.GetProviderReference().Name
+	}
+	return tags
+}
