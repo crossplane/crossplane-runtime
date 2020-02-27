@@ -42,6 +42,19 @@ func (p *Paved) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &p.object)
 }
 
+// UnstructuredContent returns the JSON serialisable content of this Paved.
+func (p *Paved) UnstructuredContent() map[string]interface{} {
+	if p.object == nil {
+		return make(map[string]interface{})
+	}
+	return p.object
+}
+
+// SetUnstructuredContent sets the JSON serialisable content of this Paved.
+func (p *Paved) SetUnstructuredContent(content map[string]interface{}) {
+	p.object = content
+}
+
 func (p *Paved) getValue(s Segments) (interface{}, error) {
 	var it interface{} = p.object
 	for i, current := range s {
