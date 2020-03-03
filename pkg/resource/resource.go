@@ -259,13 +259,14 @@ func Apply(ctx context.Context, c client.Client, o runtime.Object, ao ...ApplyOp
 		fn(opts)
 	}
 
-	existing := o.DeepCopyObject()
-	m, ok := existing.(metav1.Object)
+	m, ok := o.(metav1.Object)
 	if !ok {
 		return errors.New("cannot access object metadata")
 	}
 
-	err := c.Get(ctx, types.NamespacedName{Name: m.GetName(), Namespace: m.GetNamespace()}, existing)
+	desired := o.DeepCopyObject()
+
+	err := c.Get(ctx, types.NamespacedName{Name: m.GetName(), Namespace: m.GetNamespace()}, o)
 	if kerrors.IsNotFound(err) {
 		return errors.Wrap(c.Create(ctx, o), "cannot create object")
 	}
@@ -277,7 +278,7 @@ func Apply(ctx context.Context, c client.Client, o runtime.Object, ao ...ApplyOp
 		return errors.New("existing object has a different (or no) controller")
 	}
 
-	return errors.Wrap(c.Patch(ctx, existing, &patch{o}), "cannot patch object")
+	return errors.Wrap(c.Patch(ctx, o, &patch{desired}), "cannot patch object")
 }
 
 type patch struct{ from runtime.Object }

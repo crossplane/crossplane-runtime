@@ -464,6 +464,11 @@ func (o *nopeject) DeepCopyObject() runtime.Object {
 
 func TestApply(t *testing.T) {
 	errBoom := errors.New("boom")
+	named := &object{}
+	named.SetName("barry")
+
+	controlled := &object{}
+	meta.AddControllerReference(controlled, metav1.OwnerReference{UID: types.UID("wat")})
 
 	type args struct {
 		ctx context.Context
@@ -472,10 +477,15 @@ func TestApply(t *testing.T) {
 		ao  []ApplyOption
 	}
 
+	type want struct {
+		o   runtime.Object
+		err error
+	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
-		want   error
+		want   want
 	}{
 		"NotAMetadataObject": {
 			reason: "An error should be returned if we can't access the object's metadata",
@@ -483,7 +493,10 @@ func TestApply(t *testing.T) {
 				c: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
 				o: &nopeject{},
 			},
-			want: errors.New("cannot access object metadata"),
+			want: want{
+				o:   &nopeject{},
+				err: errors.New("cannot access object metadata"),
+			},
 		},
 		"GetError": {
 			reason: "An error should be returned if we can't get the object",
@@ -491,7 +504,10 @@ func TestApply(t *testing.T) {
 				c: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
 				o: &object{},
 			},
-			want: errors.Wrap(errBoom, "cannot get object"),
+			want: want{
+				o:   &object{},
+				err: errors.Wrap(errBoom, "cannot get object"),
+			},
 		},
 		"CreateError": {
 			reason: "No error should be returned if we successfully create a new object",
@@ -502,21 +518,25 @@ func TestApply(t *testing.T) {
 				},
 				o: &object{},
 			},
-			want: errors.Wrap(errBoom, "cannot create object"),
+			want: want{
+				o:   &object{},
+				err: errors.Wrap(errBoom, "cannot create object"),
+			},
 		},
 		"ControllerMismatch": {
 			reason: "An error should be returned if controllers must match, but don't",
 			args: args{
 				c: &test.MockClient{MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
-					obj := &object{}
-					meta.AddControllerReference(obj, metav1.OwnerReference{UID: types.UID("wat")})
-					*(o.(*object)) = *obj
+					*(o.(*object)) = *controlled
 					return nil
 				})},
 				o:  &object{},
 				ao: []ApplyOption{ControllersMustMatch()},
 			},
-			want: errors.New("existing object has a different (or no) controller"),
+			want: want{
+				o:   controlled,
+				err: errors.New("existing object has a different (or no) controller"),
+			},
 		},
 		"PatchError": {
 			reason: "An error should be returned if we can't patch the object",
@@ -527,26 +547,41 @@ func TestApply(t *testing.T) {
 				},
 				o: &object{},
 			},
-			want: errors.Wrap(errBoom, "cannot patch object"),
+			want: want{
+				o:   &object{},
+				err: errors.Wrap(errBoom, "cannot patch object"),
+			},
 		},
 		"Created": {
 			reason: "No error should be returned if we successfully create a new object",
 			args: args{
 				c: &test.MockClient{
-					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-					MockCreate: test.NewMockCreateFn(nil),
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockCreate: test.NewMockCreateFn(nil, func(o runtime.Object) error {
+						*(o.(*object)) = *named
+						return nil
+					}),
 				},
 				o: &object{},
+			},
+			want: want{
+				o: named,
 			},
 		},
 		"Patched": {
 			reason: "No error should be returned if we successfully patch an existing object",
 			args: args{
 				c: &test.MockClient{
-					MockGet:   test.NewMockGetFn(nil),
-					MockPatch: test.NewMockPatchFn(nil),
+					MockGet: test.NewMockGetFn(nil),
+					MockPatch: test.NewMockPatchFn(nil, func(o runtime.Object) error {
+						*(o.(*object)) = *named
+						return nil
+					}),
 				},
 				o: &object{},
+			},
+			want: want{
+				o: named,
 			},
 		},
 	}
@@ -554,8 +589,11 @@ func TestApply(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := Apply(tc.args.ctx, tc.args.c, tc.args.o, tc.args.ao...)
-			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nApply(...): -want error, +got error\n%s\n", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.o, tc.args.o); diff != "" {
+				t.Errorf("\n%s\nApply(...): -want, +got\n%s\n", tc.reason, diff)
 			}
 		})
 	}
