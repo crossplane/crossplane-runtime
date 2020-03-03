@@ -195,6 +195,19 @@ func (p *Paved) GetNumber(path string) (float64, error) {
 }
 
 func (p *Paved) setValue(s Segments, value interface{}) error {
+	// We expect p.object to look like JSON data that was unmarshalled into an
+	// interface{} per https://golang.org/pkg/encoding/json/#Unmarshal. We
+	// marshal our value to JSON and unmarshal it into an interface{} to ensure
+	// it meets these criteria before setting it within p.object.
+	var v interface{}
+	j, err := json.Marshal(value)
+	if err != nil {
+		return errors.Wrap(err, "cannot marshal value to JSON")
+	}
+	if err := json.Unmarshal(j, &v); err != nil {
+		return errors.Wrap(err, "cannot unmarshal value from JSON")
+	}
+
 	var in interface{} = p.object
 	for i, current := range s {
 		final := i == len(s)-1
@@ -207,7 +220,7 @@ func (p *Paved) setValue(s Segments, value interface{}) error {
 			}
 
 			if final {
-				array[current.Index] = value
+				array[current.Index] = v
 				return nil
 			}
 
@@ -221,7 +234,7 @@ func (p *Paved) setValue(s Segments, value interface{}) error {
 			}
 
 			if final {
-				object[current.Field] = value
+				object[current.Field] = v
 				return nil
 			}
 
