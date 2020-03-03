@@ -274,7 +274,7 @@ func Apply(ctx context.Context, c client.Client, o runtime.Object, ao ...ApplyOp
 		return errors.Wrap(err, "cannot get object")
 	}
 
-	if opts.ControllersMustMatch && !meta.HaveSameController(o.(metav1.Object), m) {
+	if opts.ControllersMustMatch && !meta.HaveSameController(m, desired.(metav1.Object)) {
 		return errors.New("existing object has a different (or no) controller")
 	}
 
