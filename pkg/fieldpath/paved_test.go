@@ -22,6 +22,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
@@ -561,6 +563,48 @@ func TestSetValue(t *testing.T) {
 			want: want{
 				object: map[string]interface{}{
 					"data": []interface{}{"a", nil, "c"},
+				},
+			},
+		},
+		"MapStringString": {
+			reason: "A map of string to string should be converted to a map of string to interface{}",
+			data:   []byte(`{"metadata":{}}`),
+			args: args{
+				path:  "metadata.labels",
+				value: map[string]string{"cool": "very"},
+			},
+			want: want{
+				object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"labels": map[string]interface{}{"cool": "very"},
+					},
+				},
+			},
+		},
+		"OwnerReference": {
+			reason: "An ObjectReference (i.e. struct) should be converted to a map of string to interface{}",
+			data:   []byte(`{"metadata":{}}`),
+			args: args{
+				path: "metadata.ownerRefs[0]",
+				value: metav1.OwnerReference{
+					APIVersion: "v",
+					Kind:       "k",
+					Name:       "n",
+					UID:        types.UID("u"),
+				},
+			},
+			want: want{
+				object: map[string]interface{}{
+					"metadata": map[string]interface{}{
+						"ownerRefs": []interface{}{
+							map[string]interface{}{
+								"apiVersion": "v",
+								"kind":       "k",
+								"name":       "n",
+								"uid":        "u",
+							},
+						},
+					},
 				},
 			},
 		},
