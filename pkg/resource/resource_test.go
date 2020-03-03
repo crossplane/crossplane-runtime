@@ -468,7 +468,8 @@ func TestApply(t *testing.T) {
 	named.SetName("barry")
 
 	controlled := &object{}
-	meta.AddControllerReference(controlled, metav1.OwnerReference{UID: types.UID("wat")})
+	ref := metav1.NewControllerRef(named, schema.GroupVersionKind{})
+	meta.AddControllerReference(controlled, *ref)
 
 	type args struct {
 		ctx context.Context
