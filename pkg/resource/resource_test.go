@@ -462,6 +462,8 @@ func (o *nopeject) DeepCopyObject() runtime.Object {
 	return &nopeject{}
 }
 
+var _ Applicator = ApplyFn(Apply)
+
 func TestApply(t *testing.T) {
 	errBoom := errors.New("boom")
 	named := &object{}
