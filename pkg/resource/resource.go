@@ -231,6 +231,19 @@ func IsConditionTrue(c v1alpha1.Condition) bool {
 	return c.Status == corev1.ConditionTrue
 }
 
+// An Applicator applies changes to an object.
+type Applicator interface {
+	Apply(context.Context, client.Client, runtime.Object, ...ApplyOption) error
+}
+
+// An ApplyFn is a function that satisfies the Applicator interface.
+type ApplyFn func(context.Context, client.Client, runtime.Object, ...ApplyOption) error
+
+// Apply changes to the supplied object.
+func (fn ApplyFn) Apply(ctx context.Context, c client.Client, o runtime.Object, ao ...ApplyOption) error {
+	return fn(ctx, c, o, ao...)
+}
+
 // ApplyOptions configure how changes are applied to an object.
 type ApplyOptions struct {
 	// ControllersMustMatch requires any existing object to have a controller
