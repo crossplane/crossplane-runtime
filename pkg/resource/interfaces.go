@@ -89,6 +89,12 @@ type CredentialsSecretReferencer interface {
 	SetCredentialsSecretReference(r v1alpha1.SecretKeySelector)
 }
 
+// A ProviderReferencer may reference a provider resource.
+type ProviderReferencer interface {
+	GetProviderReference() *corev1.ObjectReference
+	SetProviderReference(p *corev1.ObjectReference)
+}
+
 // A Claim is a Kubernetes object representing an abstract resource claim (e.g.
 // an SQL database) that may be bound to a concrete managed resource (e.g. a
 // CloudSQL instance).
@@ -122,6 +128,7 @@ type Managed interface {
 
 	ClassReferencer
 	ClaimReferencer
+	ProviderReferencer
 	ConnectionSecretWriterTo
 	Reclaimer
 
