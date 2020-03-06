@@ -24,14 +24,15 @@ import (
 	"github.com/pkg/errors"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
-
-	// Allow auth to cloud providers
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
-
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+
+	// Allow auth to cloud providers
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
+
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
 const (
@@ -80,7 +81,7 @@ func NewCRDCleaner() CleanerFn {
 		}
 
 		for _, crd := range crds {
-			if err := cs.ApiextensionsV1beta1().CustomResourceDefinitions().Delete(crd.Name, nil); err != nil {
+			if err := cs.ApiextensionsV1beta1().CustomResourceDefinitions().Delete(crd.Name, nil); resource.IgnoreNotFound(err) != nil {
 				return errors.Wrap(err, errCleanup)
 			}
 		}

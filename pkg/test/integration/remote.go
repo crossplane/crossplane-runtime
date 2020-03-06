@@ -17,6 +17,7 @@ limitations under the License.
 package integration
 
 import (
+	"fmt"
 	"hash/fnv"
 	"os"
 	"path/filepath"
@@ -37,7 +38,7 @@ func downloadPath(url, path string) (string, error) {
 	if _, err = hasher.Write([]byte(url)); err != nil {
 		return "", err
 	}
-	dst := filepath.Join(path, string(hasher.Sum32()))
+	dst := filepath.Join(path, fmt.Sprint(hasher.Sum32()))
 
 	c := getter.Client{
 		Src:  url,
@@ -45,5 +46,6 @@ func downloadPath(url, path string) (string, error) {
 		Pwd:  pwd,
 		Mode: getter.ClientModeAny,
 	}
+
 	return dst, c.Get()
 }
