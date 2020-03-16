@@ -35,8 +35,9 @@ import (
 )
 
 const (
-	managedFinalizerName    = "finalizer.managedresource.crossplane.io"
-	managedReconcileTimeout = 1 * time.Minute
+	managedFinalizerName = "finalizer.managedresource.crossplane.io"
+	reconcileGracePeriod = 30 * time.Second
+	reconcileTimeout     = 1 * time.Minute
 
 	defaultManagedShortWait = 30 * time.Second
 	defaultManagedLongWait  = 1 * time.Minute
@@ -317,6 +318,7 @@ type Reconciler struct {
 
 	shortWait time.Duration
 	longWait  time.Duration
+	timeout   time.Duration
 
 	// The below structs embed the set of interfaces used to implement the
 	// managed resource reconciler. We do this primarily for readability, so
@@ -357,6 +359,16 @@ func defaultMRExternal() mrExternal {
 
 // A ReconcilerOption configures a Reconciler.
 type ReconcilerOption func(*Reconciler)
+
+// WithTimeout specifies the timeout duration cumulatively for all the calls happen
+// in the reconciliation function. In case the deadline exceeds, reconciler will
+// still have some time to make the necessary calls to report the error such as
+// status update.
+func WithTimeout(duration time.Duration) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.timeout = duration
+	}
+}
 
 // WithShortWait specifies how long the Reconciler should wait before queueing a
 // new reconciliation in 'short wait' scenarios. The Reconciler requeues after a
@@ -454,6 +466,7 @@ func NewReconciler(m manager.Manager, of resource.ManagedKind, o ...ReconcilerOp
 		newManaged: nm,
 		shortWait:  defaultManagedShortWait,
 		longWait:   defaultManagedLongWait,
+		timeout:    reconcileTimeout,
 		managed:    defaultMRManaged(m),
 		external:   defaultMRExternal(),
 		log:        logging.NewNopLogger(),
@@ -475,8 +488,13 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 
-	ctx, cancel := context.WithTimeout(context.Background(), managedReconcileTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), r.timeout+reconcileGracePeriod)
 	defer cancel()
+
+	// Govet linter has a check for lost cancel funcs but it's a false positive
+	// for child contexts as because parent's cancel is called, so we skip it
+	// for this line.
+	externalCtx, _ := context.WithTimeout(ctx, r.timeout) // nolint:govet
 
 	managed := r.newManaged()
 	if err := r.client.Get(ctx, req.NamespacedName, managed); err != nil {
@@ -493,7 +511,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		"external-name", meta.GetExternalName(managed),
 	)
 
-	external, err := r.external.Connect(ctx, managed)
+	external, err := r.external.Connect(externalCtx, managed)
 	if err != nil {
 		// We'll usually hit this case if our Provider or its secret are missing
 		// or invalid. If this is first time we encounter this issue we'll be
@@ -543,7 +561,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		managed.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 	}
 
-	observation, err := external.Observe(ctx, managed)
+	observation, err := external.Observe(externalCtx, managed)
 	if err != nil {
 		// We'll usually hit this case if our Provider credentials are invalid
 		// or insufficient for observing the external resource type we're
@@ -560,7 +578,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		log = log.WithValues("deletion-timestamp", managed.GetDeletionTimestamp())
 
 		if observation.ResourceExists && managed.GetReclaimPolicy() == v1alpha1.ReclaimDelete {
-			if err := external.Delete(ctx, managed); err != nil {
+			if err := external.Delete(externalCtx, managed); err != nil {
 				// We'll hit this condition if we can't delete our external
 				// resource, for example if our provider credentials don't have
 				// access to delete it. If this is the first time we encounter this
@@ -631,7 +649,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	if !observation.ResourceExists {
-		creation, err := external.Create(ctx, managed)
+		creation, err := external.Create(externalCtx, managed)
 		if err != nil {
 			// We'll hit this condition if we can't create our external
 			// resource, for example if our provider credentials don't have
@@ -676,7 +694,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{RequeueAfter: r.longWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
-	update, err := external.Update(ctx, managed)
+	update, err := external.Update(externalCtx, managed)
 	if err != nil {
 		// We'll hit this condition if we can't update our external resource,
 		// for example if our provider credentials don't have access to update
