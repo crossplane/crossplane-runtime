@@ -254,34 +254,24 @@ func (fn ApplyFn) Apply(ctx context.Context, c client.Client, o runtime.Object, 
 	return fn(ctx, c, o, ao...)
 }
 
-// ApplyOptions configure how changes are applied to an object.
-type ApplyOptions struct {
-	// ControllersMustMatch requires any existing object to have a controller
-	// reference, and for that controller reference to match the controller
-	// reference of the supplied object.
-	ControllersMustMatch bool
-}
-
-// An ApplyOption configures how changes are applied to an object.
-type ApplyOption func(a *ApplyOptions)
+// An ApplyOption is a function that checks for a condition before patch.
+type ApplyOption func(ctx context.Context, current, desired runtime.Object) error
 
 // ControllersMustMatch requires any existing object to have a controller
 // reference, and for that controller reference to match the controller
 // reference of the supplied object.
 func ControllersMustMatch() ApplyOption {
-	return func(a *ApplyOptions) {
-		a.ControllersMustMatch = true
+	return func(_ context.Context, current, desired runtime.Object) error {
+		if !meta.HaveSameController(current.(metav1.Object), desired.(metav1.Object)) {
+			return errors.New("existing object has a different (or no) controller")
+		}
+		return nil
 	}
 }
 
 // Apply changes to the supplied object. The object will be created if it does
 // not exist, or patched if it does.
 func Apply(ctx context.Context, c client.Client, o runtime.Object, ao ...ApplyOption) error {
-	opts := &ApplyOptions{}
-	for _, fn := range ao {
-		fn(opts)
-	}
-
 	m, ok := o.(metav1.Object)
 	if !ok {
 		return errors.New("cannot access object metadata")
@@ -297,8 +287,10 @@ func Apply(ctx context.Context, c client.Client, o runtime.Object, ao ...ApplyOp
 		return errors.Wrap(err, "cannot get object")
 	}
 
-	if opts.ControllersMustMatch && !meta.HaveSameController(m, desired.(metav1.Object)) {
-		return errors.New("existing object has a different (or no) controller")
+	for _, fn := range ao {
+		if err := fn(ctx, o, desired); err != nil {
+			return err
+		}
 	}
 
 	return errors.Wrap(c.Patch(ctx, o, &patch{desired}), "cannot patch object")
