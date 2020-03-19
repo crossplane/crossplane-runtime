@@ -97,8 +97,8 @@ type ProviderReferencer interface {
 
 // A WorkloadReferencer may reference an OAM workload.
 type WorkloadReferencer interface {
-	GetWorkloadReference() *v1alpha1.TypedReference
-	SetWorkloadReference(*v1alpha1.TypedReference)
+	GetWorkloadReference() v1alpha1.TypedReference
+	SetWorkloadReference(v1alpha1.TypedReference)
 }
 
 // An Object is a Kubernetes object.

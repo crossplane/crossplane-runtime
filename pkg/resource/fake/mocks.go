@@ -156,15 +156,15 @@ func (m *CredentialsSecretReferencer) GetCredentialsSecretReference() v1alpha1.S
 }
 
 // A WorkloadReferencer references an OAM Workload type.
-type WorkloadReferencer struct{ Ref *v1alpha1.TypedReference }
+type WorkloadReferencer struct{ Ref v1alpha1.TypedReference }
 
 // GetWorkloadReference gets the WorkloadReference.
-func (w *WorkloadReferencer) GetWorkloadReference() *v1alpha1.TypedReference {
+func (w *WorkloadReferencer) GetWorkloadReference() v1alpha1.TypedReference {
 	return w.Ref
 }
 
 // SetWorkloadReference sets the WorkloadReference.
-func (w *WorkloadReferencer) SetWorkloadReference(r *v1alpha1.TypedReference) {
+func (w *WorkloadReferencer) SetWorkloadReference(r v1alpha1.TypedReference) {
 	w.Ref = r
 }
 
