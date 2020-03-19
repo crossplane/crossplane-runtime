@@ -92,7 +92,7 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
 							if t, ok := obj.(resource.Trait); ok {
-								t.SetWorkloadReference(&v1alpha1.TypedReference{
+								t.SetWorkloadReference(v1alpha1.TypedReference{
 									APIVersion: workloadAPIVersion,
 									Kind:       workloadKind,
 									Name:       workloadName,
@@ -125,7 +125,7 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
 							if t, ok := obj.(resource.Trait); ok {
-								t.SetWorkloadReference(&v1alpha1.TypedReference{
+								t.SetWorkloadReference(v1alpha1.TypedReference{
 									APIVersion: workloadAPIVersion,
 									Kind:       workloadKind,
 									Name:       workloadName,
@@ -162,7 +162,7 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
 							if t, ok := obj.(resource.Trait); ok {
-								t.SetWorkloadReference(&v1alpha1.TypedReference{
+								t.SetWorkloadReference(v1alpha1.TypedReference{
 									APIVersion: workloadAPIVersion,
 									Kind:       workloadKind,
 									Name:       workloadName,
@@ -205,7 +205,7 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
 							if t, ok := obj.(resource.Trait); ok {
-								t.SetWorkloadReference(&v1alpha1.TypedReference{
+								t.SetWorkloadReference(v1alpha1.TypedReference{
 									APIVersion: workloadAPIVersion,
 									Kind:       workloadKind,
 									Name:       workloadName,
@@ -248,7 +248,7 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
 							if t, ok := obj.(resource.Trait); ok {
-								t.SetWorkloadReference(&v1alpha1.TypedReference{
+								t.SetWorkloadReference(v1alpha1.TypedReference{
 									APIVersion: workloadAPIVersion,
 									Kind:       workloadKind,
 									Name:       workloadName,
@@ -291,7 +291,7 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
 							if t, ok := obj.(resource.Trait); ok {
-								t.SetWorkloadReference(&v1alpha1.TypedReference{
+								t.SetWorkloadReference(v1alpha1.TypedReference{
 									APIVersion: workloadAPIVersion,
 									Kind:       workloadKind,
 									Name:       workloadName,
