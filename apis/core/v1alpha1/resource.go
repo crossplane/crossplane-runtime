@@ -23,6 +23,8 @@ import (
 	// deepcopy generation logic. It generates a deepcopy file that omits this
 	// import and thus does not compile. Importing as v1 fixes this. ¯\_(ツ)_/¯
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // The annotation used to make a resource class the default.
@@ -80,6 +82,37 @@ type SecretKeySelector struct {
 	// The key to select.
 	Key string `json:"key"`
 }
+
+// A TypedReference refers to an object by Name, Kind, and APIVersion. It is
+// commonly used to reference cluster-scoped objects or objects where the
+// namespace is already known.
+type TypedReference struct {
+	// APIVersion of the referenced object.
+	APIVersion string `json:"apiVersion"`
+
+	// Kind of the referenced object.
+	Kind string `json:"kind"`
+
+	// Name of the referenced object.
+	Name string `json:"name"`
+
+	// UID of the referenced object.
+	// +optional
+	UID types.UID `json:"uid,omitempty"`
+}
+
+// SetGroupVersionKind sets the Kind and APIVersion of a TypedReference.
+func (obj *TypedReference) SetGroupVersionKind(gvk schema.GroupVersionKind) {
+	obj.APIVersion, obj.Kind = gvk.ToAPIVersionAndKind()
+}
+
+// GroupVersionKind gets the GroupVersionKind of a TypedReference.
+func (obj *TypedReference) GroupVersionKind() schema.GroupVersionKind {
+	return schema.FromAPIVersionAndKind(obj.APIVersion, obj.Kind)
+}
+
+// GetObjectKind get the ObjectKind of a TypedReference.
+func (obj *TypedReference) GetObjectKind() schema.ObjectKind { return obj }
 
 // A ResourceClaimSpec defines the desired state of a resource claim.
 type ResourceClaimSpec struct {

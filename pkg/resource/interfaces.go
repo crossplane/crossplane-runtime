@@ -95,12 +95,23 @@ type ProviderReferencer interface {
 	SetProviderReference(p *corev1.ObjectReference)
 }
 
+// A WorkloadReferencer may reference an OAM workload.
+type WorkloadReferencer interface {
+	GetWorkloadReference() *v1alpha1.TypedReference
+	SetWorkloadReference(*v1alpha1.TypedReference)
+}
+
+// An Object is a Kubernetes object.
+type Object interface {
+	metav1.Object
+	runtime.Object
+}
+
 // A Claim is a Kubernetes object representing an abstract resource claim (e.g.
 // an SQL database) that may be bound to a concrete managed resource (e.g. a
 // CloudSQL instance).
 type Claim interface {
-	runtime.Object
-	metav1.Object
+	Object
 
 	ClassSelector
 	ClassReferencer
@@ -114,8 +125,7 @@ type Claim interface {
 // A Class is a Kubernetes object representing configuration specifications for
 // a managed resource.
 type Class interface {
-	runtime.Object
-	metav1.Object
+	Object
 
 	Reclaimer
 }
@@ -123,8 +133,7 @@ type Class interface {
 // A Managed is a Kubernetes object representing a concrete managed
 // resource (e.g. a CloudSQL instance).
 type Managed interface {
-	runtime.Object
-	metav1.Object
+	Object
 
 	ClassReferencer
 	ClaimReferencer
@@ -139,8 +148,7 @@ type Managed interface {
 // A Provider is a Kubernetes object that refers to credentials to connect
 // to an external system.
 type Provider interface {
-	runtime.Object
-	metav1.Object
+	Object
 
 	CredentialsSecretReferencer
 }
@@ -148,11 +156,25 @@ type Provider interface {
 // A Target is a Kubernetes object that refers to credentials to connect
 // to a deployment target. Target is a subset of the Claim interface.
 type Target interface {
-	runtime.Object
-	metav1.Object
+	Object
 
 	LocalConnectionSecretWriterTo
 	ManagedResourceReferencer
+
+	Conditioned
+}
+
+// A Trait is a type of OAM trait.
+type Trait interface {
+	Object
+
+	Conditioned
+	WorkloadReferencer
+}
+
+// A Workload is a type of OAM workload.
+type Workload interface {
+	Object
 
 	Conditioned
 }

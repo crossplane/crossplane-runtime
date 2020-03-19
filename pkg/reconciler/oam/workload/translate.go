@@ -18,19 +18,9 @@ package workload
 
 import (
 	"context"
-	"reflect"
-
-	corev1 "k8s.io/api/core/v1"
 
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
-
-var (
-	serviceKind       = reflect.TypeOf(corev1.Service{}).Name()
-	serviceAPIVersion = corev1.SchemeGroupVersion.String()
-)
-
-var labelKey = "workload.oam.crossplane.io"
 
 // A Translator is responsible for packaging workloads into other objects.
 type Translator interface {

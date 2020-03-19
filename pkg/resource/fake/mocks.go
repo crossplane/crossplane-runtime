@@ -155,6 +155,41 @@ func (m *CredentialsSecretReferencer) GetCredentialsSecretReference() v1alpha1.S
 	return m.Ref
 }
 
+// A WorkloadReferencer references an OAM Workload type.
+type WorkloadReferencer struct{ Ref *v1alpha1.TypedReference }
+
+// GetWorkloadReference gets the WorkloadReference.
+func (w *WorkloadReferencer) GetWorkloadReference() *v1alpha1.TypedReference {
+	return w.Ref
+}
+
+// SetWorkloadReference sets the WorkloadReference.
+func (w *WorkloadReferencer) SetWorkloadReference(r *v1alpha1.TypedReference) {
+	w.Ref = r
+}
+
+// Object is a mock that implements Object interface.
+type Object struct {
+	metav1.ObjectMeta
+	runtime.Object
+}
+
+// GetObjectKind returns schema.ObjectKind.
+func (o *Object) GetObjectKind() schema.ObjectKind {
+	return schema.EmptyObjectKind
+}
+
+// DeepCopyObject returns a copy of the object as runtime.Object
+func (o *Object) DeepCopyObject() runtime.Object {
+	out := &Object{}
+	j, err := json.Marshal(o)
+	if err != nil {
+		panic(err)
+	}
+	_ = json.Unmarshal(j, out)
+	return out
+}
+
 // Claim is a mock that implements Claim interface.
 type Claim struct {
 	metav1.ObjectMeta
@@ -271,6 +306,53 @@ func (m *Target) GetObjectKind() schema.ObjectKind {
 func (m *Target) DeepCopyObject() runtime.Object {
 	out := &Target{}
 	j, err := json.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	_ = json.Unmarshal(j, out)
+	return out
+}
+
+// Trait is a mock that implements Trait interface.
+type Trait struct {
+	metav1.ObjectMeta
+	runtime.Object
+	v1alpha1.ConditionedStatus
+	WorkloadReferencer
+}
+
+// GetObjectKind returns schema.ObjectKind.
+func (t *Trait) GetObjectKind() schema.ObjectKind {
+	return schema.EmptyObjectKind
+}
+
+// DeepCopyObject returns a copy of the object as runtime.Object
+func (t *Trait) DeepCopyObject() runtime.Object {
+	out := &Trait{}
+	j, err := json.Marshal(t)
+	if err != nil {
+		panic(err)
+	}
+	_ = json.Unmarshal(j, out)
+	return out
+}
+
+// Workload is a mock that implements Workload interface.
+type Workload struct {
+	metav1.ObjectMeta
+	runtime.Object
+	v1alpha1.ConditionedStatus
+}
+
+// GetObjectKind returns schema.ObjectKind.
+func (w *Workload) GetObjectKind() schema.ObjectKind {
+	return schema.EmptyObjectKind
+}
+
+// DeepCopyObject returns a copy of the object as runtime.Object
+func (w *Workload) DeepCopyObject() runtime.Object {
+	out := &Workload{}
+	j, err := json.Marshal(w)
 	if err != nil {
 		panic(err)
 	}
