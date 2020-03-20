@@ -104,12 +104,9 @@ type Reconciler struct {
 	record event.Recorder
 }
 
-// Kind is an OAM trait kind.
-type Kind schema.GroupVersionKind
-
 // NewReconciler returns a Reconciler that reconciles OAM traits by fetching
 // their referenced workload's translation and applying modifications.
-func NewReconciler(m ctrl.Manager, trait Kind, trans Kind, o ...ReconcilerOption) *Reconciler {
+func NewReconciler(m ctrl.Manager, trait resource.TraitKind, trans resource.ObjectKind, o ...ReconcilerOption) *Reconciler {
 	nt := func() resource.Trait {
 		return resource.MustCreateObject(schema.GroupVersionKind(trait), m.GetScheme()).(resource.Trait)
 	}

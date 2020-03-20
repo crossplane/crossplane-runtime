@@ -40,8 +40,8 @@ var _ reconcile.Reconciler = &Reconciler{}
 func TestReconciler(t *testing.T) {
 	type args struct {
 		m manager.Manager
-		t Kind
-		p Kind
+		t resource.TraitKind
+		p resource.ObjectKind
 		o []ReconcilerOption
 	}
 
@@ -68,8 +68,8 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
 					Scheme: fake.SchemeWith(&fake.Trait{}, &fake.Object{}),
 				},
-				t: Kind(fake.GVK(&fake.Trait{})),
-				p: Kind(fake.GVK(&fake.Object{})),
+				t: resource.TraitKind(fake.GVK(&fake.Trait{})),
+				p: resource.ObjectKind(fake.GVK(&fake.Object{})),
 			},
 			want: want{err: errors.Wrap(errBoom, errGetTrait)},
 		},
@@ -80,8 +80,8 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, ""))},
 					Scheme: fake.SchemeWith(&fake.Trait{}),
 				},
-				t: Kind(fake.GVK(&fake.Trait{})),
-				p: Kind(fake.GVK(&fake.Object{})),
+				t: resource.TraitKind(fake.GVK(&fake.Trait{})),
+				p: resource.ObjectKind(fake.GVK(&fake.Object{})),
 			},
 			want: want{result: reconcile.Result{}},
 		},
@@ -113,8 +113,8 @@ func TestReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Trait{}, &fake.Object{}),
 				},
-				t: Kind(fake.GVK(&fake.Trait{})),
-				p: Kind(fake.GVK(&fake.Object{})),
+				t: resource.TraitKind(fake.GVK(&fake.Trait{})),
+				p: resource.ObjectKind(fake.GVK(&fake.Object{})),
 			},
 			want: want{result: reconcile.Result{RequeueAfter: shortWait}},
 		},
@@ -150,8 +150,8 @@ func TestReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Trait{}, &fake.Object{}),
 				},
-				t: Kind(fake.GVK(&fake.Trait{})),
-				p: Kind(fake.GVK(&fake.Object{})),
+				t: resource.TraitKind(fake.GVK(&fake.Trait{})),
+				p: resource.ObjectKind(fake.GVK(&fake.Object{})),
 			},
 			want: want{result: reconcile.Result{RequeueAfter: shortWait}},
 		},
@@ -190,8 +190,8 @@ func TestReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Trait{}, &fake.Object{}),
 				},
-				t: Kind(fake.GVK(&fake.Trait{})),
-				p: Kind(fake.GVK(&fake.Object{})),
+				t: resource.TraitKind(fake.GVK(&fake.Trait{})),
+				p: resource.ObjectKind(fake.GVK(&fake.Object{})),
 				o: []ReconcilerOption{WithModifier(ModifyFn(func(_ context.Context, _ runtime.Object, _ resource.Trait) error {
 					return errBoom
 				}))},
@@ -233,8 +233,8 @@ func TestReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Trait{}, &fake.Object{}),
 				},
-				t: Kind(fake.GVK(&fake.Trait{})),
-				p: Kind(fake.GVK(&fake.Object{})),
+				t: resource.TraitKind(fake.GVK(&fake.Trait{})),
+				p: resource.ObjectKind(fake.GVK(&fake.Object{})),
 				o: []ReconcilerOption{WithApplicator(resource.ApplyFn(func(_ context.Context, _ client.Client, _ runtime.Object, _ ...resource.ApplyOption) error {
 					return errBoom
 				}))},
@@ -276,8 +276,8 @@ func TestReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Trait{}, &fake.Object{}),
 				},
-				t: Kind(fake.GVK(&fake.Trait{})),
-				p: Kind(fake.GVK(&fake.Object{})),
+				t: resource.TraitKind(fake.GVK(&fake.Trait{})),
+				p: resource.ObjectKind(fake.GVK(&fake.Object{})),
 				o: []ReconcilerOption{WithApplicator(resource.ApplyFn(func(_ context.Context, _ client.Client, _ runtime.Object, _ ...resource.ApplyOption) error {
 					return nil
 				}))},
@@ -307,8 +307,8 @@ func TestReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Trait{}, &fake.Object{}),
 				},
-				t: Kind(fake.GVK(&fake.Trait{})),
-				p: Kind(fake.GVK(&fake.Object{})),
+				t: resource.TraitKind(fake.GVK(&fake.Trait{})),
+				p: resource.ObjectKind(fake.GVK(&fake.Object{})),
 				o: []ReconcilerOption{WithApplicator(resource.ApplyFn(func(_ context.Context, _ client.Client, _ runtime.Object, _ ...resource.ApplyOption) error {
 					return nil
 				}))},

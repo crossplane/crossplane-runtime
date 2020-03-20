@@ -24,7 +24,7 @@ import (
 
 // A Translator is responsible for packaging workloads into other objects.
 type Translator interface {
-	Translate(context.Context, resource.Workload) ([]Object, error)
+	Translate(context.Context, resource.Workload) ([]resource.Object, error)
 }
 
 // An ObjectTranslator is a concrete implementation of a Translator.
@@ -33,7 +33,7 @@ type ObjectTranslator struct {
 }
 
 // Translate a workload into other objects.
-func (p *ObjectTranslator) Translate(ctx context.Context, w resource.Workload) ([]Object, error) {
+func (p *ObjectTranslator) Translate(ctx context.Context, w resource.Workload) ([]resource.Object, error) {
 	return p.TranslateFn(ctx, w)
 }
 
@@ -41,7 +41,7 @@ func (p *ObjectTranslator) Translate(ctx context.Context, w resource.Workload) (
 // a workload.
 func NewObjectTranslatorWithWrappers(t TranslateFn, wp ...TranslationWrapper) Translator {
 	return &ObjectTranslator{
-		TranslateFn: func(ctx context.Context, w resource.Workload) ([]Object, error) {
+		TranslateFn: func(ctx context.Context, w resource.Workload) ([]resource.Object, error) {
 			objs, err := t(ctx, w)
 			if err != nil {
 				return nil, err
@@ -57,27 +57,27 @@ func NewObjectTranslatorWithWrappers(t TranslateFn, wp ...TranslationWrapper) Tr
 }
 
 // A TranslateFn translates a workload into an object.
-type TranslateFn func(context.Context, resource.Workload) ([]Object, error)
+type TranslateFn func(context.Context, resource.Workload) ([]resource.Object, error)
 
 // Translate workload into object or objects with no wrappers.
-func (fn TranslateFn) Translate(ctx context.Context, w resource.Workload) ([]Object, error) {
+func (fn TranslateFn) Translate(ctx context.Context, w resource.Workload) ([]resource.Object, error) {
 	return fn(ctx, w)
 }
 
 var _ Translator = TranslateFn(NoopTranslate)
 
 // NoopTranslate does not translate the workload and does not return error.
-func NoopTranslate(ctx context.Context, w resource.Workload) ([]Object, error) {
+func NoopTranslate(ctx context.Context, w resource.Workload) ([]resource.Object, error) {
 	return nil, nil
 }
 
 // A TranslationWrapper wraps the output of a workload translation in another
 // object or adds addition object.
-type TranslationWrapper func(context.Context, resource.Workload, []Object) ([]Object, error)
+type TranslationWrapper func(context.Context, resource.Workload, []resource.Object) ([]resource.Object, error)
 
 var _ TranslationWrapper = NoopWrapper
 
 // NoopWrapper does not wrap the workload translation and does not return error.
-func NoopWrapper(ctx context.Context, w resource.Workload, objs []Object) ([]Object, error) {
+func NoopWrapper(ctx context.Context, w resource.Workload, objs []resource.Object) ([]resource.Object, error) {
 	return objs, nil
 }
