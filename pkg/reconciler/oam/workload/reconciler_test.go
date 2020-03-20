@@ -41,7 +41,7 @@ var _ reconcile.Reconciler = &Reconciler{}
 func TestReconciler(t *testing.T) {
 	type args struct {
 		m manager.Manager
-		w Kind
+		w resource.WorkloadKind
 		o []ReconcilerOption
 	}
 
@@ -64,7 +64,7 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
 					Scheme: fake.SchemeWith(&fake.Workload{}),
 				},
-				w: Kind(fake.GVK(&fake.Workload{})),
+				w: resource.WorkloadKind(fake.GVK(&fake.Workload{})),
 			},
 			want: want{err: errors.Wrap(errBoom, errGetWorkload)},
 		},
@@ -75,7 +75,7 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, ""))},
 					Scheme: fake.SchemeWith(&fake.Workload{}),
 				},
-				w: Kind(fake.GVK(&fake.Workload{})),
+				w: resource.WorkloadKind(fake.GVK(&fake.Workload{})),
 			},
 			want: want{result: reconcile.Result{}},
 		},
@@ -101,8 +101,8 @@ func TestReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Workload{}),
 				},
-				w: Kind(fake.GVK(&fake.Workload{})),
-				o: []ReconcilerOption{WithTranslator(TranslateFn(func(_ context.Context, _ resource.Workload) ([]Object, error) {
+				w: resource.WorkloadKind(fake.GVK(&fake.Workload{})),
+				o: []ReconcilerOption{WithTranslator(TranslateFn(func(_ context.Context, _ resource.Workload) ([]resource.Object, error) {
 					return nil, errBoom
 				}))},
 			},
@@ -130,11 +130,11 @@ func TestReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Workload{}),
 				},
-				w: Kind(fake.GVK(&fake.Workload{})),
+				w: resource.WorkloadKind(fake.GVK(&fake.Workload{})),
 				o: []ReconcilerOption{
-					WithTranslator(NewObjectTranslatorWithWrappers(func(_ context.Context, _ resource.Workload) ([]Object, error) {
+					WithTranslator(NewObjectTranslatorWithWrappers(func(_ context.Context, _ resource.Workload) ([]resource.Object, error) {
 						return nil, nil
-					}, func(ctx context.Context, w resource.Workload, obj []Object) ([]Object, error) {
+					}, func(ctx context.Context, w resource.Workload, obj []resource.Object) ([]resource.Object, error) {
 						return nil, errBoom
 					})),
 				},
@@ -163,10 +163,10 @@ func TestReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Workload{}),
 				},
-				w: Kind(fake.GVK(&fake.Workload{})),
+				w: resource.WorkloadKind(fake.GVK(&fake.Workload{})),
 				o: []ReconcilerOption{
-					WithTranslator(TranslateFn(func(ctx context.Context, w resource.Workload) ([]Object, error) {
-						return []Object{
+					WithTranslator(TranslateFn(func(ctx context.Context, w resource.Workload) ([]resource.Object, error) {
+						return []resource.Object{
 							&appsv1.Deployment{},
 							&appsv1.Deployment{},
 						}, nil
@@ -187,7 +187,7 @@ func TestReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Workload{}),
 				},
-				w: Kind(fake.GVK(&fake.Workload{})),
+				w: resource.WorkloadKind(fake.GVK(&fake.Workload{})),
 				o: []ReconcilerOption{WithApplicator(resource.ApplyFn(func(_ context.Context, _ client.Client, _ runtime.Object, _ ...resource.ApplyOption) error {
 					return nil
 				}))},
@@ -204,7 +204,7 @@ func TestReconciler(t *testing.T) {
 					},
 					Scheme: fake.SchemeWith(&fake.Workload{}),
 				},
-				w: Kind(fake.GVK(&fake.Workload{})),
+				w: resource.WorkloadKind(fake.GVK(&fake.Workload{})),
 				o: []ReconcilerOption{WithApplicator(resource.ApplyFn(func(_ context.Context, _ client.Client, _ runtime.Object, _ ...resource.ApplyOption) error {
 					return nil
 				}))},

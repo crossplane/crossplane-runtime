@@ -23,7 +23,6 @@ import (
 
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -110,18 +109,9 @@ type Reconciler struct {
 	record event.Recorder
 }
 
-// Kind is a kind of OAM workload.
-type Kind schema.GroupVersionKind
-
-// An Object is a Kubernetes object.
-type Object interface {
-	metav1.Object
-	runtime.Object
-}
-
 // NewReconciler returns a Reconciler that reconciles an OAM workload type by
 // packaging it into a KubernetesApplication.
-func NewReconciler(m ctrl.Manager, workload Kind, o ...ReconcilerOption) *Reconciler {
+func NewReconciler(m ctrl.Manager, workload resource.WorkloadKind, o ...ReconcilerOption) *Reconciler {
 	nw := func() resource.Workload {
 		return resource.MustCreateObject(schema.GroupVersionKind(workload), m.GetScheme()).(resource.Workload)
 	}
