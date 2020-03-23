@@ -106,7 +106,7 @@ type MathTransform struct {
 
 func (m *MathTransform) Resolve(input interface{}) (interface{}, error) {
 	if m.Multiply == nil {
-		return 0, errors.New(errMathNoMultiplier)
+		return nil, errors.New(errMathNoMultiplier)
 	}
 	switch i := input.(type) {
 	case int64:
@@ -127,7 +127,7 @@ func (m *MapTransform) Resolve(input interface{}) (interface{}, error) {
 	case string:
 		val, ok := m.Pairs[i]
 		if !ok {
-			return nil, errors.New(errMapNotFound(val))
+			return nil, errors.New(errMapNotFound(i))
 		}
 		return val, nil
 	default:
