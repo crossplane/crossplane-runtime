@@ -25,10 +25,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-var (
-	_ Transformer = &MapTransform{}
-	_ Transformer = &MathTransform{}
-)
+//var (
+//	_ Transformer = &MapTransform{}
+//	_ Transformer = &MathTransform{}
+//)
 
 func TestMapResolve(t *testing.T) {
 	type args struct {

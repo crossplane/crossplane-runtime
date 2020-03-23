@@ -44,11 +44,21 @@ var (
 // after piping the value that is at FromFieldPath of the target resource through
 // transformers.
 type CompositionPatch struct {
-	FromFieldPath string      `json:"fromFieldPath"`
-	ToFieldPath   string      `json:"toFieldPath,omitempty"`
-	Transforms    []Transform `json:"transforms,omitempty"`
+
+	// FromFieldPath is the path of the field on the upstream resource whose value
+	// to be used as input.
+	FromFieldPath string `json:"fromFieldPath"`
+
+	// ToFieldPath is the path of the field on the base resource whose value will
+	// be changed with the result of transforms.
+	ToFieldPath string `json:"toFieldPath,omitempty"`
+
+	// Transforms are the list of functions that are used as a FIFO pipe for the
+	// input to be transformed.
+	Transforms []Transform `json:"transforms,omitempty"`
 }
 
+// Patch runs transformers and patches the target resource.
 func (c *CompositionPatch) Patch(base, target *fieldpath.Paved) error {
 	in, err := base.GetValue(c.FromFieldPath)
 	if err != nil {
@@ -73,18 +83,31 @@ func (c *CompositionPatch) Patch(base, target *fieldpath.Paved) error {
 // A but output of type B; given that there will be many pairs like this, it makes
 // more sense to enforce types at the lowest level of the chain which is content
 // of actual Resolve functions of individual transformers.
-type Transformer interface {
-	Resolve(input interface{}) (interface{}, error)
-}
+//type Transformer interface {
+//
+//	// Resolve runs the logic of Transformer to produce an output from the input.
+//	Resolve(input interface{}) (interface{}, error)
+//}
 
+// Transform is a unit of process whose input is transformed into an output with
+// the supplied configuration.
 type Transform struct {
-	Type string         `json:"type"`
+
+	// Type of the transform to be run.
+	Type string `json:"type"`
+
+	// Math is used to transform input via mathematical operations such as multiplication.
 	Math *MathTransform `json:"math,omitempty"`
-	Map  *MapTransform  `json:"map,omitempty"`
+
+	// Map uses input as key in the given map and returns the value.
+	Map *MapTransform `json:"map,omitempty"`
 }
 
+// Transform calls the appropriate Transformer.
 func (t *Transform) Transform(input interface{}) (interface{}, error) {
-	var transformer Transformer
+	var transformer interface {
+		Resolve(input interface{}) (interface{}, error)
+	}
 	switch t.Type {
 	case "math":
 		transformer = t.Math
@@ -100,10 +123,13 @@ func (t *Transform) Transform(input interface{}) (interface{}, error) {
 	return out, errors.Wrap(err, errTransformWithType(t.Type))
 }
 
+// MathTransform conducts mathematical operations on the input with the given
+// configuration in its properties.
 type MathTransform struct {
 	Multiply *int64 `json:"multiply,omitempty"`
 }
 
+// Resolve runs the Math transform.
 func (m *MathTransform) Resolve(input interface{}) (interface{}, error) {
 	if m.Multiply == nil {
 		return nil, errors.New(errMathNoMultiplier)
@@ -118,10 +144,12 @@ func (m *MathTransform) Resolve(input interface{}) (interface{}, error) {
 	}
 }
 
+// MapTransform returns a value for the input from the given map.
 type MapTransform struct {
 	Pairs map[string]string `json:",inline"`
 }
 
+// Resolve runs the Map transform.
 func (m *MapTransform) Resolve(input interface{}) (interface{}, error) {
 	switch i := input.(type) {
 	case string:
