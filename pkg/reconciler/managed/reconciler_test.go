@@ -92,7 +92,7 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, got runtime.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(v1alpha1.ReconcileError(errors.Wrap(errBoom, errReconcileConnect)))
-							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, got, v1alpha1.EquateConditions()); diff != "" {
 								reason := "Errors connecting to the provider should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
@@ -119,7 +119,7 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, obj, v1alpha1.EquateConditions()); diff != "" {
 								reason := "Errors initializing the managed resource should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
@@ -147,7 +147,7 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(v1alpha1.ReferenceResolutionBlocked(errNotReady))
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, obj, v1alpha1.EquateConditions()); diff != "" {
 								reason := "Dependencies on unready references should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
@@ -176,7 +176,7 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, obj, v1alpha1.EquateConditions()); diff != "" {
 								reason := "Errors during reference resolution should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
@@ -206,7 +206,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Managed{}
 							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileError(errors.Wrap(errBoom, errReconcileObserve)))
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, obj, v1alpha1.EquateConditions()); diff != "" {
 								reason := "Errors observing the managed resource should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
@@ -246,7 +246,7 @@ func TestReconciler(t *testing.T) {
 							want.SetDeletionTimestamp(&now)
 							want.SetReclaimPolicy(v1alpha1.ReclaimDelete)
 							want.SetConditions(v1alpha1.ReconcileError(errors.Wrap(errBoom, errReconcileDelete)))
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, obj, v1alpha1.EquateConditions()); diff != "" {
 								reason := "An error deleting an external resource should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
@@ -290,7 +290,7 @@ func TestReconciler(t *testing.T) {
 							want.SetDeletionTimestamp(&now)
 							want.SetReclaimPolicy(v1alpha1.ReclaimDelete)
 							want.SetConditions(v1alpha1.ReconcileSuccess())
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, obj, v1alpha1.EquateConditions()); diff != "" {
 								reason := "A deleted external resource should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
@@ -332,7 +332,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Managed{}
 							want.SetDeletionTimestamp(&now)
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, obj, v1alpha1.EquateConditions()); diff != "" {
 								reason := "Errors unpublishing connection details should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
@@ -374,7 +374,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Managed{}
 							want.SetDeletionTimestamp(&now)
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, obj, v1alpha1.EquateConditions()); diff != "" {
 								reason := "Errors removing the managed resource finalizer should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
@@ -442,7 +442,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Managed{}
 							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, obj, v1alpha1.EquateConditions()); diff != "" {
 								reason := "Errors publishing connection details after observation should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
@@ -473,7 +473,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Managed{}
 							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, obj, v1alpha1.EquateConditions()); diff != "" {
 								reason := "Errors adding a finalizer should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
@@ -503,7 +503,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Managed{}
 							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileError(errors.Wrap(errBoom, errReconcileCreate)))
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, obj, v1alpha1.EquateConditions()); diff != "" {
 								reason := "Errors while creating an external resource should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
@@ -543,7 +543,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Managed{}
 							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, obj, v1alpha1.EquateConditions()); diff != "" {
 								reason := "Errors publishing connection details after creation should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
@@ -594,7 +594,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Managed{}
 							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileSuccess())
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, obj, v1alpha1.EquateConditions()); diff != "" {
 								reason := "Successful managed resource creation should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
@@ -624,7 +624,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Managed{}
 							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileSuccess())
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, obj, v1alpha1.EquateConditions()); diff != "" {
 								reason := "A successful no-op reconcile should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
@@ -661,7 +661,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Managed{}
 							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileError(errors.Wrap(errBoom, errReconcileUpdate)))
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, obj, v1alpha1.EquateConditions()); diff != "" {
 								reason := "Errors while updating an external resource should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
@@ -701,7 +701,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Managed{}
 							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, obj, v1alpha1.EquateConditions()); diff != "" {
 								reason := "Errors publishing connection details after an update should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
@@ -752,7 +752,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Managed{}
 							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileSuccess())
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, obj, v1alpha1.EquateConditions()); diff != "" {
 								reason := "A successful managed resource update should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}

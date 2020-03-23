@@ -111,7 +111,7 @@ func TestCreate(t *testing.T) {
 							APIVersion: fake.GVK(&fake.Class{}).GroupVersion().String(),
 							Kind:       fake.GVK(&fake.Class{}).Kind,
 						})
-						if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+						if diff := cmp.Diff(want, got, v1alpha1.EquateConditions()); diff != "" {
 							t.Errorf("-want, +got:\n%s", diff)
 						}
 						return nil
@@ -124,7 +124,7 @@ func TestCreate(t *testing.T) {
 							APIVersion: fake.GVK(&fake.Managed{}).GroupVersion().String(),
 							Kind:       fake.GVK(&fake.Managed{}).Kind,
 						})
-						if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+						if diff := cmp.Diff(want, got, v1alpha1.EquateConditions()); diff != "" {
 							t.Errorf("-want, +got:\n%s", diff)
 						}
 						return nil
@@ -279,10 +279,10 @@ func TestBind(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("api.Bind(...): -want error, +got error:\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.want.cm, tc.args.cm, test.EquateConditions()); diff != "" {
+			if diff := cmp.Diff(tc.want.cm, tc.args.cm, v1alpha1.EquateConditions()); diff != "" {
 				t.Errorf("api.Bind(...) Claim: -want, +got:\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.want.mg, tc.args.mg, test.EquateConditions()); diff != "" {
+			if diff := cmp.Diff(tc.want.mg, tc.args.mg, v1alpha1.EquateConditions()); diff != "" {
 				t.Errorf("api.Bind(...) Managed: -want, +got:\n%s", diff)
 			}
 		})
@@ -444,10 +444,10 @@ func TestStatusBind(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("api.Bind(...): -want error, +got error:\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.want.cm, tc.args.cm, test.EquateConditions()); diff != "" {
+			if diff := cmp.Diff(tc.want.cm, tc.args.cm, v1alpha1.EquateConditions()); diff != "" {
 				t.Errorf("api.Bind(...) Claim: -want, +got:\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.want.mg, tc.args.mg, test.EquateConditions()); diff != "" {
+			if diff := cmp.Diff(tc.want.mg, tc.args.mg, v1alpha1.EquateConditions()); diff != "" {
 				t.Errorf("api.Bind(...) Managed: -want, +got:\n%s", diff)
 			}
 		})
@@ -569,7 +569,7 @@ func TestUnbind(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("api.Unbind(...): -want error, +got error:\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.want.mg, tc.args.mg, test.EquateConditions()); diff != "" {
+			if diff := cmp.Diff(tc.want.mg, tc.args.mg, v1alpha1.EquateConditions()); diff != "" {
 				t.Errorf("api.Unbind(...) Managed: -want, +got:\n%s", diff)
 			}
 		})
@@ -711,7 +711,7 @@ func TestStatusUnbind(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("api.Unbind(...): -want error, +got error:\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.want.mg, tc.args.mg, test.EquateConditions()); diff != "" {
+			if diff := cmp.Diff(tc.want.mg, tc.args.mg, v1alpha1.EquateConditions()); diff != "" {
 				t.Errorf("api.Unbind(...) Managed: -want, +got:\n%s", diff)
 			}
 		})
@@ -769,7 +769,7 @@ func TestClaimRemoveFinalizer(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("api.Finalize(...): -want error, +got error:\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.want.cm, tc.args.cm, test.EquateConditions()); diff != "" {
+			if diff := cmp.Diff(tc.want.cm, tc.args.cm, v1alpha1.EquateConditions()); diff != "" {
 				t.Errorf("api.Finalize(...) Claim: -want, +got:\n%s", diff)
 			}
 		})
@@ -827,7 +827,7 @@ func TestAPIClaimFinalizerAdder(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("api.Initialize(...): -want error, +got error:\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.want.cm, tc.args.cm, test.EquateConditions()); diff != "" {
+			if diff := cmp.Diff(tc.want.cm, tc.args.cm, v1alpha1.EquateConditions()); diff != "" {
 				t.Errorf("api.Initialize(...) Claim: -want, +got:\n%s", diff)
 			}
 		})

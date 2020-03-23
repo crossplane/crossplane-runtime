@@ -19,6 +19,8 @@ package v1alpha1
 import (
 	"sort"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -318,4 +320,9 @@ func SecretPropagationError(err error) Condition {
 		Reason:             ReasonSecretPropagationError,
 		Message:            err.Error(),
 	}
+}
+
+// EquateConditions sorts any slices of Condition before comparing them.
+func EquateConditions() cmp.Option {
+	return cmpopts.SortSlices(func(i, j Condition) bool { return i.Type < j.Type })
 }

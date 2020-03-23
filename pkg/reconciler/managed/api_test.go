@@ -93,7 +93,7 @@ func TestManagedRemoveFinalizer(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("api.RemoveFinalizer(...): -want error, +got error:\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.want.mg, tc.args.mg, test.EquateConditions()); diff != "" {
+			if diff := cmp.Diff(tc.want.mg, tc.args.mg, v1alpha1.EquateConditions()); diff != "" {
 				t.Errorf("api.RemoveFinalizer(...) Managed: -want, +got:\n%s", diff)
 			}
 		})
@@ -151,7 +151,7 @@ func TestAPIFinalizerAdder(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("api.Initialize(...): -want error, +got error:\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.want.mg, tc.args.mg, test.EquateConditions()); diff != "" {
+			if diff := cmp.Diff(tc.want.mg, tc.args.mg, v1alpha1.EquateConditions()); diff != "" {
 				t.Errorf("api.Initialize(...) Managed: -want, +got:\n%s", diff)
 			}
 		})
@@ -230,7 +230,7 @@ func TestNameAsExternalName(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("api.Initialize(...): -want error, +got error:\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.want.mg, tc.args.mg, test.EquateConditions()); diff != "" {
+			if diff := cmp.Diff(tc.want.mg, tc.args.mg, v1alpha1.EquateConditions()); diff != "" {
 				t.Errorf("api.Initialize(...) Managed: -want, +got:\n%s", diff)
 			}
 		})

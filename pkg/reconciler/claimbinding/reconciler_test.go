@@ -93,7 +93,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Claim{}
 							want.SetResourceReference(&corev1.ObjectReference{})
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
-							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, got, v1alpha1.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
 							return nil
@@ -128,7 +128,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Claim{}
 							want.SetResourceReference(&corev1.ObjectReference{})
 							want.SetConditions(Binding(), v1alpha1.ReconcileSuccess())
-							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, got, v1alpha1.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
 							return nil
@@ -161,7 +161,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Claim{}
 							want.SetDeletionTimestamp(&now)
 							want.SetConditions(v1alpha1.Deleting(), v1alpha1.ReconcileError(errBoom))
-							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, got, v1alpha1.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
 							return nil
@@ -197,7 +197,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Claim{}
 							want.SetDeletionTimestamp(&now)
 							want.SetConditions(v1alpha1.Deleting(), v1alpha1.ReconcileSuccess())
-							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, got, v1alpha1.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
 							return nil
@@ -234,7 +234,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Claim{}
 							want.SetDeletionTimestamp(&now)
 							want.SetConditions(v1alpha1.Deleting(), v1alpha1.ReconcileError(errBoom))
-							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, got, v1alpha1.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
 							return nil
@@ -298,7 +298,7 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
 							want := &fake.Claim{}
 							want.SetConditions(Binding(), v1alpha1.ReconcileSuccess())
-							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, got, v1alpha1.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
 							return nil
@@ -333,7 +333,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Claim{}
 							want.SetClassReference(&corev1.ObjectReference{})
 							want.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(errBoom))
-							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, got, v1alpha1.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
 							return nil
@@ -368,7 +368,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Claim{}
 							want.SetClassReference(&corev1.ObjectReference{})
 							want.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(errBoom))
-							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, got, v1alpha1.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
 							return nil
@@ -406,7 +406,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Claim{}
 							want.SetClassReference(&corev1.ObjectReference{})
 							want.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(errBoom))
-							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, got, v1alpha1.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
 							return nil
@@ -459,7 +459,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Claim{}
 							want.SetResourceReference(&corev1.ObjectReference{})
 							want.SetConditions(Binding(), v1alpha1.ReconcileSuccess())
-							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, got, v1alpha1.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
 							return nil
@@ -499,7 +499,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Claim{}
 							want.SetResourceReference(&corev1.ObjectReference{})
 							want.SetConditions(Binding(), v1alpha1.ReconcileSuccess())
-							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, got, v1alpha1.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
 							return nil
@@ -538,7 +538,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Claim{}
 							want.SetResourceReference(&corev1.ObjectReference{})
 							want.SetConditions(Binding(), v1alpha1.ReconcileError(errBoom))
-							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, got, v1alpha1.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
 							return nil
@@ -584,7 +584,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Claim{}
 							want.SetResourceReference(&corev1.ObjectReference{})
 							want.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(errBoom))
-							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, got, v1alpha1.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
 							return nil
@@ -631,7 +631,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Claim{}
 							want.SetResourceReference(&corev1.ObjectReference{})
 							want.SetConditions(Binding(), v1alpha1.ReconcileError(errBoom))
-							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, got, v1alpha1.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
 							return nil
@@ -681,7 +681,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Claim{}
 							want.SetResourceReference(&corev1.ObjectReference{})
 							want.SetConditions(v1alpha1.Available(), v1alpha1.ReconcileSuccess())
-							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, got, v1alpha1.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
 							return nil

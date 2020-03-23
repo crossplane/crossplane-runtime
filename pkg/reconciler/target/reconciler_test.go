@@ -123,7 +123,7 @@ func TestReconciler(t *testing.T) {
 							want.SetWriteConnectionSecretToReference(&v1alpha1.LocalSecretReference{
 								Name: string(tguid),
 							})
-							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, got, v1alpha1.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
 							return nil
@@ -233,7 +233,7 @@ func TestReconciler(t *testing.T) {
 							})
 							want.SetWriteConnectionSecretToReference(&v1alpha1.LocalSecretReference{Name: tgcsname})
 							want.SetConditions(v1alpha1.SecretPropagationError(errBoom))
-							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, got, v1alpha1.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
 							return nil
@@ -294,7 +294,7 @@ func TestReconciler(t *testing.T) {
 							})
 							want.SetWriteConnectionSecretToReference(&v1alpha1.LocalSecretReference{Name: tgcsname})
 							want.SetConditions(v1alpha1.SecretPropagationError(errors.New(errManagedResourceIsNotBound)))
-							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, got, v1alpha1.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
 							return nil
@@ -355,7 +355,7 @@ func TestReconciler(t *testing.T) {
 							})
 							want.SetWriteConnectionSecretToReference(&v1alpha1.LocalSecretReference{Name: tgcsname})
 							want.SetConditions(v1alpha1.SecretPropagationError(errBoom))
-							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, got, v1alpha1.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
 							return nil
@@ -423,7 +423,7 @@ func TestReconciler(t *testing.T) {
 							})
 							want.SetWriteConnectionSecretToReference(&v1alpha1.LocalSecretReference{Name: tgcsname})
 							want.SetConditions(v1alpha1.SecretPropagationSuccess())
-							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, got, v1alpha1.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
 							return nil
