@@ -171,7 +171,7 @@ func TestReconciler(t *testing.T) {
 							&appsv1.Deployment{},
 						}, nil
 					})),
-					WithApplicator(resource.ApplyFn(func(_ context.Context, _ client.Client, _ runtime.Object, _ ...resource.ApplyOption) error {
+					WithApplicator(resource.ApplyFn(func(_ context.Context, _ runtime.Object, _ ...resource.ApplyOption) error {
 						return errBoom
 					}))},
 			},
@@ -188,7 +188,7 @@ func TestReconciler(t *testing.T) {
 					Scheme: fake.SchemeWith(&fake.Workload{}),
 				},
 				w: resource.WorkloadKind(fake.GVK(&fake.Workload{})),
-				o: []ReconcilerOption{WithApplicator(resource.ApplyFn(func(_ context.Context, _ client.Client, _ runtime.Object, _ ...resource.ApplyOption) error {
+				o: []ReconcilerOption{WithApplicator(resource.ApplyFn(func(_ context.Context, _ runtime.Object, _ ...resource.ApplyOption) error {
 					return nil
 				}))},
 			},
@@ -205,7 +205,7 @@ func TestReconciler(t *testing.T) {
 					Scheme: fake.SchemeWith(&fake.Workload{}),
 				},
 				w: resource.WorkloadKind(fake.GVK(&fake.Workload{})),
-				o: []ReconcilerOption{WithApplicator(resource.ApplyFn(func(_ context.Context, _ client.Client, _ runtime.Object, _ ...resource.ApplyOption) error {
+				o: []ReconcilerOption{WithApplicator(resource.ApplyFn(func(_ context.Context, _ runtime.Object, _ ...resource.ApplyOption) error {
 					return nil
 				}))},
 			},

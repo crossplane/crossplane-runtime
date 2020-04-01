@@ -120,7 +120,7 @@ func NewReconciler(m ctrl.Manager, workload resource.WorkloadKind, o ...Reconcil
 		client:      m.GetClient(),
 		newWorkload: nw,
 		workload:    TranslateFn(NoopTranslate),
-		applicator:  resource.ApplyFn(resource.Apply),
+		applicator:  resource.NewAPIApplicator(m.GetClient()),
 		applyOpts:   []resource.ApplyOption{resource.ControllersMustMatch()},
 		log:         logging.NewNopLogger(),
 		record:      event.NewNopRecorder(),
@@ -179,7 +179,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// so this label is not being used.
 		meta.AddLabels(o, map[string]string{lowerGroupKind(workload.GetObjectKind()): string(workload.GetUID())})
 
-		if err := r.applicator.Apply(ctx, r.client, o, r.applyOpts...); err != nil {
+		if err := r.applicator.Apply(ctx, o, r.applyOpts...); err != nil {
 			log.Debug("Cannot apply workload translation", "error", err, "requeue-after", time.Now().Add(shortWait))
 			r.record.Event(workload, event.Warning(reasonCannotApplyWorkloadTranslation, err))
 			workload.SetConditions(v1alpha1.ReconcileError(errors.Wrap(err, errApplyWorkloadTranslation)))

@@ -18,7 +18,6 @@ package resource
 
 import (
 	"context"
-	"encoding/json"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -27,7 +26,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
@@ -252,23 +250,24 @@ func IsConditionTrue(c v1alpha1.Condition) bool {
 
 // An Applicator applies changes to an object.
 type Applicator interface {
-	Apply(context.Context, client.Client, runtime.Object, ...ApplyOption) error
+	Apply(context.Context, runtime.Object, ...ApplyOption) error
 }
 
 // An ApplyFn is a function that satisfies the Applicator interface.
-type ApplyFn func(context.Context, client.Client, runtime.Object, ...ApplyOption) error
+type ApplyFn func(context.Context, runtime.Object, ...ApplyOption) error
 
 // Apply changes to the supplied object.
-func (fn ApplyFn) Apply(ctx context.Context, c client.Client, o runtime.Object, ao ...ApplyOption) error {
-	return fn(ctx, c, o, ao...)
+func (fn ApplyFn) Apply(ctx context.Context, o runtime.Object, ao ...ApplyOption) error {
+	return fn(ctx, o, ao...)
 }
 
-// An ApplyOption is a function that checks for a condition before patch.
+// An ApplyOption is called before patching the current object to match the
+// desired object. ApplyOptions are not called if no current object exists.
 type ApplyOption func(ctx context.Context, current, desired runtime.Object) error
 
-// ControllersMustMatch requires any existing object to have a controller
+// ControllersMustMatch requires the current object to have a controller
 // reference, and for that controller reference to match the controller
-// reference of the supplied object.
+// reference of the desired object.
 func ControllersMustMatch() ApplyOption {
 	return func(_ context.Context, current, desired runtime.Object) error {
 		if !meta.HaveSameController(current.(metav1.Object), desired.(metav1.Object)) {
@@ -280,35 +279,11 @@ func ControllersMustMatch() ApplyOption {
 
 // Apply changes to the supplied object. The object will be created if it does
 // not exist, or patched if it does.
+//
+// Deprecated: use APIApplicator instead.
 func Apply(ctx context.Context, c client.Client, o runtime.Object, ao ...ApplyOption) error {
-	m, ok := o.(metav1.Object)
-	if !ok {
-		return errors.New("cannot access object metadata")
-	}
-
-	desired := o.DeepCopyObject()
-
-	err := c.Get(ctx, types.NamespacedName{Name: m.GetName(), Namespace: m.GetNamespace()}, o)
-	if kerrors.IsNotFound(err) {
-		return errors.Wrap(c.Create(ctx, o), "cannot create object")
-	}
-	if err != nil {
-		return errors.Wrap(err, "cannot get object")
-	}
-
-	for _, fn := range ao {
-		if err := fn(ctx, o, desired); err != nil {
-			return err
-		}
-	}
-
-	return errors.Wrap(c.Patch(ctx, o, &patch{desired}), "cannot patch object")
+	return NewAPIApplicator(c).Apply(ctx, o, ao...)
 }
-
-type patch struct{ from runtime.Object }
-
-func (p *patch) Type() types.PatchType                 { return types.MergePatchType }
-func (p *patch) Data(_ runtime.Object) ([]byte, error) { return json.Marshal(p.from) }
 
 // GetExternalTags returns the identifying tags to be used to tag the external
 // resource in provider API.

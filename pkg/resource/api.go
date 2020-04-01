@@ -18,10 +18,12 @@ package resource
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -101,3 +103,48 @@ func (a *APIManagedConnectionPropagator) PropagateConnection(ctx context.Context
 
 	return errors.Wrap(a.client.Update(ctx, mgcs), errUpdateSecret)
 }
+
+// An APIApplicator applies changes to an object by either creating or patching
+// it in a Kubernetes API server.
+type APIApplicator struct {
+	client client.Client
+}
+
+// NewAPIApplicator returns an Applicator that applies changes to the Kubernetes
+// API server.
+func NewAPIApplicator(c client.Client) *APIApplicator {
+	return &APIApplicator{client: c}
+}
+
+// Apply changes to the supplied object. The object will be created if it does
+// not exist, or patched if it does.
+func (a *APIApplicator) Apply(ctx context.Context, o runtime.Object, ao ...ApplyOption) error {
+	m, ok := o.(metav1.Object)
+	if !ok {
+		return errors.New("cannot access object metadata")
+	}
+
+	desired := o.DeepCopyObject()
+
+	err := a.client.Get(ctx, types.NamespacedName{Name: m.GetName(), Namespace: m.GetNamespace()}, o)
+	if kerrors.IsNotFound(err) {
+		// TODO(negz): Apply ApplyOptions here too?
+		return errors.Wrap(a.client.Create(ctx, o), "cannot create object")
+	}
+	if err != nil {
+		return errors.Wrap(err, "cannot get object")
+	}
+
+	for _, fn := range ao {
+		if err := fn(ctx, o, desired); err != nil {
+			return err
+		}
+	}
+
+	return errors.Wrap(a.client.Patch(ctx, o, &patch{desired}), "cannot patch object")
+}
+
+type patch struct{ from runtime.Object }
+
+func (p *patch) Type() types.PatchType                 { return types.MergePatchType }
+func (p *patch) Data(_ runtime.Object) ([]byte, error) { return json.Marshal(p.from) }
