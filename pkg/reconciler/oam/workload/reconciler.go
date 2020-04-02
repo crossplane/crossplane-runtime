@@ -120,7 +120,7 @@ func NewReconciler(m ctrl.Manager, workload resource.WorkloadKind, o ...Reconcil
 		client:      m.GetClient(),
 		newWorkload: nw,
 		workload:    TranslateFn(NoopTranslate),
-		applicator:  resource.NewAPIApplicator(m.GetClient()),
+		applicator:  resource.NewAPIPatchingApplicator(m.GetClient()),
 		// TODO(negz): Migrate to resource.ControlledBy
 		applyOpts: []resource.ApplyOption{resource.ControllersMustMatch()}, // nolint:staticcheck
 		log:       logging.NewNopLogger(),

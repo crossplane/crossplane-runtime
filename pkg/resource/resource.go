@@ -341,9 +341,9 @@ func ControllersMustMatch() ApplyOption {
 // Apply changes to the supplied object. The object will be created if it does
 // not exist, or patched if it does.
 //
-// Deprecated: use APIApplicator instead.
+// Deprecated: use APIPatchingApplicator instead.
 func Apply(ctx context.Context, c client.Client, o runtime.Object, ao ...ApplyOption) error {
-	return NewAPIApplicator(c).Apply(ctx, o, ao...)
+	return NewAPIPatchingApplicator(c).Apply(ctx, o, ao...)
 }
 
 // GetExternalTags returns the identifying tags to be used to tag the external

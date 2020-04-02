@@ -120,7 +120,7 @@ func NewReconciler(m ctrl.Manager, trait resource.TraitKind, trans resource.Obje
 		newTrait:       nt,
 		newTranslation: nr,
 		trait:          ModifyFn(NoopModifier),
-		applicator:     resource.NewAPIApplicator(m.GetClient()),
+		applicator:     resource.NewAPIPatchingApplicator(m.GetClient()),
 
 		log:    logging.NewNopLogger(),
 		record: event.NewNopRecorder(),

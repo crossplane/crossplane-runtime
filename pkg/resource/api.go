@@ -50,7 +50,7 @@ type APIManagedConnectionPropagator struct {
 // NewAPIManagedConnectionPropagator returns a new APIManagedConnectionPropagator.
 func NewAPIManagedConnectionPropagator(c client.Client, t runtime.ObjectTyper) *APIManagedConnectionPropagator {
 	return &APIManagedConnectionPropagator{
-		client: ClientApplicator{Client: c, Applicator: NewAPIApplicator(c)},
+		client: ClientApplicator{Client: c, Applicator: NewAPIUpdatingApplicator(c)},
 		typer:  t,
 	}
 }
@@ -99,21 +99,21 @@ func (a *APIManagedConnectionPropagator) PropagateConnection(ctx context.Context
 	return errors.Wrap(a.client.Update(ctx, from), errUpdateSecret)
 }
 
-// An APIApplicator applies changes to an object by either creating or patching
-// it in a Kubernetes API server.
-type APIApplicator struct {
+// An APIPatchingApplicator applies changes to an object by either creating or
+// patching it in a Kubernetes API server.
+type APIPatchingApplicator struct {
 	client client.Client
 }
 
-// NewAPIApplicator returns an Applicator that applies changes to the Kubernetes
-// API server.
-func NewAPIApplicator(c client.Client) *APIApplicator {
-	return &APIApplicator{client: c}
+// NewAPIPatchingApplicator returns an Applicator that applies changes to an
+// object by either creating or patching it in a Kubernetes API server.
+func NewAPIPatchingApplicator(c client.Client) *APIPatchingApplicator {
+	return &APIPatchingApplicator{client: c}
 }
 
 // Apply changes to the supplied object. The object will be created if it does
 // not exist, or patched if it does.
-func (a *APIApplicator) Apply(ctx context.Context, o runtime.Object, ao ...ApplyOption) error {
+func (a *APIPatchingApplicator) Apply(ctx context.Context, o runtime.Object, ao ...ApplyOption) error {
 	m, ok := o.(metav1.Object)
 	if !ok {
 		return errors.New("cannot access object metadata")
@@ -136,6 +136,7 @@ func (a *APIApplicator) Apply(ctx context.Context, o runtime.Object, ao ...Apply
 		}
 	}
 
+	// TODO(negz): Allow callers to override the kind of patch used.
 	return errors.Wrap(a.client.Patch(ctx, o, &patch{desired}), "cannot patch object")
 }
 
@@ -143,3 +144,43 @@ type patch struct{ from runtime.Object }
 
 func (p *patch) Type() types.PatchType                 { return types.MergePatchType }
 func (p *patch) Data(_ runtime.Object) ([]byte, error) { return json.Marshal(p.from) }
+
+// An APIUpdatingApplicator applies changes to an object by either creating or
+// updating it in a Kubernetes API server.
+type APIUpdatingApplicator struct {
+	client client.Client
+}
+
+// NewAPIUpdatingApplicator returns an Applicator that applies changes to an
+// object by either creating or updating it in a Kubernetes API server.
+func NewAPIUpdatingApplicator(c client.Client) *APIUpdatingApplicator {
+	return &APIUpdatingApplicator{client: c}
+}
+
+// Apply changes to the supplied object. The object will be created if it does
+// not exist, or updated if it does.
+func (a *APIUpdatingApplicator) Apply(ctx context.Context, o runtime.Object, ao ...ApplyOption) error {
+	m, ok := o.(metav1.Object)
+	if !ok {
+		return errors.New("cannot access object metadata")
+	}
+
+	current := o.DeepCopyObject()
+
+	err := a.client.Get(ctx, types.NamespacedName{Name: m.GetName(), Namespace: m.GetNamespace()}, current)
+	if kerrors.IsNotFound(err) {
+		// TODO(negz): Apply ApplyOptions here too?
+		return errors.Wrap(a.client.Create(ctx, o), "cannot create object")
+	}
+	if err != nil {
+		return errors.Wrap(err, "cannot get object")
+	}
+
+	for _, fn := range ao {
+		if err := fn(ctx, current, o); err != nil {
+			return err
+		}
+	}
+
+	return errors.Wrap(a.client.Update(ctx, o), "cannot update object")
+}
