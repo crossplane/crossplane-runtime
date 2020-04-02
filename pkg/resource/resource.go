@@ -33,6 +33,9 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 )
 
+// SecretTypeConnection is the type of Crossplane connection secrets.
+const SecretTypeConnection corev1.SecretType = "connection.crossplane.io/v1alpha1"
+
 // Supported resources with all of these annotations will be fully or partially
 // propagated to the named resource of the same kind, assuming it exists and
 // consents to propagation.
@@ -120,6 +123,7 @@ func LocalConnectionSecretFor(o LocalConnectionSecretOwner, kind schema.GroupVer
 			Name:            o.GetWriteConnectionSecretToReference().Name,
 			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.ReferenceTo(o, kind))},
 		},
+		Type: SecretTypeConnection,
 		Data: make(map[string][]byte),
 	}
 }
@@ -144,6 +148,7 @@ func ConnectionSecretFor(o ConnectionSecretOwner, kind schema.GroupVersionKind) 
 			Name:            o.GetWriteConnectionSecretToReference().Name,
 			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.ReferenceTo(o, kind))},
 		},
+		Type: SecretTypeConnection,
 		Data: make(map[string][]byte),
 	}
 }
@@ -254,6 +259,13 @@ type Applicator interface {
 	Apply(context.Context, runtime.Object, ...ApplyOption) error
 }
 
+// A ClientApplicator may be used to build a single 'client' that satisfies both
+// client.Client and Applicator.
+type ClientApplicator struct {
+	client.Client
+	Applicator
+}
+
 // An ApplyFn is a function that satisfies the Applicator interface.
 type ApplyFn func(context.Context, runtime.Object, ...ApplyOption) error
 
@@ -280,6 +292,34 @@ func MustBeControllableBy(u types.UID) ApplyOption {
 			return errors.Errorf("existing object is not controlled by UID %q", u)
 
 		}
+		return nil
+	}
+}
+
+// ConnectionSecretMustBeControllableBy requires that the current object is a
+// connection secret that is controllable by an object with the supplied UID.
+// Contemporary connection secrets are of SecretTypeConnection, while legacy
+// connection secrets are of corev1.SecretTypeOpaque. Contemporary connection
+// secrets are considered controllable if they are already controlled by the
+// supplied UID, or have no controller reference. Legacy connection secrets are
+// only considered controllable if they are already controlled by the supplied
+// UID. It is not safe to assume legacy connection secrets without a controller
+// reference are controllable because they are indistinguishable from Kubernetes
+// secrets that have nothing to do with Crossplane.
+func ConnectionSecretMustBeControllableBy(u types.UID) ApplyOption {
+	return func(_ context.Context, current, _ runtime.Object) error {
+		s := current.(*corev1.Secret)
+		c := metav1.GetControllerOf(s)
+
+		switch {
+		case c == nil && s.Type != SecretTypeConnection:
+			return errors.Errorf("refusing to modify uncontrolled secret of type %q", s.Type)
+		case c == nil:
+			return nil
+		case c.UID != u:
+			return errors.Errorf("existing secret is not controlled by UID %q", u)
+		}
+
 		return nil
 	}
 }

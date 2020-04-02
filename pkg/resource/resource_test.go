@@ -99,6 +99,7 @@ func TestLocalConnectionSecretFor(t *testing.T) {
 						Controller: &controller,
 					}},
 				},
+				Type: SecretTypeConnection,
 				Data: map[string][]byte{},
 			},
 		},
@@ -166,6 +167,7 @@ func TestConnectionSecretFor(t *testing.T) {
 						Controller: &controller,
 					}},
 				},
+				Type: SecretTypeConnection,
 				Data: map[string][]byte{},
 			},
 		},
@@ -568,7 +570,78 @@ func TestMustBeControllableBy(t *testing.T) {
 			err := ao(tc.args.ctx, tc.args.current, tc.args.desired)
 
 			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nControllableBy(...)(...): -want error, +got error\n%s\n", tc.reason, diff)
+				t.Errorf("\n%s\nMustBeControllableBy(...)(...): -want error, +got error\n%s\n", tc.reason, diff)
+			}
+		})
+	}
+}
+func TestConnectionSecretMustBeControllableBy(t *testing.T) {
+	uid := types.UID("very-unique-string")
+	controller := true
+
+	type args struct {
+		ctx     context.Context
+		current runtime.Object
+		desired runtime.Object
+	}
+
+	cases := map[string]struct {
+		reason string
+		u      types.UID
+		args   args
+		want   error
+	}{
+		"Adoptable": {
+			reason: "A Secret of SecretTypeConnection with no controller reference may be adopted and controlled",
+			u:      uid,
+			args: args{
+				current: &corev1.Secret{Type: SecretTypeConnection},
+			},
+		},
+		"ControlledBySuppliedUID": {
+			reason: "A Secret of any type that is already controlled by the supplied UID is controllable",
+			u:      uid,
+			args: args{
+				current: &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{
+						UID:        uid,
+						Controller: &controller,
+					}}},
+					Type: corev1.SecretTypeOpaque,
+				},
+			},
+		},
+		"ControlledBySomeoneElse": {
+			reason: "A Secret of any type that is already controlled by the another UID is not controllable",
+			u:      uid,
+			args: args{
+				current: &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{
+						UID:        types.UID("some-other-uid"),
+						Controller: &controller,
+					}}},
+					Type: SecretTypeConnection,
+				},
+			},
+			want: errors.Errorf("existing secret is not controlled by UID %q", uid),
+		},
+		"UncontrolledOpaqueSecret": {
+			reason: "A Secret of corev1.SecretTypeOpqaue with no controller is not controllable",
+			u:      uid,
+			args: args{
+				current: &corev1.Secret{Type: corev1.SecretTypeOpaque},
+			},
+			want: errors.Errorf("refusing to modify uncontrolled secret of type %q", corev1.SecretTypeOpaque),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			ao := ConnectionSecretMustBeControllableBy(tc.u)
+			err := ao(tc.args.ctx, tc.args.current, tc.args.desired)
+
+			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nConnectionSecretMustBeControllableBy(...)(...): -want error, +got error\n%s\n", tc.reason, diff)
 			}
 		})
 	}

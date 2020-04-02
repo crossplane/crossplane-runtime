@@ -28,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	util "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 )
@@ -44,13 +43,16 @@ const (
 // An APIManagedConnectionPropagator propagates connection details by reading
 // them from and writing them to a Kubernetes API server.
 type APIManagedConnectionPropagator struct {
-	client client.Client
+	client ClientApplicator
 	typer  runtime.ObjectTyper
 }
 
 // NewAPIManagedConnectionPropagator returns a new APIManagedConnectionPropagator.
 func NewAPIManagedConnectionPropagator(c client.Client, t runtime.ObjectTyper) *APIManagedConnectionPropagator {
-	return &APIManagedConnectionPropagator{client: c, typer: t}
+	return &APIManagedConnectionPropagator{
+		client: ClientApplicator{Client: c, Applicator: NewAPIApplicator(c)},
+		typer:  t,
+	}
 }
 
 // PropagateConnection details from the supplied resource to the supplied claim.
@@ -65,8 +67,8 @@ func (a *APIManagedConnectionPropagator) PropagateConnection(ctx context.Context
 		Namespace: mg.GetWriteConnectionSecretToReference().Namespace,
 		Name:      mg.GetWriteConnectionSecretToReference().Name,
 	}
-	mgcs := &corev1.Secret{}
-	if err := a.client.Get(ctx, n, mgcs); err != nil {
+	from := &corev1.Secret{}
+	if err := a.client.Get(ctx, n, from); err != nil {
 		return errors.Wrap(err, errGetSecret)
 	}
 
@@ -74,34 +76,27 @@ func (a *APIManagedConnectionPropagator) PropagateConnection(ctx context.Context
 	// it references before we propagate it. This ensures a managed resource
 	// cannot use Crossplane to circumvent RBAC by propagating a secret it does
 	// not own.
-	if c := metav1.GetControllerOf(mgcs); c == nil || c.UID != mg.GetUID() {
+	if c := metav1.GetControllerOf(from); c == nil || c.UID != mg.GetUID() {
 		return errors.New(errSecretConflict)
 	}
 
-	cmcs := LocalConnectionSecretFor(o, MustGetKind(o, a.typer))
-	if _, err := util.CreateOrUpdate(ctx, a.client, cmcs, func() error {
-		// Inside this anonymous function cmcs could either be unchanged (if
-		// it does not exist in the API server) or updated to reflect its
-		// current state according to the API server.
-		if c := metav1.GetControllerOf(cmcs); c == nil || c.UID != o.GetUID() {
-			return errors.New(errSecretConflict)
-		}
-		cmcs.Data = mgcs.Data
-		meta.AddAnnotations(cmcs, map[string]string{
-			AnnotationKeyPropagateFromNamespace: mgcs.GetNamespace(),
-			AnnotationKeyPropagateFromName:      mgcs.GetName(),
-			AnnotationKeyPropagateFromUID:       string(mgcs.GetUID()),
-		})
-		return nil
-	}); err != nil {
+	to := LocalConnectionSecretFor(o, MustGetKind(o, a.typer))
+	to.Data = from.Data
+	meta.AddAnnotations(to, map[string]string{
+		AnnotationKeyPropagateFromNamespace: from.GetNamespace(),
+		AnnotationKeyPropagateFromName:      from.GetName(),
+		AnnotationKeyPropagateFromUID:       string(from.GetUID()),
+	})
+
+	if err := a.client.Apply(ctx, to, ConnectionSecretMustBeControllableBy(o.GetUID())); err != nil {
 		return errors.Wrap(err, errCreateOrUpdateSecret)
 	}
 
-	k := strings.Join([]string{AnnotationKeyPropagateToPrefix, string(cmcs.GetUID())}, AnnotationDelimiter)
-	v := strings.Join([]string{cmcs.GetNamespace(), cmcs.GetName()}, AnnotationDelimiter)
-	meta.AddAnnotations(mgcs, map[string]string{k: v})
+	k := strings.Join([]string{AnnotationKeyPropagateToPrefix, string(to.GetUID())}, AnnotationDelimiter)
+	v := strings.Join([]string{to.GetNamespace(), to.GetName()}, AnnotationDelimiter)
+	meta.AddAnnotations(from, map[string]string{k: v})
 
-	return errors.Wrap(a.client.Update(ctx, mgcs), errUpdateSecret)
+	return errors.Wrap(a.client.Update(ctx, from), errUpdateSecret)
 }
 
 // An APIApplicator applies changes to an object by either creating or patching
