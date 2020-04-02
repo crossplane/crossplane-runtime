@@ -181,7 +181,9 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	// object(s) that is controlled by the workload. In the case where an
 	// object(s) already exists in the same namespace and with the same name
 	// before it is created, this wll guard against modifying it.
-	if err := r.applicator.Apply(ctx, translation, resource.ControllersMustMatch()); err != nil {
+
+	// TODO(negz): Migrate to resource.ControlledBy
+	if err := r.applicator.Apply(ctx, translation, resource.ControllersMustMatch()); err != nil { // nolint:staticcheck
 		log.Debug("Cannot apply workload translation", "error", err, "requeue-after", time.Now().Add(shortWait))
 		r.record.Event(trait, event.Warning(reasonCannotApplyModification, err))
 		trait.SetConditions(v1alpha1.ReconcileError(errors.Wrap(err, errApplyTraitModification)))

@@ -516,6 +516,64 @@ func TestControllersMustMatch(t *testing.T) {
 	}
 }
 
+func TestMustBeControllableBy(t *testing.T) {
+	uid := types.UID("very-unique-string")
+	controller := true
+
+	type args struct {
+		ctx     context.Context
+		current runtime.Object
+		desired runtime.Object
+	}
+
+	cases := map[string]struct {
+		reason string
+		u      types.UID
+		args   args
+		want   error
+	}{
+		"Adoptable": {
+			reason: "A current object with no controller reference may be adopted and controlled",
+			u:      uid,
+			args: args{
+				current: &object{},
+			},
+		},
+		"ControlledBySuppliedUID": {
+			reason: "A current object that is already controlled by the supplied UID is controllable",
+			u:      uid,
+			args: args{
+				current: &object{ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{
+					UID:        uid,
+					Controller: &controller,
+				}}}},
+			},
+		},
+		"ControlledBySomeoneElse": {
+			reason: "A current object that is already controlled by a different UID is not controllable",
+			u:      uid,
+			args: args{
+				current: &object{ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{
+					UID:        types.UID("some-other-uid"),
+					Controller: &controller,
+				}}}},
+			},
+			want: errors.Errorf("existing object is not controlled by UID %q", uid),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			ao := MustBeControllableBy(tc.u)
+			err := ao(tc.args.ctx, tc.args.current, tc.args.desired)
+
+			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nControllableBy(...)(...): -want error, +got error\n%s\n", tc.reason, diff)
+			}
+		})
+	}
+}
+
 func TestGetExternalTags(t *testing.T) {
 	provName := "prov"
 	className := "classy"

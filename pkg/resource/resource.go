@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
@@ -265,9 +266,29 @@ func (fn ApplyFn) Apply(ctx context.Context, o runtime.Object, ao ...ApplyOption
 // desired object. ApplyOptions are not called if no current object exists.
 type ApplyOption func(ctx context.Context, current, desired runtime.Object) error
 
+// MustBeControllableBy requires that the current object is controllable by an
+// object with the supplied UID. An object is controllable if its controller
+// reference matches the supplied UID, or it has no controller reference.
+func MustBeControllableBy(u types.UID) ApplyOption {
+	return func(_ context.Context, current, _ runtime.Object) error {
+		c := metav1.GetControllerOf(current.(metav1.Object))
+		if c == nil {
+			return nil
+		}
+
+		if c.UID != u {
+			return errors.Errorf("existing object is not controlled by UID %q", u)
+
+		}
+		return nil
+	}
+}
+
 // ControllersMustMatch requires the current object to have a controller
 // reference, and for that controller reference to match the controller
 // reference of the desired object.
+//
+// Deprecated: Use ControllableBy.
 func ControllersMustMatch() ApplyOption {
 	return func(_ context.Context, current, desired runtime.Object) error {
 		if !meta.HaveSameController(current.(metav1.Object), desired.(metav1.Object)) {
