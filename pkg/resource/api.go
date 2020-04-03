@@ -18,15 +18,16 @@ package resource
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	util "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 )
@@ -42,13 +43,16 @@ const (
 // An APIManagedConnectionPropagator propagates connection details by reading
 // them from and writing them to a Kubernetes API server.
 type APIManagedConnectionPropagator struct {
-	client client.Client
+	client ClientApplicator
 	typer  runtime.ObjectTyper
 }
 
 // NewAPIManagedConnectionPropagator returns a new APIManagedConnectionPropagator.
 func NewAPIManagedConnectionPropagator(c client.Client, t runtime.ObjectTyper) *APIManagedConnectionPropagator {
-	return &APIManagedConnectionPropagator{client: c, typer: t}
+	return &APIManagedConnectionPropagator{
+		client: ClientApplicator{Client: c, Applicator: NewAPIUpdatingApplicator(c)},
+		typer:  t,
+	}
 }
 
 // PropagateConnection details from the supplied resource to the supplied claim.
@@ -63,8 +67,8 @@ func (a *APIManagedConnectionPropagator) PropagateConnection(ctx context.Context
 		Namespace: mg.GetWriteConnectionSecretToReference().Namespace,
 		Name:      mg.GetWriteConnectionSecretToReference().Name,
 	}
-	mgcs := &corev1.Secret{}
-	if err := a.client.Get(ctx, n, mgcs); err != nil {
+	from := &corev1.Secret{}
+	if err := a.client.Get(ctx, n, from); err != nil {
 		return errors.Wrap(err, errGetSecret)
 	}
 
@@ -72,32 +76,111 @@ func (a *APIManagedConnectionPropagator) PropagateConnection(ctx context.Context
 	// it references before we propagate it. This ensures a managed resource
 	// cannot use Crossplane to circumvent RBAC by propagating a secret it does
 	// not own.
-	if c := metav1.GetControllerOf(mgcs); c == nil || c.UID != mg.GetUID() {
+	if c := metav1.GetControllerOf(from); c == nil || c.UID != mg.GetUID() {
 		return errors.New(errSecretConflict)
 	}
 
-	cmcs := LocalConnectionSecretFor(o, MustGetKind(o, a.typer))
-	if _, err := util.CreateOrUpdate(ctx, a.client, cmcs, func() error {
-		// Inside this anonymous function cmcs could either be unchanged (if
-		// it does not exist in the API server) or updated to reflect its
-		// current state according to the API server.
-		if c := metav1.GetControllerOf(cmcs); c == nil || c.UID != o.GetUID() {
-			return errors.New(errSecretConflict)
-		}
-		cmcs.Data = mgcs.Data
-		meta.AddAnnotations(cmcs, map[string]string{
-			AnnotationKeyPropagateFromNamespace: mgcs.GetNamespace(),
-			AnnotationKeyPropagateFromName:      mgcs.GetName(),
-			AnnotationKeyPropagateFromUID:       string(mgcs.GetUID()),
-		})
-		return nil
-	}); err != nil {
+	to := LocalConnectionSecretFor(o, MustGetKind(o, a.typer))
+	to.Data = from.Data
+	meta.AddAnnotations(to, map[string]string{
+		AnnotationKeyPropagateFromNamespace: from.GetNamespace(),
+		AnnotationKeyPropagateFromName:      from.GetName(),
+		AnnotationKeyPropagateFromUID:       string(from.GetUID()),
+	})
+
+	if err := a.client.Apply(ctx, to, ConnectionSecretMustBeControllableBy(o.GetUID())); err != nil {
 		return errors.Wrap(err, errCreateOrUpdateSecret)
 	}
 
-	k := strings.Join([]string{AnnotationKeyPropagateToPrefix, string(cmcs.GetUID())}, AnnotationDelimiter)
-	v := strings.Join([]string{cmcs.GetNamespace(), cmcs.GetName()}, AnnotationDelimiter)
-	meta.AddAnnotations(mgcs, map[string]string{k: v})
+	k := strings.Join([]string{AnnotationKeyPropagateToPrefix, string(to.GetUID())}, AnnotationDelimiter)
+	v := strings.Join([]string{to.GetNamespace(), to.GetName()}, AnnotationDelimiter)
+	meta.AddAnnotations(from, map[string]string{k: v})
 
-	return errors.Wrap(a.client.Update(ctx, mgcs), errUpdateSecret)
+	return errors.Wrap(a.client.Update(ctx, from), errUpdateSecret)
+}
+
+// An APIPatchingApplicator applies changes to an object by either creating or
+// patching it in a Kubernetes API server.
+type APIPatchingApplicator struct {
+	client client.Client
+}
+
+// NewAPIPatchingApplicator returns an Applicator that applies changes to an
+// object by either creating or patching it in a Kubernetes API server.
+func NewAPIPatchingApplicator(c client.Client) *APIPatchingApplicator {
+	return &APIPatchingApplicator{client: c}
+}
+
+// Apply changes to the supplied object. The object will be created if it does
+// not exist, or patched if it does.
+func (a *APIPatchingApplicator) Apply(ctx context.Context, o runtime.Object, ao ...ApplyOption) error {
+	m, ok := o.(metav1.Object)
+	if !ok {
+		return errors.New("cannot access object metadata")
+	}
+
+	desired := o.DeepCopyObject()
+
+	err := a.client.Get(ctx, types.NamespacedName{Name: m.GetName(), Namespace: m.GetNamespace()}, o)
+	if kerrors.IsNotFound(err) {
+		// TODO(negz): Apply ApplyOptions here too?
+		return errors.Wrap(a.client.Create(ctx, o), "cannot create object")
+	}
+	if err != nil {
+		return errors.Wrap(err, "cannot get object")
+	}
+
+	for _, fn := range ao {
+		if err := fn(ctx, o, desired); err != nil {
+			return err
+		}
+	}
+
+	// TODO(negz): Allow callers to override the kind of patch used.
+	return errors.Wrap(a.client.Patch(ctx, o, &patch{desired}), "cannot patch object")
+}
+
+type patch struct{ from runtime.Object }
+
+func (p *patch) Type() types.PatchType                 { return types.MergePatchType }
+func (p *patch) Data(_ runtime.Object) ([]byte, error) { return json.Marshal(p.from) }
+
+// An APIUpdatingApplicator applies changes to an object by either creating or
+// updating it in a Kubernetes API server.
+type APIUpdatingApplicator struct {
+	client client.Client
+}
+
+// NewAPIUpdatingApplicator returns an Applicator that applies changes to an
+// object by either creating or updating it in a Kubernetes API server.
+func NewAPIUpdatingApplicator(c client.Client) *APIUpdatingApplicator {
+	return &APIUpdatingApplicator{client: c}
+}
+
+// Apply changes to the supplied object. The object will be created if it does
+// not exist, or updated if it does.
+func (a *APIUpdatingApplicator) Apply(ctx context.Context, o runtime.Object, ao ...ApplyOption) error {
+	m, ok := o.(metav1.Object)
+	if !ok {
+		return errors.New("cannot access object metadata")
+	}
+
+	current := o.DeepCopyObject()
+
+	err := a.client.Get(ctx, types.NamespacedName{Name: m.GetName(), Namespace: m.GetNamespace()}, current)
+	if kerrors.IsNotFound(err) {
+		// TODO(negz): Apply ApplyOptions here too?
+		return errors.Wrap(a.client.Create(ctx, o), "cannot create object")
+	}
+	if err != nil {
+		return errors.Wrap(err, "cannot get object")
+	}
+
+	for _, fn := range ao {
+		if err := fn(ctx, current, o); err != nil {
+			return err
+		}
+	}
+
+	return errors.Wrap(a.client.Update(ctx, o), "cannot update object")
 }

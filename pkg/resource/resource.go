@@ -18,7 +18,6 @@ package resource
 
 import (
 	"context"
-	"encoding/json"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -33,6 +32,9 @@ import (
 	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 )
+
+// SecretTypeConnection is the type of Crossplane connection secrets.
+const SecretTypeConnection corev1.SecretType = "connection.crossplane.io/v1alpha1"
 
 // Supported resources with all of these annotations will be fully or partially
 // propagated to the named resource of the same kind, assuming it exists and
@@ -121,6 +123,7 @@ func LocalConnectionSecretFor(o LocalConnectionSecretOwner, kind schema.GroupVer
 			Name:            o.GetWriteConnectionSecretToReference().Name,
 			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.ReferenceTo(o, kind))},
 		},
+		Type: SecretTypeConnection,
 		Data: make(map[string][]byte),
 	}
 }
@@ -145,6 +148,7 @@ func ConnectionSecretFor(o ConnectionSecretOwner, kind schema.GroupVersionKind) 
 			Name:            o.GetWriteConnectionSecretToReference().Name,
 			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.ReferenceTo(o, kind))},
 		},
+		Type: SecretTypeConnection,
 		Data: make(map[string][]byte),
 	}
 }
@@ -252,23 +256,79 @@ func IsConditionTrue(c v1alpha1.Condition) bool {
 
 // An Applicator applies changes to an object.
 type Applicator interface {
-	Apply(context.Context, client.Client, runtime.Object, ...ApplyOption) error
+	Apply(context.Context, runtime.Object, ...ApplyOption) error
+}
+
+// A ClientApplicator may be used to build a single 'client' that satisfies both
+// client.Client and Applicator.
+type ClientApplicator struct {
+	client.Client
+	Applicator
 }
 
 // An ApplyFn is a function that satisfies the Applicator interface.
-type ApplyFn func(context.Context, client.Client, runtime.Object, ...ApplyOption) error
+type ApplyFn func(context.Context, runtime.Object, ...ApplyOption) error
 
 // Apply changes to the supplied object.
-func (fn ApplyFn) Apply(ctx context.Context, c client.Client, o runtime.Object, ao ...ApplyOption) error {
-	return fn(ctx, c, o, ao...)
+func (fn ApplyFn) Apply(ctx context.Context, o runtime.Object, ao ...ApplyOption) error {
+	return fn(ctx, o, ao...)
 }
 
-// An ApplyOption is a function that checks for a condition before patch.
+// An ApplyOption is called before patching the current object to match the
+// desired object. ApplyOptions are not called if no current object exists.
 type ApplyOption func(ctx context.Context, current, desired runtime.Object) error
 
-// ControllersMustMatch requires any existing object to have a controller
+// MustBeControllableBy requires that the current object is controllable by an
+// object with the supplied UID. An object is controllable if its controller
+// reference matches the supplied UID, or it has no controller reference.
+func MustBeControllableBy(u types.UID) ApplyOption {
+	return func(_ context.Context, current, _ runtime.Object) error {
+		c := metav1.GetControllerOf(current.(metav1.Object))
+		if c == nil {
+			return nil
+		}
+
+		if c.UID != u {
+			return errors.Errorf("existing object is not controlled by UID %q", u)
+
+		}
+		return nil
+	}
+}
+
+// ConnectionSecretMustBeControllableBy requires that the current object is a
+// connection secret that is controllable by an object with the supplied UID.
+// Contemporary connection secrets are of SecretTypeConnection, while legacy
+// connection secrets are of corev1.SecretTypeOpaque. Contemporary connection
+// secrets are considered controllable if they are already controlled by the
+// supplied UID, or have no controller reference. Legacy connection secrets are
+// only considered controllable if they are already controlled by the supplied
+// UID. It is not safe to assume legacy connection secrets without a controller
+// reference are controllable because they are indistinguishable from Kubernetes
+// secrets that have nothing to do with Crossplane.
+func ConnectionSecretMustBeControllableBy(u types.UID) ApplyOption {
+	return func(_ context.Context, current, _ runtime.Object) error {
+		s := current.(*corev1.Secret)
+		c := metav1.GetControllerOf(s)
+
+		switch {
+		case c == nil && s.Type != SecretTypeConnection:
+			return errors.Errorf("refusing to modify uncontrolled secret of type %q", s.Type)
+		case c == nil:
+			return nil
+		case c.UID != u:
+			return errors.Errorf("existing secret is not controlled by UID %q", u)
+		}
+
+		return nil
+	}
+}
+
+// ControllersMustMatch requires the current object to have a controller
 // reference, and for that controller reference to match the controller
-// reference of the supplied object.
+// reference of the desired object.
+//
+// Deprecated: Use ControllableBy.
 func ControllersMustMatch() ApplyOption {
 	return func(_ context.Context, current, desired runtime.Object) error {
 		if !meta.HaveSameController(current.(metav1.Object), desired.(metav1.Object)) {
@@ -280,35 +340,11 @@ func ControllersMustMatch() ApplyOption {
 
 // Apply changes to the supplied object. The object will be created if it does
 // not exist, or patched if it does.
+//
+// Deprecated: use APIPatchingApplicator instead.
 func Apply(ctx context.Context, c client.Client, o runtime.Object, ao ...ApplyOption) error {
-	m, ok := o.(metav1.Object)
-	if !ok {
-		return errors.New("cannot access object metadata")
-	}
-
-	desired := o.DeepCopyObject()
-
-	err := c.Get(ctx, types.NamespacedName{Name: m.GetName(), Namespace: m.GetNamespace()}, o)
-	if kerrors.IsNotFound(err) {
-		return errors.Wrap(c.Create(ctx, o), "cannot create object")
-	}
-	if err != nil {
-		return errors.Wrap(err, "cannot get object")
-	}
-
-	for _, fn := range ao {
-		if err := fn(ctx, o, desired); err != nil {
-			return err
-		}
-	}
-
-	return errors.Wrap(c.Patch(ctx, o, &patch{desired}), "cannot patch object")
+	return NewAPIPatchingApplicator(c).Apply(ctx, o, ao...)
 }
-
-type patch struct{ from runtime.Object }
-
-func (p *patch) Type() types.PatchType                 { return types.MergePatchType }
-func (p *patch) Data(_ runtime.Object) ([]byte, error) { return json.Marshal(p.from) }
 
 // GetExternalTags returns the identifying tags to be used to tag the external
 // resource in provider API.

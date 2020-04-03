@@ -24,15 +24,12 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
@@ -102,6 +99,7 @@ func TestLocalConnectionSecretFor(t *testing.T) {
 						Controller: &controller,
 					}},
 				},
+				Type: SecretTypeConnection,
 				Data: map[string][]byte{},
 			},
 		},
@@ -169,6 +167,7 @@ func TestConnectionSecretFor(t *testing.T) {
 						Controller: &controller,
 					}},
 				},
+				Type: SecretTypeConnection,
 				Data: map[string][]byte{},
 			},
 		},
@@ -463,141 +462,186 @@ func (o *nopeject) DeepCopyObject() runtime.Object {
 	return &nopeject{}
 }
 
-var _ Applicator = ApplyFn(Apply)
-
-func TestApply(t *testing.T) {
-	errBoom := errors.New("boom")
-	named := &object{}
-	named.SetName("barry")
-
-	controlled := &object{}
-	ref := metav1.NewControllerRef(named, schema.GroupVersionKind{})
-	meta.AddControllerReference(controlled, *ref)
+func TestControllersMustMatch(t *testing.T) {
+	uid := types.UID("very-unique-string")
+	controller := true
 
 	type args struct {
-		ctx context.Context
-		c   client.Client
-		o   runtime.Object
-		ao  []ApplyOption
-	}
-
-	type want struct {
-		o   runtime.Object
-		err error
+		ctx     context.Context
+		current runtime.Object
+		desired runtime.Object
 	}
 
 	cases := map[string]struct {
 		reason string
 		args   args
-		want   want
+		want   error
 	}{
-		"NotAMetadataObject": {
-			reason: "An error should be returned if we can't access the object's metadata",
+		"ControllersMatch": {
+			reason: "The current and desired objects have matching controller references",
 			args: args{
-				c: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
-				o: &nopeject{},
-			},
-			want: want{
-				o:   &nopeject{},
-				err: errors.New("cannot access object metadata"),
+				current: &object{ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{
+					UID:        uid,
+					Controller: &controller,
+				}}}},
+				desired: &object{ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{
+					UID:        uid,
+					Controller: &controller,
+				}}}},
 			},
 		},
-		"GetError": {
-			reason: "An error should be returned if we can't get the object",
+		"ControllersDoNotMatch": {
+			reason: "The current and desired objects do not have matching controller references",
 			args: args{
-				c: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
-				o: &object{},
+				current: &object{ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{
+					UID:        uid,
+					Controller: &controller,
+				}}}},
+				desired: &object{ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{
+					UID:        types.UID("some-other-uid"),
+					Controller: &controller,
+				}}}},
 			},
-			want: want{
-				o:   &object{},
-				err: errors.Wrap(errBoom, "cannot get object"),
-			},
-		},
-		"CreateError": {
-			reason: "No error should be returned if we successfully create a new object",
-			args: args{
-				c: &test.MockClient{
-					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-					MockCreate: test.NewMockCreateFn(errBoom),
-				},
-				o: &object{},
-			},
-			want: want{
-				o:   &object{},
-				err: errors.Wrap(errBoom, "cannot create object"),
-			},
-		},
-		"ControllerMismatch": {
-			reason: "An error should be returned if controllers must match, but don't",
-			args: args{
-				c: &test.MockClient{MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
-					*(o.(*object)) = *controlled
-					return nil
-				})},
-				o:  &object{},
-				ao: []ApplyOption{ControllersMustMatch()},
-			},
-			want: want{
-				o:   controlled,
-				err: errors.New("existing object has a different (or no) controller"),
-			},
-		},
-		"PatchError": {
-			reason: "An error should be returned if we can't patch the object",
-			args: args{
-				c: &test.MockClient{
-					MockGet:   test.NewMockGetFn(nil),
-					MockPatch: test.NewMockPatchFn(errBoom),
-				},
-				o: &object{},
-			},
-			want: want{
-				o:   &object{},
-				err: errors.Wrap(errBoom, "cannot patch object"),
-			},
-		},
-		"Created": {
-			reason: "No error should be returned if we successfully create a new object",
-			args: args{
-				c: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-					MockCreate: test.NewMockCreateFn(nil, func(o runtime.Object) error {
-						*(o.(*object)) = *named
-						return nil
-					}),
-				},
-				o: &object{},
-			},
-			want: want{
-				o: named,
-			},
-		},
-		"Patched": {
-			reason: "No error should be returned if we successfully patch an existing object",
-			args: args{
-				c: &test.MockClient{
-					MockGet: test.NewMockGetFn(nil),
-					MockPatch: test.NewMockPatchFn(nil, func(o runtime.Object) error {
-						*(o.(*object)) = *named
-						return nil
-					}),
-				},
-				o: &object{},
-			},
-			want: want{
-				o: named,
-			},
+			want: errors.New("existing object has a different (or no) controller"),
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			err := Apply(tc.args.ctx, tc.args.c, tc.args.o, tc.args.ao...)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nApply(...): -want error, +got error\n%s\n", tc.reason, diff)
+			ao := ControllersMustMatch()
+			err := ao(tc.args.ctx, tc.args.current, tc.args.desired)
+
+			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nControllersMustMatch(...)(...): -want error, +got error\n%s\n", tc.reason, diff)
 			}
-			if diff := cmp.Diff(tc.want.o, tc.args.o); diff != "" {
-				t.Errorf("\n%s\nApply(...): -want, +got\n%s\n", tc.reason, diff)
+		})
+	}
+}
+
+func TestMustBeControllableBy(t *testing.T) {
+	uid := types.UID("very-unique-string")
+	controller := true
+
+	type args struct {
+		ctx     context.Context
+		current runtime.Object
+		desired runtime.Object
+	}
+
+	cases := map[string]struct {
+		reason string
+		u      types.UID
+		args   args
+		want   error
+	}{
+		"Adoptable": {
+			reason: "A current object with no controller reference may be adopted and controlled",
+			u:      uid,
+			args: args{
+				current: &object{},
+			},
+		},
+		"ControlledBySuppliedUID": {
+			reason: "A current object that is already controlled by the supplied UID is controllable",
+			u:      uid,
+			args: args{
+				current: &object{ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{
+					UID:        uid,
+					Controller: &controller,
+				}}}},
+			},
+		},
+		"ControlledBySomeoneElse": {
+			reason: "A current object that is already controlled by a different UID is not controllable",
+			u:      uid,
+			args: args{
+				current: &object{ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{
+					UID:        types.UID("some-other-uid"),
+					Controller: &controller,
+				}}}},
+			},
+			want: errors.Errorf("existing object is not controlled by UID %q", uid),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			ao := MustBeControllableBy(tc.u)
+			err := ao(tc.args.ctx, tc.args.current, tc.args.desired)
+
+			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nMustBeControllableBy(...)(...): -want error, +got error\n%s\n", tc.reason, diff)
+			}
+		})
+	}
+}
+func TestConnectionSecretMustBeControllableBy(t *testing.T) {
+	uid := types.UID("very-unique-string")
+	controller := true
+
+	type args struct {
+		ctx     context.Context
+		current runtime.Object
+		desired runtime.Object
+	}
+
+	cases := map[string]struct {
+		reason string
+		u      types.UID
+		args   args
+		want   error
+	}{
+		"Adoptable": {
+			reason: "A Secret of SecretTypeConnection with no controller reference may be adopted and controlled",
+			u:      uid,
+			args: args{
+				current: &corev1.Secret{Type: SecretTypeConnection},
+			},
+		},
+		"ControlledBySuppliedUID": {
+			reason: "A Secret of any type that is already controlled by the supplied UID is controllable",
+			u:      uid,
+			args: args{
+				current: &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{
+						UID:        uid,
+						Controller: &controller,
+					}}},
+					Type: corev1.SecretTypeOpaque,
+				},
+			},
+		},
+		"ControlledBySomeoneElse": {
+			reason: "A Secret of any type that is already controlled by the another UID is not controllable",
+			u:      uid,
+			args: args{
+				current: &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{
+						UID:        types.UID("some-other-uid"),
+						Controller: &controller,
+					}}},
+					Type: SecretTypeConnection,
+				},
+			},
+			want: errors.Errorf("existing secret is not controlled by UID %q", uid),
+		},
+		"UncontrolledOpaqueSecret": {
+			reason: "A Secret of corev1.SecretTypeOpqaue with no controller is not controllable",
+			u:      uid,
+			args: args{
+				current: &corev1.Secret{Type: corev1.SecretTypeOpaque},
+			},
+			want: errors.Errorf("refusing to modify uncontrolled secret of type %q", corev1.SecretTypeOpaque),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			ao := ConnectionSecretMustBeControllableBy(tc.u)
+			err := ao(tc.args.ctx, tc.args.current, tc.args.desired)
+
+			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nConnectionSecretMustBeControllableBy(...)(...): -want error, +got error\n%s\n", tc.reason, diff)
 			}
 		})
 	}

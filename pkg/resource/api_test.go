@@ -24,13 +24,14 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
@@ -40,370 +41,463 @@ var (
 )
 
 func TestPropagateConnection(t *testing.T) {
+	errBoom := errors.New("boom")
+
+	mgcsns := "coolnamespace"
+	mgcsname := "coolmanagedsecret"
+	mgcsuid := types.UID("managed-uid")
+	mgcsdata := map[string][]byte{"cool": {1}}
+
+	cmcsns := "coolnamespace"
+	cmcsname := "coolclaimsecret"
+	cmcsuid := types.UID("claim-uid")
+
+	mg := &fake.Managed{
+		ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{
+			Ref: &v1alpha1.SecretReference{Namespace: mgcsns, Name: mgcsname},
+		},
+	}
+
+	cm := &fake.Claim{
+		ObjectMeta: metav1.ObjectMeta{Namespace: cmcsns},
+		LocalConnectionSecretWriterTo: fake.LocalConnectionSecretWriterTo{
+			Ref: &v1alpha1.LocalSecretReference{Name: cmcsname},
+		},
+	}
+
 	type fields struct {
-		client client.Client
+		client ClientApplicator
 		typer  runtime.ObjectTyper
 	}
 
 	type args struct {
 		ctx context.Context
-		cm  Claim
+		o   LocalConnectionSecretOwner
 		mg  Managed
 	}
 
-	namespace := "coolns"
-	cmname := "coolclaim"
-	mgname := "coolmanaged"
-	uid := types.UID("definitely-a-uuid")
-	cmcsname := "coolclaimsecret"
-	mgcsname := "coolmanagedsecret"
-	mgcsnamespace := "coolns"
-	mgcsdata := map[string][]byte{"cool": []byte("data")}
-	controller := true
-	errBoom := errors.New("boom")
-
 	cases := map[string]struct {
+		reason string
 		fields fields
 		args   args
 		want   error
 	}{
 		"ClaimDoesNotWantConnectionSecret": {
+			reason: "The managed resource's secret should not be propagated if the claim does not want to write one",
 			args: args{
-				ctx: context.Background(),
-				cm:  &fake.Claim{},
-				mg: &fake.Managed{
-					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{
-						Ref: &v1alpha1.SecretReference{Namespace: mgcsnamespace, Name: mgcsname},
-					},
-				},
+				o:  &fake.Claim{},
+				mg: mg,
 			},
 			want: nil,
 		},
 		"ManagedDoesNotExposeConnectionSecret": {
+			reason: "The managed resource's secret should not be propagated if it does not have one",
 			args: args{
-				ctx: context.Background(),
-				cm: &fake.Claim{
-					LocalConnectionSecretWriterTo: fake.LocalConnectionSecretWriterTo{
-						Ref: &v1alpha1.LocalSecretReference{Name: mgcsname},
-					},
-				},
+				o:  cm,
 				mg: &fake.Managed{},
 			},
 			want: nil,
 		},
 		"GetManagedSecretError": {
+			reason: "Errors getting the managed resource's connection secret should be returned",
 			fields: fields{
-				client: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
+				client: ClientApplicator{
+					Client: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
+				},
 			},
 			args: args{
-				ctx: context.Background(),
-				cm: &fake.Claim{
-					LocalConnectionSecretWriterTo: fake.LocalConnectionSecretWriterTo{
-						Ref: &v1alpha1.LocalSecretReference{Name: cmcsname},
-					},
-				},
-				mg: &fake.Managed{
-					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{
-						Ref: &v1alpha1.SecretReference{Namespace: mgcsnamespace, Name: mgcsname},
-					},
-				},
+				o:  cm,
+				mg: mg,
 			},
 			want: errors.Wrap(errBoom, errGetSecret),
 		},
-		"ClaimSecretConflictError": {
+		"ManagedResourceDoesNotControlSecret": {
+			reason: "The managed resource must control its connection secret before it can be propagated",
 			fields: fields{
-				client: &test.MockClient{
-					MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
-						switch n.Name {
-						case cmcsname:
-							s := &corev1.Secret{}
-							s.SetOwnerReferences([]metav1.OwnerReference{{
-								UID:        types.UID("some-other-uuid"),
-								Controller: &controller,
-							}})
-							*o.(*corev1.Secret) = *s
-						case mgcsname:
-							s := &corev1.Secret{}
-							s.SetOwnerReferences([]metav1.OwnerReference{{
-								UID:        uid,
-								Controller: &controller,
-							}})
-							*o.(*corev1.Secret) = *s
-						default:
-							return errors.New("unexpected secret name")
-						}
-						return nil
-					},
-					MockUpdate: test.NewMockUpdateFn(nil),
+				client: ClientApplicator{
+					// Simulate getting a secret that is not controlled by the
+					// managed resource by not modifying the secret passed to
+					// the client, and not returning an error. We thus proceed
+					// with our original empty secret, which has no controller
+					// reference.
+					Client: &test.MockClient{MockGet: test.NewMockGetFn(nil)},
 				},
-				typer: fake.SchemeWith(&fake.Claim{}, &fake.Managed{}),
 			},
 			args: args{
-				ctx: context.Background(),
-				cm: &fake.Claim{
-					ObjectMeta: metav1.ObjectMeta{Name: cmname},
-					LocalConnectionSecretWriterTo: fake.LocalConnectionSecretWriterTo{
-						Ref: &v1alpha1.LocalSecretReference{Name: cmcsname},
-					},
-				},
-				mg: &fake.Managed{
-					ObjectMeta: metav1.ObjectMeta{Name: mgname, UID: uid},
-					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{
-						Ref: &v1alpha1.SecretReference{Namespace: mgcsnamespace, Name: mgcsname},
-					},
-				},
+				o:  cm,
+				mg: mg,
 			},
-			want: errors.Wrap(errors.New(errSecretConflict), errCreateOrUpdateSecret),
+			want: errors.New(errSecretConflict),
 		},
-		"ClaimSecretUncontrolledError": {
+		"ApplyClaimSecretError": {
+			reason: "Errors applying the claim connection secret should be returned",
 			fields: fields{
-				client: &test.MockClient{
-					MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
-						switch n.Name {
-						case mgcsname:
-							s := &corev1.Secret{}
-							s.SetOwnerReferences([]metav1.OwnerReference{{
-								UID:        uid,
-								Controller: &controller,
-							}})
-							*o.(*corev1.Secret) = *s
-						case cmcsname:
-							// A secret without any owner references.
-							*o.(*corev1.Secret) = corev1.Secret{}
-						default:
-							return errors.New("unexpected secret name")
-						}
+				client: ClientApplicator{
+					Client: &test.MockClient{MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+						s := ConnectionSecretFor(mg, fake.GVK(mg))
+						*o.(*corev1.Secret) = *s
 						return nil
-					},
-					MockUpdate: test.NewMockUpdateFn(nil),
+					})},
+					Applicator: ApplyFn(func(_ context.Context, _ runtime.Object, _ ...ApplyOption) error { return errBoom }),
 				},
-				typer: fake.SchemeWith(&fake.Claim{}, &fake.Managed{}),
+				typer: fake.SchemeWith(mg, cm),
 			},
 			args: args{
-				ctx: context.Background(),
-				cm: &fake.Claim{
-					ObjectMeta: metav1.ObjectMeta{Name: cmname},
-					LocalConnectionSecretWriterTo: fake.LocalConnectionSecretWriterTo{
-						Ref: &v1alpha1.LocalSecretReference{Name: cmcsname},
-					},
-				},
-				mg: &fake.Managed{
-					ObjectMeta: metav1.ObjectMeta{Name: mgname, UID: uid},
-					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{
-						Ref: &v1alpha1.SecretReference{Namespace: mgcsnamespace, Name: mgcsname},
-					},
-				},
+				o:  cm,
+				mg: mg,
 			},
-			want: errors.Wrap(errors.New(errSecretConflict), errCreateOrUpdateSecret),
+			want: errors.Wrap(errBoom, errCreateOrUpdateSecret),
 		},
-		"ManagedSecretUpdateError": {
+		"UpdateManagedSecretError": {
+			reason: "Errors updating the managed resource connection secret should be returned",
 			fields: fields{
-				client: &test.MockClient{
-					MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
-
-						switch n.Name {
-						case mgcsname:
-							s := corev1.Secret{}
-							s.SetNamespace(namespace)
-							s.SetUID(uid)
-							s.SetOwnerReferences([]metav1.OwnerReference{{UID: uid, Controller: &controller}})
-							s.SetName(mgcsname)
-							s.Data = mgcsdata
-							*o.(*corev1.Secret) = s
-						case cmcsname:
-						default:
-							return errors.New("unexpected secret name")
-						}
-						return nil
+				client: ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							s := ConnectionSecretFor(mg, fake.GVK(mg))
+							*o.(*corev1.Secret) = *s
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(errBoom),
 					},
-					MockUpdate: test.NewMockUpdateFn(nil, func(got runtime.Object) error {
-						switch got.(metav1.Object).GetName() {
-						case cmcsname:
-						case mgcsname:
-							return errBoom
-						default:
-							return errors.New("unexpected secret name")
-						}
-						return nil
-					}),
+					Applicator: ApplyFn(func(_ context.Context, _ runtime.Object, _ ...ApplyOption) error { return nil }),
 				},
-				typer: fake.SchemeWith(&fake.Claim{}, &fake.Managed{}),
+				typer: fake.SchemeWith(mg, cm),
 			},
 			args: args{
-				ctx: context.Background(),
-				cm: &fake.Claim{
-					ObjectMeta: metav1.ObjectMeta{Name: cmname},
-					LocalConnectionSecretWriterTo: fake.LocalConnectionSecretWriterTo{
-						Ref: &v1alpha1.LocalSecretReference{Name: cmcsname},
-					},
-				},
-				mg: &fake.Managed{
-					ObjectMeta: metav1.ObjectMeta{Name: mgname, UID: uid},
-					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{
-						Ref: &v1alpha1.SecretReference{Namespace: mgcsnamespace, Name: mgcsname},
-					},
-				},
+				o:  cm,
+				mg: mg,
 			},
 			want: errors.Wrap(errBoom, errUpdateSecret),
 		},
 		"Successful": {
+			reason: "Successful propagation should update the claim and managed resource secrets with the appropriate values",
 			fields: fields{
-				client: &test.MockClient{
-					MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
-						s := corev1.Secret{}
-						s.SetNamespace(namespace)
-						s.SetUID(uid)
-						s.SetOwnerReferences([]metav1.OwnerReference{{UID: uid, Controller: &controller}})
-
-						switch n.Name {
-						case mgcsname:
-							s.SetName(mgcsname)
+				client: ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							// The managed secret has some data when we get it.
+							s := ConnectionSecretFor(mg, fake.GVK(mg))
+							s.SetUID(mgcsuid)
 							s.Data = mgcsdata
-							*o.(*corev1.Secret) = s
-						case cmcsname:
-							s.SetName(cmcsname)
-							*o.(*corev1.Secret) = s
-						default:
-							return errors.New("unexpected secret name")
-						}
-						return nil
-					},
-					MockUpdate: test.NewMockUpdateFn(nil, func(got runtime.Object) error {
-						want := &corev1.Secret{}
-						want.SetNamespace(namespace)
-						want.SetUID(uid)
-						want.SetOwnerReferences([]metav1.OwnerReference{{UID: uid, Controller: &controller}})
-						want.Data = mgcsdata
 
-						switch got.(metav1.Object).GetName() {
-						case cmcsname:
-							want.SetName(cmcsname)
-							want.SetAnnotations(map[string]string{
-								AnnotationKeyPropagateFromNamespace: namespace,
-								AnnotationKeyPropagateFromName:      mgcsname,
-								AnnotationKeyPropagateFromUID:       string(uid),
-							})
-							if diff := cmp.Diff(want, got); diff != "" {
-								t.Errorf("-want, +got:\n%s", diff)
+							*o.(*corev1.Secret) = *s
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil, func(o runtime.Object) error {
+							// Ensure the managed secret is annotated to allow
+							// constant propagation to the claim secret.
+							want := ConnectionSecretFor(mg, fake.GVK(mg))
+							want.SetUID(mgcsuid)
+							k := strings.Join([]string{AnnotationKeyPropagateToPrefix, string(cmcsuid)}, AnnotationDelimiter)
+							v := strings.Join([]string{cmcsns, cmcsname}, AnnotationDelimiter)
+							want.SetAnnotations(map[string]string{k: v})
+							want.Data = mgcsdata
+							if diff := cmp.Diff(want, o); diff != "" {
+								t.Errorf("-want, +got: %s", diff)
 							}
-						case mgcsname:
-							want.SetName(mgcsname)
-							want.SetAnnotations(map[string]string{
-								strings.Join([]string{AnnotationKeyPropagateToPrefix, string(uid)}, AnnotationDelimiter): strings.Join([]string{namespace, cmcsname}, AnnotationDelimiter),
-							})
-							if diff := cmp.Diff(want, got); diff != "" {
-								t.Errorf("-want, +got:\n%s", diff)
-							}
-						default:
-							return errors.New("unexpected secret name")
+							return nil
+						}),
+					},
+					Applicator: ApplyFn(func(_ context.Context, o runtime.Object, _ ...ApplyOption) error {
+						// Ensure the managed secret's data is copied to the
+						// claim secret, and that the claim secret is annotated
+						// to allow constant propagation from the managed
+						// secret.
+						want := LocalConnectionSecretFor(cm, fake.GVK(cm))
+						want.SetAnnotations(map[string]string{
+							AnnotationKeyPropagateFromNamespace: mgcsns,
+							AnnotationKeyPropagateFromName:      mgcsname,
+							AnnotationKeyPropagateFromUID:       string(mgcsuid),
+						})
+						want.Data = mgcsdata
+						if diff := cmp.Diff(want, o); diff != "" {
+							t.Errorf("-want, +got: %s", diff)
 						}
+
+						o.(*corev1.Secret).SetUID(cmcsuid)
 						return nil
 					}),
 				},
-				typer: fake.SchemeWith(&fake.Claim{}, &fake.Managed{}),
+				typer: fake.SchemeWith(mg, cm),
 			},
 			args: args{
-				ctx: context.Background(),
-				cm: &fake.Claim{
-					ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: cmname, UID: uid},
-					LocalConnectionSecretWriterTo: fake.LocalConnectionSecretWriterTo{
-						Ref: &v1alpha1.LocalSecretReference{Name: cmcsname},
-					},
-				},
-				mg: &fake.Managed{
-					ObjectMeta: metav1.ObjectMeta{Name: mgname, UID: uid},
-					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{
-						Ref: &v1alpha1.SecretReference{Namespace: mgcsnamespace, Name: mgcsname},
-					},
-				},
+				o:  cm,
+				mg: mg,
 			},
-			want: nil,
-		},
-		"SuccessfulWithExisting": {
-			fields: fields{
-				client: &test.MockClient{
-					MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
-						s := corev1.Secret{}
-						s.SetNamespace(namespace)
-						s.SetUID(uid)
-						s.SetOwnerReferences([]metav1.OwnerReference{{UID: uid, Controller: &controller}})
-
-						switch n.Name {
-						case mgcsname:
-							s.SetName(mgcsname)
-							meta.AddAnnotations(&s, map[string]string{
-								strings.Join([]string{AnnotationKeyPropagateToPrefix, "existing-uid"}, AnnotationDelimiter): "existing-namespace/existing-name",
-							})
-							s.Data = mgcsdata
-							*o.(*corev1.Secret) = s
-						case cmcsname:
-							s.SetName(cmcsname)
-							*o.(*corev1.Secret) = s
-						default:
-							return errors.New("unexpected secret name")
-						}
-						return nil
-					},
-					MockUpdate: test.NewMockUpdateFn(nil, func(got runtime.Object) error {
-						want := &corev1.Secret{}
-						want.SetNamespace(namespace)
-						want.SetUID(uid)
-						want.SetOwnerReferences([]metav1.OwnerReference{{UID: uid, Controller: &controller}})
-						want.Data = mgcsdata
-
-						switch got.(metav1.Object).GetName() {
-						case cmcsname:
-							want.SetName(cmcsname)
-							want.SetAnnotations(map[string]string{
-								AnnotationKeyPropagateFromNamespace: namespace,
-								AnnotationKeyPropagateFromName:      mgcsname,
-								AnnotationKeyPropagateFromUID:       string(uid),
-							})
-							if diff := cmp.Diff(want, got); diff != "" {
-								t.Errorf("-want, +got:\n%s", diff)
-							}
-						case mgcsname:
-							want.SetName(mgcsname)
-							want.SetAnnotations(map[string]string{
-								strings.Join([]string{AnnotationKeyPropagateToPrefix, "existing-uid"}, AnnotationDelimiter): "existing-namespace/existing-name",
-								strings.Join([]string{AnnotationKeyPropagateToPrefix, string(uid)}, AnnotationDelimiter):    strings.Join([]string{namespace, cmcsname}, AnnotationDelimiter),
-							})
-							if diff := cmp.Diff(want, got); diff != "" {
-								t.Errorf("-want, +got:\n%s", diff)
-							}
-						default:
-							return errors.New("unexpected secret name")
-						}
-						return nil
-					}),
-				},
-				typer: fake.SchemeWith(&fake.Claim{}, &fake.Managed{}),
-			},
-			args: args{
-				ctx: context.Background(),
-				cm: &fake.Claim{
-					ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: cmname, UID: uid},
-					LocalConnectionSecretWriterTo: fake.LocalConnectionSecretWriterTo{
-						Ref: &v1alpha1.LocalSecretReference{Name: cmcsname},
-					},
-				},
-				mg: &fake.Managed{
-					ObjectMeta: metav1.ObjectMeta{Name: mgname, UID: uid},
-					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{
-						Ref: &v1alpha1.SecretReference{Namespace: mgcsnamespace, Name: mgcsname},
-					},
-				},
-			},
-			want: nil,
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			api := NewAPIManagedConnectionPropagator(tc.fields.client, tc.fields.typer)
-			err := api.PropagateConnection(tc.args.ctx, tc.args.cm, tc.args.mg)
+			api := &APIManagedConnectionPropagator{client: tc.fields.client, typer: tc.fields.typer}
+			err := api.PropagateConnection(tc.args.ctx, tc.args.o, tc.args.mg)
 			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
-				t.Errorf("api.PropagateConnection(...): -want error, +got error:\n%s", diff)
+				t.Errorf("\n%s\napi.PropagateConnection(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestAPIPatchingApplicator(t *testing.T) {
+	errBoom := errors.New("boom")
+	named := &object{}
+	named.SetName("barry")
+
+	type args struct {
+		ctx context.Context
+		o   runtime.Object
+		ao  []ApplyOption
+	}
+
+	type want struct {
+		o   runtime.Object
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		c      client.Client
+		args   args
+		want   want
+	}{
+		"NotAMetadataObject": {
+			reason: "An error should be returned if we can't access the object's metadata",
+			c:      &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
+			args: args{
+				o: &nopeject{},
+			},
+			want: want{
+				o:   &nopeject{},
+				err: errors.New("cannot access object metadata"),
+			},
+		},
+		"GetError": {
+			reason: "An error should be returned if we can't get the object",
+			c:      &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
+			args: args{
+				o: &object{},
+			},
+			want: want{
+				o:   &object{},
+				err: errors.Wrap(errBoom, "cannot get object"),
+			},
+		},
+		"CreateError": {
+			reason: "No error should be returned if we successfully create a new object",
+			c: &test.MockClient{
+				MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+				MockCreate: test.NewMockCreateFn(errBoom),
+			},
+			args: args{
+				o: &object{},
+			},
+			want: want{
+				o:   &object{},
+				err: errors.Wrap(errBoom, "cannot create object"),
+			},
+		},
+		"ApplyOptionError": {
+			reason: "Any errors from an apply option should be returned",
+			c:      &test.MockClient{MockGet: test.NewMockGetFn(nil)},
+			args: args{
+				o:  &object{},
+				ao: []ApplyOption{func(_ context.Context, _, _ runtime.Object) error { return errBoom }},
+			},
+			want: want{
+				o:   &object{},
+				err: errBoom,
+			},
+		},
+		"PatchError": {
+			reason: "An error should be returned if we can't patch the object",
+			c: &test.MockClient{
+				MockGet:   test.NewMockGetFn(nil),
+				MockPatch: test.NewMockPatchFn(errBoom),
+			},
+			args: args{
+				o: &object{},
+			},
+			want: want{
+				o:   &object{},
+				err: errors.Wrap(errBoom, "cannot patch object"),
+			},
+		},
+		"Created": {
+			reason: "No error should be returned if we successfully create a new object",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+				MockCreate: test.NewMockCreateFn(nil, func(o runtime.Object) error {
+					*o.(*object) = *named
+					return nil
+				}),
+			},
+			args: args{
+				o: &object{},
+			},
+			want: want{
+				o: named,
+			},
+		},
+		"Patched": {
+			reason: "No error should be returned if we successfully patch an existing object",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil),
+				MockPatch: test.NewMockPatchFn(nil, func(o runtime.Object) error {
+					*o.(*object) = *named
+					return nil
+				}),
+			},
+			args: args{
+				o: &object{},
+			},
+			want: want{
+				o: named,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			a := NewAPIPatchingApplicator(tc.c)
+			err := a.Apply(tc.args.ctx, tc.args.o, tc.args.ao...)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nApply(...): -want error, +got error\n%s\n", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.o, tc.args.o); diff != "" {
+				t.Errorf("\n%s\nApply(...): -want, +got\n%s\n", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestAPIUpdatingApplicator(t *testing.T) {
+	errBoom := errors.New("boom")
+	named := &object{}
+	named.SetName("barry")
+
+	type args struct {
+		ctx context.Context
+		o   runtime.Object
+		ao  []ApplyOption
+	}
+
+	type want struct {
+		o   runtime.Object
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		c      client.Client
+		args   args
+		want   want
+	}{
+		"NotAMetadataObject": {
+			reason: "An error should be returned if we can't access the object's metadata",
+			c:      &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
+			args: args{
+				o: &nopeject{},
+			},
+			want: want{
+				o:   &nopeject{},
+				err: errors.New("cannot access object metadata"),
+			},
+		},
+		"GetError": {
+			reason: "An error should be returned if we can't get the object",
+			c:      &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
+			args: args{
+				o: &object{},
+			},
+			want: want{
+				o:   &object{},
+				err: errors.Wrap(errBoom, "cannot get object"),
+			},
+		},
+		"CreateError": {
+			reason: "No error should be returned if we successfully create a new object",
+			c: &test.MockClient{
+				MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+				MockCreate: test.NewMockCreateFn(errBoom),
+			},
+			args: args{
+				o: &object{},
+			},
+			want: want{
+				o:   &object{},
+				err: errors.Wrap(errBoom, "cannot create object"),
+			},
+		},
+		"ApplyOptionError": {
+			reason: "Any errors from an apply option should be returned",
+			c:      &test.MockClient{MockGet: test.NewMockGetFn(nil)},
+			args: args{
+				o:  &object{},
+				ao: []ApplyOption{func(_ context.Context, _, _ runtime.Object) error { return errBoom }},
+			},
+			want: want{
+				o:   &object{},
+				err: errBoom,
+			},
+		},
+		"UpdateError": {
+			reason: "An error should be returned if we can't update the object",
+			c: &test.MockClient{
+				MockGet:    test.NewMockGetFn(nil),
+				MockUpdate: test.NewMockUpdateFn(errBoom),
+			},
+			args: args{
+				o: &object{},
+			},
+			want: want{
+				o:   &object{},
+				err: errors.Wrap(errBoom, "cannot update object"),
+			},
+		},
+		"Created": {
+			reason: "No error should be returned if we successfully create a new object",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+				MockCreate: test.NewMockCreateFn(nil, func(o runtime.Object) error {
+					*o.(*object) = *named
+					return nil
+				}),
+			},
+			args: args{
+				o: &object{},
+			},
+			want: want{
+				o: named,
+			},
+		},
+		"Updated": {
+			reason: "No error should be returned if we successfully update an existing object",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil),
+				MockUpdate: test.NewMockUpdateFn(nil, func(o runtime.Object) error {
+					*o.(*object) = *named
+					return nil
+				}),
+			},
+			args: args{
+				o: &object{},
+			},
+			want: want{
+				o: named,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			a := NewAPIUpdatingApplicator(tc.c)
+			err := a.Apply(tc.args.ctx, tc.args.o, tc.args.ao...)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nApply(...): -want error, +got error\n%s\n", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.o, tc.args.o); diff != "" {
+				t.Errorf("\n%s\nApply(...): -want, +got\n%s\n", tc.reason, diff)
 			}
 		})
 	}

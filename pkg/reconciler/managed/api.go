@@ -20,10 +20,8 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	util "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -31,7 +29,6 @@ import (
 
 // Error strings.
 const (
-	errSecretConflict       = "cannot establish control of existing connection secret"
 	errCreateOrUpdateSecret = "cannot create or update connection secret"
 	errUpdateManaged        = "cannot update managed resource"
 	errUpdateManagedStatus  = "cannot update managed resource status"
@@ -85,13 +82,15 @@ func (a *NameAsExternalName) Initialize(ctx context.Context, mg resource.Managed
 // An APISecretPublisher publishes ConnectionDetails by submitting a Secret to a
 // Kubernetes API server.
 type APISecretPublisher struct {
-	client client.Client
+	secret resource.Applicator
 	typer  runtime.ObjectTyper
 }
 
 // NewAPISecretPublisher returns a new APISecretPublisher.
 func NewAPISecretPublisher(c client.Client, ot runtime.ObjectTyper) *APISecretPublisher {
-	return &APISecretPublisher{client: c, typer: ot}
+	// NOTE(negz): We transparently inject an APIPatchingApplicator in order to maintain
+	// backward compatibility with the original API of this function.
+	return &APISecretPublisher{secret: resource.NewAPIPatchingApplicator(c), typer: ot}
 }
 
 // PublishConnection publishes the supplied ConnectionDetails to a Secret in the
@@ -104,30 +103,8 @@ func (a *APISecretPublisher) PublishConnection(ctx context.Context, mg resource.
 	}
 
 	s := resource.ConnectionSecretFor(mg, resource.MustGetKind(mg, a.typer))
-
-	_, err := util.CreateOrUpdate(ctx, a.client, s, func() error {
-		// Inside this anonymous function s could either be unchanged (if it
-		// does not exist in the API server) or updated to reflect its current
-		// state according to the API server.
-		if c := metav1.GetControllerOf(s); c == nil || c.UID != mg.GetUID() {
-			return errors.New(errSecretConflict)
-		}
-
-		// NOTE(negz): We want to support additive publishing, i.e. support
-		// setting one subset of secret values then later setting another subset
-		// without effecting the original subset.
-		if s.Data == nil {
-			s.Data = make(map[string][]byte, len(c))
-		}
-
-		for k, v := range c {
-			s.Data[k] = v
-		}
-
-		return nil
-	})
-
-	return errors.Wrap(err, errCreateOrUpdateSecret)
+	s.Data = c
+	return errors.Wrap(a.secret.Apply(ctx, s, resource.ConnectionSecretMustBeControllableBy(mg.GetUID())), errCreateOrUpdateSecret)
 }
 
 // UnpublishConnection is no-op since PublishConnection only creates resources

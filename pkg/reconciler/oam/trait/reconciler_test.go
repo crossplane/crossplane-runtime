@@ -235,7 +235,7 @@ func TestReconciler(t *testing.T) {
 				},
 				t: resource.TraitKind(fake.GVK(&fake.Trait{})),
 				p: resource.ObjectKind(fake.GVK(&fake.Object{})),
-				o: []ReconcilerOption{WithApplicator(resource.ApplyFn(func(_ context.Context, _ client.Client, _ runtime.Object, _ ...resource.ApplyOption) error {
+				o: []ReconcilerOption{WithApplicator(resource.ApplyFn(func(_ context.Context, _ runtime.Object, _ ...resource.ApplyOption) error {
 					return errBoom
 				}))},
 			},
@@ -278,7 +278,7 @@ func TestReconciler(t *testing.T) {
 				},
 				t: resource.TraitKind(fake.GVK(&fake.Trait{})),
 				p: resource.ObjectKind(fake.GVK(&fake.Object{})),
-				o: []ReconcilerOption{WithApplicator(resource.ApplyFn(func(_ context.Context, _ client.Client, _ runtime.Object, _ ...resource.ApplyOption) error {
+				o: []ReconcilerOption{WithApplicator(resource.ApplyFn(func(_ context.Context, _ runtime.Object, _ ...resource.ApplyOption) error {
 					return nil
 				}))},
 			},
@@ -309,7 +309,7 @@ func TestReconciler(t *testing.T) {
 				},
 				t: resource.TraitKind(fake.GVK(&fake.Trait{})),
 				p: resource.ObjectKind(fake.GVK(&fake.Object{})),
-				o: []ReconcilerOption{WithApplicator(resource.ApplyFn(func(_ context.Context, _ client.Client, _ runtime.Object, _ ...resource.ApplyOption) error {
+				o: []ReconcilerOption{WithApplicator(resource.ApplyFn(func(_ context.Context, _ runtime.Object, _ ...resource.ApplyOption) error {
 					return nil
 				}))},
 			},

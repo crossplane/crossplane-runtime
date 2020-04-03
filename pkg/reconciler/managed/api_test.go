@@ -22,12 +22,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
-	corev1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
@@ -238,8 +234,19 @@ func TestNameAsExternalName(t *testing.T) {
 }
 
 func TestAPISecretPublisher(t *testing.T) {
+	errBoom := errors.New("boom")
+
+	mg := &fake.Managed{
+		ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: &v1alpha1.SecretReference{
+			Namespace: "coolnamespace",
+			Name:      "coolsecret",
+		}},
+	}
+
+	cd := ConnectionDetails{"cool": {42}}
+
 	type fields struct {
-		client client.Client
+		secret resource.Applicator
 		typer  runtime.ObjectTyper
 	}
 
@@ -249,226 +256,58 @@ func TestAPISecretPublisher(t *testing.T) {
 		c   ConnectionDetails
 	}
 
-	mgname := "coolmanaged"
-	mgcsnamespace := "coolnamespace"
-	mgcsname := "coolmanagedsecret"
-	mgcsdata := map[string][]byte{
-		"cool":   []byte("data"),
-		"cooler": []byte("notdata?"),
-	}
-	cddata := map[string][]byte{
-		"cooler":  []byte("data"),
-		"coolest": []byte("data"),
-	}
-	controller := true
-
 	cases := map[string]struct {
+		reason string
 		fields fields
 		args   args
 		want   error
 	}{
 		"ResourceDoesNotPublishSecret": {
+			reason: "A managed resource with a nil GetWriteConnectionSecretToReference should not publish a secret",
 			args: args{
 				ctx: context.Background(),
 				mg:  &fake.Managed{},
 			},
 		},
-		"ManagedSecretConflictError": {
+		"ApplyError": {
+			reason: "An error applying the connection secret should be returned",
 			fields: fields{
-				client: &test.MockClient{
-					MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
-						s := &corev1.Secret{}
-						s.SetOwnerReferences([]metav1.OwnerReference{{
-							UID:        types.UID("some-other-uuid"),
-							Controller: &controller,
-						}})
-						*o.(*corev1.Secret) = *s
-						return nil
-					},
-					MockUpdate: test.NewMockUpdateFn(nil),
-				},
-				typer: fake.SchemeWith(&fake.Managed{}),
+				secret: resource.ApplyFn(func(_ context.Context, _ runtime.Object, _ ...resource.ApplyOption) error { return errBoom }),
+				typer:  fake.SchemeWith(&fake.Managed{}),
 			},
 			args: args{
 				ctx: context.Background(),
-				mg: &fake.Managed{
-					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: &v1alpha1.SecretReference{
-						Namespace: mgcsnamespace,
-						Name:      mgcsname,
-					}},
-				},
-				c: ConnectionDetails{},
+				mg:  mg,
 			},
-			want: errors.Wrap(errors.New(errSecretConflict), errCreateOrUpdateSecret),
+			want: errors.Wrap(errBoom, errCreateOrUpdateSecret),
 		},
-		"ManagedSecretUncontrolledError": {
+		"Success": {
+			reason: "A successful application of the connection secret should result in no error",
 			fields: fields{
-				client: &test.MockClient{
-					MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
-						*o.(*corev1.Secret) = corev1.Secret{}
-						return nil
-					},
-					MockUpdate: test.NewMockUpdateFn(nil),
-				},
+				secret: resource.ApplyFn(func(_ context.Context, o runtime.Object, _ ...resource.ApplyOption) error {
+					want := resource.ConnectionSecretFor(mg, fake.GVK(mg))
+					want.Data = cd
+					if diff := cmp.Diff(want, o); diff != "" {
+						t.Errorf("-want, +got:\n%s", diff)
+					}
+					return nil
+				}),
 				typer: fake.SchemeWith(&fake.Managed{}),
 			},
 			args: args{
 				ctx: context.Background(),
-				mg: &fake.Managed{
-					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: &v1alpha1.SecretReference{
-						Namespace: mgcsnamespace,
-						Name:      mgcsname,
-					}},
-				},
-				c: ConnectionDetails{},
+				mg:  mg,
+				c:   cd,
 			},
-			want: errors.Wrap(errors.New(errSecretConflict), errCreateOrUpdateSecret),
-		},
-		"SuccessfulCreate": {
-			fields: fields{
-				client: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-					MockCreate: test.NewMockCreateFn(nil, func(got runtime.Object) error {
-						want := &corev1.Secret{}
-						want.SetNamespace(mgcsnamespace)
-						want.SetName(mgcsname)
-						want.SetOwnerReferences([]metav1.OwnerReference{{
-							Name:       mgname,
-							APIVersion: fake.GVK(&fake.Managed{}).GroupVersion().String(),
-							Kind:       fake.GVK(&fake.Managed{}).Kind,
-							Controller: &controller,
-						}})
-						want.Data = cddata
-						if diff := cmp.Diff(want, got); diff != "" {
-							t.Errorf("-want, +got:\n%s", diff)
-						}
-						return nil
-					}),
-				},
-				typer: fake.SchemeWith(&fake.Managed{}),
-			},
-			args: args{
-				ctx: context.Background(),
-				mg: &fake.Managed{
-					ObjectMeta: metav1.ObjectMeta{Name: mgname},
-					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: &v1alpha1.SecretReference{
-						Namespace: mgcsnamespace,
-						Name:      mgcsname,
-					}},
-				},
-				c: ConnectionDetails(cddata),
-			},
-			want: nil,
-		},
-		"SuccessfulUpdateEmptyManagedSecret": {
-			fields: fields{
-				client: &test.MockClient{
-					MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
-						s := &corev1.Secret{}
-						s.SetNamespace(mgcsnamespace)
-						s.SetName(mgcsname)
-						s.SetOwnerReferences([]metav1.OwnerReference{{
-							Name:       mgname,
-							APIVersion: fake.GVK(&fake.Managed{}).GroupVersion().String(),
-							Kind:       fake.GVK(&fake.Managed{}).Kind,
-							Controller: &controller,
-						}})
-						*o.(*corev1.Secret) = *s
-						return nil
-					},
-					MockUpdate: test.NewMockUpdateFn(nil, func(got runtime.Object) error {
-						want := &corev1.Secret{}
-						want.SetNamespace(mgcsnamespace)
-						want.SetName(mgcsname)
-						want.SetOwnerReferences([]metav1.OwnerReference{{
-							Name:       mgname,
-							APIVersion: fake.GVK(&fake.Managed{}).GroupVersion().String(),
-							Kind:       fake.GVK(&fake.Managed{}).Kind,
-							Controller: &controller,
-						}})
-						want.Data = cddata
-						if diff := cmp.Diff(want, got); diff != "" {
-							t.Errorf("-want, +got:\n%s", diff)
-						}
-						return nil
-					}),
-				},
-				typer: fake.SchemeWith(&fake.Managed{}),
-			},
-			args: args{
-				ctx: context.Background(),
-				mg: &fake.Managed{
-					ObjectMeta: metav1.ObjectMeta{Name: mgname},
-					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: &v1alpha1.SecretReference{
-						Namespace: mgcsnamespace,
-						Name:      mgcsname,
-					}},
-				},
-				c: ConnectionDetails(cddata),
-			},
-			want: nil,
-		},
-		"SuccessfulUpdatePopulatedManagedSecret": {
-			fields: fields{
-				client: &test.MockClient{
-					MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
-						s := &corev1.Secret{}
-						s.SetNamespace(mgcsnamespace)
-						s.SetName(mgcsname)
-						s.SetOwnerReferences([]metav1.OwnerReference{{
-							Name:       mgname,
-							APIVersion: fake.GVK(&fake.Managed{}).GroupVersion().String(),
-							Kind:       fake.GVK(&fake.Managed{}).Kind,
-							Controller: &controller,
-						}})
-						s.Data = mgcsdata
-						*o.(*corev1.Secret) = *s
-						return nil
-					},
-					MockUpdate: test.NewMockUpdateFn(nil, func(got runtime.Object) error {
-						want := &corev1.Secret{}
-						want.SetNamespace(mgcsnamespace)
-						want.SetName(mgcsname)
-						want.SetOwnerReferences([]metav1.OwnerReference{{
-							Name:       mgname,
-							APIVersion: fake.GVK(&fake.Managed{}).GroupVersion().String(),
-							Kind:       fake.GVK(&fake.Managed{}).Kind,
-							Controller: &controller,
-						}})
-						want.Data = map[string][]byte{
-							"cool":    []byte("data"),
-							"cooler":  []byte("data"),
-							"coolest": []byte("data"),
-						}
-						if diff := cmp.Diff(want, got); diff != "" {
-							t.Errorf("-want, +got:\n%s", diff)
-						}
-						return nil
-					}),
-				},
-				typer: fake.SchemeWith(&fake.Managed{}),
-			},
-			args: args{
-				ctx: context.Background(),
-				mg: &fake.Managed{
-					ObjectMeta: metav1.ObjectMeta{Name: mgname},
-					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: &v1alpha1.SecretReference{
-						Namespace: mgcsnamespace,
-						Name:      mgcsname,
-					}},
-				},
-				c: ConnectionDetails(cddata),
-			},
-			want: nil,
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			a := NewAPISecretPublisher(tc.fields.client, tc.fields.typer)
+			a := &APISecretPublisher{tc.fields.secret, tc.fields.typer}
 			got := a.PublishConnection(tc.args.ctx, tc.args.mg, tc.args.c)
 			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
-				t.Errorf("Publish(...): -want, +got:\n%s", diff)
+				t.Errorf("\n%s\nPublish(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
