@@ -815,7 +815,7 @@ func TestGetExternalName(t *testing.T) {
 		want string
 	}{
 		"ExternalNameExists": {
-			o:    &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{ExternalNameAnnotationKey: name}}},
+			o:    &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalName: name}}},
 			want: name,
 		},
 		"NoExternalName": {
@@ -843,7 +843,7 @@ func TestSetExternalName(t *testing.T) {
 		"SetsTheCorrectKey": {
 			o:    &corev1.Pod{},
 			name: name,
-			want: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{ExternalNameAnnotationKey: name}}},
+			want: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalName: name}}},
 		},
 	}
 

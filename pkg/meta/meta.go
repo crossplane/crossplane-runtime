@@ -33,9 +33,9 @@ import (
 */
 
 const (
-	// ExternalNameAnnotationKey is the key in the annotations map of a resource
+	// AnnotationKeyExternalName is the key in the annotations map of a resource
 	// for the name of the resource as it appears on provider's systems.
-	ExternalNameAnnotationKey = "crossplane.io/external-name"
+	AnnotationKeyExternalName = "crossplane.io/external-name"
 )
 
 // ReferenceTo returns an object reference to the supplied object, presumed to
@@ -213,10 +213,10 @@ func WasCreated(o metav1.Object) bool {
 
 // GetExternalName returns the external name annotation value on the resource.
 func GetExternalName(o metav1.Object) string {
-	return o.GetAnnotations()[ExternalNameAnnotationKey]
+	return o.GetAnnotations()[AnnotationKeyExternalName]
 }
 
 // SetExternalName sets the external name annotation of the resource.
 func SetExternalName(o metav1.Object, name string) {
-	AddAnnotations(o, map[string]string{ExternalNameAnnotationKey: name})
+	AddAnnotations(o, map[string]string{AnnotationKeyExternalName: name})
 }

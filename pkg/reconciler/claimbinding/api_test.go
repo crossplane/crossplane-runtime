@@ -215,17 +215,17 @@ func TestBind(t *testing.T) {
 				ctx: context.Background(),
 				cm:  &fake.Claim{},
 				mg: &fake.Managed{
-					ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
+					ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{meta.AnnotationKeyExternalName: externalName}},
 				},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateClaim),
 				cm: &fake.Claim{
-					ObjectMeta:    metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
+					ObjectMeta:    metav1.ObjectMeta{Annotations: map[string]string{meta.AnnotationKeyExternalName: externalName}},
 					BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
 				mg: &fake.Managed{
-					ObjectMeta:      metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
+					ObjectMeta:      metav1.ObjectMeta{Annotations: map[string]string{meta.AnnotationKeyExternalName: externalName}},
 					ClaimReferencer: fake.ClaimReferencer{Ref: meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
 					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
@@ -255,16 +255,16 @@ func TestBind(t *testing.T) {
 				ctx: context.Background(),
 				cm:  &fake.Claim{},
 				mg: &fake.Managed{
-					ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
+					ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{meta.AnnotationKeyExternalName: externalName}},
 				},
 			},
 			want: want{
 				err: nil,
 				cm: &fake.Claim{
-					ObjectMeta:    metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
+					ObjectMeta:    metav1.ObjectMeta{Annotations: map[string]string{meta.AnnotationKeyExternalName: externalName}},
 					BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
 				mg: &fake.Managed{
-					ObjectMeta:      metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
+					ObjectMeta:      metav1.ObjectMeta{Annotations: map[string]string{meta.AnnotationKeyExternalName: externalName}},
 					ClaimReferencer: fake.ClaimReferencer{Ref: meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
 					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
@@ -373,17 +373,17 @@ func TestStatusBind(t *testing.T) {
 				ctx: context.Background(),
 				cm:  &fake.Claim{},
 				mg: &fake.Managed{
-					ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
+					ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{meta.AnnotationKeyExternalName: externalName}},
 				},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateClaim),
 				cm: &fake.Claim{
-					ObjectMeta:    metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
+					ObjectMeta:    metav1.ObjectMeta{Annotations: map[string]string{meta.AnnotationKeyExternalName: externalName}},
 					BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
 				mg: &fake.Managed{
-					ObjectMeta:      metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
+					ObjectMeta:      metav1.ObjectMeta{Annotations: map[string]string{meta.AnnotationKeyExternalName: externalName}},
 					ClaimReferencer: fake.ClaimReferencer{Ref: meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
 					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
@@ -419,17 +419,17 @@ func TestStatusBind(t *testing.T) {
 				ctx: context.Background(),
 				cm:  &fake.Claim{},
 				mg: &fake.Managed{
-					ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
+					ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{meta.AnnotationKeyExternalName: externalName}},
 				},
 			},
 			want: want{
 				err: nil,
 				cm: &fake.Claim{
-					ObjectMeta:    metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
+					ObjectMeta:    metav1.ObjectMeta{Annotations: map[string]string{meta.AnnotationKeyExternalName: externalName}},
 					BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
 				mg: &fake.Managed{
-					ObjectMeta:      metav1.ObjectMeta{Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName}},
+					ObjectMeta:      metav1.ObjectMeta{Annotations: map[string]string{meta.AnnotationKeyExternalName: externalName}},
 					ClaimReferencer: fake.ClaimReferencer{Ref: meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
 					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
 				},
