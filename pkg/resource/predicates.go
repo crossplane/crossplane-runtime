@@ -17,13 +17,13 @@ limitations under the License.
 package resource
 
 import (
-	"strings"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 )
 
 // A PredicateFn returns true if the supplied object should be reconciled.
@@ -131,20 +131,12 @@ func IsControlledByKind(k schema.GroupVersionKind) PredicateFn {
 // to another object of the same kind.
 func IsPropagator() PredicateFn {
 	return func(obj runtime.Object) bool {
-		ao, ok := obj.(interface {
-			GetAnnotations() map[string]string
-		})
+		from, ok := obj.(metav1.Object)
 		if !ok {
 			return false
 		}
 
-		for key := range ao.GetAnnotations() {
-			if strings.HasPrefix(key, AnnotationKeyPropagateToPrefix) {
-				return true
-			}
-		}
-
-		return false
+		return len(meta.AllowsPropagationTo(from)) > 0
 	}
 }
 
@@ -152,24 +144,12 @@ func IsPropagator() PredicateFn {
 // from another object of the same kind.
 func IsPropagated() PredicateFn {
 	return func(obj runtime.Object) bool {
-		ao, ok := obj.(interface {
-			GetAnnotations() map[string]string
-		})
+		to, ok := obj.(metav1.Object)
 		if !ok {
 			return false
 		}
-
-		a := ao.GetAnnotations()
-		switch {
-		case a[AnnotationKeyPropagateFromNamespace] == "":
-			return false
-		case a[AnnotationKeyPropagateFromName] == "":
-			return false
-		case a[AnnotationKeyPropagateFromUID] == "":
-			return false
-		default:
-			return true
-		}
+		nn := meta.AllowsPropagationFrom(to)
+		return nn.Namespace != "" && nn.Name != ""
 	}
 }
 

@@ -17,10 +17,8 @@ limitations under the License.
 package resource
 
 import (
-	"strings"
-
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -98,33 +96,13 @@ func (e *EnqueueRequestForPropagated) Generic(evt event.GenericEvent, q workqueu
 }
 
 func addPropagated(obj runtime.Object, queue adder) {
-	ao, ok := obj.(interface {
-		GetAnnotations() map[string]string
-	})
+	o, ok := obj.(metav1.Object)
 	if !ok {
 		return
 	}
 
-	a := ao.GetAnnotations()
-
-	for key, val := range a {
-		if !strings.HasPrefix(key, AnnotationKeyPropagateToPrefix) {
-			continue
-		}
-		t := strings.Split(val, AnnotationDelimiter)
-		if len(t) != 2 {
-			continue
-		}
-		switch {
-		case t[0] == "":
-			continue
-		case t[1] == "":
-			continue
-		default:
-			queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{
-				Namespace: t[0],
-				Name:      t[1],
-			}})
-		}
+	// Otherwise we should enqueue a request for the objects it propagates to.
+	for nn := range meta.AllowsPropagationTo(o) {
+		queue.Add(reconcile.Request{NamespacedName: nn})
 	}
 }

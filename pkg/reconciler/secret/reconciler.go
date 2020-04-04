@@ -23,13 +23,13 @@ import (
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
@@ -37,10 +37,9 @@ const secretReconcileTimeout = 1 * time.Minute
 
 // Error messages.
 const (
-	errGetSecret         = "cannot get managed resource's connection secret"
-	errUpdateSecret      = "cannot update connection secret"
-	errUnexpectedFromUID = "unexpected propagate from uid on propagated secret"
-	errUnexpectedToUID   = "unexpected propagate to uid on propagator secret"
+	errGetSecret             = "cannot get connection secret"
+	errUpdateSecret          = "cannot update connection secret"
+	errPropagationNotAllowed = "the propagating connection secret does not allow propagation to the propagated connection secret"
 )
 
 // Event reasons
@@ -129,11 +128,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	// The 'from' secret is also know as the 'propagating' secret.
 	from := &corev1.Secret{}
-	n := types.NamespacedName{
-		Namespace: to.GetAnnotations()[resource.AnnotationKeyPropagateFromNamespace],
-		Name:      to.GetAnnotations()[resource.AnnotationKeyPropagateFromName],
-	}
-	if err := r.client.Get(ctx, n, from); err != nil {
+	if err := r.client.Get(ctx, meta.AllowsPropagationFrom(to), from); err != nil {
 		// There's no propagation to be done if the secret we're propagating
 		// from does not exist. We assume we have a watch on that secret and
 		// will be queued if/when it is created. Otherwise we'll be requeued
@@ -145,20 +140,13 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	record = record.WithAnnotations("from-namespace", from.GetNamespace(), "from-name", from.GetName())
 	log = log.WithValues("from-namespace", from.GetNamespace(), "from-name", from.GetName())
 
-	if a := to.GetAnnotations()[resource.AnnotationKeyPropagateFromUID]; a != string(from.GetUID()) {
-		// The propagated secret expected a different propagating secret. We
-		// assume we have a watch on both secrets, and will be requeued if
-		// and when this situation is remedied.
-		log.Debug("Unexpected propagate-from UID", "want", a, "got", string(from.GetUID()))
-		return reconcile.Result{}, errors.New(errUnexpectedFromUID)
-	}
-
-	if a, ok := from.GetAnnotations()[strings.Join([]string{resource.AnnotationKeyPropagateToPrefix, string(to.GetUID())}, resource.AnnotationDelimiter)]; !ok {
+	if allowed := meta.AllowsPropagationTo(from); !allowed[req.NamespacedName] {
 		// The propagating secret did not expect this propagated secret. We
 		// assume we have a watch on both secrets, and will be requeued if and
 		// when this situation is remedied.
-		log.Debug("Unexpected propagate-to UID", "want", a)
-		return reconcile.Result{}, errors.New(errUnexpectedToUID)
+		log.Debug("Propagation not allowed")
+		return reconcile.Result{}, errors.New(errPropagationNotAllowed)
+
 	}
 
 	to.Data = from.Data

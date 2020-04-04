@@ -18,6 +18,10 @@ limitations under the License.
 package meta
 
 import (
+	"fmt"
+	"hash/fnv"
+	"strings"
+
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,10 +36,18 @@ import (
 	satisfy metav1.Object.
 */
 
+// AnnotationKeyExternalName is the key in the annotations map of a resource for
+// the name of the resource as it appears on provider's systems.
+const AnnotationKeyExternalName = "crossplane.io/external-name"
+
+// Supported resources with all of these annotations will be fully or partially
+// propagated to the named resource of the same kind, assuming it exists and
+// consents to propagation.
 const (
-	// AnnotationKeyExternalName is the key in the annotations map of a resource
-	// for the name of the resource as it appears on provider's systems.
-	AnnotationKeyExternalName = "crossplane.io/external-name"
+	AnnotationKeyPropagateToPrefix = "to.propagate.crossplane.io/"
+
+	AnnotationKeyPropagateFromNamespace = "from.propagate.crossplane.io/namespace"
+	AnnotationKeyPropagateFromName      = "from.propagate.crossplane.io/name"
 )
 
 // ReferenceTo returns an object reference to the supplied object, presumed to
@@ -219,4 +231,63 @@ func GetExternalName(o metav1.Object) string {
 // SetExternalName sets the external name annotation of the resource.
 func SetExternalName(o metav1.Object, name string) {
 	AddAnnotations(o, map[string]string{AnnotationKeyExternalName: name})
+}
+
+// AllowPropagation from one object to another by adding consenting annotations
+// to both.
+func AllowPropagation(from, to metav1.Object) {
+	AddAnnotations(to, map[string]string{
+		AnnotationKeyPropagateFromNamespace: from.GetNamespace(),
+		AnnotationKeyPropagateFromName:      from.GetName(),
+	})
+
+	AddAnnotations(from, map[string]string{
+		AnnotationKeyPropagateTo(to): to.GetNamespace() + "/" + to.GetName(),
+	})
+}
+
+// AnnotationKeyPropagateTo returns an annotation key whose presence indicates
+// that the annotated object consents to propagation from the supplied object.
+// The annotation name (which follows the prefix) can be anything that doesn't
+// collide with another annotation. to.propagation.crossplane.io/example would
+// be valid. This function uses a hash of the supplied object's namespace and
+// name in order to avoid collisions and keep the suffix relatively short.
+func AnnotationKeyPropagateTo(o metav1.Object) string {
+	// Writing to a hash never returns an error.
+	h := fnv.New32a()
+	h.Write([]byte(o.GetNamespace())) // nolint:errcheck
+	h.Write([]byte(o.GetName()))      // nolint:errcheck
+	return fmt.Sprintf("%s%x", AnnotationKeyPropagateToPrefix, h.Sum32())
+}
+
+// AllowsPropagationFrom returns the NamespacedName of the object the supplied
+// object should be propagated from.
+func AllowsPropagationFrom(to metav1.Object) types.NamespacedName {
+	return types.NamespacedName{
+		Namespace: to.GetAnnotations()[AnnotationKeyPropagateFromNamespace],
+		Name:      to.GetAnnotations()[AnnotationKeyPropagateFromName],
+	}
+}
+
+// AllowsPropagationTo returns the set of NamespacedNames that the supplied
+// object may be propagated to.
+func AllowsPropagationTo(from metav1.Object) map[types.NamespacedName]bool {
+	to := make(map[types.NamespacedName]bool)
+
+	for k, v := range from.GetAnnotations() {
+		nn := strings.Split(v, "/")
+		switch {
+		case !strings.HasPrefix(k, AnnotationKeyPropagateToPrefix):
+			continue
+		case len(nn) != 2:
+			continue
+		case nn[0] == "":
+			continue
+		case nn[1] == "":
+			continue
+		}
+		to[types.NamespacedName{Namespace: nn[0], Name: nn[1]}] = true
+	}
+
+	return to
 }

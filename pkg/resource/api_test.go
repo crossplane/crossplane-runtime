@@ -18,7 +18,6 @@ package resource
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -28,10 +27,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
@@ -45,12 +44,10 @@ func TestPropagateConnection(t *testing.T) {
 
 	mgcsns := "coolnamespace"
 	mgcsname := "coolmanagedsecret"
-	mgcsuid := types.UID("managed-uid")
 	mgcsdata := map[string][]byte{"cool": {1}}
 
 	cmcsns := "coolnamespace"
 	cmcsname := "coolclaimsecret"
-	cmcsuid := types.UID("claim-uid")
 
 	mg := &fake.Managed{
 		ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{
@@ -178,7 +175,6 @@ func TestPropagateConnection(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 							// The managed secret has some data when we get it.
 							s := ConnectionSecretFor(mg, fake.GVK(mg))
-							s.SetUID(mgcsuid)
 							s.Data = mgcsdata
 
 							*o.(*corev1.Secret) = *s
@@ -188,11 +184,8 @@ func TestPropagateConnection(t *testing.T) {
 							// Ensure the managed secret is annotated to allow
 							// constant propagation to the claim secret.
 							want := ConnectionSecretFor(mg, fake.GVK(mg))
-							want.SetUID(mgcsuid)
-							k := strings.Join([]string{AnnotationKeyPropagateToPrefix, string(cmcsuid)}, AnnotationDelimiter)
-							v := strings.Join([]string{cmcsns, cmcsname}, AnnotationDelimiter)
-							want.SetAnnotations(map[string]string{k: v})
 							want.Data = mgcsdata
+							meta.AllowPropagation(want, LocalConnectionSecretFor(cm, fake.GVK(cm)))
 							if diff := cmp.Diff(want, o); diff != "" {
 								t.Errorf("-want, +got: %s", diff)
 							}
@@ -205,17 +198,12 @@ func TestPropagateConnection(t *testing.T) {
 						// to allow constant propagation from the managed
 						// secret.
 						want := LocalConnectionSecretFor(cm, fake.GVK(cm))
-						want.SetAnnotations(map[string]string{
-							AnnotationKeyPropagateFromNamespace: mgcsns,
-							AnnotationKeyPropagateFromName:      mgcsname,
-							AnnotationKeyPropagateFromUID:       string(mgcsuid),
-						})
 						want.Data = mgcsdata
+						meta.AllowPropagation(ConnectionSecretFor(mg, fake.GVK(mg)), want)
 						if diff := cmp.Diff(want, o); diff != "" {
 							t.Errorf("-want, +got: %s", diff)
 						}
 
-						o.(*corev1.Secret).SetUID(cmcsuid)
 						return nil
 					}),
 				},

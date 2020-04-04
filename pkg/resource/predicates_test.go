@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
@@ -290,16 +291,14 @@ func TestIsPropagator(t *testing.T) {
 			want: false,
 		},
 		"IsPropagator": {
-			obj: &corev1.Secret{ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{
-				AnnotationKeyPropagateToPrefix + "cool-uid": "cool-namespace/cool-name",
-			}}},
-			want: true,
-		},
-		"IsMultiPropagator": {
-			obj: &corev1.Secret{ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{
-				AnnotationKeyPropagateToPrefix + "cool-uid":     "cool-namespace/cool-name",
-				AnnotationKeyPropagateToPrefix + "cool-uid-two": "cool-namespace/cool-name-2",
-			}}},
+			obj: func() runtime.Object {
+				cm := &fake.Claim{}
+				cm.SetNamespace("somenamespace")
+				cm.SetName("somename")
+				mg := &fake.Managed{}
+				meta.AllowPropagation(mg, cm)
+				return mg
+			}(),
 			want: true,
 		},
 	}
@@ -329,11 +328,14 @@ func TestIsPropagated(t *testing.T) {
 			want: false,
 		},
 		"IsPropagated": {
-			obj: &corev1.Secret{ObjectMeta: v1.ObjectMeta{Annotations: map[string]string{
-				AnnotationKeyPropagateFromNamespace: namespace,
-				AnnotationKeyPropagateFromName:      name,
-				AnnotationKeyPropagateFromUID:       string(uid),
-			}}},
+			obj: func() runtime.Object {
+				cm := &fake.Claim{}
+				mg := &fake.Managed{}
+				mg.SetNamespace("somenamespace")
+				mg.SetName("somename")
+				meta.AllowPropagation(mg, cm)
+				return cm
+			}(),
 			want: true,
 		},
 	}
