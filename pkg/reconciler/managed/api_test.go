@@ -183,7 +183,7 @@ func TestNameAsExternalName(t *testing.T) {
 				err: errors.Wrap(errBoom, errUpdateManaged),
 				mg: &fake.Managed{ObjectMeta: metav1.ObjectMeta{
 					Name:        testExternalName,
-					Annotations: map[string]string{meta.ExternalNameAnnotationKey: testExternalName},
+					Annotations: map[string]string{meta.AnnotationKeyExternalName: testExternalName},
 				}},
 			},
 		},
@@ -197,7 +197,7 @@ func TestNameAsExternalName(t *testing.T) {
 				err: nil,
 				mg: &fake.Managed{ObjectMeta: metav1.ObjectMeta{
 					Name:        testExternalName,
-					Annotations: map[string]string{meta.ExternalNameAnnotationKey: testExternalName},
+					Annotations: map[string]string{meta.AnnotationKeyExternalName: testExternalName},
 				}},
 			},
 		},
@@ -206,14 +206,14 @@ func TestNameAsExternalName(t *testing.T) {
 				ctx: context.Background(),
 				mg: &fake.Managed{ObjectMeta: metav1.ObjectMeta{
 					Name:        testExternalName,
-					Annotations: map[string]string{meta.ExternalNameAnnotationKey: "some-name"},
+					Annotations: map[string]string{meta.AnnotationKeyExternalName: "some-name"},
 				}},
 			},
 			want: want{
 				err: nil,
 				mg: &fake.Managed{ObjectMeta: metav1.ObjectMeta{
 					Name:        testExternalName,
-					Annotations: map[string]string{meta.ExternalNameAnnotationKey: "some-name"},
+					Annotations: map[string]string{meta.AnnotationKeyExternalName: "some-name"},
 				}},
 			},
 		},

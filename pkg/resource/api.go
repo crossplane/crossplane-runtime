@@ -19,7 +19,6 @@ package resource
 import (
 	"context"
 	"encoding/json"
-	"strings"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -82,19 +81,12 @@ func (a *APIManagedConnectionPropagator) PropagateConnection(ctx context.Context
 
 	to := LocalConnectionSecretFor(o, MustGetKind(o, a.typer))
 	to.Data = from.Data
-	meta.AddAnnotations(to, map[string]string{
-		AnnotationKeyPropagateFromNamespace: from.GetNamespace(),
-		AnnotationKeyPropagateFromName:      from.GetName(),
-		AnnotationKeyPropagateFromUID:       string(from.GetUID()),
-	})
+
+	meta.AllowPropagation(from, to)
 
 	if err := a.client.Apply(ctx, to, ConnectionSecretMustBeControllableBy(o.GetUID())); err != nil {
 		return errors.Wrap(err, errCreateOrUpdateSecret)
 	}
-
-	k := strings.Join([]string{AnnotationKeyPropagateToPrefix, string(to.GetUID())}, AnnotationDelimiter)
-	v := strings.Join([]string{to.GetNamespace(), to.GetName()}, AnnotationDelimiter)
-	meta.AddAnnotations(from, map[string]string{k: v})
 
 	return errors.Wrap(a.client.Update(ctx, from), errUpdateSecret)
 }

@@ -17,6 +17,8 @@ limitations under the License.
 package meta
 
 import (
+	"fmt"
+	"hash/fnv"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -815,7 +817,7 @@ func TestGetExternalName(t *testing.T) {
 		want string
 	}{
 		"ExternalNameExists": {
-			o:    &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{ExternalNameAnnotationKey: name}}},
+			o:    &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalName: name}}},
 			want: name,
 		},
 		"NoExternalName": {
@@ -843,7 +845,7 @@ func TestSetExternalName(t *testing.T) {
 		"SetsTheCorrectKey": {
 			o:    &corev1.Pod{},
 			name: name,
-			want: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{ExternalNameAnnotationKey: name}}},
+			want: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalName: name}}},
 		},
 	}
 
@@ -852,6 +854,147 @@ func TestSetExternalName(t *testing.T) {
 			SetExternalName(tc.o, tc.name)
 			if diff := cmp.Diff(tc.want, tc.o); diff != "" {
 				t.Errorf("SetExternalName(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestAllowPropagation(t *testing.T) {
+	fromns := "from-namespace"
+	from := "from-name"
+	tons := "to-namespace"
+	to := "to-name"
+
+	tohash := func() string {
+		h := fnv.New32a()
+		h.Write([]byte(tons))
+		h.Write([]byte(to))
+		return fmt.Sprintf("%x", h.Sum32())
+	}()
+
+	type args struct {
+		from metav1.Object
+		to   metav1.Object
+	}
+	type want struct {
+		from metav1.Object
+		to   metav1.Object
+	}
+
+	cases := map[string]struct {
+		args args
+		want want
+	}{
+		"Successful": {
+			args: args{
+				from: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+					Namespace: fromns,
+					Name:      from,
+					Annotations: map[string]string{
+						"existing": "annotation",
+					},
+				}},
+				to: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+					Namespace: tons,
+					Name:      to,
+					Annotations: map[string]string{
+						"existing": "annotation",
+					},
+				}},
+			},
+			want: want{
+				from: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+					Namespace: fromns,
+					Name:      from,
+					Annotations: map[string]string{
+						"existing":                              "annotation",
+						AnnotationKeyPropagateToPrefix + tohash: tons + "/" + to,
+					},
+				}},
+				to: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+					Namespace: tons,
+					Name:      to,
+					Annotations: map[string]string{
+						"existing":                          "annotation",
+						AnnotationKeyPropagateFromNamespace: fromns,
+						AnnotationKeyPropagateFromName:      from,
+					},
+				}},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			AllowPropagation(tc.args.from, tc.args.to)
+			if diff := cmp.Diff(tc.want.from, tc.args.from); diff != "" {
+				t.Errorf("AllowPropagation(...): -want from, +got from\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.want.to, tc.args.to); diff != "" {
+				t.Errorf("AllowPropagation(...): -want to, +got to\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestAllowsPropagationFrom(t *testing.T) {
+	ns := "coolns"
+	name := "coolname"
+
+	cases := map[string]struct {
+		to   metav1.Object
+		want types.NamespacedName
+	}{
+		"Successful": {
+			to: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+				AnnotationKeyPropagateFromNamespace: ns,
+				AnnotationKeyPropagateFromName:      name,
+			}}},
+			want: types.NamespacedName{Namespace: ns, Name: name},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := AllowsPropagationFrom(tc.to)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("AllowsPropagationFrom(...): -want, +got\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestAllowsPropagationTo(t *testing.T) {
+	nsA := "coolns"
+	nameA := "coolname"
+	nsB := "coolerns"
+	nameB := "coolername"
+
+	cases := map[string]struct {
+		from metav1.Object
+		want map[types.NamespacedName]bool
+	}{
+		"Successful": {
+			from: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+				"existing": "annotation",
+				AnnotationKeyPropagateToPrefix + "missingslash":     "wat",
+				AnnotationKeyPropagateToPrefix + "missingname":      "wat/",
+				AnnotationKeyPropagateToPrefix + "missingnamespace": "/wat",
+				AnnotationKeyPropagateToPrefix + "a":                nsA + "/" + nameA,
+				AnnotationKeyPropagateToPrefix + "b":                nsB + "/" + nameB,
+			}}},
+			want: map[types.NamespacedName]bool{
+				{Namespace: nsA, Name: nameA}: true,
+				{Namespace: nsB, Name: nameB}: true,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := AllowsPropagationTo(tc.from)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("AllowsPropagationTo(...): -want, +got\n%s", diff)
 			}
 		})
 	}

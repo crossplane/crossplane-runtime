@@ -130,7 +130,7 @@ func TestNameConfigurators(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace:   claimNS,
 						Name:        claimName,
-						Annotations: map[string]string{meta.ExternalNameAnnotationKey: externalName},
+						Annotations: map[string]string{meta.AnnotationKeyExternalName: externalName},
 					}},
 				mg: &fake.Managed{},
 			},
@@ -138,7 +138,7 @@ func TestNameConfigurators(t *testing.T) {
 				mg: &fake.Managed{
 					ObjectMeta: metav1.ObjectMeta{
 						GenerateName: claimNS + "-" + claimName + "-",
-						Annotations:  map[string]string{meta.ExternalNameAnnotationKey: externalName},
+						Annotations:  map[string]string{meta.AnnotationKeyExternalName: externalName},
 					},
 				},
 			},

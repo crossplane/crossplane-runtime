@@ -17,7 +17,6 @@ limitations under the License.
 package resource
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -28,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 )
 
@@ -78,7 +78,6 @@ func TestAddClaim(t *testing.T) {
 func TestAddPropagated(t *testing.T) {
 	ns := "coolns"
 	name := "coolname"
-	uid := "a-cool-uid"
 
 	cases := map[string]struct {
 		obj   runtime.Object
@@ -87,16 +86,21 @@ func TestAddPropagated(t *testing.T) {
 		"ObjectIsNotAnnotated": {
 			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
 		},
-		"ObjectMissing" + AnnotationKeyPropagateToPrefix: {
+		"ObjectMissingAnnotation": {
 			obj: &fake.Managed{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
 				"some.annotation": "some-value",
 			}}},
 			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
 		},
-		"IsPropagatorObject": {
-			obj: &fake.Managed{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
-				strings.Join([]string{AnnotationKeyPropagateToPrefix, uid}, "/"): strings.Join([]string{ns, name}, "/"),
-			}}},
+		"IsPropagator": {
+			obj: func() runtime.Object {
+				cm := &fake.Claim{}
+				cm.SetNamespace(ns)
+				cm.SetName(name)
+				mg := &fake.Managed{}
+				meta.AllowPropagation(mg, cm)
+				return mg
+			}(),
 			queue: addFn(func(got interface{}) {
 				want := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: ns, Name: name}}
 				if diff := cmp.Diff(want, got); diff != "" {

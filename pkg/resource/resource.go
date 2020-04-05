@@ -36,19 +36,6 @@ import (
 // SecretTypeConnection is the type of Crossplane connection secrets.
 const SecretTypeConnection corev1.SecretType = "connection.crossplane.io/v1alpha1"
 
-// Supported resources with all of these annotations will be fully or partially
-// propagated to the named resource of the same kind, assuming it exists and
-// consents to propagation.
-const (
-	AnnotationKeyPropagateToPrefix = "to.propagate.crossplane.io"
-
-	AnnotationKeyPropagateFromNamespace = "from.propagate.crossplane.io/namespace"
-	AnnotationKeyPropagateFromName      = "from.propagate.crossplane.io/name"
-	AnnotationKeyPropagateFromUID       = "from.propagate.crossplane.io/uid"
-
-	AnnotationDelimiter = "/"
-)
-
 // External resources are tagged/labelled with the following keys in the cloud
 // provider API if the type supports.
 const (
