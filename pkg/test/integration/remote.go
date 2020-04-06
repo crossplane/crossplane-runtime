@@ -17,6 +17,7 @@ limitations under the License.
 package integration
 
 import (
+	"fmt"
 	"hash/fnv"
 	"os"
 	"path/filepath"
@@ -34,10 +35,8 @@ func downloadPath(url, path string) (string, error) {
 
 	// Subdirectory is given name of fnv hash of url.
 	hasher := fnv.New32a()
-	if _, err = hasher.Write([]byte(url)); err != nil {
-		return "", err
-	}
-	dst := filepath.Join(path, string(hasher.Sum32()))
+	hasher.Write([]byte(url)) // nolint:errcheck
+	dst := filepath.Join(path, fmt.Sprintf("%x", hasher.Sum32()))
 
 	c := getter.Client{
 		Src:  url,
@@ -45,5 +44,6 @@ func downloadPath(url, path string) (string, error) {
 		Pwd:  pwd,
 		Mode: getter.ClientModeAny,
 	}
+
 	return dst, c.Get()
 }
