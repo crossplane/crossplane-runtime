@@ -89,7 +89,9 @@ func WithApplicator(a resource.Applicator) ReconcilerOption {
 	}
 }
 
-// WithApplyOptions specifies options to pass to the applicator.
+// WithApplyOptions specifies options to pass to the applicator. These options
+// are applied in addition to MustBeControllableBy, which is always applied and
+// cannot be overridden.
 func WithApplyOptions(a ...resource.ApplyOption) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.applyOpts = a
@@ -121,10 +123,9 @@ func NewReconciler(m ctrl.Manager, workload resource.WorkloadKind, o ...Reconcil
 		newWorkload: nw,
 		workload:    TranslateFn(NoopTranslate),
 		applicator:  resource.NewAPIPatchingApplicator(m.GetClient()),
-		// TODO(negz): Migrate to resource.ControlledBy
-		applyOpts: []resource.ApplyOption{resource.ControllersMustMatch()}, // nolint:staticcheck
-		log:       logging.NewNopLogger(),
-		record:    event.NewNopRecorder(),
+		applyOpts:   []resource.ApplyOption{},
+		log:         logging.NewNopLogger(),
+		record:      event.NewNopRecorder(),
 	}
 
 	for _, ro := range o {
@@ -180,7 +181,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// so this label is not being used.
 		meta.AddLabels(o, map[string]string{lowerGroupKind(workload.GetObjectKind()): string(workload.GetUID())})
 
-		if err := r.applicator.Apply(ctx, o, r.applyOpts...); err != nil {
+		opts := append([]resource.ApplyOption{resource.MustBeControllableBy(workload.GetUID())}, r.applyOpts...)
+		if err := r.applicator.Apply(ctx, o, opts...); err != nil {
 			log.Debug("Cannot apply workload translation", "error", err, "requeue-after", time.Now().Add(shortWait))
 			r.record.Event(workload, event.Warning(reasonCannotApplyWorkloadTranslation, err))
 			workload.SetConditions(v1alpha1.ReconcileError(errors.Wrap(err, errApplyWorkloadTranslation)))
