@@ -41,6 +41,7 @@ func TestReconciler(t *testing.T) {
 	type args struct {
 		m manager.Manager
 		t resource.TraitKind
+		w resource.WorkloadKind
 		p resource.ObjectKind
 		o []ReconcilerOption
 	}
@@ -66,9 +67,10 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
-					Scheme: fake.SchemeWith(&fake.Trait{}, &fake.Object{}),
+					Scheme: fake.SchemeWith(&fake.Trait{}),
 				},
 				t: resource.TraitKind(fake.GVK(&fake.Trait{})),
+				w: resource.WorkloadKind(fake.GVK(&fake.Workload{})),
 				p: resource.ObjectKind(fake.GVK(&fake.Object{})),
 			},
 			want: want{err: errors.Wrap(errBoom, errGetTrait)},
@@ -81,9 +83,88 @@ func TestReconciler(t *testing.T) {
 					Scheme: fake.SchemeWith(&fake.Trait{}),
 				},
 				t: resource.TraitKind(fake.GVK(&fake.Trait{})),
+				w: resource.WorkloadKind(fake.GVK(&fake.Workload{})),
 				p: resource.ObjectKind(fake.GVK(&fake.Object{})),
 			},
 			want: want{result: reconcile.Result{}},
+		},
+		"WorkloadNotFound": {
+			reason: "Status should report successful reconcile and we should requeue after short wait if workload is not found.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
+							if t, ok := obj.(resource.Trait); ok {
+								t.SetWorkloadReference(v1alpha1.TypedReference{
+									APIVersion: workloadAPIVersion,
+									Kind:       workloadKind,
+									Name:       workloadName,
+								})
+								return nil
+							}
+							if _, ok := obj.(resource.Workload); ok {
+								return kerrors.NewNotFound(schema.GroupResource{}, "")
+							}
+							return errBoom
+						},
+						MockStatusUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+							got := obj.(resource.Trait)
+
+							if diff := cmp.Diff(v1alpha1.ReasonReconcileSuccess, got.GetCondition(v1alpha1.TypeSynced).Reason); diff != "" {
+								return errors.Errorf("MockStatusUpdate: -want, +got: %s", diff)
+							}
+
+							return nil
+						},
+					},
+					Scheme: fake.SchemeWith(&fake.Trait{}, &fake.Workload{}),
+				},
+				t: resource.TraitKind(fake.GVK(&fake.Trait{})),
+				w: resource.WorkloadKind(fake.GVK(&fake.Workload{})),
+				p: resource.ObjectKind(fake.GVK(&fake.Object{})),
+			},
+			want: want{result: reconcile.Result{RequeueAfter: shortWait}},
+		},
+		"GetWorkloadError": {
+			reason: "Status should report reconcile error and we should requeue after short wait if we encounter an error getting the workload.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
+							if t, ok := obj.(resource.Trait); ok {
+								t.SetWorkloadReference(v1alpha1.TypedReference{
+									APIVersion: workloadAPIVersion,
+									Kind:       workloadKind,
+									Name:       workloadName,
+								})
+								return nil
+							}
+							if _, ok := obj.(resource.Workload); ok {
+								return errBoom
+							}
+							return nil
+						},
+						MockStatusUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+							got := obj.(resource.Trait)
+
+							if diff := cmp.Diff(v1alpha1.ReasonReconcileError, got.GetCondition(v1alpha1.TypeSynced).Reason); diff != "" {
+								return errors.Errorf("MockStatusUpdate: -want, +got: %s", diff)
+							}
+
+							if diff := cmp.Diff(errors.Wrap(errBoom, errGetWorkload).Error(), got.GetCondition(v1alpha1.TypeSynced).Message); diff != "" {
+								return errors.Errorf("MockStatusUpdate: -want, +got: %s", diff)
+							}
+
+							return nil
+						},
+					},
+					Scheme: fake.SchemeWith(&fake.Trait{}, &fake.Workload{}),
+				},
+				t: resource.TraitKind(fake.GVK(&fake.Trait{})),
+				w: resource.WorkloadKind(fake.GVK(&fake.Workload{})),
+				p: resource.ObjectKind(fake.GVK(&fake.Object{})),
+			},
+			want: want{result: reconcile.Result{RequeueAfter: shortWait}},
 		},
 		"TranslationNotFound": {
 			reason: "Status should report successful reconcile and we should requeue after short wait if translation is not found.",
@@ -111,9 +192,10 @@ func TestReconciler(t *testing.T) {
 							return nil
 						},
 					},
-					Scheme: fake.SchemeWith(&fake.Trait{}, &fake.Object{}),
+					Scheme: fake.SchemeWith(&fake.Trait{}, &fake.Workload{}, &fake.Object{}),
 				},
 				t: resource.TraitKind(fake.GVK(&fake.Trait{})),
+				w: resource.WorkloadKind(fake.GVK(&fake.Workload{})),
 				p: resource.ObjectKind(fake.GVK(&fake.Object{})),
 			},
 			want: want{result: reconcile.Result{RequeueAfter: shortWait}},
@@ -132,6 +214,10 @@ func TestReconciler(t *testing.T) {
 								})
 								return nil
 							}
+							if w, ok := obj.(resource.Workload); ok {
+								w.SetName(workloadName)
+								return nil
+							}
 							return errBoom
 						},
 						MockStatusUpdate: func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
@@ -148,9 +234,10 @@ func TestReconciler(t *testing.T) {
 							return nil
 						},
 					},
-					Scheme: fake.SchemeWith(&fake.Trait{}, &fake.Object{}),
+					Scheme: fake.SchemeWith(&fake.Trait{}, &fake.Workload{}, &fake.Object{}),
 				},
 				t: resource.TraitKind(fake.GVK(&fake.Trait{})),
+				w: resource.WorkloadKind(fake.GVK(&fake.Workload{})),
 				p: resource.ObjectKind(fake.GVK(&fake.Object{})),
 			},
 			want: want{result: reconcile.Result{RequeueAfter: shortWait}},
@@ -188,9 +275,10 @@ func TestReconciler(t *testing.T) {
 							return nil
 						},
 					},
-					Scheme: fake.SchemeWith(&fake.Trait{}, &fake.Object{}),
+					Scheme: fake.SchemeWith(&fake.Trait{}, &fake.Workload{}, &fake.Object{}),
 				},
 				t: resource.TraitKind(fake.GVK(&fake.Trait{})),
+				w: resource.WorkloadKind(fake.GVK(&fake.Workload{})),
 				p: resource.ObjectKind(fake.GVK(&fake.Object{})),
 				o: []ReconcilerOption{WithModifier(ModifyFn(func(_ context.Context, _ runtime.Object, _ resource.Trait) error {
 					return errBoom
@@ -231,9 +319,10 @@ func TestReconciler(t *testing.T) {
 							return nil
 						},
 					},
-					Scheme: fake.SchemeWith(&fake.Trait{}, &fake.Object{}),
+					Scheme: fake.SchemeWith(&fake.Trait{}, &fake.Workload{}, &fake.Object{}),
 				},
 				t: resource.TraitKind(fake.GVK(&fake.Trait{})),
+				w: resource.WorkloadKind(fake.GVK(&fake.Workload{})),
 				p: resource.ObjectKind(fake.GVK(&fake.Object{})),
 				o: []ReconcilerOption{WithApplicator(resource.ApplyFn(func(_ context.Context, _ runtime.Object, _ ...resource.ApplyOption) error {
 					return errBoom
@@ -274,9 +363,10 @@ func TestReconciler(t *testing.T) {
 							return nil
 						},
 					},
-					Scheme: fake.SchemeWith(&fake.Trait{}, &fake.Object{}),
+					Scheme: fake.SchemeWith(&fake.Trait{}, &fake.Workload{}, &fake.Object{}),
 				},
 				t: resource.TraitKind(fake.GVK(&fake.Trait{})),
+				w: resource.WorkloadKind(fake.GVK(&fake.Workload{})),
 				p: resource.ObjectKind(fake.GVK(&fake.Object{})),
 				o: []ReconcilerOption{WithApplicator(resource.ApplyFn(func(_ context.Context, _ runtime.Object, _ ...resource.ApplyOption) error {
 					return nil
@@ -305,9 +395,10 @@ func TestReconciler(t *testing.T) {
 						},
 						MockStatusUpdate: test.NewMockStatusUpdateFn(errBoom),
 					},
-					Scheme: fake.SchemeWith(&fake.Trait{}, &fake.Object{}),
+					Scheme: fake.SchemeWith(&fake.Trait{}, &fake.Workload{}, &fake.Object{}),
 				},
 				t: resource.TraitKind(fake.GVK(&fake.Trait{})),
+				w: resource.WorkloadKind(fake.GVK(&fake.Workload{})),
 				p: resource.ObjectKind(fake.GVK(&fake.Object{})),
 				o: []ReconcilerOption{WithApplicator(resource.ApplyFn(func(_ context.Context, _ runtime.Object, _ ...resource.ApplyOption) error {
 					return nil
@@ -322,7 +413,7 @@ func TestReconciler(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewReconciler(tc.args.m, tc.args.t, tc.args.p, tc.args.o...)
+			r := NewReconciler(tc.args.m, tc.args.t, tc.args.w, tc.args.p, tc.args.o...)
 			got, err := r.Reconcile(reconcile.Request{})
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {

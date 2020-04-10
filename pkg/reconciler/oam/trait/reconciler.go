@@ -18,6 +18,7 @@ package trait
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
@@ -45,6 +46,7 @@ const (
 	errGetTrait               = "cannot get trait"
 	errUpdateTraitStatus      = "cannot update trait status"
 	errTraitModify            = "cannot apply trait modification"
+	errGetWorkload            = "cannot get workload referenced in trait"
 	errGetTranslation         = "cannot get translation for workload reference in trait"
 	errApplyTraitModification = "cannot apply trait modification to workload translation"
 )
@@ -54,6 +56,7 @@ const (
 	reasonTraitWait   = "WaitingForWorkloadTranslation"
 	reasonTraitModify = "PackageModified"
 
+	reasonCannotGetWorkload       = "CannotGetReferencedWorkload"
 	reasonCannotGetTranslation    = "CannotGetReferencedWorkloadTranslation"
 	reasonCannotModifyTranslation = "CannotModifyTranslation"
 	reasonCannotApplyModification = "CannotApplyModification"
@@ -96,6 +99,7 @@ func WithApplicator(a resource.Applicator) ReconcilerOption {
 type Reconciler struct {
 	client         client.Client
 	newTrait       func() resource.Trait
+	newWorkload    func() resource.Workload
 	newTranslation func() resource.Object
 	trait          Modifier
 	applicator     resource.Applicator
@@ -106,11 +110,13 @@ type Reconciler struct {
 
 // NewReconciler returns a Reconciler that reconciles OAM traits by fetching
 // their referenced workload's translation and applying modifications.
-func NewReconciler(m ctrl.Manager, trait resource.TraitKind, trans resource.ObjectKind, o ...ReconcilerOption) *Reconciler {
+func NewReconciler(m ctrl.Manager, trait resource.TraitKind, workload resource.WorkloadKind, trans resource.ObjectKind, o ...ReconcilerOption) *Reconciler {
 	nt := func() resource.Trait {
 		return resource.MustCreateObject(schema.GroupVersionKind(trait), m.GetScheme()).(resource.Trait)
 	}
-
+	nw := func() resource.Workload {
+		return resource.MustCreateObject(schema.GroupVersionKind(workload), m.GetScheme()).(resource.Workload)
+	}
 	nr := func() resource.Object {
 		return resource.MustCreateObject(schema.GroupVersionKind(trans), m.GetScheme()).(resource.Object)
 	}
@@ -118,6 +124,7 @@ func NewReconciler(m ctrl.Manager, trait resource.TraitKind, trans resource.Obje
 	r := &Reconciler{
 		client:         m.GetClient(),
 		newTrait:       nt,
+		newWorkload:    nw,
 		newTranslation: nr,
 		trait:          ModifyFn(NoopModifier),
 		applicator:     resource.NewAPIPatchingApplicator(m.GetClient()),
@@ -149,6 +156,22 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	log = log.WithValues("uid", trait.GetUID(), "version", trait.GetResourceVersion())
 
+	workload := r.newWorkload()
+	err := r.client.Get(ctx, types.NamespacedName{Name: trait.GetWorkloadReference().Name, Namespace: trait.GetNamespace()}, workload)
+	if kerrors.IsNotFound(err) {
+		log.Debug("Waiting for referenced workload to exist", "kind", trait.GetObjectKind().GroupVersionKind().String())
+		r.record.Event(trait, event.Normal(reasonTraitWait, "Waiting for workload to exist"))
+		trait.SetConditions(v1alpha1.ReconcileSuccess())
+		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, trait), errUpdateTraitStatus)
+	}
+	if err != nil {
+		fmt.Println("HEEERREE")
+		log.Debug("Cannot get referenced workload", "error", err, "requeue-after", time.Now().Add(shortWait))
+		r.record.Event(trait, event.Warning(reasonCannotGetWorkload, err))
+		trait.SetConditions(v1alpha1.ReconcileError(errors.Wrap(err, errGetWorkload)))
+		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, trait), errUpdateTraitStatus)
+	}
+
 	translation := r.newTranslation()
 
 	// TODO(hasheddan): we make the assumption here that the workload
@@ -156,7 +179,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	// workload itself. This would not work if a translation produced multiple
 	// objects of the same kind as they would not be permitted to have the same
 	// name.
-	err := r.client.Get(ctx, types.NamespacedName{Name: trait.GetWorkloadReference().Name, Namespace: trait.GetNamespace()}, translation)
+	err = r.client.Get(ctx, types.NamespacedName{Name: workload.GetName(), Namespace: trait.GetNamespace()}, translation)
 	if kerrors.IsNotFound(err) {
 		log.Debug("Waiting for referenced workload's translation", "kind", trait.GetObjectKind().GroupVersionKind().String())
 		r.record.Event(trait, event.Normal(reasonTraitWait, "Waiting for workload translation to exist"))
@@ -182,7 +205,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	// object(s) already exists in the same namespace, with the same name, and
 	// with a different controller before it is created, this wll guard against
 	// modifying it.
-	if err := r.applicator.Apply(ctx, translation, resource.MustBeControllableBy(trait.GetWorkloadReference().UID)); err != nil { // nolint:staticcheck
+	if err := r.applicator.Apply(ctx, translation, resource.MustBeControllableBy(workload.GetUID())); err != nil { // nolint:staticcheck
 		log.Debug("Cannot apply workload translation", "error", err, "requeue-after", time.Now().Add(shortWait))
 		r.record.Event(trait, event.Warning(reasonCannotApplyModification, err))
 		trait.SetConditions(v1alpha1.ReconcileError(errors.Wrap(err, errApplyTraitModification)))
