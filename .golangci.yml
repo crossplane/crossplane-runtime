@@ -180,6 +180,14 @@ issues:
     - text: \.AddToUserAgent
       linters:
       - errcheck
+    
+    # Ignore deprecation errors in the managed reconciler, due to our many
+    # deprecated resource reference types.
+    # TODO(negz): Remove this once the deprecated referencer code is gone.
+    - path: "pkg/reconciler/managed/"
+      text: "SA1019:"
+      linters:
+      - staticcheck
 
   # Independently from option `exclude` we use default exclude patterns,
   # it can be disabled by this option. To list all
