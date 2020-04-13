@@ -171,16 +171,16 @@ type ReferenceResolver interface {
 	// resources to update corresponding fields in CanReference, for example
 	// setting .spec.network to the name of the Network resource specified as
 	// .spec.networkRef.
-	ResolveReferences(ctx context.Context, res resource.CanReference) error
+	ResolveReferences(ctx context.Context, mg resource.Managed) error
 }
 
 // A ReferenceResolverFn is a function that satisfies the
 // ReferenceResolver interface.
-type ReferenceResolverFn func(context.Context, resource.CanReference) error
+type ReferenceResolverFn func(context.Context, resource.Managed) error
 
 // ResolveReferences calls ReferenceResolverFn function
-func (m ReferenceResolverFn) ResolveReferences(ctx context.Context, res resource.CanReference) error {
-	return m(ctx, res)
+func (m ReferenceResolverFn) ResolveReferences(ctx context.Context, mg resource.Managed) error {
+	return m(ctx, mg)
 }
 
 // An ExternalConnecter produces a new ExternalClient given the supplied
@@ -545,7 +545,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	if !meta.WasDeleted(managed) {
 		if err := r.managed.ResolveReferences(ctx, managed); err != nil {
 			condition := v1alpha1.ReconcileError(err)
-			if IsReferencesAccessError(err) {
+			if IsReferencesAccessError(err) || resource.IsReferenceError(err) {
 				condition = v1alpha1.ReferenceResolutionBlocked(err)
 			}
 

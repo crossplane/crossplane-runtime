@@ -265,3 +265,20 @@ type TargetSpec struct {
 type TargetStatus struct {
 	ConditionedStatus `json:",inline"`
 }
+
+// A Reference from one managed resource to another.
+type Reference struct {
+	// Name of the referenced managed resource.
+	Name string `json:"name"`
+}
+
+// A Selector for a Reference from one managed resource to another.
+type Selector struct {
+	// MatchController ensures that only managed resources with the same
+	// controller reference as the selecting resource will be selected.
+	MatchController *bool `json:"matchController,omitempty"`
+
+	// MatchLabels ensures that only managed resources with matching labels will
+	// be selected.
+	MatchLabels map[string]string `json:"matchLabels,omitempty"`
+}

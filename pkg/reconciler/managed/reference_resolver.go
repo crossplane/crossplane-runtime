@@ -31,7 +31,8 @@ import (
 // Error strings
 const (
 	errGetReferencerStatus = "could not get referenced resource status"
-	errUpdateReferencer    = "could not update resource referencer"
+	errSelectReference     = "could not select resource reference"
+	errResolveReference    = "could not resolve resource reference"
 	errBuildAttribute      = "could not build the attribute"
 	errAssignAttribute     = "could not assign the attribute"
 )
@@ -61,18 +62,72 @@ func (r *referencesAccessErr) Error() string {
 // IsReferencesAccessError returns true if the given error indicates that some
 // of the `AttributeReferencer` fields are referring to objects that are not
 // accessible, either they are not ready or they do not yet exist
+//
+// Deprecated: Use resource.IsReferenceError
 func IsReferencesAccessError(err error) bool {
 	_, result := err.(*referencesAccessErr)
 	return result
 }
 
+// A Selector selects a managed resource to reference. Each Selector corresponds
+// to a Referencer; for example spec.fooSelector might select a managed resource
+// of kind: Foo in order to set the value of spec.fooRef.name in the referencing
+// resource.
+type Selector interface {
+	// Select a reference to a managed resource by setting the corresponding
+	// Referencer field in the referencing resource.
+	Select(ctx context.Context, c client.Reader, mg resource.Managed) error
+}
+
+// An SelectorFinder returns all types within the supplied object that satisfy
+// Selector.
+type SelectorFinder interface {
+	FindSelectors(obj interface{}) []Selector
+}
+
+// An SelectorFinderFn satisfies SelectorFinder.
+type SelectorFinderFn func(obj interface{}) []Selector
+
+// FindSelectors finds all Selectors.
+func (fn SelectorFinderFn) FindSelectors(obj interface{}) []Selector {
+	return fn(obj)
+}
+
+// A Referencer is a reference from one managed resource to another. Each
+// Referencer corresponds to a field; for example spec.fooRef might reference
+// a managed resource of kind: Foo in order to set the value of spec.foo in the
+// referencing resource.
+type Referencer interface {
+	// Resolve a reference to a managed resource by setting the corresponding
+	// field in the referencing resource.
+	Resolve(ctx context.Context, c client.Reader, mg resource.Managed) error
+}
+
+// An ReferencerFinder returns all types within the supplied object that satisfy
+// Referencer.
+type ReferencerFinder interface {
+	FindReferencers(obj interface{}) []Referencer
+}
+
+// An ReferencerFinderFn satisfies ReferencerFinder.
+type ReferencerFinderFn func(obj interface{}) []Referencer
+
+// FindReferencers finds all Referencers.
+func (fn ReferencerFinderFn) FindReferencers(obj interface{}) []Referencer {
+	return fn(obj)
+}
+
 // An AttributeReferencerFinder returns all types within the supplied object
 // that satisfy AttributeReferencer.
+//
+// Deprecated: Use ReferenceFinder.
 type AttributeReferencerFinder interface {
 	FindReferencers(obj interface{}) []resource.AttributeReferencer
 }
 
 // An AttributeReferencerFinderFn satisfies AttributeReferencerFinder.
+//
+// Deprecated: Use ReferencerFinderFn.
 type AttributeReferencerFinderFn func(obj interface{}) []resource.AttributeReferencer
 
 // FindReferencers finds all AttributeReferencers.
@@ -84,30 +139,52 @@ func (fn AttributeReferencerFinderFn) FindReferencers(obj interface{}) []resourc
 // then updates it in the Kubernetes API.
 type APIReferenceResolver struct {
 	client client.Client
-	finder AttributeReferencerFinder
+
+	selectors   SelectorFinder
+	referencers ReferencerFinder
+
+	attributeReferencers AttributeReferencerFinder
 }
 
 // An APIReferenceResolverOption configures an
 // APIReferenceResolver.
 type APIReferenceResolverOption func(*APIReferenceResolver)
 
-// WithAttributeReferencerFinder specifies an AttributeReferencerFinder used to
-// find AttributeReferencers.
-func WithAttributeReferencerFinder(f AttributeReferencerFinder) APIReferenceResolverOption {
+// WithSelectorFinder specifies an SelectorFinder used to find Selectors.
+func WithSelectorFinder(f SelectorFinder) APIReferenceResolverOption {
 	return func(r *APIReferenceResolver) {
-		r.finder = f
+		r.selectors = f
 	}
 }
 
-// NewAPIReferenceResolver returns an APIReferenceResolver. The
-// resolver uses reflection to recursively finds all pointer types in a struct
-// that satisfy AttributeReferencer by default. It assesses only pointers,
-// structs, and slices because it is assumed that only struct fields or slice
-// elements that are pointers to a struct will satisfy AttributeReferencer.
+// WithReferencerFinder specifies an ReferencerFinder used to find Referencers.
+func WithReferencerFinder(f ReferencerFinder) APIReferenceResolverOption {
+	return func(r *APIReferenceResolver) {
+		r.referencers = f
+	}
+}
+
+// WithAttributeReferencerFinder specifies an AttributeReferencerFinder used to
+// find AttributeReferencers.
+//
+// Deprecated: Use WithReferencerFinder.
+func WithAttributeReferencerFinder(f AttributeReferencerFinder) APIReferenceResolverOption {
+	return func(r *APIReferenceResolver) {
+		r.attributeReferencers = f
+	}
+}
+
+// NewAPIReferenceResolver returns an APIReferenceResolver. The resolver finds
+// all pointer types in a struct that satisfy Selector, Referencer, or
+// resource.AttributeReferencer. It assesses only pointers, structs, and slices
+// because it is assumed that only struct fields or slice elements that are
+// pointers to a struct will satisfy these types.
 func NewAPIReferenceResolver(c client.Client, o ...APIReferenceResolverOption) *APIReferenceResolver {
 	r := &APIReferenceResolver{
-		client: c,
-		finder: AttributeReferencerFinderFn(findReferencers),
+		client:               c,
+		selectors:            SelectorFinderFn(findSelectors),
+		referencers:          ReferencerFinderFn(findReferencers),
+		attributeReferencers: AttributeReferencerFinderFn(findAttributeReferencers),
 	}
 
 	for _, rro := range o {
@@ -117,10 +194,40 @@ func NewAPIReferenceResolver(c client.Client, o ...APIReferenceResolverOption) *
 	return r
 }
 
-// ResolveReferences resolves references made to other managed resources
-func (r *APIReferenceResolver) ResolveReferences(ctx context.Context, res resource.CanReference) error {
+// ResolveReferences selects and resolves references made to other managed
+// resources.
+func (r *APIReferenceResolver) ResolveReferences(ctx context.Context, mg resource.Managed) error {
+	existing := mg.DeepCopyObject()
+
+	for _, sl := range r.selectors.FindSelectors(mg) {
+		if err := sl.Select(ctx, r.client, mg); err != nil {
+			return errors.Wrap(err, errSelectReference)
+		}
+	}
+
+	for _, rf := range r.referencers.FindReferencers(mg) {
+		if err := rf.Resolve(ctx, r.client, mg); err != nil {
+			return errors.Wrap(err, errResolveReference)
+		}
+	}
+
+	// TODO(negz): Remove this deprecated implementation once all providers have
+	// migrated from resource.AttributeReferencer to Selector and Referencer.
+	if err := r.resolveAttributeReferences(ctx, mg); err != nil {
+		return errors.Wrap(err, errResolveReference)
+	}
+
+	// Don't update if nothing changed during reference resolution.
+	if cmp.Equal(existing, mg) {
+		return nil
+	}
+
+	return errors.Wrap(r.client.Update(ctx, mg), errUpdateManaged)
+}
+
+func (r *APIReferenceResolver) resolveAttributeReferences(ctx context.Context, res resource.CanReference) error {
 	// Retrieve all the referencer fields from the managed resource.
-	referencers := r.finder.FindReferencers(res)
+	referencers := r.attributeReferencers.FindReferencers(res)
 
 	// If there are no referencers exit early.
 	if len(referencers) == 0 {
@@ -142,8 +249,6 @@ func (r *APIReferenceResolver) ResolveReferences(ctx context.Context, res resour
 		return err
 	}
 
-	existing := res.DeepCopyObject()
-
 	// Build and assign the attributes.
 	for _, referencer := range referencers {
 		val, err := referencer.Build(ctx, res, r.client)
@@ -156,20 +261,94 @@ func (r *APIReferenceResolver) ResolveReferences(ctx context.Context, res resour
 		}
 	}
 
-	// Don't update if nothing changed during reference assignment.
-	if cmp.Equal(existing, res) {
-		return nil
-	}
-
-	// Persist the updated managed resource.
-	return errors.Wrap(r.client.Update(ctx, res), errUpdateReferencer)
+	return nil
 }
 
-// findReferencers recursively finds all pointer types in a struct that satisfy
-// AttributeReferencer. It assesses only pointers, structs, and slices because
-// it is assumed that only struct fields or slice elements that are pointers to
-// a struct will satisfy AttributeReferencer.
-func findReferencers(obj interface{}) []resource.AttributeReferencer { // nolint:gocyclo
+// findSelectors recursively finds all pointer types in a struct that
+// satisfy Selector. It assesses only pointers, structs, and slices
+// because it is assumed that only struct fields or slice elements that are
+// pointers to a struct will satisfy Selector.
+func findSelectors(obj interface{}) []Selector { // nolint:gocyclo
+	// NOTE(negz): This function is slightly over our complexity goal, but is
+	// easier to follow as a single function.
+
+	s := []Selector{}
+
+	switch v := reflect.ValueOf(obj); v.Kind() {
+	case reflect.Ptr:
+		if v.IsNil() || !v.CanInterface() {
+			return nil
+		}
+		if ar, ok := v.Interface().(Selector); ok {
+			s = append(s, ar)
+		}
+		if v.Elem().CanInterface() {
+			s = append(s, findSelectors(v.Elem().Interface())...)
+		}
+	case reflect.Struct:
+		for i := 0; i < v.NumField(); i++ {
+			if !v.Field(i).CanInterface() {
+				continue
+			}
+			s = append(s, findSelectors(v.Field(i).Interface())...)
+		}
+	case reflect.Slice:
+		for i := 0; i < v.Len(); i++ {
+			if !v.Index(i).CanInterface() {
+				continue
+			}
+			s = append(s, findSelectors(v.Index(i).Interface())...)
+		}
+	}
+
+	return s
+}
+
+// findReferencers recursively finds all pointer types in a struct that
+// satisfy Referencer. It assesses only pointers, structs, and slices
+// because it is assumed that only struct fields or slice elements that are
+// pointers to a struct will satisfy Referencer.
+func findReferencers(obj interface{}) []Referencer { // nolint:gocyclo
+	// NOTE(negz): This function is slightly over our complexity goal, but is
+	// easier to follow as a single function.
+
+	r := []Referencer{}
+
+	switch v := reflect.ValueOf(obj); v.Kind() {
+	case reflect.Ptr:
+		if v.IsNil() || !v.CanInterface() {
+			return nil
+		}
+		if ar, ok := v.Interface().(Referencer); ok {
+			r = append(r, ar)
+		}
+		if v.Elem().CanInterface() {
+			r = append(r, findReferencers(v.Elem().Interface())...)
+		}
+	case reflect.Struct:
+		for i := 0; i < v.NumField(); i++ {
+			if !v.Field(i).CanInterface() {
+				continue
+			}
+			r = append(r, findReferencers(v.Field(i).Interface())...)
+		}
+	case reflect.Slice:
+		for i := 0; i < v.Len(); i++ {
+			if !v.Index(i).CanInterface() {
+				continue
+			}
+			r = append(r, findReferencers(v.Index(i).Interface())...)
+		}
+	}
+
+	return r
+}
+
+// findAttributeReferencers recursively finds all pointer types in a struct that
+// satisfy AttributeReferencer. It assesses only pointers, structs, and slices
+// because it is assumed that only struct fields or slice elements that are
+// pointers to a struct will satisfy AttributeReferencer.
+func findAttributeReferencers(obj interface{}) []resource.AttributeReferencer { // nolint:gocyclo
 	// NOTE(negz): This function is slightly over our complexity goal, but is
 	// easier to follow as a single function.
 
@@ -184,21 +363,21 @@ func findReferencers(obj interface{}) []resource.AttributeReferencer { // nolint
 			referencers = append(referencers, ar)
 		}
 		if v.Elem().CanInterface() {
-			referencers = append(referencers, findReferencers(v.Elem().Interface())...)
+			referencers = append(referencers, findAttributeReferencers(v.Elem().Interface())...)
 		}
 	case reflect.Struct:
 		for i := 0; i < v.NumField(); i++ {
 			if !v.Field(i).CanInterface() {
 				continue
 			}
-			referencers = append(referencers, findReferencers(v.Field(i).Interface())...)
+			referencers = append(referencers, findAttributeReferencers(v.Field(i).Interface())...)
 		}
 	case reflect.Slice:
 		for i := 0; i < v.Len(); i++ {
 			if !v.Index(i).CanInterface() {
 				continue
 			}
-			referencers = append(referencers, findReferencers(v.Index(i).Interface())...)
+			referencers = append(referencers, findAttributeReferencers(v.Index(i).Interface())...)
 		}
 	}
 
