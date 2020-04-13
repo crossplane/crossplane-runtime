@@ -134,31 +134,6 @@ func (b BinderFns) Unbind(ctx context.Context, cm resource.Claim, mg resource.Ma
 	return b.UnbindFn(ctx, cm, mg)
 }
 
-// A ClaimFinalizer finalizes the deletion of a resource claim.
-type ClaimFinalizer interface {
-	// AddFinalizer to the supplied Claim.
-	AddFinalizer(ctx context.Context, cm resource.Claim) error
-
-	// RemoveFinalizer from the supplied Claim.
-	RemoveFinalizer(ctx context.Context, cm resource.Claim) error
-}
-
-// A ClaimFinalizerFns satisfy the ClaimFinalizer interface.
-type ClaimFinalizerFns struct {
-	AddFinalizerFn    func(ctx context.Context, cm resource.Claim) error
-	RemoveFinalizerFn func(ctx context.Context, cm resource.Claim) error
-}
-
-// AddFinalizer to the supplied Claim.
-func (f ClaimFinalizerFns) AddFinalizer(ctx context.Context, cm resource.Claim) error {
-	return f.AddFinalizerFn(ctx, cm)
-}
-
-// RemoveFinalizer from the supplied Claim.
-func (f ClaimFinalizerFns) RemoveFinalizer(ctx context.Context, cm resource.Claim) error {
-	return f.RemoveFinalizerFn(ctx, cm)
-}
-
 // A Reconciler reconciles resource claims by creating exactly one kind of
 // concrete managed resource. Each resource claim kind should create an instance
 // of this controller for each managed resource kind they can bind to, using
@@ -199,14 +174,14 @@ func defaultCRManaged(m manager.Manager) crManaged {
 }
 
 type crClaim struct {
-	ClaimFinalizer
+	resource.Finalizer
 	Binder
 }
 
 func defaultCRClaim(m manager.Manager) crClaim {
 	return crClaim{
-		ClaimFinalizer: NewAPIClaimFinalizer(m.GetClient(), claimFinalizerName),
-		Binder:         NewAPIStatusBinder(m.GetClient(), m.GetScheme()),
+		Finalizer: resource.NewAPIFinalizer(m.GetClient(), claimFinalizerName),
+		Binder:    NewAPIStatusBinder(m.GetClient(), m.GetScheme()),
 	}
 }
 
@@ -248,9 +223,9 @@ func WithBinder(b Binder) ReconcilerOption {
 
 // WithClaimFinalizer specifies which ClaimFinalizer should be used to finalize
 // claims when they are deleted.
-func WithClaimFinalizer(f ClaimFinalizer) ReconcilerOption {
+func WithClaimFinalizer(f resource.Finalizer) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.claim.ClaimFinalizer = f
+		r.claim.Finalizer = f
 	}
 }
 

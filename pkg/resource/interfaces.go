@@ -17,6 +17,8 @@ limitations under the License.
 package resource
 
 import (
+	"context"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -99,6 +101,12 @@ type ProviderReferencer interface {
 type WorkloadReferencer interface {
 	GetWorkloadReference() v1alpha1.TypedReference
 	SetWorkloadReference(v1alpha1.TypedReference)
+}
+
+// A Finalizer manages the finalizers on the resource.
+type Finalizer interface {
+	AddFinalizer(ctx context.Context, obj Object) error
+	RemoveFinalizer(ctx context.Context, obj Object) error
 }
 
 // An Object is a Kubernetes object.

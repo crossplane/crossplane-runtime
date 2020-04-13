@@ -38,7 +38,6 @@ var (
 	_ ManagedCreator = &APIManagedCreator{}
 	_ Binder         = &APIBinder{}
 	_ Binder         = &APIStatusBinder{}
-	_ ClaimFinalizer = &APIClaimFinalizer{}
 )
 
 func TestCreate(t *testing.T) {
@@ -575,6 +574,7 @@ func TestUnbind(t *testing.T) {
 		})
 	}
 }
+
 func TestStatusUnbind(t *testing.T) {
 	type args struct {
 		ctx context.Context
@@ -713,122 +713,6 @@ func TestStatusUnbind(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.mg, tc.args.mg, test.EquateConditions()); diff != "" {
 				t.Errorf("api.Unbind(...) Managed: -want, +got:\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestClaimRemoveFinalizer(t *testing.T) {
-	finalizer := "veryfinal"
-
-	type args struct {
-		ctx context.Context
-		cm  resource.Claim
-	}
-
-	type want struct {
-		err error
-		cm  resource.Claim
-	}
-
-	errBoom := errors.New("boom")
-
-	cases := map[string]struct {
-		client client.Client
-		args   args
-		want   want
-	}{
-		"UpdateClaimError": {
-			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(errBoom)},
-			args: args{
-				ctx: context.Background(),
-				cm:  &fake.Claim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errUpdateClaim),
-				cm:  &fake.Claim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{}}},
-			},
-		},
-		"Successful": {
-			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil)},
-			args: args{
-				ctx: context.Background(),
-				cm:  &fake.Claim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
-			},
-			want: want{
-				err: nil,
-				cm:  &fake.Claim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{}}},
-			},
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			api := NewAPIClaimFinalizer(tc.client, finalizer)
-			err := api.RemoveFinalizer(tc.args.ctx, tc.args.cm)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("api.Finalize(...): -want error, +got error:\n%s", diff)
-			}
-			if diff := cmp.Diff(tc.want.cm, tc.args.cm, test.EquateConditions()); diff != "" {
-				t.Errorf("api.Finalize(...) Claim: -want, +got:\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestAPIClaimFinalizerAdder(t *testing.T) {
-	finalizer := "veryfinal"
-
-	type args struct {
-		ctx context.Context
-		cm  resource.Claim
-	}
-
-	type want struct {
-		err error
-		cm  resource.Claim
-	}
-
-	errBoom := errors.New("boom")
-
-	cases := map[string]struct {
-		client client.Client
-		args   args
-		want   want
-	}{
-		"UpdateClaimError": {
-			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(errBoom)},
-			args: args{
-				ctx: context.Background(),
-				cm:  &fake.Claim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{}}},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errUpdateClaim),
-				cm:  &fake.Claim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
-			},
-		},
-		"Successful": {
-			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil)},
-			args: args{
-				ctx: context.Background(),
-				cm:  &fake.Claim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{}}},
-			},
-			want: want{
-				err: nil,
-				cm:  &fake.Claim{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
-			},
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			api := NewAPIClaimFinalizer(tc.client, finalizer)
-			err := api.AddFinalizer(tc.args.ctx, tc.args.cm)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("api.Initialize(...): -want error, +got error:\n%s", diff)
-			}
-			if diff := cmp.Diff(tc.want.cm, tc.args.cm, test.EquateConditions()); diff != "" {
-				t.Errorf("api.Initialize(...) Claim: -want, +got:\n%s", diff)
 			}
 		})
 	}

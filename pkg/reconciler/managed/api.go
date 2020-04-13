@@ -34,32 +34,6 @@ const (
 	errUpdateManagedStatus  = "cannot update managed resource status"
 )
 
-// An APIFinalizer adds and removes finalizers to and from a resource.
-type APIFinalizer struct {
-	client    client.Client
-	finalizer string
-}
-
-// NewAPIFinalizer returns a new APIFinalizer.
-func NewAPIFinalizer(c client.Client, finalizer string) *APIFinalizer {
-	return &APIFinalizer{client: c, finalizer: finalizer}
-}
-
-// AddFinalizer to the supplied Managed resource.
-func (a *APIFinalizer) AddFinalizer(ctx context.Context, mg resource.Managed) error {
-	if meta.FinalizerExists(mg, a.finalizer) {
-		return nil
-	}
-	meta.AddFinalizer(mg, a.finalizer)
-	return errors.Wrap(a.client.Update(ctx, mg), errUpdateManaged)
-}
-
-// RemoveFinalizer from the supplied Managed resource.
-func (a *APIFinalizer) RemoveFinalizer(ctx context.Context, mg resource.Managed) error {
-	meta.RemoveFinalizer(mg, a.finalizer)
-	return errors.Wrap(resource.IgnoreNotFound(a.client.Update(ctx, mg)), errUpdateManaged)
-}
-
 // NameAsExternalName writes the name of the managed resource to
 // the external name annotation field in order to be used as name of
 // the external resource in provider.

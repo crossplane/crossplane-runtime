@@ -396,7 +396,7 @@ func TestReconciler(t *testing.T) {
 						return c, nil
 					})),
 					WithConnectionPublishers(),
-					WithFinalizer(FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Managed) error { return errBoom }}),
+					WithFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error { return errBoom }}),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
@@ -427,7 +427,7 @@ func TestReconciler(t *testing.T) {
 						return c, nil
 					})),
 					WithConnectionPublishers(),
-					WithFinalizer(FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Managed) error { return nil }}),
+					WithFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
 			want: want{result: reconcile.Result{Requeue: false}},
@@ -488,7 +488,7 @@ func TestReconciler(t *testing.T) {
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.CanReference) error { return nil })),
 					WithExternalConnecter(&NopConnecter{}),
 					WithConnectionPublishers(),
-					WithFinalizer(FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Managed) error { return errBoom }}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return errBoom }}),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
@@ -528,7 +528,7 @@ func TestReconciler(t *testing.T) {
 						return c, nil
 					})),
 					WithConnectionPublishers(),
-					WithFinalizer(FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Managed) error { return nil }}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
@@ -579,7 +579,7 @@ func TestReconciler(t *testing.T) {
 							return nil
 						},
 					}),
-					WithFinalizer(FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Managed) error { return nil }}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
@@ -609,7 +609,7 @@ func TestReconciler(t *testing.T) {
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.CanReference) error { return nil })),
 					WithExternalConnecter(&NopConnecter{}),
 					WithConnectionPublishers(),
-					WithFinalizer(FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Managed) error { return nil }}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
@@ -646,7 +646,7 @@ func TestReconciler(t *testing.T) {
 						return c, nil
 					})),
 					WithConnectionPublishers(),
-					WithFinalizer(FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Managed) error { return nil }}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedLongWait}},
@@ -686,7 +686,7 @@ func TestReconciler(t *testing.T) {
 						return c, nil
 					})),
 					WithConnectionPublishers(),
-					WithFinalizer(FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Managed) error { return nil }}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
@@ -737,7 +737,7 @@ func TestReconciler(t *testing.T) {
 							return nil
 						},
 					}),
-					WithFinalizer(FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Managed) error { return nil }}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
@@ -777,7 +777,7 @@ func TestReconciler(t *testing.T) {
 						return c, nil
 					})),
 					WithConnectionPublishers(),
-					WithFinalizer(FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Managed) error { return nil }}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedLongWait}},
