@@ -111,6 +111,10 @@ func (a *APIPatchingApplicator) Apply(ctx context.Context, o runtime.Object, ao 
 		return errors.New("cannot access object metadata")
 	}
 
+	if m.GetName() == "" && m.GetGenerateName() != "" {
+		return errors.Wrap(a.client.Create(ctx, o), "cannot create object")
+	}
+
 	desired := o.DeepCopyObject()
 
 	err := a.client.Get(ctx, types.NamespacedName{Name: m.GetName(), Namespace: m.GetNamespace()}, o)
@@ -155,6 +159,10 @@ func (a *APIUpdatingApplicator) Apply(ctx context.Context, o runtime.Object, ao 
 	m, ok := o.(metav1.Object)
 	if !ok {
 		return errors.New("cannot access object metadata")
+	}
+
+	if m.GetName() == "" && m.GetGenerateName() != "" {
+		return errors.Wrap(a.client.Create(ctx, o), "cannot create object")
 	}
 
 	current := o.DeepCopyObject()
