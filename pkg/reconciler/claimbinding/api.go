@@ -190,29 +190,3 @@ func (a *APIStatusBinder) Unbind(ctx context.Context, _ resource.Claim, mg resou
 
 	return errors.Wrap(resource.IgnoreNotFound(a.client.Delete(ctx, mg)), errDeleteManaged)
 }
-
-// An APIClaimFinalizer adds and removes finalizers to and from a claim.
-type APIClaimFinalizer struct {
-	client    client.Client
-	finalizer string
-}
-
-// NewAPIClaimFinalizer returns a new APIClaimFinalizer.
-func NewAPIClaimFinalizer(c client.Client, finalizer string) *APIClaimFinalizer {
-	return &APIClaimFinalizer{client: c, finalizer: finalizer}
-}
-
-// AddFinalizer to the supplied Claim.
-func (a *APIClaimFinalizer) AddFinalizer(ctx context.Context, cm resource.Claim) error {
-	if meta.FinalizerExists(cm, a.finalizer) {
-		return nil
-	}
-	meta.AddFinalizer(cm, a.finalizer)
-	return errors.Wrap(a.client.Update(ctx, cm), errUpdateClaim)
-}
-
-// RemoveFinalizer from the supplied Claim.
-func (a *APIClaimFinalizer) RemoveFinalizer(ctx context.Context, cm resource.Claim) error {
-	meta.RemoveFinalizer(cm, a.finalizer)
-	return errors.Wrap(resource.IgnoreNotFound(a.client.Update(ctx, cm)), errUpdateClaim)
-}

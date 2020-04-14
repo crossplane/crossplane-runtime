@@ -130,31 +130,6 @@ func (cc InitializerChain) Initialize(ctx context.Context, mg resource.Managed) 
 	return nil
 }
 
-// A Finalizer finalizes the deletion of a resource claim.
-type Finalizer interface {
-	// AddFinalizer to the supplied Managed resource.
-	AddFinalizer(ctx context.Context, mg resource.Managed) error
-
-	// RemoveFinalizer from the supplied Managed resource.
-	RemoveFinalizer(ctx context.Context, mg resource.Managed) error
-}
-
-// A FinalizerFns satisfy the Finalizer interface.
-type FinalizerFns struct {
-	AddFinalizerFn    func(ctx context.Context, mg resource.Managed) error
-	RemoveFinalizerFn func(ctx context.Context, mg resource.Managed) error
-}
-
-// AddFinalizer to the supplied Managed resource.
-func (f FinalizerFns) AddFinalizer(ctx context.Context, mg resource.Managed) error {
-	return f.AddFinalizerFn(ctx, mg)
-}
-
-// RemoveFinalizer from the supplied Managed resource.
-func (f FinalizerFns) RemoveFinalizer(ctx context.Context, mg resource.Managed) error {
-	return f.RemoveFinalizerFn(ctx, mg)
-}
-
 // A InitializerFn is a function that satisfies the Initializer
 // interface.
 type InitializerFn func(ctx context.Context, mg resource.Managed) error
@@ -333,7 +308,7 @@ type Reconciler struct {
 
 type mrManaged struct {
 	ConnectionPublisher
-	Finalizer
+	resource.Finalizer
 	Initializer
 	ReferenceResolver
 }
@@ -341,7 +316,7 @@ type mrManaged struct {
 func defaultMRManaged(m manager.Manager) mrManaged {
 	return mrManaged{
 		ConnectionPublisher: NewAPISecretPublisher(m.GetClient(), m.GetScheme()),
-		Finalizer:           NewAPIFinalizer(m.GetClient(), managedFinalizerName),
+		Finalizer:           resource.NewAPIFinalizer(m.GetClient(), managedFinalizerName),
 		Initializer:         NewNameAsExternalName(m.GetClient()),
 		ReferenceResolver:   NewAPIReferenceResolver(m.GetClient()),
 	}
@@ -417,7 +392,7 @@ func WithInitializers(i ...Initializer) ReconcilerOption {
 
 // WithFinalizer specifies how the Reconciler should add and remove
 // finalizers to and from the managed resource.
-func WithFinalizer(f Finalizer) ReconcilerOption {
+func WithFinalizer(f resource.Finalizer) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.managed.Finalizer = f
 	}

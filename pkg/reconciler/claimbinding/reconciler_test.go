@@ -210,7 +210,7 @@ func TestReconciler(t *testing.T) {
 				with: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ReconcilerOption{
 					WithBinder(BinderFns{UnbindFn: func(_ context.Context, _ resource.Claim, _ resource.Managed) error { return nil }}),
-					WithClaimFinalizer(ClaimFinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Claim) error { return nil }}),
+					WithClaimFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
 			want: want{result: reconcile.Result{Requeue: false}},
@@ -247,7 +247,7 @@ func TestReconciler(t *testing.T) {
 				with: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ReconcilerOption{
 					WithBinder(BinderFns{UnbindFn: func(_ context.Context, _ resource.Claim, _ resource.Managed) error { return nil }}),
-					WithClaimFinalizer(ClaimFinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Claim) error { return errBoom }}),
+					WithClaimFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error { return errBoom }}),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: aShortWait}},
@@ -275,7 +275,7 @@ func TestReconciler(t *testing.T) {
 				with: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ReconcilerOption{
 					WithBinder(BinderFns{UnbindFn: func(_ context.Context, _ resource.Claim, _ resource.Managed) error { return nil }}),
-					WithClaimFinalizer(ClaimFinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Claim) error { return nil }}),
+					WithClaimFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
 			want: want{result: reconcile.Result{Requeue: false}},
@@ -421,8 +421,8 @@ func TestReconciler(t *testing.T) {
 					WithManagedConfigurators(ManagedConfiguratorFn(
 						func(_ context.Context, _ resource.Claim, _ resource.Class, _ resource.Managed) error { return nil },
 					)),
-					WithClaimFinalizer(ClaimFinalizerFns{
-						AddFinalizerFn: func(_ context.Context, _ resource.Claim) error { return nil }},
+					WithClaimFinalizer(resource.FinalizerFns{
+						AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }},
 					),
 					WithManagedCreator(ManagedCreatorFn(
 						func(_ context.Context, _ resource.Claim, _ resource.Class, _ resource.Managed) error { return errBoom },
@@ -599,8 +599,8 @@ func TestReconciler(t *testing.T) {
 					WithManagedConnectionPropagator(resource.ManagedConnectionPropagatorFn(
 						func(_ context.Context, _ resource.LocalConnectionSecretOwner, _ resource.Managed) error { return nil },
 					)),
-					WithClaimFinalizer(ClaimFinalizerFns{
-						AddFinalizerFn: func(_ context.Context, _ resource.Claim) error { return errBoom }},
+					WithClaimFinalizer(resource.FinalizerFns{
+						AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return errBoom }},
 					),
 				},
 			},
@@ -646,8 +646,8 @@ func TestReconciler(t *testing.T) {
 					WithManagedConnectionPropagator(resource.ManagedConnectionPropagatorFn(
 						func(_ context.Context, _ resource.LocalConnectionSecretOwner, _ resource.Managed) error { return nil },
 					)),
-					WithClaimFinalizer(ClaimFinalizerFns{
-						AddFinalizerFn: func(_ context.Context, _ resource.Claim) error { return nil }},
+					WithClaimFinalizer(resource.FinalizerFns{
+						AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }},
 					),
 					WithBinder(BinderFns{
 						BindFn: func(_ context.Context, _ resource.Claim, _ resource.Managed) error { return errBoom },
