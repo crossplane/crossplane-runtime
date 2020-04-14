@@ -25,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
@@ -654,6 +655,131 @@ func TestSetValue(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.object, p.object); diff != "" {
 				t.Fatalf("\np.SetValue(%s, %v): %s: -want, +got:\n%s", tc.args.path, tc.args.value, tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestGetConditions(t *testing.T) {
+	a := v1alpha1.Available()
+	ja, _ := json.Marshal(a)
+	ua := map[string]interface{}{}
+	_ = json.Unmarshal(ja, &ua)
+
+	c := v1alpha1.Creating()
+	jc, _ := json.Marshal(c)
+	uc := map[string]interface{}{}
+	_ = json.Unmarshal(jc, &uc)
+
+	cases := map[string]struct {
+		reason string
+		data   []byte
+		ct     v1alpha1.ConditionType
+		want   v1alpha1.Condition
+	}{
+		"NoStatus": {
+			reason: "The condition should be unknown if there is no status",
+			data:   []byte(``),
+			ct:     v1alpha1.TypeReady,
+			want:   (&v1alpha1.ConditionedStatus{}).GetCondition(v1alpha1.TypeReady),
+		},
+		"NoStatusConditions": {
+			reason: "The condition should be unknown if there are no status conditions",
+			data:   []byte(`{"status":{}}`),
+			ct:     v1alpha1.TypeReady,
+			want:   (&v1alpha1.ConditionedStatus{}).GetCondition(v1alpha1.TypeReady),
+		},
+		"ConditionSet": {
+			reason: "The condition should be returned if it is set",
+			data:   []byte(`{"status":{"conditions":[` + string(jc) + `]}}`),
+			ct:     v1alpha1.TypeReady,
+			want:   c,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			in := make(map[string]interface{})
+			_ = json.Unmarshal(tc.data, &in)
+			p := Pave(in)
+			got := p.GetCondition(tc.ct)
+
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Fatalf("\np.GetCondition(%s): %s: -want, +got:\n%s", tc.ct, tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestSetConditions(t *testing.T) {
+	a := v1alpha1.Available()
+	ja, _ := json.Marshal(a)
+	ua := map[string]interface{}{}
+	_ = json.Unmarshal(ja, &ua)
+
+	c := v1alpha1.Creating()
+	jc, _ := json.Marshal(c)
+	uc := map[string]interface{}{}
+	_ = json.Unmarshal(jc, &uc)
+
+	cases := map[string]struct {
+		reason string
+		data   []byte
+		c      []v1alpha1.Condition
+		want   map[string]interface{}
+	}{
+		"NoStatus": {
+			reason: "Status conditions should be written even if the object has no status",
+			data:   []byte(``),
+			c:      []v1alpha1.Condition{a},
+			want: map[string]interface{}{
+				"status": map[string]interface{}{
+					"conditions": []interface{}{ua},
+				},
+			},
+		},
+		"NoConditions": {
+			reason: "Status conditions should be written even if the object currently has no conditions",
+			data:   []byte(`{"status": {"womp":true}}`),
+			c:      []v1alpha1.Condition{a},
+			want: map[string]interface{}{
+				"status": map[string]interface{}{
+					"womp":       true,
+					"conditions": []interface{}{ua},
+				},
+			},
+		},
+		"ExistingCondition": {
+			reason: "An existing status condition of the same type should be replaced",
+			data:   []byte(`{"status": {"conditions":[` + string(jc) + `]}}`),
+			c:      []v1alpha1.Condition{a},
+			want: map[string]interface{}{
+				"status": map[string]interface{}{
+					"conditions": []interface{}{uc},
+				},
+			},
+		},
+		"WeirdConditions": {
+			reason: "If the data at status.condition does not appear to be an array of status conditions it is left untouched",
+			data:   []byte(`{"status": {"conditions":[0]}}`),
+			c:      []v1alpha1.Condition{a},
+			want: map[string]interface{}{
+				"status": map[string]interface{}{
+					"conditions": []interface{}{float64(0)},
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			in := make(map[string]interface{})
+			_ = json.Unmarshal(tc.data, &in)
+			p := Pave(in)
+			p.SetConditions(tc.c...)
+
+			if diff := cmp.Diff(tc.want, p.object); diff != "" {
+				t.Fatalf("\np.SetConditions(...): %s: -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

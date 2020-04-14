@@ -20,6 +20,9 @@ import (
 	"encoding/json"
 
 	"github.com/pkg/errors"
+	"k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 )
 
 // A Paved JSON object supports getting and setting values by their field path.
@@ -30,6 +33,13 @@ type Paved struct {
 // Pave a JSON object, making it possible to get and set values by field path.
 func Pave(object map[string]interface{}) *Paved {
 	return &Paved{object: object}
+}
+
+// PaveObject paves a runtime.Object, making it possible to get and set values
+// by field path.
+func PaveObject(o runtime.Object) (*Paved, error) {
+	u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(o)
+	return Pave(u), errors.Wrap(err, "")
 }
 
 // MarshalJSON to the underlying object.
@@ -330,4 +340,61 @@ func (p *Paved) SetBool(path string, value bool) error {
 // SetNumber value at the supplied field path.
 func (p *Paved) SetNumber(path string, value float64) error {
 	return p.SetValue(path, value)
+}
+
+// GetCondition of this Paved resource.
+func (p *Paved) GetCondition(ct v1alpha1.ConditionType) v1alpha1.Condition {
+	cs := &v1alpha1.ConditionedStatus{}
+
+	v, err := p.GetValue("status")
+	if err != nil {
+		return cs.GetCondition(ct)
+	}
+
+	j, err := json.Marshal(v)
+	if err != nil {
+		return cs.GetCondition(ct)
+	}
+
+	// We want to call cs.GetCondition regardless of whether this unmarshal
+	// succeeds; calling GetCondition on an empty *ConditionedStatus returns a
+	// sane zero value.
+	_ = json.Unmarshal(j, cs)
+	return cs.GetCondition(ct)
+}
+
+// SetConditions of this Paved resource.
+func (p *Paved) SetConditions(c ...v1alpha1.Condition) {
+	cs := &v1alpha1.ConditionedStatus{Conditions: c}
+
+	if _, err := p.GetValue("status"); err != nil {
+		cs.SetConditions(c...)
+		_ = p.SetValue("status", cs)
+		return
+	}
+
+	v, err := p.GetValue("status.conditions")
+	if err != nil {
+		cs.SetConditions(c...)
+		_ = p.SetValue("status.conditions", cs.Conditions)
+		return
+	}
+
+	j, err := json.Marshal(v)
+	if err != nil {
+		return
+	}
+
+	if err := json.Unmarshal(j, &cs.Conditions); err != nil {
+		// If status.conditions is currently something other than an array of
+		// Condition we fail silently without replacing it.
+		return
+	}
+
+	cs.SetConditions(c...)
+
+	// This method silently swallows any error encountered while setting a
+	// condition in the unstructured object in order to satisfy the
+	// resource.Conditioned interface.
+	_ = p.SetValue("status.conditions", cs.Conditions)
 }
