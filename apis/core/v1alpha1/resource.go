@@ -83,6 +83,12 @@ type SecretKeySelector struct {
 	Key string `json:"key"`
 }
 
+// A Reference to a named object.
+type Reference struct {
+	// Name of the referenced object.
+	Name string `json:"name"`
+}
+
 // A TypedReference refers to an object by Name, Kind, and APIVersion. It is
 // commonly used to reference cluster-scoped objects or objects where the
 // namespace is already known.
@@ -99,6 +105,16 @@ type TypedReference struct {
 	// UID of the referenced object.
 	// +optional
 	UID types.UID `json:"uid,omitempty"`
+}
+
+// A Selector selects an object.
+type Selector struct {
+	// MatchLabels ensures an object with matching labels is selected.
+	MatchLabels map[string]string `json:"matchLabels,omitempty"`
+
+	// MatchControllerRef ensures an object with the same controller reference
+	// as the selecting object is selected.
+	MatchControllerRef *bool `json:"matchControllerRef,omitempty"`
 }
 
 // SetGroupVersionKind sets the Kind and APIVersion of a TypedReference.
