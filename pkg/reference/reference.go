@@ -69,23 +69,23 @@ type ResolutionResponse struct {
 	ResolvedReference *v1alpha1.Reference
 }
 
-// A Resolver resolves references to managed resources.
+// A Resolver selects and resolves references to managed resources.
 type Resolver interface {
 	// Resolve the supplied ResolutionRequest. The returned ResolutionResponse
 	// always contains valid values unless an error was returned.
 	Resolve(ctx context.Context, req ResolutionRequest) (ResolutionResponse, error)
 }
 
-// An APIResolver resolves references to managed resources by returning
-// their external name annotation.
+// An APIResolver selects and resolves references to managed resources in the
+// Kubernetes API server.
 type APIResolver struct {
 	client client.Reader
 	from   resource.Managed
 }
 
-// NewAPIResolver returns a Resolver that resolves references from the
-// supplied managed resource to other managed resources by returning their
-// external name annotation.
+// NewAPIResolver returns a Resolver that selects and resolves references from
+// the supplied managed resource to other managed resources in the Kubernetes
+// API server.
 func NewAPIResolver(c client.Reader, from resource.Managed) *APIResolver {
 	return &APIResolver{client: c, from: from}
 }

@@ -62,7 +62,7 @@ func (r *referencesAccessErr) Error() string {
 // of the `AttributeReferencer` fields are referring to objects that are not
 // accessible, either they are not ready or they do not yet exist
 //
-// Deprecated. Treat reference errors as a regular reconcile error.
+// Deprecated: Treat reference errors as a regular reconcile error.
 func IsReferencesAccessError(err error) bool {
 	_, result := err.(*referencesAccessErr)
 	return result
