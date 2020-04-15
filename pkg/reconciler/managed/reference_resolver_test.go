@@ -48,13 +48,13 @@ func (m *mockReferencer) Assign(res resource.CanReference, value string) error {
 	return m.MockAssign(res, value)
 }
 
-func TestResolveReferences(t *testing.T) {
+func TestDeprecatedResolveReferences(t *testing.T) {
 	errBoom := errors.New("boom")
 	wantValue := "built"
 
 	type args struct {
 		ctx context.Context
-		res resource.CanReference
+		mg  resource.Managed
 	}
 
 	cases := map[string]struct {
@@ -130,7 +130,7 @@ func TestResolveReferences(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				res: &fake.Managed{},
+				mg:  &fake.Managed{},
 			},
 			want: errors.Wrap(errBoom, errBuildAttribute),
 		},
@@ -155,7 +155,7 @@ func TestResolveReferences(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				res: &fake.Managed{},
+				mg:  &fake.Managed{},
 			},
 			want: errors.Wrap(errBoom, errAssignAttribute),
 		},
@@ -183,7 +183,7 @@ func TestResolveReferences(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				res: &fake.Managed{},
+				mg:  &fake.Managed{},
 			},
 			want: nil,
 		},
@@ -218,7 +218,7 @@ func TestResolveReferences(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				res: &fake.Managed{},
+				mg:  &fake.Managed{},
 			},
 			want: nil,
 		},
@@ -249,7 +249,7 @@ func TestResolveReferences(t *testing.T) {
 			},
 			args: args{
 				ctx: context.Background(),
-				res: &fake.Managed{},
+				mg:  &fake.Managed{},
 			},
 			want: errors.Wrap(errBoom, errUpdateReferencer),
 		},
@@ -258,7 +258,7 @@ func TestResolveReferences(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewAPIReferenceResolver(tc.c, tc.o...)
-			got := r.ResolveReferences(tc.args.ctx, tc.args.res)
+			got := r.ResolveReferences(tc.args.ctx, tc.args.mg)
 			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\nReason: %s\r.ResolveReferences(...): -want, +got:\n%s", tc.reason, diff)
 			}

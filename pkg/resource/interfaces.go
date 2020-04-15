@@ -130,12 +130,28 @@ type Claim interface {
 	Bindable
 }
 
+// A ClaimList is a list of resource claims.
+type ClaimList interface {
+	runtime.Object
+
+	// GetItems returns the list of resource claims.
+	GetItems() []Claim
+}
+
 // A Class is a Kubernetes object representing configuration specifications for
 // a managed resource.
 type Class interface {
 	Object
 
 	Reclaimer
+}
+
+// A ClassList is a list of resource classes.
+type ClassList interface {
+	runtime.Object
+
+	// GetItems returns the list of resource classes.
+	GetItems() []Class
 }
 
 // A Managed is a Kubernetes object representing a concrete managed
@@ -151,6 +167,14 @@ type Managed interface {
 
 	Conditioned
 	Bindable
+}
+
+// A ManagedList is a list of managed resources.
+type ManagedList interface {
+	runtime.Object
+
+	// GetItems returns the list of managed resources.
+	GetItems() []Managed
 }
 
 // A Provider is a Kubernetes object that refers to credentials to connect

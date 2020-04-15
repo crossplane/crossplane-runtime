@@ -195,3 +195,124 @@ func TestAPISecretPublisher(t *testing.T) {
 		})
 	}
 }
+
+type mockSimpleReferencer struct {
+	resource.Managed
+
+	MockResolveReferences func(context.Context, client.Reader) error
+}
+
+func (r *mockSimpleReferencer) ResolveReferences(ctx context.Context, c client.Reader) error {
+	return r.MockResolveReferences(ctx, c)
+}
+
+func (r *mockSimpleReferencer) DeepCopyObject() runtime.Object {
+	return &mockSimpleReferencer{Managed: r.Managed.DeepCopyObject().(resource.Managed)}
+}
+
+func (r *mockSimpleReferencer) Equal(s *mockSimpleReferencer) bool {
+	return cmp.Equal(r.Managed, s.Managed)
+}
+
+func TestResolveReferences(t *testing.T) {
+	errBoom := errors.New("boom")
+
+	different := &fake.Managed{}
+
+	type args struct {
+		ctx context.Context
+		mg  resource.Managed
+	}
+
+	cases := map[string]struct {
+		reason string
+		c      client.Client
+		args   args
+		want   error
+	}{
+		"NoReferencersFound": {
+			reason: "Should return early without error when the managed resource has no references.",
+			args: args{
+				ctx: context.Background(),
+				mg:  &fake.Managed{},
+			},
+			want: nil,
+		},
+		"ResolveReferencesError": {
+			reason: "Should return errors encountered while resolving references.",
+			c: &test.MockClient{
+				MockUpdate: test.NewMockUpdateFn(nil),
+			},
+			args: args{
+				ctx: context.Background(),
+				mg: &mockSimpleReferencer{
+					Managed: &fake.Managed{},
+					MockResolveReferences: func(context.Context, client.Reader) error {
+						return errBoom
+					},
+				},
+			},
+			want: errors.Wrap(errBoom, errResolveReferences),
+		},
+		"SuccessfulNoop": {
+			reason: "Should return without error when resolution does not change the managed resource.",
+			c: &test.MockClient{
+				MockUpdate: test.NewMockUpdateFn(nil),
+			},
+			args: args{
+				ctx: context.Background(),
+				mg: &mockSimpleReferencer{
+					Managed: &fake.Managed{},
+					MockResolveReferences: func(context.Context, client.Reader) error {
+						return nil
+					},
+				},
+			},
+			want: nil,
+		},
+		"SuccessfulUpdate": {
+			reason: "Should return without error when a value is successfully resolved.",
+			c: &test.MockClient{
+				MockUpdate: test.NewMockUpdateFn(nil),
+			},
+			args: args{
+				ctx: context.Background(),
+				mg: &mockSimpleReferencer{
+					Managed: different,
+					MockResolveReferences: func(context.Context, client.Reader) error {
+						different.SetName("I'm different!")
+						return nil
+					},
+				},
+			},
+			want: nil,
+		},
+		"UpdateError": {
+			reason: "Should return an error when the managed resource cannot be updated.",
+			c: &test.MockClient{
+				MockUpdate: test.NewMockUpdateFn(errBoom),
+			},
+			args: args{
+				ctx: context.Background(),
+				mg: &mockSimpleReferencer{
+					Managed: different,
+					MockResolveReferences: func(context.Context, client.Reader) error {
+						different.SetName("I'm different-er!")
+						return nil
+					},
+				},
+			},
+			want: errors.Wrap(errBoom, errUpdateManaged),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			r := NewAPISimpleReferenceResolver(tc.c)
+			got := r.ResolveReferences(tc.args.ctx, tc.args.mg)
+			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
+				t.Errorf("\nReason: %s\r.ResolveReferences(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}

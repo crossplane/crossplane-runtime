@@ -141,21 +141,20 @@ func (m InitializerFn) Initialize(ctx context.Context, mg resource.Managed) erro
 
 // A ReferenceResolver resolves references to other managed resources.
 type ReferenceResolver interface {
-	// ResolveReferences finds all fields in the supplied CanReference that are
-	// references to Kubernetes resources, then uses the fields of those
-	// resources to update corresponding fields in CanReference, for example
-	// setting .spec.network to the name of the Network resource specified as
-	// .spec.networkRef.
-	ResolveReferences(ctx context.Context, res resource.CanReference) error
+	// ResolveReferences resolves all fields in the supplied managed resource
+	// that are references to other managed resources by updating corresponding
+	// fields, for example setting spec.network to the Network resource
+	// specified by spec.networkRef.name.
+	ResolveReferences(ctx context.Context, mg resource.Managed) error
 }
 
 // A ReferenceResolverFn is a function that satisfies the
 // ReferenceResolver interface.
-type ReferenceResolverFn func(context.Context, resource.CanReference) error
+type ReferenceResolverFn func(context.Context, resource.Managed) error
 
 // ResolveReferences calls ReferenceResolverFn function
-func (m ReferenceResolverFn) ResolveReferences(ctx context.Context, res resource.CanReference) error {
-	return m(ctx, res)
+func (m ReferenceResolverFn) ResolveReferences(ctx context.Context, mg resource.Managed) error {
+	return m(ctx, mg)
 }
 
 // An ExternalConnecter produces a new ExternalClient given the supplied
@@ -519,21 +518,15 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	// delete, and that reference is stale at delete time.
 	if !meta.WasDeleted(managed) {
 		if err := r.managed.ResolveReferences(ctx, managed); err != nil {
-			condition := v1alpha1.ReconcileError(err)
-			if IsReferencesAccessError(err) {
-				condition = v1alpha1.ReferenceResolutionBlocked(err)
-			}
-
 			// If any of our referenced resources are not yet ready (or if we
 			// encountered an error resolving them) we want to try again after a
 			// short wait. If this is the first time we encounter this situation
 			// we'll be requeued implicitly due to the status update.
 			log.Debug("Cannot resolve managed resource references", "error", err, "requeue-after", time.Now().Add(r.shortWait))
 			record.Event(managed, event.Warning(reasonCannotResolveRefs, err))
-			managed.SetConditions(condition)
+			managed.SetConditions(v1alpha1.ReconcileError(err))
 			return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 		}
-		managed.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 	}
 
 	observation, err := external.Observe(externalCtx, managed)

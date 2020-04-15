@@ -272,6 +272,8 @@ func ReconcileError(err error) Condition {
 
 // ReferenceResolutionSuccess returns a condition indicating that Crossplane
 // successfully resolved the references used in the resource.
+//
+// Deprecated: Use ReconcileSuccess.
 func ReferenceResolutionSuccess() Condition {
 	return Condition{
 		Type:               TypeReferencesResolved,
@@ -285,6 +287,8 @@ func ReferenceResolutionSuccess() Condition {
 // unable to resolve the references used in the resource. This could
 // mean that one or more of referred resources do not yet exist, or are not yet
 // Ready.
+//
+// Deprecated: Use ReconcileError.
 func ReferenceResolutionBlocked(err error) Condition {
 	return Condition{
 		Type:               TypeReferencesResolved,

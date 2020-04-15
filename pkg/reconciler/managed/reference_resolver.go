@@ -61,6 +61,8 @@ func (r *referencesAccessErr) Error() string {
 // IsReferencesAccessError returns true if the given error indicates that some
 // of the `AttributeReferencer` fields are referring to objects that are not
 // accessible, either they are not ready or they do not yet exist
+//
+// Deprecated. Treat reference errors as a regular reconcile error.
 func IsReferencesAccessError(err error) bool {
 	_, result := err.(*referencesAccessErr)
 	return result
@@ -104,6 +106,8 @@ func WithAttributeReferencerFinder(f AttributeReferencerFinder) APIReferenceReso
 // that satisfy AttributeReferencer by default. It assesses only pointers,
 // structs, and slices because it is assumed that only struct fields or slice
 // elements that are pointers to a struct will satisfy AttributeReferencer.
+//
+// Deprecated: Use NewAPISimpleReferenceResolver
 func NewAPIReferenceResolver(c client.Client, o ...APIReferenceResolverOption) *APIReferenceResolver {
 	r := &APIReferenceResolver{
 		client: c,
@@ -118,9 +122,9 @@ func NewAPIReferenceResolver(c client.Client, o ...APIReferenceResolverOption) *
 }
 
 // ResolveReferences resolves references made to other managed resources
-func (r *APIReferenceResolver) ResolveReferences(ctx context.Context, res resource.CanReference) error {
+func (r *APIReferenceResolver) ResolveReferences(ctx context.Context, mg resource.Managed) error {
 	// Retrieve all the referencer fields from the managed resource.
-	referencers := r.finder.FindReferencers(res)
+	referencers := r.finder.FindReferencers(mg)
 
 	// If there are no referencers exit early.
 	if len(referencers) == 0 {
@@ -130,7 +134,7 @@ func (r *APIReferenceResolver) ResolveReferences(ctx context.Context, res resour
 	// Make sure that all the references are ready.
 	allStatuses := []resource.ReferenceStatus{}
 	for _, referencer := range referencers {
-		statuses, err := referencer.GetStatus(ctx, res, r.client)
+		statuses, err := referencer.GetStatus(ctx, mg, r.client)
 		if err != nil {
 			return errors.Wrap(err, errGetReferencerStatus)
 		}
@@ -142,27 +146,27 @@ func (r *APIReferenceResolver) ResolveReferences(ctx context.Context, res resour
 		return err
 	}
 
-	existing := res.DeepCopyObject()
+	existing := mg.DeepCopyObject()
 
 	// Build and assign the attributes.
 	for _, referencer := range referencers {
-		val, err := referencer.Build(ctx, res, r.client)
+		val, err := referencer.Build(ctx, mg, r.client)
 		if err != nil {
 			return errors.Wrap(err, errBuildAttribute)
 		}
 
-		if err := referencer.Assign(res, val); err != nil {
+		if err := referencer.Assign(mg, val); err != nil {
 			return errors.Wrap(err, errAssignAttribute)
 		}
 	}
 
 	// Don't update if nothing changed during reference assignment.
-	if cmp.Equal(existing, res) {
+	if cmp.Equal(existing, mg) {
 		return nil
 	}
 
 	// Persist the updated managed resource.
-	return errors.Wrap(r.client.Update(ctx, res), errUpdateReferencer)
+	return errors.Wrap(r.client.Update(ctx, mg), errUpdateReferencer)
 }
 
 // findReferencers recursively finds all pointer types in a struct that satisfy
