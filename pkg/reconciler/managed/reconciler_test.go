@@ -53,7 +53,6 @@ func TestReconciler(t *testing.T) {
 	}
 
 	errBoom := errors.New("boom")
-	errNotReady := &referencesAccessErr{[]resource.ReferenceStatus{{Name: "cool-res", Status: resource.ReferenceNotReady}}}
 	now := metav1.Now()
 
 	cases := map[string]struct {
@@ -138,35 +137,6 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
 		},
-		"ResolveReferencesNotReadyError": {
-			reason: "Dependencies on unready references should trigger a requeue after a short wait.",
-			args: args{
-				m: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
-							want := &fake.Managed{}
-							want.SetConditions(v1alpha1.ReferenceResolutionBlocked(errNotReady))
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
-								reason := "Dependencies on unready references should be reported as a conditioned status."
-								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
-							}
-							return nil
-						}),
-					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
-				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
-				o: []ReconcilerOption{
-					WithInitializers(),
-					WithExternalConnecter(&NopConnecter{}),
-					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, res resource.CanReference) error {
-						return errNotReady
-					})),
-				},
-			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
-		},
 		"ResolveReferencesError": {
 			reason: "Errors during reference resolution references should trigger a requeue after a short wait.",
 			args: args{
@@ -189,7 +159,7 @@ func TestReconciler(t *testing.T) {
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithExternalConnecter(&NopConnecter{}),
-					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, res resource.CanReference) error {
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, res resource.Managed) error {
 						return errBoom
 					})),
 				},
@@ -204,7 +174,6 @@ func TestReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
-							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileError(errors.Wrap(errBoom, errReconcileObserve)))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors observing the managed resource should be reported as a conditioned status."
@@ -258,7 +227,7 @@ func TestReconciler(t *testing.T) {
 				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
-					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.CanReference) error { return nil })),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
@@ -302,7 +271,7 @@ func TestReconciler(t *testing.T) {
 				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
-					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.CanReference) error { return nil })),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
@@ -344,7 +313,7 @@ func TestReconciler(t *testing.T) {
 				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
-					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.CanReference) error { return nil })),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
@@ -386,7 +355,7 @@ func TestReconciler(t *testing.T) {
 				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
-					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.CanReference) error { return nil })),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
@@ -417,7 +386,7 @@ func TestReconciler(t *testing.T) {
 				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
-					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.CanReference) error { return nil })),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
@@ -440,7 +409,6 @@ func TestReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
-							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors publishing connection details after observation should be reported as a conditioned status."
@@ -454,7 +422,7 @@ func TestReconciler(t *testing.T) {
 				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
-					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.CanReference) error { return nil })),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
 					WithExternalConnecter(&NopConnecter{}),
 					WithConnectionPublishers(ConnectionPublisherFns{
 						PublishConnectionFn: func(_ context.Context, _ resource.Managed, _ ConnectionDetails) error { return errBoom },
@@ -471,7 +439,6 @@ func TestReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
-							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors adding a finalizer should be reported as a conditioned status."
@@ -485,7 +452,7 @@ func TestReconciler(t *testing.T) {
 				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
-					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.CanReference) error { return nil })),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
 					WithExternalConnecter(&NopConnecter{}),
 					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return errBoom }}),
@@ -501,7 +468,6 @@ func TestReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
-							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileError(errors.Wrap(errBoom, errReconcileCreate)))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors while creating an external resource should be reported as a conditioned status."
@@ -515,7 +481,7 @@ func TestReconciler(t *testing.T) {
 				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
-					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.CanReference) error { return nil })),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
@@ -541,7 +507,6 @@ func TestReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
-							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors publishing connection details after creation should be reported as a conditioned status."
@@ -555,7 +520,7 @@ func TestReconciler(t *testing.T) {
 				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
-					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.CanReference) error { return nil })),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
@@ -592,7 +557,6 @@ func TestReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
-							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileSuccess())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Successful managed resource creation should be reported as a conditioned status."
@@ -606,7 +570,7 @@ func TestReconciler(t *testing.T) {
 				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
-					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.CanReference) error { return nil })),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
 					WithExternalConnecter(&NopConnecter{}),
 					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
@@ -622,7 +586,6 @@ func TestReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
-							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileSuccess())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful no-op reconcile should be reported as a conditioned status."
@@ -636,7 +599,7 @@ func TestReconciler(t *testing.T) {
 				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
-					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.CanReference) error { return nil })),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
@@ -659,7 +622,6 @@ func TestReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
-							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileError(errors.Wrap(errBoom, errReconcileUpdate)))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors while updating an external resource should be reported as a conditioned status."
@@ -673,7 +635,7 @@ func TestReconciler(t *testing.T) {
 				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
-					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.CanReference) error { return nil })),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
@@ -699,7 +661,6 @@ func TestReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
-							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors publishing connection details after an update should be reported as a conditioned status."
@@ -713,7 +674,7 @@ func TestReconciler(t *testing.T) {
 				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
-					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.CanReference) error { return nil })),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
@@ -750,7 +711,6 @@ func TestReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
-							want.SetConditions(v1alpha1.ReferenceResolutionSuccess())
 							want.SetConditions(v1alpha1.ReconcileSuccess())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful managed resource update should be reported as a conditioned status."
@@ -764,7 +724,7 @@ func TestReconciler(t *testing.T) {
 				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
-					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.CanReference) error { return nil })),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {

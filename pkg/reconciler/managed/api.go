@@ -19,6 +19,7 @@ package managed
 import (
 	"context"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -32,6 +33,7 @@ const (
 	errCreateOrUpdateSecret = "cannot create or update connection secret"
 	errUpdateManaged        = "cannot update managed resource"
 	errUpdateManagedStatus  = "cannot update managed resource status"
+	errResolveReferences    = "cannot resolve references"
 )
 
 // NameAsExternalName writes the name of the managed resource to
@@ -86,4 +88,42 @@ func (a *APISecretPublisher) PublishConnection(ctx context.Context, mg resource.
 // deleted.
 func (a *APISecretPublisher) UnpublishConnection(ctx context.Context, mg resource.Managed, c ConnectionDetails) error {
 	return nil
+}
+
+// An APISimpleReferenceResolver resolves references from one managed resource
+// to others by calling the referencing resource's ResolveReferences method, if
+// any.
+type APISimpleReferenceResolver struct {
+	client client.Client
+}
+
+// NewAPISimpleReferenceResolver returns a ReferenceResolver that resolves
+// references from one managed resource to others by calling the referencing
+// resource's ResolveReferences method, if any.
+func NewAPISimpleReferenceResolver(c client.Client) *APISimpleReferenceResolver {
+	return &APISimpleReferenceResolver{client: c}
+}
+
+// ResolveReferences of the supplied managed resource by calling its
+// ResolveReferences method, if any.
+func (a *APISimpleReferenceResolver) ResolveReferences(ctx context.Context, mg resource.Managed) error {
+	rr, ok := mg.(interface {
+		ResolveReferences(context.Context, client.Reader) error
+	})
+	if !ok {
+		// This managed resource doesn't have any references to resolve.
+		return nil
+	}
+
+	existing := mg.DeepCopyObject()
+	if err := rr.ResolveReferences(ctx, a.client); err != nil {
+		return errors.Wrap(err, errResolveReferences)
+	}
+
+	if cmp.Equal(existing, mg) {
+		// The resource didn't change during reference resolution.
+		return nil
+	}
+
+	return errors.Wrap(a.client.Update(ctx, mg), errUpdateManaged)
 }
