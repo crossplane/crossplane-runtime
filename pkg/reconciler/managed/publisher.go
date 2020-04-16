@@ -27,9 +27,9 @@ type PublisherChain []ConnectionPublisher
 
 // PublishConnection calls each ConnectionPublisher.PublishConnection serially. It returns the first error it
 // encounters, if any.
-func (pc PublisherChain) PublishConnection(ctx context.Context, mg resource.Managed, c ConnectionDetails) error {
+func (pc PublisherChain) PublishConnection(ctx context.Context, owner resource.ConnectionSecretOwner, c ConnectionDetails) error {
 	for _, p := range pc {
-		if err := p.PublishConnection(ctx, mg, c); err != nil {
+		if err := p.PublishConnection(ctx, owner, c); err != nil {
 			return err
 		}
 	}
@@ -38,9 +38,9 @@ func (pc PublisherChain) PublishConnection(ctx context.Context, mg resource.Mana
 
 // UnpublishConnection calls each ConnectionPublisher.UnpublishConnection serially. It returns the first error it
 // encounters, if any.
-func (pc PublisherChain) UnpublishConnection(ctx context.Context, mg resource.Managed, c ConnectionDetails) error {
+func (pc PublisherChain) UnpublishConnection(ctx context.Context, owner resource.ConnectionSecretOwner, c ConnectionDetails) error {
 	for _, p := range pc {
-		if err := p.UnpublishConnection(ctx, mg, c); err != nil {
+		if err := p.UnpublishConnection(ctx, owner, c); err != nil {
 			return err
 		}
 	}

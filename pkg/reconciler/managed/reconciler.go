@@ -81,32 +81,32 @@ func ControllerName(kind string) string {
 type ConnectionDetails map[string][]byte
 
 // A ConnectionPublisher manages the supplied ConnectionDetails for the
-// supplied Managed resource. ManagedPublishers must handle the case in which
+// supplied resource. ManagedPublishers must handle the case in which
 // the supplied ConnectionDetails are empty.
 type ConnectionPublisher interface {
-	// PublishConnection details for the supplied Managed resource. Publishing
+	// PublishConnection details for the supplied resource. Publishing
 	// must be additive; i.e. if details (a, b, c) are published, subsequently
 	// publicing details (b, c, d) should update (b, c) but not remove a.
-	PublishConnection(ctx context.Context, mg resource.Managed, c ConnectionDetails) error
+	PublishConnection(ctx context.Context, owner resource.ConnectionSecretOwner, c ConnectionDetails) error
 
-	// UnpublishConnection details for the supplied Managed resource.
-	UnpublishConnection(ctx context.Context, mg resource.Managed, c ConnectionDetails) error
+	// UnpublishConnection details for the supplied resource.
+	UnpublishConnection(ctx context.Context, owner resource.ConnectionSecretOwner, c ConnectionDetails) error
 }
 
 // ConnectionPublisherFns is the pluggable struct to produce objects with ConnectionPublisher interface.
 type ConnectionPublisherFns struct {
-	PublishConnectionFn   func(ctx context.Context, mg resource.Managed, c ConnectionDetails) error
-	UnpublishConnectionFn func(ctx context.Context, mg resource.Managed, c ConnectionDetails) error
+	PublishConnectionFn   func(ctx context.Context, owner resource.ConnectionSecretOwner, c ConnectionDetails) error
+	UnpublishConnectionFn func(ctx context.Context, owner resource.ConnectionSecretOwner, c ConnectionDetails) error
 }
 
-// PublishConnection details for the supplied Managed resource.
-func (fn ConnectionPublisherFns) PublishConnection(ctx context.Context, mg resource.Managed, c ConnectionDetails) error {
-	return fn.PublishConnectionFn(ctx, mg, c)
+// PublishConnection details for the supplied resource.
+func (fn ConnectionPublisherFns) PublishConnection(ctx context.Context, owner resource.ConnectionSecretOwner, c ConnectionDetails) error {
+	return fn.PublishConnectionFn(ctx, owner, c)
 }
 
-// UnpublishConnection details for the supplied Managed resource.
-func (fn ConnectionPublisherFns) UnpublishConnection(ctx context.Context, mg resource.Managed, c ConnectionDetails) error {
-	return fn.UnpublishConnectionFn(ctx, mg, c)
+// UnpublishConnection details for the supplied resource.
+func (fn ConnectionPublisherFns) UnpublishConnection(ctx context.Context, owner resource.ConnectionSecretOwner, c ConnectionDetails) error {
+	return fn.UnpublishConnectionFn(ctx, owner, c)
 }
 
 // A Initializer establishes ownership of the supplied Managed resource.

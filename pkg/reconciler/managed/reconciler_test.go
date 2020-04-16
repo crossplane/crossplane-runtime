@@ -323,7 +323,7 @@ func TestReconciler(t *testing.T) {
 						return c, nil
 					})),
 					WithConnectionPublishers(ConnectionPublisherFns{
-						UnpublishConnectionFn: func(_ context.Context, _ resource.Managed, _ ConnectionDetails) error { return errBoom },
+						UnpublishConnectionFn: func(_ context.Context, _ resource.ConnectionSecretOwner, _ ConnectionDetails) error { return errBoom },
 					}),
 				},
 			},
@@ -425,7 +425,7 @@ func TestReconciler(t *testing.T) {
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
 					WithExternalConnecter(&NopConnecter{}),
 					WithConnectionPublishers(ConnectionPublisherFns{
-						PublishConnectionFn: func(_ context.Context, _ resource.Managed, _ ConnectionDetails) error { return errBoom },
+						PublishConnectionFn: func(_ context.Context, _ resource.ConnectionSecretOwner, _ ConnectionDetails) error { return errBoom },
 					}),
 				},
 			},
@@ -534,7 +534,7 @@ func TestReconciler(t *testing.T) {
 						return c, nil
 					})),
 					WithConnectionPublishers(ConnectionPublisherFns{
-						PublishConnectionFn: func(_ context.Context, _ resource.Managed, cd ConnectionDetails) error {
+						PublishConnectionFn: func(_ context.Context, _ resource.ConnectionSecretOwner, cd ConnectionDetails) error {
 							// We're called after observe, create, and update
 							// but we only want to fail when publishing details
 							// after a creation.
@@ -688,7 +688,7 @@ func TestReconciler(t *testing.T) {
 						return c, nil
 					})),
 					WithConnectionPublishers(ConnectionPublisherFns{
-						PublishConnectionFn: func(_ context.Context, _ resource.Managed, cd ConnectionDetails) error {
+						PublishConnectionFn: func(_ context.Context, _ resource.ConnectionSecretOwner, cd ConnectionDetails) error {
 							// We're called after observe, create, and update
 							// but we only want to fail when publishing details
 							// after an update.
