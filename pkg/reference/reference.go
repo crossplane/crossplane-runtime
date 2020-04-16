@@ -31,7 +31,9 @@ import (
 // Error strings.
 const (
 	errGetManaged  = "cannot get managed resource"
-	errListManaged = "cannot get managed resources"
+	errListManaged = "cannot list managed resources"
+	errNoMatches   = "no managed resources matched selector"
+	errNoValue     = "referenced field was empty (reference may not yet be ready)"
 )
 
 // To indicates the kind of managed resource a reference is to.
@@ -62,11 +64,35 @@ type ResolutionRequest struct {
 	Extract      ExtractValueFn
 }
 
+// IsNoOp returns true if the supplied ResolutionRequest cannot or should not be
+// processed.
+func (rr ResolutionRequest) IsNoOp() bool {
+	// We don't resolve values that are already set; we effectively cache
+	// resolved values. The CR author can invalidate the cache and trigger a new
+	// resolution by explicitly clearing the resolved value.
+	if rr.CurrentValue != "" {
+		return true
+	}
+
+	// We can't resolve anything if neither a reference nor a selector were
+	// provided.
+	return rr.Reference == nil && rr.Selector == nil
+}
+
 // A ResolutionResponse returns the result of a reference resolution. The
 // returned values are always safe to set if resolution was successful.
 type ResolutionResponse struct {
 	ResolvedValue     string
 	ResolvedReference *v1alpha1.Reference
+}
+
+// Validate this ResolutionResponse.
+func (rr ResolutionResponse) Validate() error {
+	if rr.ResolvedValue == "" {
+		return errors.New(errNoValue)
+	}
+
+	return nil
 }
 
 // A Resolver selects and resolves references to managed resources.
@@ -93,45 +119,37 @@ func NewAPIResolver(c client.Reader, from resource.Managed) *APIResolver {
 // Resolve the supplied ResolutionRequest. The returned ResolutionResponse
 // always contains valid values unless an error was returned.
 func (r *APIResolver) Resolve(ctx context.Context, req ResolutionRequest) (ResolutionResponse, error) {
-	// Return early if from is being deleted.
-	if meta.WasDeleted(r.from) {
-		return ResolutionResponse{ResolvedValue: req.CurrentValue, ResolvedReference: req.Reference}, nil
-	}
-
-	// Return early if the value was already resolved.
-	if req.CurrentValue != "" {
-		return ResolutionResponse{ResolvedValue: req.CurrentValue, ResolvedReference: req.Reference}, nil
-	}
-
-	// Return early if neither a reference nor a selector exist.
-	if req.Reference == nil && req.Selector == nil {
+	// Return early if from is being deleted, or the request is a no-op.
+	if meta.WasDeleted(r.from) || req.IsNoOp() {
 		return ResolutionResponse{ResolvedValue: req.CurrentValue, ResolvedReference: req.Reference}, nil
 	}
 
 	// The reference is already set - resolve it.
-	if req.Selector == nil {
-		to := req.To.Managed
-		err := r.client.Get(ctx, types.NamespacedName{Name: req.Reference.Name}, to)
-		rsp := ResolutionResponse{ResolvedValue: req.Extract(to), ResolvedReference: req.Reference}
-		return rsp, errors.Wrapf(err, errGetManaged)
+	if req.Reference != nil {
+		if err := r.client.Get(ctx, types.NamespacedName{Name: req.Reference.Name}, req.To.Managed); err != nil {
+			return ResolutionResponse{}, errors.Wrap(err, errGetManaged)
+		}
+
+		rsp := ResolutionResponse{ResolvedValue: req.Extract(req.To.Managed), ResolvedReference: req.Reference}
+		return rsp, rsp.Validate()
 	}
 
 	// The reference was not set, but a selector was. Select a reference.
-	list := req.To.List
-	if err := r.client.List(ctx, list, client.MatchingLabels(req.Selector.MatchLabels)); err != nil {
-		return ResolutionResponse{}, errors.Wrapf(err, errListManaged)
+	if err := r.client.List(ctx, req.To.List, client.MatchingLabels(req.Selector.MatchLabels)); err != nil {
+		return ResolutionResponse{}, errors.Wrap(err, errListManaged)
 	}
 
-	for _, to := range list.GetItems() {
+	for _, to := range req.To.List.GetItems() {
 		if ControllersMustMatch(req.Selector) && !meta.HaveSameController(r.from, to) {
 			continue
 		}
 
-		return ResolutionResponse{ResolvedValue: req.Extract(to), ResolvedReference: &v1alpha1.Reference{Name: to.GetName()}}, nil
+		rsp := ResolutionResponse{ResolvedValue: req.Extract(to), ResolvedReference: &v1alpha1.Reference{Name: to.GetName()}}
+		return rsp, rsp.Validate()
 	}
 
 	// We couldn't resolve anything.
-	return ResolutionResponse{}, nil
+	return ResolutionResponse{}, errors.New(errNoMatches)
 }
 
 // ControllersMustMatch returns true if the supplied Selector requires that a

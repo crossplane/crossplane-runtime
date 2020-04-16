@@ -103,7 +103,6 @@ func TestResolve(t *testing.T) {
 				req: ResolutionRequest{},
 			},
 			want: want{
-				rsp: ResolutionResponse{},
 				err: nil,
 			},
 		},
@@ -121,9 +120,6 @@ func TestResolve(t *testing.T) {
 				},
 			},
 			want: want{
-				rsp: ResolutionResponse{
-					ResolvedReference: ref,
-				},
 				err: errors.Wrap(errBoom, errGetManaged),
 			},
 		},
@@ -167,7 +163,7 @@ func TestResolve(t *testing.T) {
 			},
 		},
 		"NoMatches": {
-			reason: "Should return nothing when no managed resources match the selector",
+			reason: "Should return an error when no managed resources match the selector",
 			c: &test.MockClient{
 				MockList: test.NewMockListFn(nil),
 			},
@@ -180,7 +176,7 @@ func TestResolve(t *testing.T) {
 			},
 			want: want{
 				rsp: ResolutionResponse{},
-				err: nil,
+				err: errors.New(errNoMatches),
 			},
 		},
 		"SuccessfulSelect": {
