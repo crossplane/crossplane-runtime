@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -142,6 +143,26 @@ func TestResolve(t *testing.T) {
 				err: errors.Wrap(errBoom, errGetManaged),
 			},
 		},
+		"ResolvedNoValue": {
+			reason: "Should return an error if the extract function returns the empty string",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil),
+			},
+			from: &fake.Managed{},
+			args: args{
+				req: ResolutionRequest{
+					Reference: ref,
+					To:        To{Managed: &fake.Managed{}},
+					Extract:   func(resource.Managed) string { return "" },
+				},
+			},
+			want: want{
+				rsp: ResolutionResponse{
+					ResolvedReference: ref,
+				},
+				err: errors.New(errNoValue),
+			},
+		},
 		"SuccessfulResolve": {
 			reason: "No error should be returned when the value is successfully extracted",
 			c: &test.MockClient{
@@ -233,6 +254,198 @@ func TestResolve(t *testing.T) {
 				t.Errorf("\n%s\nControllersMustMatch(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.rsp, got); diff != "" {
+				t.Errorf("\n%s\nControllersMustMatch(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+func TestResolveMultiple(t *testing.T) {
+	errBoom := errors.New("boom")
+	now := metav1.Now()
+	value := "coolv"
+	ref := v1alpha1.Reference{Name: "cool"}
+
+	controlled := &fake.Managed{}
+	controlled.SetName(value)
+	meta.SetExternalName(controlled, value)
+	meta.AddControllerReference(controlled, meta.AsController(&corev1.ObjectReference{UID: types.UID("very-unique")}))
+
+	type args struct {
+		ctx context.Context
+		req MultiResolutionRequest
+	}
+	type want struct {
+		rsp MultiResolutionResponse
+		err error
+	}
+	cases := map[string]struct {
+		reason string
+		c      client.Reader
+		from   resource.Managed
+		args   args
+		want   want
+	}{
+		"FromDeleted": {
+			reason: "Should return early if the referencing managed resource was deleted",
+			from:   &fake.Managed{ObjectMeta: metav1.ObjectMeta{DeletionTimestamp: &now}},
+			args: args{
+				req: MultiResolutionRequest{},
+			},
+			want: want{
+				rsp: MultiResolutionResponse{},
+				err: nil,
+			},
+		},
+		"AlreadyResolved": {
+			reason: "Should return early if the current value is non-zero",
+			from:   &fake.Managed{},
+			args: args{
+				req: MultiResolutionRequest{CurrentValues: []string{value}},
+			},
+			want: want{
+				rsp: MultiResolutionResponse{ResolvedValues: []string{value}},
+				err: nil,
+			},
+		},
+		"Unresolvable": {
+			reason: "Should return early if neither a reference or selector were provided",
+			from:   &fake.Managed{},
+			args: args{
+				req: MultiResolutionRequest{},
+			},
+			want: want{
+				err: nil,
+			},
+		},
+		"GetError": {
+			reason: "Should return errors encountered while getting the referenced resource",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(errBoom),
+			},
+			from: &fake.Managed{},
+			args: args{
+				req: MultiResolutionRequest{
+					References: []v1alpha1.Reference{ref},
+					To:         To{Managed: &fake.Managed{}},
+					Extract:    ExternalName(),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errGetManaged),
+			},
+		},
+		"ResolvedNoValue": {
+			reason: "Should return an error if the extract function returns the empty string",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil),
+			},
+			from: &fake.Managed{},
+			args: args{
+				req: MultiResolutionRequest{
+					References: []v1alpha1.Reference{ref},
+					To:         To{Managed: &fake.Managed{}},
+					Extract:    func(resource.Managed) string { return "" },
+				},
+			},
+			want: want{
+				rsp: MultiResolutionResponse{
+					ResolvedValues:     []string{""},
+					ResolvedReferences: []v1alpha1.Reference{ref},
+				},
+				err: errors.New(errNoValue),
+			},
+		},
+		"SuccessfulResolve": {
+			reason: "No error should be returned when the value is successfully extracted",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+					meta.SetExternalName(obj.(metav1.Object), value)
+					return nil
+				}),
+			},
+			from: &fake.Managed{},
+			args: args{
+				req: MultiResolutionRequest{
+					References: []v1alpha1.Reference{ref},
+					To:         To{Managed: &fake.Managed{}},
+					Extract:    ExternalName(),
+				},
+			},
+			want: want{
+				rsp: MultiResolutionResponse{
+					ResolvedValues:     []string{value},
+					ResolvedReferences: []v1alpha1.Reference{ref},
+				},
+			},
+		},
+		"ListError": {
+			reason: "Should return errors encountered while listing potential referenced resources",
+			c: &test.MockClient{
+				MockList: test.NewMockListFn(errBoom),
+			},
+			from: &fake.Managed{},
+			args: args{
+				req: MultiResolutionRequest{
+					Selector: &v1alpha1.Selector{},
+				},
+			},
+			want: want{
+				rsp: MultiResolutionResponse{},
+				err: errors.Wrap(errBoom, errListManaged),
+			},
+		},
+		"NoMatches": {
+			reason: "Should return an error when no managed resources match the selector",
+			c: &test.MockClient{
+				MockList: test.NewMockListFn(nil),
+			},
+			from: &fake.Managed{},
+			args: args{
+				req: MultiResolutionRequest{
+					Selector: &v1alpha1.Selector{},
+					To:       To{List: &FakeManagedList{}},
+				},
+			},
+			want: want{
+				rsp: MultiResolutionResponse{},
+				err: errors.New(errNoMatches),
+			},
+		},
+		"SuccessfulSelect": {
+			reason: "A managed resource with a matching controller reference should be selected and returned",
+			c: &test.MockClient{
+				MockList: test.NewMockListFn(nil),
+			},
+			from: controlled,
+			args: args{
+				req: MultiResolutionRequest{
+					Selector: &v1alpha1.Selector{
+						MatchControllerRef: func() *bool { t := true; return &t }(),
+					},
+					To: To{List: &FakeManagedList{Items: []resource.Managed{
+						&fake.Managed{}, // A resource that does not match.
+						controlled,      // A resource with a matching controller reference.
+					}}},
+					Extract: ExternalName(),
+				},
+			},
+			want: want{
+				rsp: MultiResolutionResponse{
+					ResolvedValues:     []string{value},
+					ResolvedReferences: []v1alpha1.Reference{{Name: value}},
+				},
+				err: nil,
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			r := NewAPIResolver(tc.c, tc.from)
+			got, err := r.ResolveMultiple(tc.args.ctx, tc.args.req)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nControllersMustMatch(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.rsp, got, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("\n%s\nControllersMustMatch(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
