@@ -36,6 +36,26 @@ const (
 	errNoValue     = "referenced field was empty (reference may not yet be ready)"
 )
 
+// NOTE(negz): There are many equivalents of FromPtrValue and ToPtrValue
+// throughout the Crossplane codebase. We duplicate them here to reduce the
+// number of packages our API types have to import to support references.
+
+// FromPtrValue adapts a string pointer field for use as a CurrentValue.
+func FromPtrValue(v *string) string {
+	if v == nil {
+		return ""
+	}
+	return *v
+}
+
+// ToPtrValue adapts a ResolvedValue for use as a string pointer field.
+func ToPtrValue(v string) *string {
+	if v == "" {
+		return nil
+	}
+	return &v
+}
+
 // To indicates the kind of managed resource a reference is to.
 type To struct {
 	Managed resource.Managed

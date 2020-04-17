@@ -48,6 +48,25 @@ func (fml *FakeManagedList) GetItems() []resource.Managed {
 	return fml.Items
 }
 
+func TestToAndFromPtr(t *testing.T) {
+	cases := map[string]struct {
+		want string
+	}{
+		"Zero":    {want: ""},
+		"NonZero": {want: "pointy"},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := FromPtrValue(ToPtrValue(tc.want))
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("FromPtrValue(ToPtrValue(%s): -want, +got: %s", tc.want, diff)
+
+			}
+		})
+
+	}
+}
+
 func TestResolve(t *testing.T) {
 	errBoom := errors.New("boom")
 	now := metav1.Now()
