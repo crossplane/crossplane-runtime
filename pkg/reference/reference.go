@@ -115,13 +115,6 @@ func (rr ResolutionResponse) Validate() error {
 	return nil
 }
 
-// A Resolver selects and resolves references to managed resources.
-type Resolver interface {
-	// Resolve the supplied ResolutionRequest. The returned ResolutionResponse
-	// always contains valid values unless an error was returned.
-	Resolve(ctx context.Context, req ResolutionRequest) (ResolutionResponse, error)
-}
-
 // An APIResolver selects and resolves references to managed resources in the
 // Kubernetes API server.
 type APIResolver struct {
