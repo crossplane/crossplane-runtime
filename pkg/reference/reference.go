@@ -36,6 +36,26 @@ const (
 	errNoValue     = "referenced field was empty (reference may not yet be ready)"
 )
 
+// NOTE(negz): There are many equivalents of FromPtrValue and ToPtrValue
+// throughout the Crossplane codebase. We duplicate them here to reduce the
+// number of packages our API types have to import to support references.
+
+// FromPtrValue adapts a string pointer field for use as a CurrentValue.
+func FromPtrValue(v *string) string {
+	if v == nil {
+		return ""
+	}
+	return *v
+}
+
+// ToPtrValue adapts a ResolvedValue for use as a string pointer field.
+func ToPtrValue(v string) *string {
+	if v == "" {
+		return nil
+	}
+	return &v
+}
+
 // To indicates the kind of managed resource a reference is to.
 type To struct {
 	Managed resource.Managed
@@ -95,11 +115,54 @@ func (rr ResolutionResponse) Validate() error {
 	return nil
 }
 
-// A Resolver selects and resolves references to managed resources.
-type Resolver interface {
-	// Resolve the supplied ResolutionRequest. The returned ResolutionResponse
-	// always contains valid values unless an error was returned.
-	Resolve(ctx context.Context, req ResolutionRequest) (ResolutionResponse, error)
+// A MultiResolutionRequest requests that several references to a particular
+// kind of managed resource be resolved.
+type MultiResolutionRequest struct {
+	CurrentValues []string
+	References    []v1alpha1.Reference
+	Selector      *v1alpha1.Selector
+	To            To
+	Extract       ExtractValueFn
+}
+
+// IsNoOp returns true if the supplied MultiResolutionRequest cannot or should
+// not be processed.
+func (rr MultiResolutionRequest) IsNoOp() bool {
+	// We don't resolve values that are already set; we effectively cache
+	// resolved values. The CR author can invalidate the cache and trigger a new
+	// resolution by explicitly clearing the resolved values. This is a little
+	// unintuitive for the APIMultiResolver but mimics the UX of the APIResolver
+	// and simplifies the overall mental model.
+	if len(rr.CurrentValues) > 0 {
+		return true
+	}
+
+	// We can't resolve anything if neither a reference nor a selector were
+	// provided.
+	return len(rr.References) == 0 && rr.Selector == nil
+}
+
+// A MultiResolutionResponse returns the result of several reference
+// resolutions. The returned values are always safe to set if resolution was
+// successful.
+type MultiResolutionResponse struct {
+	ResolvedValues     []string
+	ResolvedReferences []v1alpha1.Reference
+}
+
+// Validate this MultiResolutionResponse.
+func (rr MultiResolutionResponse) Validate() error {
+	if len(rr.ResolvedValues) == 0 {
+		return errors.New(errNoMatches)
+	}
+
+	for _, v := range rr.ResolvedValues {
+		if v == "" {
+			return errors.New(errNoValue)
+		}
+	}
+
+	return nil
 }
 
 // An APIResolver selects and resolves references to managed resources in the
@@ -150,6 +213,50 @@ func (r *APIResolver) Resolve(ctx context.Context, req ResolutionRequest) (Resol
 
 	// We couldn't resolve anything.
 	return ResolutionResponse{}, errors.New(errNoMatches)
+}
+
+// ResolveMultiple resolves the supplied MultiResolutionRequest. The returned
+// MultiResolutionResponse always contains valid values unless an error was
+// returned.
+func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRequest) (MultiResolutionResponse, error) {
+	// Return early if from is being deleted, or the request is a no-op.
+	if meta.WasDeleted(r.from) || req.IsNoOp() {
+		return MultiResolutionResponse{ResolvedValues: req.CurrentValues, ResolvedReferences: req.References}, nil
+	}
+
+	// The references are already set - resolve them.
+	if len(req.References) > 0 {
+		vals := make([]string, len(req.References))
+		for i := range req.References {
+			if err := r.client.Get(ctx, types.NamespacedName{Name: req.References[i].Name}, req.To.Managed); err != nil {
+				return MultiResolutionResponse{}, errors.Wrap(err, errGetManaged)
+			}
+			vals[i] = req.Extract(req.To.Managed)
+		}
+
+		rsp := MultiResolutionResponse{ResolvedValues: vals, ResolvedReferences: req.References}
+		return rsp, rsp.Validate()
+	}
+
+	// No references were set, but a selector was. Select and resolve references.
+	if err := r.client.List(ctx, req.To.List, client.MatchingLabels(req.Selector.MatchLabels)); err != nil {
+		return MultiResolutionResponse{}, errors.Wrap(err, errListManaged)
+	}
+
+	items := req.To.List.GetItems()
+	refs := make([]v1alpha1.Reference, 0, len(items))
+	vals := make([]string, 0, len(items))
+	for _, to := range req.To.List.GetItems() {
+		if ControllersMustMatch(req.Selector) && !meta.HaveSameController(r.from, to) {
+			continue
+		}
+
+		vals = append(vals, req.Extract(to))
+		refs = append(refs, v1alpha1.Reference{Name: to.GetName()})
+	}
+
+	rsp := MultiResolutionResponse{ResolvedValues: vals, ResolvedReferences: refs}
+	return rsp, rsp.Validate()
 }
 
 // ControllersMustMatch returns true if the supplied Selector requires that a
