@@ -137,6 +137,82 @@ func TestGetValue(t *testing.T) {
 	}
 }
 
+func TestGetValueInto(t *testing.T) {
+	type Struct struct {
+		Slice       []string `json:"slice"`
+		StringField string   `json:"string"`
+		IntField    int      `json:"int"`
+	}
+
+	type Slice []string
+
+	type args struct {
+		path string
+		out  interface{}
+	}
+	type want struct {
+		out interface{}
+		err error
+	}
+	cases := map[string]struct {
+		reason string
+		data   []byte
+		args   args
+		want   want
+	}{
+		"Struct": {
+			reason: "It should be possible to get a value into a struct.",
+			data:   []byte(`{"s":{"slice":["a"],"string":"b","int":1}}`),
+			args: args{
+				path: "s",
+				out:  &Struct{},
+			},
+			want: want{
+				out: &Struct{Slice: []string{"a"}, StringField: "b", IntField: 1},
+			},
+		},
+		"Slice": {
+			reason: "It should be possible to get a value into a slice.",
+			data:   []byte(`{"s": ["a", "b"]}`),
+			args: args{
+				path: "s",
+				out:  &Slice{},
+			},
+			want: want{
+				out: &Slice{"a", "b"},
+			},
+		},
+		"MissingPath": {
+			reason: "Getting a value from a fieldpath that doesn't exist should return an error.",
+			data:   []byte(`{}`),
+			args: args{
+				path: "s",
+				out:  &Struct{},
+			},
+			want: want{
+				out: &Struct{},
+				err: errors.New("s: no such field"),
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			in := make(map[string]interface{})
+			_ = json.Unmarshal(tc.data, &in)
+			p := Pave(in)
+
+			err := p.GetValueInto(tc.args.path, tc.args.out)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Fatalf("\np.GetValueInto(%s): %s: -want error, +got error:\n%s", tc.args.path, tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.out, tc.args.out); diff != "" {
+				t.Errorf("\np.GetValueInto(%s): %s: -want, +got:\n%s", tc.args.path, tc.reason, diff)
+			}
+		})
+	}
+}
+
 func TestGetString(t *testing.T) {
 	type want struct {
 		value string
