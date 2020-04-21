@@ -97,12 +97,6 @@ type ProviderReferencer interface {
 	SetProviderReference(p *corev1.ObjectReference)
 }
 
-// A WorkloadReferencer may reference an OAM workload.
-type WorkloadReferencer interface {
-	GetWorkloadReference() v1alpha1.TypedReference
-	SetWorkloadReference(v1alpha1.TypedReference)
-}
-
 // A Finalizer manages the finalizers on the resource.
 type Finalizer interface {
 	AddFinalizer(ctx context.Context, obj Object) error
@@ -210,21 +204,6 @@ type Target interface {
 
 	LocalConnectionSecretWriterTo
 	ManagedResourceReferencer
-
-	Conditioned
-}
-
-// A Trait is a type of OAM trait.
-type Trait interface {
-	Object
-
-	Conditioned
-	WorkloadReferencer
-}
-
-// A Workload is a type of OAM workload.
-type Workload interface {
-	Object
 
 	Conditioned
 }
