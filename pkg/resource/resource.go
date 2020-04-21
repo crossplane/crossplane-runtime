@@ -66,15 +66,6 @@ type ManagedKind schema.GroupVersionKind
 // A TargetKind contains the type metadata for a kind of target resource.
 type TargetKind schema.GroupVersionKind
 
-// ObjectKind contains the type metadata for a kind of an object resource.
-type ObjectKind schema.GroupVersionKind
-
-// TraitKind contains the type metadata for a kind of an OAM trait resource.
-type TraitKind schema.GroupVersionKind
-
-// WorkloadKind contains the type metadata for a kind of an OAM workload resource.
-type WorkloadKind schema.GroupVersionKind
-
 // A LocalConnectionSecretOwner may create and manage a connection secret in its
 // own namespace.
 type LocalConnectionSecretOwner interface {

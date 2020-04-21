@@ -313,53 +313,6 @@ func (m *Target) DeepCopyObject() runtime.Object {
 	return out
 }
 
-// Trait is a mock that implements Trait interface.
-type Trait struct {
-	metav1.ObjectMeta
-	runtime.Object
-	v1alpha1.ConditionedStatus
-	WorkloadReferencer
-}
-
-// GetObjectKind returns schema.ObjectKind.
-func (t *Trait) GetObjectKind() schema.ObjectKind {
-	return schema.EmptyObjectKind
-}
-
-// DeepCopyObject returns a copy of the object as runtime.Object
-func (t *Trait) DeepCopyObject() runtime.Object {
-	out := &Trait{}
-	j, err := json.Marshal(t)
-	if err != nil {
-		panic(err)
-	}
-	_ = json.Unmarshal(j, out)
-	return out
-}
-
-// Workload is a mock that implements Workload interface.
-type Workload struct {
-	metav1.ObjectMeta
-	runtime.Object
-	v1alpha1.ConditionedStatus
-}
-
-// GetObjectKind returns schema.ObjectKind.
-func (w *Workload) GetObjectKind() schema.ObjectKind {
-	return schema.EmptyObjectKind
-}
-
-// DeepCopyObject returns a copy of the object as runtime.Object
-func (w *Workload) DeepCopyObject() runtime.Object {
-	out := &Workload{}
-	j, err := json.Marshal(w)
-	if err != nil {
-		panic(err)
-	}
-	_ = json.Unmarshal(j, out)
-	return out
-}
-
 // Manager is a mock object that satisfies manager.Manager interface.
 type Manager struct {
 	manager.Manager
