@@ -103,6 +103,19 @@ func (p *Paved) GetValue(path string) (interface{}, error) {
 	return p.getValue(segments)
 }
 
+// GetValueInto unmarshals the retrieved value of the path into given object.
+func (p *Paved) GetValueInto(path string, out interface{}) error {
+	val, err := p.GetValue(path)
+	if err != nil {
+		return err
+	}
+	js, err := json.Marshal(val)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(js, out)
+}
+
 // GetString value of the supplied field path.
 func (p *Paved) GetString(path string) (string, error) {
 	v, err := p.GetValue(path)

@@ -21,6 +21,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
@@ -209,4 +210,30 @@ type Workload interface {
 	Object
 
 	Conditioned
+}
+
+// Composite resource manages one or more Composable resources.
+type Composite interface {
+	Object
+
+	Conditioned
+	Bindable
+	ConnectionSecretWriterTo
+
+	SetCompositionSelector(*v1.LabelSelector)
+	GetCompositionSelector() *v1.LabelSelector
+
+	SetCompositionReference(*corev1.ObjectReference)
+	GetCompositionReference() *corev1.ObjectReference
+
+	SetResourceReferences([]corev1.ObjectReference)
+	GetResourceReferences() []corev1.ObjectReference
+}
+
+// Composable resources can be a resource in a composition.
+type Composable interface {
+	Object
+
+	Conditioned
+	ConnectionSecretWriterTo
 }
