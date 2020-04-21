@@ -21,7 +21,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
@@ -108,6 +107,24 @@ type WorkloadReferencer interface {
 type Finalizer interface {
 	AddFinalizer(ctx context.Context, obj Object) error
 	RemoveFinalizer(ctx context.Context, obj Object) error
+}
+
+// A CompositionSelector may select a composition of resources.
+type CompositionSelector interface {
+	SetCompositionSelector(*metav1.LabelSelector)
+	GetCompositionSelector() *metav1.LabelSelector
+}
+
+// A CompositionReferencer may reference a composition of resources.
+type CompositionReferencer interface {
+	SetCompositionReference(*corev1.ObjectReference)
+	GetCompositionReference() *corev1.ObjectReference
+}
+
+// A ComposedResourcesReferencer may reference the resources it composes.
+type ComposedResourcesReferencer interface {
+	SetResourceReferences([]corev1.ObjectReference)
+	GetResourceReferences() []corev1.ObjectReference
 }
 
 // An Object is a Kubernetes object.
@@ -216,18 +233,12 @@ type Workload interface {
 type Composite interface {
 	Object
 
-	Conditioned
-	Bindable
+	CompositionSelector
+	CompositionReferencer
+	ComposedResourcesReferencer
 	ConnectionSecretWriterTo
 
-	SetCompositionSelector(*v1.LabelSelector)
-	GetCompositionSelector() *v1.LabelSelector
-
-	SetCompositionReference(*corev1.ObjectReference)
-	GetCompositionReference() *corev1.ObjectReference
-
-	SetResourceReferences([]corev1.ObjectReference)
-	GetResourceReferences() []corev1.ObjectReference
+	Conditioned
 }
 
 // Composable resources can be a resource in a composition.
