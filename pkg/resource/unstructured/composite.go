@@ -139,18 +139,6 @@ func (c *Composite) SetConditions(conditions ...v1alpha1.Condition) {
 	_ = fieldpath.Pave(c.Object).SetValue("status.conditions", conditioned.Conditions)
 }
 
-// SetBindingPhase of this Composite.
-func (c *Composite) SetBindingPhase(p v1alpha1.BindingPhase) {
-	_ = fieldpath.Pave(c.Object).SetValue("status.bindingPhase", p)
-}
-
-// GetBindingPhase of this Composite.
-func (c *Composite) GetBindingPhase() v1alpha1.BindingPhase {
-	bp := ""
-	_ = fieldpath.Pave(c.Object).GetValueInto("status.bindingPhase", &bp)
-	return v1alpha1.BindingPhase(bp)
-}
-
 // CompositeList contains a list of Composites.
 type CompositeList struct {
 	unstructured.UnstructuredList
