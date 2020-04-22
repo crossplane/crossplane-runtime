@@ -20,11 +20,19 @@ import (
 	"encoding/json"
 
 	"github.com/pkg/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // A Paved JSON object supports getting and setting values by their field path.
 type Paved struct {
 	object map[string]interface{}
+}
+
+// PaveObject paves a runtime.Object, making it possible to get and set values
+// by field path.
+func PaveObject(o runtime.Object) (*Paved, error) {
+	u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(o)
+	return Pave(u), errors.Wrap(err, "cannot convert object to unstructured data")
 }
 
 // Pave a JSON object, making it possible to get and set values by field path.
