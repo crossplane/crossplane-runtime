@@ -109,6 +109,7 @@ func AddOwnerReference(o metav1.Object, r metav1.OwnerReference) {
 	for i := range refs {
 		if refs[i].UID == r.UID {
 			refs[i] = r
+			o.SetOwnerReferences(refs)
 			return
 		}
 	}
