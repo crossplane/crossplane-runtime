@@ -17,13 +17,13 @@ limitations under the License.
 package integration
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"time"
 
 	"github.com/pkg/errors"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
@@ -67,10 +67,6 @@ func NewBuilder() BuilderFn {
 // API server.
 func NewCRDCleaner() CleanerFn {
 	return func(m *Manager) error {
-		cs, err := clientset.NewForConfig(m.env.Config)
-		if err != nil {
-			return errors.Wrap(err, errCleanup)
-		}
 		var crds []*apiextensionsv1beta1.CustomResourceDefinition
 		for _, path := range m.env.CRDDirectoryPaths {
 			crd, err := readCRDs(path)
@@ -81,8 +77,9 @@ func NewCRDCleaner() CleanerFn {
 		}
 
 		for _, crd := range crds {
-			if err := cs.ApiextensionsV1beta1().CustomResourceDefinitions().Delete(crd.Name, nil); resource.IgnoreNotFound(err) != nil {
+			if err := m.client.Delete(context.TODO(), crd); resource.IgnoreNotFound(err) != nil {
 				return errors.Wrap(err, errCleanup)
+
 			}
 		}
 		return nil
