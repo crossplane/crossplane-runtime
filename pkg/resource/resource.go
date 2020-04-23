@@ -82,6 +82,16 @@ type LocalConnectionSecretOwner interface {
 	LocalConnectionSecretWriterTo
 }
 
+// A ConnectionPropagator is responsible for propagating information required to
+// connect to a resource.
+type ConnectionPropagator interface {
+	PropagateConnection(ctx context.Context, to LocalConnectionSecretOwner, from ConnectionSecretOwner) error
+}
+
+// A ConnectionPropagatorFn is a function that satisfies the
+//  ConnectionPropagator interface.
+type ConnectionPropagatorFn func(ctx context.Context, to LocalConnectionSecretOwner, from ConnectionSecretOwner) error
+
 // A ManagedConnectionPropagator is responsible for propagating information
 // required to connect to a managed resource (for example the connection secret)
 // from the managed resource to its resource claim.

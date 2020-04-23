@@ -118,9 +118,14 @@ func NewReconciler(m manager.Manager, of resource.TargetKind, with resource.Mana
 		client:     m.GetClient(),
 		newTarget:  nt,
 		newManaged: nr,
+
+		// TODO(negz): Switch to resource.ConnectionPropagator after this has
+		// been deprecated for a release or two.
+		//nolint:staticcheck
 		propagator: resource.NewAPIManagedConnectionPropagator(m.GetClient(), m.GetScheme()),
-		log:        logging.NewNopLogger(),
-		record:     event.NewNopRecorder(),
+
+		log:    logging.NewNopLogger(),
+		record: event.NewNopRecorder(),
 	}
 
 	for _, ro := range o {

@@ -44,32 +44,49 @@ const (
 // An APIManagedConnectionPropagator propagates connection details by reading
 // them from and writing them to a Kubernetes API server.
 type APIManagedConnectionPropagator struct {
+	Propagator ConnectionPropagator
+}
+
+// NewAPIManagedConnectionPropagator returns a new APIConnectionPropagator.
+//
+// Deprecated: Use NewAPIConnectionPropagator.
+func NewAPIManagedConnectionPropagator(c client.Client, t runtime.ObjectTyper) *APIManagedConnectionPropagator {
+	return &APIManagedConnectionPropagator{Propagator: NewAPIConnectionPropagator(c, t)}
+}
+
+// PropagateConnection details from the supplied resource.
+func (a *APIManagedConnectionPropagator) PropagateConnection(ctx context.Context, to LocalConnectionSecretOwner, mg Managed) error {
+	return a.Propagator.PropagateConnection(ctx, to, mg)
+}
+
+// An APIConnectionPropagator propagates connection details by reading
+// them from and writing them to a Kubernetes API server.
+type APIConnectionPropagator struct {
 	client ClientApplicator
 	typer  runtime.ObjectTyper
 }
 
-// NewAPIManagedConnectionPropagator returns a new APIManagedConnectionPropagator.
-func NewAPIManagedConnectionPropagator(c client.Client, t runtime.ObjectTyper) *APIManagedConnectionPropagator {
-	return &APIManagedConnectionPropagator{
+// NewAPIConnectionPropagator returns a new APIConnectionPropagator.
+func NewAPIConnectionPropagator(c client.Client, t runtime.ObjectTyper) *APIConnectionPropagator {
+	return &APIConnectionPropagator{
 		client: ClientApplicator{Client: c, Applicator: NewAPIUpdatingApplicator(c)},
 		typer:  t,
 	}
 }
 
-// PropagateConnection details from the supplied resource to the supplied claim.
-func (a *APIManagedConnectionPropagator) PropagateConnection(ctx context.Context, o LocalConnectionSecretOwner, mg Managed) error {
-	// Either this resource does not expose a connection secret, or this claim
-	// does not want one.
-	if mg.GetWriteConnectionSecretToReference() == nil || o.GetWriteConnectionSecretToReference() == nil {
+// PropagateConnection details from the supplied resource.
+func (a *APIConnectionPropagator) PropagateConnection(ctx context.Context, to LocalConnectionSecretOwner, from ConnectionSecretOwner) error {
+	// Either from does not expose a connection secret, or to does not want one.
+	if from.GetWriteConnectionSecretToReference() == nil || to.GetWriteConnectionSecretToReference() == nil {
 		return nil
 	}
 
 	n := types.NamespacedName{
-		Namespace: mg.GetWriteConnectionSecretToReference().Namespace,
-		Name:      mg.GetWriteConnectionSecretToReference().Name,
+		Namespace: from.GetWriteConnectionSecretToReference().Namespace,
+		Name:      from.GetWriteConnectionSecretToReference().Name,
 	}
-	from := &corev1.Secret{}
-	if err := a.client.Get(ctx, n, from); err != nil {
+	fs := &corev1.Secret{}
+	if err := a.client.Get(ctx, n, fs); err != nil {
 		return errors.Wrap(err, errGetSecret)
 	}
 
@@ -77,20 +94,20 @@ func (a *APIManagedConnectionPropagator) PropagateConnection(ctx context.Context
 	// it references before we propagate it. This ensures a managed resource
 	// cannot use Crossplane to circumvent RBAC by propagating a secret it does
 	// not own.
-	if c := metav1.GetControllerOf(from); c == nil || c.UID != mg.GetUID() {
+	if c := metav1.GetControllerOf(fs); c == nil || c.UID != from.GetUID() {
 		return errors.New(errSecretConflict)
 	}
 
-	to := LocalConnectionSecretFor(o, MustGetKind(o, a.typer))
-	to.Data = from.Data
+	ts := LocalConnectionSecretFor(to, MustGetKind(to, a.typer))
+	ts.Data = fs.Data
 
-	meta.AllowPropagation(from, to)
+	meta.AllowPropagation(fs, ts)
 
-	if err := a.client.Apply(ctx, to, ConnectionSecretMustBeControllableBy(o.GetUID())); err != nil {
+	if err := a.client.Apply(ctx, ts, ConnectionSecretMustBeControllableBy(to.GetUID())); err != nil {
 		return errors.Wrap(err, errCreateOrUpdateSecret)
 	}
 
-	return errors.Wrap(a.client.Update(ctx, from), errUpdateSecret)
+	return errors.Wrap(a.client.Update(ctx, fs), errUpdateSecret)
 }
 
 // An APIPatchingApplicator applies changes to an object by either creating or
