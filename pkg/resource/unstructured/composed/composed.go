@@ -14,7 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package unstructured
+// Package composed contains an unstructured composed resource.
+package composed
 
 import (
 	corev1 "k8s.io/api/core/v1"
@@ -24,12 +25,13 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 )
 
-// ComposedOption modifies the composable resource.
-type ComposedOption func(resource *Composed)
+// An Option modifies an unstructured composed resource.
+type Option func(resource *Unstructured)
 
-// FromReference sets the metadata of Composed.
-func FromReference(ref corev1.ObjectReference) ComposedOption {
-	return func(cr *Composed) {
+// FromReference returns an Option that propagates the metadata in the supplied
+// reference to an unstructured composed resource.
+func FromReference(ref corev1.ObjectReference) Option {
+	return func(cr *Unstructured) {
 		cr.SetGroupVersionKind(ref.GroupVersionKind())
 		cr.SetName(ref.Name)
 		cr.SetNamespace(ref.Namespace)
@@ -37,28 +39,27 @@ func FromReference(ref corev1.ObjectReference) ComposedOption {
 	}
 }
 
-// NewComposed returns a new *Composed.
-func NewComposed(opts ...ComposedOption) *Composed {
-	cr := &Composed{}
+// New returns a new unstructured composed resource.
+func New(opts ...Option) *Unstructured {
+	cr := &Unstructured{}
 	for _, f := range opts {
 		f(cr)
 	}
 	return cr
 }
 
-// Composed is used to operate on the composable resources whose schema
-// is not known beforehand.
-type Composed struct {
+// An Unstructured composed resource.
+type Unstructured struct {
 	unstructured.Unstructured
 }
 
 // GetUnstructured returns the underlying *unstructured.Unstructured.
-func (cr *Composed) GetUnstructured() *unstructured.Unstructured {
+func (cr *Unstructured) GetUnstructured() *unstructured.Unstructured {
 	return &cr.Unstructured
 }
 
-// GetCondition of this Composed.
-func (cr *Composed) GetCondition(ct v1alpha1.ConditionType) v1alpha1.Condition {
+// GetCondition of this Composed resource.
+func (cr *Unstructured) GetCondition(ct v1alpha1.ConditionType) v1alpha1.Condition {
 	conditioned := v1alpha1.ConditionedStatus{}
 	// The path is directly `status` because conditions are inline.
 	if err := fieldpath.Pave(cr.Object).GetValueInto("status", &conditioned); err != nil {
@@ -67,8 +68,8 @@ func (cr *Composed) GetCondition(ct v1alpha1.ConditionType) v1alpha1.Condition {
 	return conditioned.GetCondition(ct)
 }
 
-// SetConditions of this Composed.
-func (cr *Composed) SetConditions(c ...v1alpha1.Condition) {
+// SetConditions of this Composed resource.
+func (cr *Unstructured) SetConditions(c ...v1alpha1.Condition) {
 	conditioned := v1alpha1.ConditionedStatus{}
 	// The path is directly `status` because conditions are inline.
 	_ = fieldpath.Pave(cr.Object).GetValueInto("status", &conditioned)
@@ -76,8 +77,8 @@ func (cr *Composed) SetConditions(c ...v1alpha1.Condition) {
 	_ = fieldpath.Pave(cr.Object).SetValue("status.conditions", conditioned.Conditions)
 }
 
-// GetWriteConnectionSecretToReference of this Composed.
-func (cr *Composed) GetWriteConnectionSecretToReference() *v1alpha1.SecretReference {
+// GetWriteConnectionSecretToReference of this Composed resource.
+func (cr *Unstructured) GetWriteConnectionSecretToReference() *v1alpha1.SecretReference {
 	out := &v1alpha1.SecretReference{}
 	if err := fieldpath.Pave(cr.Object).GetValueInto("spec.writeConnectionSecretToRef", out); err != nil {
 		return nil
@@ -85,7 +86,7 @@ func (cr *Composed) GetWriteConnectionSecretToReference() *v1alpha1.SecretRefere
 	return out
 }
 
-// SetWriteConnectionSecretToReference of this Composed.
-func (cr *Composed) SetWriteConnectionSecretToReference(r *v1alpha1.SecretReference) {
+// SetWriteConnectionSecretToReference of this Composed resource.
+func (cr *Unstructured) SetWriteConnectionSecretToReference(r *v1alpha1.SecretReference) {
 	_ = fieldpath.Pave(cr.Object).SetValue("spec.writeConnectionSecretToRef", r)
 }

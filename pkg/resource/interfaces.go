@@ -121,6 +121,18 @@ type ComposedResourcesReferencer interface {
 	GetResourceReferences() []corev1.ObjectReference
 }
 
+// A RequirementReferencer can reference a requirement resource.
+type RequirementReferencer interface {
+	SetRequirementReference(r *corev1.ObjectReference)
+	GetRequirementReference() *corev1.ObjectReference
+}
+
+// A CompositeResourceReferencer can reference a composite resource.
+type CompositeResourceReferencer interface {
+	SetResourceReference(r *corev1.ObjectReference)
+	GetResourceReference() *corev1.ObjectReference
+}
+
 // An Object is a Kubernetes object.
 type Object interface {
 	metav1.Object
@@ -208,22 +220,36 @@ type Target interface {
 	Conditioned
 }
 
-// Composite resource manages one or more Composable resources.
+// A Composite resource composes one or more Composed resources.
 type Composite interface {
 	Object
 
 	CompositionSelector
 	CompositionReferencer
 	ComposedResourcesReferencer
+	RequirementReferencer
+	Reclaimer
 	ConnectionSecretWriterTo
 
 	Conditioned
 }
 
-// Composable resources can be a resource in a composition.
-type Composable interface {
+// Composed resources can be a composed into a Composite resource.
+type Composed interface {
 	Object
 
 	Conditioned
 	ConnectionSecretWriterTo
+}
+
+// A Requirement for a Composite resource.
+type Requirement interface {
+	Object
+
+	CompositionSelector
+	CompositionReferencer
+	CompositeResourceReferencer
+	LocalConnectionSecretWriterTo
+
+	Conditioned
 }
