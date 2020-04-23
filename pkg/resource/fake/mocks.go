@@ -22,9 +22,11 @@ import (
 	"reflect"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
@@ -317,8 +319,17 @@ func (m *Target) DeepCopyObject() runtime.Object {
 type Manager struct {
 	manager.Manager
 
-	Client client.Client
-	Scheme *runtime.Scheme
+	Client     client.Client
+	Scheme     *runtime.Scheme
+	Config     *rest.Config
+	RESTMapper meta.RESTMapper
+}
+
+// Elected returns a closed channel.
+func (m *Manager) Elected() <-chan struct{} {
+	e := make(chan struct{})
+	close(e)
+	return e
 }
 
 // GetClient returns the client.
@@ -326,6 +337,12 @@ func (m *Manager) GetClient() client.Client { return m.Client }
 
 // GetScheme returns the scheme.
 func (m *Manager) GetScheme() *runtime.Scheme { return m.Scheme }
+
+// GetConfig returns the config.
+func (m *Manager) GetConfig() *rest.Config { return m.Config }
+
+// GetRESTMapper returns the REST mapper.
+func (m *Manager) GetRESTMapper() meta.RESTMapper { return m.RESTMapper }
 
 // GV returns a mock schema.GroupVersion.
 var GV = schema.GroupVersion{Group: "g", Version: "v"}
