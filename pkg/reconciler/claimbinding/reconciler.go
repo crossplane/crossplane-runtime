@@ -168,7 +168,11 @@ func defaultCRManaged(m manager.Manager) crManaged {
 			ManagedConfiguratorFn(ConfigureNames),
 			ManagedConfiguratorFn(ConfigureReclaimPolicy),
 		},
-		ManagedCreator:              NewAPIManagedCreator(m.GetClient(), m.GetScheme()),
+		ManagedCreator: NewAPIManagedCreator(m.GetClient(), m.GetScheme()),
+
+		// TODO(negz): Switch to ConnectionPropagator once this has been
+		// deprecated for a release or two.
+		//nolint:staticcheck
 		ManagedConnectionPropagator: resource.NewAPIManagedConnectionPropagator(m.GetClient(), m.GetScheme()),
 	}
 }
@@ -207,9 +211,19 @@ func WithManagedCreator(c ManagedCreator) ReconcilerOption {
 
 // WithManagedConnectionPropagator specifies which ManagedConnectionPropagator
 // should be used to propagate resource connection details to their claim.
+//
+// Deprecated: Use WithConnectionPropagator.
 func WithManagedConnectionPropagator(p resource.ManagedConnectionPropagator) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.managed.ManagedConnectionPropagator = p
+	}
+}
+
+// WithConnectionPropagator specifies which ConnectionPropagator
+// should be used to propagate resource connection details to their claim.
+func WithConnectionPropagator(p resource.ConnectionPropagator) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.managed.ManagedConnectionPropagator = &resource.APIManagedConnectionPropagator{Propagator: p}
 	}
 }
 

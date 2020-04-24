@@ -60,11 +60,18 @@ func (k ClassKind) List() schema.GroupVersionKind {
 	}
 }
 
-// A ManagedKind contains the type metadata for a kind of managed.
+// A ManagedKind contains the type metadata for a kind of managed resource.
 type ManagedKind schema.GroupVersionKind
 
 // A TargetKind contains the type metadata for a kind of target resource.
 type TargetKind schema.GroupVersionKind
+
+// A CompositeKind contains the type metadata for a kind of composite resource.
+type CompositeKind schema.GroupVersionKind
+
+// A RequirementKind contains the type metadata for a kind of requirement
+// resource.
+type RequirementKind schema.GroupVersionKind
 
 // A LocalConnectionSecretOwner may create and manage a connection secret in its
 // own namespace.
@@ -74,6 +81,16 @@ type LocalConnectionSecretOwner interface {
 
 	LocalConnectionSecretWriterTo
 }
+
+// A ConnectionPropagator is responsible for propagating information required to
+// connect to a resource.
+type ConnectionPropagator interface {
+	PropagateConnection(ctx context.Context, to LocalConnectionSecretOwner, from ConnectionSecretOwner) error
+}
+
+// A ConnectionPropagatorFn is a function that satisfies the
+//  ConnectionPropagator interface.
+type ConnectionPropagatorFn func(ctx context.Context, to LocalConnectionSecretOwner, from ConnectionSecretOwner) error
 
 // A ManagedConnectionPropagator is responsible for propagating information
 // required to connect to a managed resource (for example the connection secret)

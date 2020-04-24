@@ -36,6 +36,7 @@ import (
 )
 
 var (
+	_ ConnectionPropagator        = &APIConnectionPropagator{}
 	_ ManagedConnectionPropagator = &APIManagedConnectionPropagator{}
 )
 
@@ -218,7 +219,7 @@ func TestPropagateConnection(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			api := &APIManagedConnectionPropagator{client: tc.fields.client, typer: tc.fields.typer}
+			api := &APIConnectionPropagator{client: tc.fields.client, typer: tc.fields.typer}
 			err := api.PropagateConnection(tc.args.ctx, tc.args.o, tc.args.mg)
 			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\napi.PropagateConnection(...): -want error, +got error:\n%s", tc.reason, diff)
