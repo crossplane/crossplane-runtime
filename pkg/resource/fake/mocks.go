@@ -66,27 +66,19 @@ func (m *ClaimReferencer) GetClaimReference() *corev1.ObjectReference { return m
 type ClassSelector struct{ Sel *metav1.LabelSelector }
 
 // SetClassSelector sets the ClassSelector.
-func (m *ClassSelector) SetClassSelector(s *metav1.LabelSelector) {
-	m.Sel = s
-}
+func (m *ClassSelector) SetClassSelector(s *metav1.LabelSelector) { m.Sel = s }
 
 // GetClassSelector gets the ClassSelector.
-func (m *ClassSelector) GetClassSelector() *metav1.LabelSelector {
-	return m.Sel
-}
+func (m *ClassSelector) GetClassSelector() *metav1.LabelSelector { return m.Sel }
 
 // ClassReferencer is a mock that implements ClassReferencer interface.
 type ClassReferencer struct{ Ref *corev1.ObjectReference }
 
 // SetClassReference sets the ClassReference.
-func (m *ClassReferencer) SetClassReference(r *corev1.ObjectReference) {
-	m.Ref = r
-}
+func (m *ClassReferencer) SetClassReference(r *corev1.ObjectReference) { m.Ref = r }
 
 // GetClassReference gets the ClassReference.
-func (m *ClassReferencer) GetClassReference() *corev1.ObjectReference {
-	return m.Ref
-}
+func (m *ClassReferencer) GetClassReference() *corev1.ObjectReference { return m.Ref }
 
 // ManagedResourceReferencer is a mock that implements ManagedResourceReferencer interface.
 type ManagedResourceReferencer struct{ Ref *corev1.ObjectReference }
@@ -157,18 +149,61 @@ func (m *CredentialsSecretReferencer) GetCredentialsSecretReference() v1alpha1.S
 	return m.Ref
 }
 
+// TODO(negz): Remove WorkloadReferencer? Is it still used anywhere?
+
 // A WorkloadReferencer references an OAM Workload type.
 type WorkloadReferencer struct{ Ref v1alpha1.TypedReference }
 
 // GetWorkloadReference gets the WorkloadReference.
-func (w *WorkloadReferencer) GetWorkloadReference() v1alpha1.TypedReference {
-	return w.Ref
-}
+func (w *WorkloadReferencer) GetWorkloadReference() v1alpha1.TypedReference { return w.Ref }
 
 // SetWorkloadReference sets the WorkloadReference.
-func (w *WorkloadReferencer) SetWorkloadReference(r v1alpha1.TypedReference) {
-	w.Ref = r
-}
+func (w *WorkloadReferencer) SetWorkloadReference(r v1alpha1.TypedReference) { w.Ref = r }
+
+// CompositionReferencer is a mock that implements CompositionReferencer interface.
+type CompositionReferencer struct{ Ref *corev1.ObjectReference }
+
+// SetCompositionReference sets the CompositionReference.
+func (m *CompositionReferencer) SetCompositionReference(r *corev1.ObjectReference) { m.Ref = r }
+
+// GetCompositionReference gets the CompositionReference.
+func (m *CompositionReferencer) GetCompositionReference() *corev1.ObjectReference { return m.Ref }
+
+// CompositionSelector is a mock that implements CompositionSelector interface.
+type CompositionSelector struct{ Sel *metav1.LabelSelector }
+
+// SetCompositionSelector sets the CompositionSelector.
+func (m *CompositionSelector) SetCompositionSelector(s *metav1.LabelSelector) { m.Sel = s }
+
+// GetCompositionSelector gets the CompositionSelector.
+func (m *CompositionSelector) GetCompositionSelector() *metav1.LabelSelector { return m.Sel }
+
+// CompositeResourceReferencer is a mock that implements CompositeResourceReferencer interface.
+type CompositeResourceReferencer struct{ Ref *corev1.ObjectReference }
+
+// SetResourceReference sets the composite resource reference.
+func (m *CompositeResourceReferencer) SetResourceReference(p *corev1.ObjectReference) { m.Ref = p }
+
+// GetResourceReference gets the composite resource reference.
+func (m *CompositeResourceReferencer) GetResourceReference() *corev1.ObjectReference { return m.Ref }
+
+// RequirementReferencer is a mock that implements RequirementReferencer interface.
+type RequirementReferencer struct{ Ref *corev1.ObjectReference }
+
+// SetRequirementReference sets the requirement reference.
+func (m *RequirementReferencer) SetRequirementReference(p *corev1.ObjectReference) { m.Ref = p }
+
+// GetRequirementReference gets the requirement reference.
+func (m *RequirementReferencer) GetRequirementReference() *corev1.ObjectReference { return m.Ref }
+
+// ComposedResourcesReferencer is a mock that implements ComposedResourcesReferencer interface.
+type ComposedResourcesReferencer struct{ Refs []corev1.ObjectReference }
+
+// SetResourceReferences sets the composed references.
+func (m *ComposedResourcesReferencer) SetResourceReferences(r []corev1.ObjectReference) { m.Refs = r }
+
+// GetResourceReferences gets the composed references.
+func (m *ComposedResourcesReferencer) GetResourceReferences() []corev1.ObjectReference { return m.Refs }
 
 // Object is a mock that implements Object interface.
 type Object struct {
@@ -307,6 +342,83 @@ func (m *Target) GetObjectKind() schema.ObjectKind {
 // DeepCopyObject returns a deep copy of Target as runtime.Object.
 func (m *Target) DeepCopyObject() runtime.Object {
 	out := &Target{}
+	j, err := json.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	_ = json.Unmarshal(j, out)
+	return out
+}
+
+// Composite is a mock that implements Composite interface.
+type Composite struct {
+	metav1.ObjectMeta
+	CompositionSelector
+	CompositionReferencer
+	// TODO(negz): ComposedResourcesReferencer.
+	RequirementReferencer
+	Reclaimer
+	ConnectionSecretWriterTo
+	v1alpha1.ConditionedStatus
+}
+
+// GetObjectKind returns schema.ObjectKind.
+func (m *Composite) GetObjectKind() schema.ObjectKind {
+	return schema.EmptyObjectKind
+}
+
+// DeepCopyObject returns a copy of the object as runtime.Object
+func (m *Composite) DeepCopyObject() runtime.Object {
+	out := &Composite{}
+	j, err := json.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	_ = json.Unmarshal(j, out)
+	return out
+}
+
+// Composed is a mock that implements Composed interface.
+type Composed struct {
+	metav1.ObjectMeta
+	ConnectionSecretWriterTo
+	v1alpha1.ConditionedStatus
+}
+
+// GetObjectKind returns schema.ObjectKind.
+func (m *Composed) GetObjectKind() schema.ObjectKind {
+	return schema.EmptyObjectKind
+}
+
+// DeepCopyObject returns a copy of the object as runtime.Object
+func (m *Composed) DeepCopyObject() runtime.Object {
+	out := &Composed{}
+	j, err := json.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	_ = json.Unmarshal(j, out)
+	return out
+}
+
+// Requirement is a mock that implements Requirement interface.
+type Requirement struct {
+	metav1.ObjectMeta
+	CompositionSelector
+	CompositionReferencer
+	CompositeResourceReferencer
+	LocalConnectionSecretWriterTo
+	v1alpha1.ConditionedStatus
+}
+
+// GetObjectKind returns schema.ObjectKind.
+func (m *Requirement) GetObjectKind() schema.ObjectKind {
+	return schema.EmptyObjectKind
+}
+
+// DeepCopyObject returns a copy of the object as runtime.Object
+func (m *Requirement) DeepCopyObject() runtime.Object {
+	out := &Requirement{}
 	j, err := json.Marshal(m)
 	if err != nil {
 		panic(err)
