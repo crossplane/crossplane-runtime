@@ -149,17 +149,6 @@ func (m *CredentialsSecretReferencer) GetCredentialsSecretReference() v1alpha1.S
 	return m.Ref
 }
 
-// TODO(negz): Remove WorkloadReferencer? Is it still used anywhere?
-
-// A WorkloadReferencer references an OAM Workload type.
-type WorkloadReferencer struct{ Ref v1alpha1.TypedReference }
-
-// GetWorkloadReference gets the WorkloadReference.
-func (w *WorkloadReferencer) GetWorkloadReference() v1alpha1.TypedReference { return w.Ref }
-
-// SetWorkloadReference sets the WorkloadReference.
-func (w *WorkloadReferencer) SetWorkloadReference(r v1alpha1.TypedReference) { w.Ref = r }
-
 // CompositionReferencer is a mock that implements CompositionReferencer interface.
 type CompositionReferencer struct{ Ref *corev1.ObjectReference }
 
