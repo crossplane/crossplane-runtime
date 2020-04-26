@@ -19,7 +19,7 @@ package composite
 
 import (
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -38,9 +38,17 @@ func WithGroupVersionKind(gvk schema.GroupVersionKind) Option {
 	}
 }
 
+// WithConditions returns an Option that sets the supplied conditions on an
+// unstructured composite resource.
+func WithConditions(c ...v1alpha1.Condition) Option {
+	return func(cr *Unstructured) {
+		cr.SetConditions(c...)
+	}
+}
+
 // New returns a new unstructured composed resource.
 func New(opts ...Option) *Unstructured {
-	c := &Unstructured{}
+	c := &Unstructured{unstructured.Unstructured{Object: make(map[string]interface{})}}
 	for _, f := range opts {
 		f(c)
 	}
@@ -58,8 +66,8 @@ func (c *Unstructured) GetUnstructured() *unstructured.Unstructured {
 }
 
 // GetCompositionSelector of this Composite resource.
-func (c *Unstructured) GetCompositionSelector() *v1.LabelSelector {
-	out := &v1.LabelSelector{}
+func (c *Unstructured) GetCompositionSelector() *metav1.LabelSelector {
+	out := &metav1.LabelSelector{}
 	if err := fieldpath.Pave(c.Object).GetValueInto("spec.compositionSelector", out); err != nil {
 		return nil
 	}
@@ -67,7 +75,7 @@ func (c *Unstructured) GetCompositionSelector() *v1.LabelSelector {
 }
 
 // SetCompositionSelector of this Composite resource.
-func (c *Unstructured) SetCompositionSelector(sel *v1.LabelSelector) {
+func (c *Unstructured) SetCompositionSelector(sel *metav1.LabelSelector) {
 	_ = fieldpath.Pave(c.Object).SetValue("spec.compositionSelector", sel)
 }
 
@@ -109,15 +117,16 @@ func (c *Unstructured) GetResourceReferences() []corev1.ObjectReference {
 // SetResourceReferences of this Composite resource.
 func (c *Unstructured) SetResourceReferences(refs []corev1.ObjectReference) {
 	empty := corev1.ObjectReference{}
-	finalRefs := []corev1.ObjectReference{}
+	filtered := make([]corev1.ObjectReference, 0, len(refs))
 	for _, ref := range refs {
+		// TODO(negz): Ask muvaf to explain what this is working around. :)
 		// TODO(muvaf): temporary workaround.
 		if ref.String() == empty.String() {
 			continue
 		}
-		finalRefs = append(finalRefs, ref)
+		filtered = append(filtered, ref)
 	}
-	_ = fieldpath.Pave(c.Object).SetValue("spec.resourceRefs", finalRefs)
+	_ = fieldpath.Pave(c.Object).SetValue("spec.resourceRefs", filtered)
 }
 
 // GetWriteConnectionSecretToReference of this Composite resource.

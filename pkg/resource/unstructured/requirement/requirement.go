@@ -19,7 +19,7 @@ package requirement
 
 import (
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -38,9 +38,17 @@ func WithGroupVersionKind(gvk schema.GroupVersionKind) Option {
 	}
 }
 
+// WithConditions returns an Option that sets the supplied conditions on an
+// unstructured resource requirement.
+func WithConditions(c ...v1alpha1.Condition) Option {
+	return func(cr *Unstructured) {
+		cr.SetConditions(c...)
+	}
+}
+
 // New returns a new unstructured resource requirement.
 func New(opts ...Option) *Unstructured {
-	c := &Unstructured{}
+	c := &Unstructured{Unstructured: unstructured.Unstructured{Object: make(map[string]interface{})}}
 	for _, f := range opts {
 		f(c)
 	}
@@ -58,8 +66,8 @@ func (c *Unstructured) GetUnstructured() *unstructured.Unstructured {
 }
 
 // GetCompositionSelector of this resource Requirement.
-func (c *Unstructured) GetCompositionSelector() *v1.LabelSelector {
-	out := &v1.LabelSelector{}
+func (c *Unstructured) GetCompositionSelector() *metav1.LabelSelector {
+	out := &metav1.LabelSelector{}
 	if err := fieldpath.Pave(c.Object).GetValueInto("spec.compositionSelector", out); err != nil {
 		return nil
 	}
@@ -67,7 +75,7 @@ func (c *Unstructured) GetCompositionSelector() *v1.LabelSelector {
 }
 
 // SetCompositionSelector of this resource Requirement.
-func (c *Unstructured) SetCompositionSelector(sel *v1.LabelSelector) {
+func (c *Unstructured) SetCompositionSelector(sel *metav1.LabelSelector) {
 	_ = fieldpath.Pave(c.Object).SetValue("spec.compositionSelector", sel)
 }
 
