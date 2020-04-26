@@ -39,9 +39,17 @@ func FromReference(ref corev1.ObjectReference) Option {
 	}
 }
 
+// WithConditions returns an Option that sets the supplied conditions on an
+// unstructured composed resource.
+func WithConditions(c ...v1alpha1.Condition) Option {
+	return func(cr *Unstructured) {
+		cr.SetConditions(c...)
+	}
+}
+
 // New returns a new unstructured composed resource.
 func New(opts ...Option) *Unstructured {
-	cr := &Unstructured{}
+	cr := &Unstructured{unstructured.Unstructured{Object: make(map[string]interface{})}}
 	for _, f := range opts {
 		f(cr)
 	}
