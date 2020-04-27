@@ -50,8 +50,6 @@ const (
 	AnnotationKeyPropagateFromName      = "from.propagate.crossplane.io/name"
 )
 
-// ReferenceTo returns an object reference to the supplied object, presumed to
-// be of the supplied group, version, and kind.
 func ReferenceTo(o metav1.Object, of schema.GroupVersionKind) *corev1.ObjectReference {
 	v, k := of.ToAPIVersionAndKind()
 	return &corev1.ObjectReference{
@@ -99,7 +97,7 @@ func HaveSameController(a, b metav1.Object) bool {
 
 // NamespacedNameOf returns the referenced object's namespaced name.
 func NamespacedNameOf(r *corev1.ObjectReference) types.NamespacedName {
-	return types.NamespacedName{Namespace: r.Namespace, Name: r.Name}
+	return types.NamespacedName{r.Namespace, r.Name}
 }
 
 // AddOwnerReference to the supplied object' metadata. Any existing owner with
