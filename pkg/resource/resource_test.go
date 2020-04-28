@@ -46,21 +46,6 @@ var MockOwnerGVK = schema.GroupVersionKind{
 	Kind:    "MockOwner",
 }
 
-type MockLocalOwner struct {
-	runtime.Object
-	metav1.ObjectMeta
-
-	Ref *v1alpha1.LocalSecretReference
-}
-
-func (m *MockLocalOwner) GetWriteConnectionSecretToReference() *v1alpha1.LocalSecretReference {
-	return m.Ref
-}
-
-func (m *MockLocalOwner) SetWriteConnectionSecretToReference(r *v1alpha1.LocalSecretReference) {
-	m.Ref = r
-}
-
 func TestLocalConnectionSecretFor(t *testing.T) {
 	secretName := "coolsecret"
 
@@ -77,7 +62,7 @@ func TestLocalConnectionSecretFor(t *testing.T) {
 	}{
 		"Success": {
 			args: args{
-				o: &MockLocalOwner{
+				o: &fake.MockLocalConnectionSecretOwner{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: namespace,
 						Name:      name,
@@ -114,21 +99,6 @@ func TestLocalConnectionSecretFor(t *testing.T) {
 	}
 }
 
-type MockOwner struct {
-	runtime.Object
-	metav1.ObjectMeta
-
-	Ref *v1alpha1.SecretReference
-}
-
-func (m *MockOwner) GetWriteConnectionSecretToReference() *v1alpha1.SecretReference {
-	return m.Ref
-}
-
-func (m *MockOwner) SetWriteConnectionSecretToReference(r *v1alpha1.SecretReference) {
-	m.Ref = r
-}
-
 func TestConnectionSecretFor(t *testing.T) {
 	secretName := "coolsecret"
 
@@ -145,7 +115,7 @@ func TestConnectionSecretFor(t *testing.T) {
 	}{
 		"Success": {
 			args: args{
-				o: &MockOwner{
+				o: &fake.MockConnectionSecretOwner{
 					ObjectMeta: metav1.ObjectMeta{
 						Namespace: namespace,
 						Name:      name,

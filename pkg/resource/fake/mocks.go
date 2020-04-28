@@ -459,3 +459,73 @@ func SchemeWith(o ...runtime.Object) *runtime.Scheme {
 	s.AddKnownTypes(GV, o...)
 	return s
 }
+
+// MockConnectionSecretOwner is a mock object that satisfies ConnectionSecretOwner
+// interface.
+type MockConnectionSecretOwner struct {
+	runtime.Object
+	metav1.ObjectMeta
+
+	Ref *v1alpha1.SecretReference
+}
+
+// GetWriteConnectionSecretToReference returns the connection secret reference.
+func (m *MockConnectionSecretOwner) GetWriteConnectionSecretToReference() *v1alpha1.SecretReference {
+	return m.Ref
+}
+
+// SetWriteConnectionSecretToReference sets the connection secret reference.
+func (m *MockConnectionSecretOwner) SetWriteConnectionSecretToReference(r *v1alpha1.SecretReference) {
+	m.Ref = r
+}
+
+// GetObjectKind returns schema.ObjectKind.
+func (m *MockConnectionSecretOwner) GetObjectKind() schema.ObjectKind {
+	return schema.EmptyObjectKind
+}
+
+// DeepCopyObject returns a copy of the object as runtime.Object
+func (m *MockConnectionSecretOwner) DeepCopyObject() runtime.Object {
+	out := &MockConnectionSecretOwner{}
+	j, err := json.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	_ = json.Unmarshal(j, out)
+	return out
+}
+
+// MockLocalConnectionSecretOwner is a mock object that satisfies LocalConnectionSecretOwner
+// interface.
+type MockLocalConnectionSecretOwner struct {
+	runtime.Object
+	metav1.ObjectMeta
+
+	Ref *v1alpha1.LocalSecretReference
+}
+
+// GetWriteConnectionSecretToReference returns the connection secret reference.
+func (m *MockLocalConnectionSecretOwner) GetWriteConnectionSecretToReference() *v1alpha1.LocalSecretReference {
+	return m.Ref
+}
+
+// SetWriteConnectionSecretToReference sets the connection secret reference.
+func (m *MockLocalConnectionSecretOwner) SetWriteConnectionSecretToReference(r *v1alpha1.LocalSecretReference) {
+	m.Ref = r
+}
+
+// GetObjectKind returns schema.ObjectKind.
+func (m *MockLocalConnectionSecretOwner) GetObjectKind() schema.ObjectKind {
+	return schema.EmptyObjectKind
+}
+
+// DeepCopyObject returns a copy of the object as runtime.Object
+func (m *MockLocalConnectionSecretOwner) DeepCopyObject() runtime.Object {
+	out := &MockLocalConnectionSecretOwner{}
+	j, err := json.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	_ = json.Unmarshal(j, out)
+	return out
+}
