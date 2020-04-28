@@ -154,6 +154,28 @@ func (c *Unstructured) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
 	_ = fieldpath.Pave(c.Object).SetValue("spec.reclaimPolicy", p)
 }
 
+// SetComposedResourceCount of this Composite resource.
+func (c *Unstructured) SetComposedResourceCount(i int) {
+	_ = fieldpath.Pave(c.Object).SetNumber("status.composedResources", float64(i))
+}
+
+// GetComposedResourceCount of this Composite resource.
+func (c *Unstructured) GetComposedResourceCount() int {
+	v, _ := fieldpath.Pave(c.Object).GetNumber("status.composedResources")
+	return int(v)
+}
+
+// SetReadyResourceCount of this Composite resource.
+func (c *Unstructured) SetReadyResourceCount(i int) {
+	_ = fieldpath.Pave(c.Object).SetNumber("status.readyResources", float64(i))
+}
+
+// GetReadyResourceCount of this Composite resource.
+func (c *Unstructured) GetReadyResourceCount() int {
+	v, _ := fieldpath.Pave(c.Object).GetNumber("status.readyResources")
+	return int(v)
+}
+
 // GetCondition of this Composite resource.
 func (c *Unstructured) GetCondition(ct v1alpha1.ConditionType) v1alpha1.Condition {
 	conditioned := v1alpha1.ConditionedStatus{}

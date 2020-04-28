@@ -121,6 +121,28 @@ func (c *Unstructured) SetWriteConnectionSecretToReference(ref *v1alpha1.LocalSe
 	_ = fieldpath.Pave(c.Object).SetValue("spec.writeConnectionSecretToRef", ref)
 }
 
+// SetComposedResourceCount of this Requirement.
+func (c *Unstructured) SetComposedResourceCount(i int) {
+	_ = fieldpath.Pave(c.Object).SetNumber("status.composedResources", float64(i))
+}
+
+// GetComposedResourceCount of this Requirement.
+func (c *Unstructured) GetComposedResourceCount() int {
+	v, _ := fieldpath.Pave(c.Object).GetNumber("status.composedResources")
+	return int(v)
+}
+
+// SetReadyResourceCount of this Requirement.
+func (c *Unstructured) SetReadyResourceCount(i int) {
+	_ = fieldpath.Pave(c.Object).SetNumber("status.readyResources", float64(i))
+}
+
+// GetReadyResourceCount of this Requirement.
+func (c *Unstructured) GetReadyResourceCount() int {
+	v, _ := fieldpath.Pave(c.Object).GetNumber("status.readyResources")
+	return int(v)
+}
+
 // GetCondition of this Requirement.
 func (c *Unstructured) GetCondition(ct v1alpha1.ConditionType) v1alpha1.Condition {
 	conditioned := v1alpha1.ConditionedStatus{}

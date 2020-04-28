@@ -194,6 +194,24 @@ func (m *ComposedResourcesReferencer) SetResourceReferences(r []corev1.ObjectRef
 // GetResourceReferences gets the composed references.
 func (m *ComposedResourcesReferencer) GetResourceReferences() []corev1.ObjectReference { return m.Refs }
 
+// ComposedResourceCounter is a mock that implements ComposedResourceCounter interface.
+type ComposedResourceCounter struct{ Count int }
+
+// SetComposedResourceCount sets the composed resource count.
+func (m *ComposedResourceCounter) SetComposedResourceCount(i int) { m.Count = i }
+
+// GetComposedResourceCount Gets the composed resource count.
+func (m *ComposedResourceCounter) GetComposedResourceCount() int { return m.Count }
+
+// ReadyResourceCounter is a mock that implements ReadyResourceCounter interface.
+type ReadyResourceCounter struct{ Count int }
+
+// SetReadyResourceCount sets the ready resource count.
+func (m *ReadyResourceCounter) SetReadyResourceCount(i int) { m.Count = i }
+
+// GetReadyResourceCount gets the ready resource count.
+func (m *ReadyResourceCounter) GetReadyResourceCount() int { return m.Count }
+
 // Object is a mock that implements Object interface.
 type Object struct {
 	metav1.ObjectMeta
@@ -342,12 +360,16 @@ func (m *Target) DeepCopyObject() runtime.Object {
 // Composite is a mock that implements Composite interface.
 type Composite struct {
 	metav1.ObjectMeta
+
 	CompositionSelector
 	CompositionReferencer
 	// TODO(negz): ComposedResourcesReferencer.
 	RequirementReferencer
 	Reclaimer
 	ConnectionSecretWriterTo
+
+	ComposedResourceCounter
+	ReadyResourceCounter
 	v1alpha1.ConditionedStatus
 }
 
@@ -393,10 +415,14 @@ func (m *Composed) DeepCopyObject() runtime.Object {
 // Requirement is a mock that implements Requirement interface.
 type Requirement struct {
 	metav1.ObjectMeta
+
 	CompositionSelector
 	CompositionReferencer
 	CompositeResourceReferencer
 	LocalConnectionSecretWriterTo
+
+	ComposedResourceCounter
+	ReadyResourceCounter
 	v1alpha1.ConditionedStatus
 }
 

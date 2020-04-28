@@ -262,3 +262,51 @@ func TestReclaimPolicy(t *testing.T) {
 		})
 	}
 }
+
+func TestComposedResourceCount(t *testing.T) {
+	cases := map[string]struct {
+		u    *Unstructured
+		set  int
+		want int
+	}{
+		"NewRef": {
+			u:    New(),
+			set:  8,
+			want: 8,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			tc.u.SetComposedResourceCount(tc.set)
+			got := tc.u.GetComposedResourceCount()
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\nu.GetComposedResourceCount(): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestReadyResourceCount(t *testing.T) {
+	cases := map[string]struct {
+		u    *Unstructured
+		set  int
+		want int
+	}{
+		"NewRef": {
+			u:    New(),
+			set:  8,
+			want: 8,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			tc.u.SetReadyResourceCount(tc.set)
+			got := tc.u.GetReadyResourceCount()
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\nu.GetReadyResourceCount(): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}

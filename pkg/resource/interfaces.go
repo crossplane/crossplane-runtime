@@ -133,6 +133,18 @@ type CompositeResourceReferencer interface {
 	GetResourceReference() *corev1.ObjectReference
 }
 
+// A ComposedResourceCounter can count how many resources are composed.
+type ComposedResourceCounter interface {
+	SetComposedResourceCount(i int)
+	GetComposedResourceCount() int
+}
+
+// A ReadyResourceCounter can count how many resources are ready.
+type ReadyResourceCounter interface {
+	SetReadyResourceCount(i int)
+	GetReadyResourceCount() int
+}
+
 // An Object is a Kubernetes object.
 type Object interface {
 	metav1.Object
@@ -231,6 +243,8 @@ type Composite interface {
 	Reclaimer
 	ConnectionSecretWriterTo
 
+	ComposedResourceCounter
+	ReadyResourceCounter
 	Conditioned
 }
 
@@ -251,5 +265,7 @@ type Requirement interface {
 	CompositeResourceReferencer
 	LocalConnectionSecretWriterTo
 
+	ComposedResourceCounter
+	ReadyResourceCounter
 	Conditioned
 }
