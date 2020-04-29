@@ -16,13 +16,11 @@ require (
 	github.com/imdario/mergo v0.3.7 // indirect
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v1.1.0 // indirect
-	k8s.io/api v0.18.0
-	k8s.io/apiextensions-apiserver v0.18.0
-	k8s.io/apimachinery v0.18.0
-	k8s.io/client-go v0.18.0
-	// TODO(negz): Return to a real release once the below PR is released.
-	// https://github.com/kubernetes-sigs/controller-runtime/pull/863
-	sigs.k8s.io/controller-runtime v0.5.1-0.20200422200944-a457e2791293
+	k8s.io/api v0.18.2
+	k8s.io/apiextensions-apiserver v0.18.2
+	k8s.io/apimachinery v0.18.2
+	k8s.io/client-go v0.18.2
+	sigs.k8s.io/controller-runtime v0.6.0
 	sigs.k8s.io/controller-tools v0.2.4
 	sigs.k8s.io/yaml v1.2.0
 )
