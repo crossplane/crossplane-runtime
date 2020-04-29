@@ -28,6 +28,39 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
+func TestIsNotFound(t *testing.T) {
+	cases := map[string]struct {
+		reason string
+		err    error
+		want   bool
+	}{
+		"NotFound": {
+			reason: "An error with method `IsNotFound() bool` should be considered a not found error.",
+			err:    errNotFound{errors.New("boom")},
+			want:   true,
+		},
+		"WrapsNotFound": {
+			reason: "An error that wraps an error with method `IsNotFound() bool` should be considered a not found error.",
+			err:    errors.Wrap(errNotFound{errors.New("boom")}, "because reasons"),
+			want:   true,
+		},
+		"SomethingElse": {
+			reason: "An error without method `IsNotFound() bool` should not be considered a not found error.",
+			err:    errors.New("boom"),
+			want:   false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := IsNotFound(tc.err)
+			if got != tc.want {
+				t.Errorf("IsNotFound(...): Want %t, got %t", tc.want, got)
+			}
+		})
+	}
+}
+
 func TestGetValue(t *testing.T) {
 	type want struct {
 		value interface{}
@@ -84,7 +117,7 @@ func TestGetValue(t *testing.T) {
 			path:   "metadata.name",
 			data:   []byte(`{"metadata":{"nope":"cool"}}`),
 			want: want{
-				err: errors.New("metadata.name: no such field"),
+				err: errNotFound{errors.New("metadata.name: no such field")},
 			},
 		},
 		"InsufficientContainers": {
@@ -92,7 +125,7 @@ func TestGetValue(t *testing.T) {
 			path:   "spec.containers[1].name",
 			data:   []byte(`{"spec":{"containers":[{"name":"cool"}]}}`),
 			want: want{
-				err: errors.New("spec.containers[1]: no such element"),
+				err: errNotFound{errors.New("spec.containers[1]: no such element")},
 			},
 		},
 		"NotAnArray": {
@@ -191,7 +224,7 @@ func TestGetValueInto(t *testing.T) {
 			},
 			want: want{
 				out: &Struct{},
-				err: errors.New("s: no such field"),
+				err: errNotFound{errors.New("s: no such field")},
 			},
 		},
 	}

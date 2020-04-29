@@ -23,6 +23,25 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+type errNotFound struct {
+	error
+}
+
+func (e errNotFound) IsNotFound() bool {
+	return true
+}
+
+// IsNotFound returns true if the supplied error indicates a field path was not
+// found, for example because a field did not exist within an object or an
+// index was out of bounds in an array.
+func IsNotFound(err error) bool {
+	cause := errors.Cause(err)
+	_, ok := cause.(interface {
+		IsNotFound() bool
+	})
+	return ok
+}
+
 // A Paved JSON object supports getting and setting values by their field path.
 type Paved struct {
 	object map[string]interface{}
@@ -74,7 +93,7 @@ func (p *Paved) getValue(s Segments) (interface{}, error) {
 				return nil, errors.Errorf("%s: not an array", s[:i])
 			}
 			if int(current.Index) >= len(array) {
-				return nil, errors.Errorf("%s: no such element", s[:i+1])
+				return nil, errNotFound{errors.Errorf("%s: no such element", s[:i+1])}
 			}
 			if final {
 				return array[current.Index], nil
@@ -88,7 +107,7 @@ func (p *Paved) getValue(s Segments) (interface{}, error) {
 			}
 			v, ok := object[current.Field]
 			if !ok {
-				return nil, errors.Errorf("%s: no such field", s[:i+1])
+				return nil, errNotFound{errors.Errorf("%s: no such field", s[:i+1])}
 			}
 			if final {
 				return v, nil
