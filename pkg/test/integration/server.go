@@ -24,6 +24,7 @@ import (
 
 	"github.com/pkg/errors"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
@@ -76,8 +77,9 @@ func NewCRDCleaner() CleanerFn {
 			crds = append(crds, crd...)
 		}
 
+		deletionPolicy := metav1.DeletePropagationForeground
 		for _, crd := range crds {
-			if err := m.client.Delete(context.TODO(), crd); resource.IgnoreNotFound(err) != nil {
+			if err := m.client.Delete(context.TODO(), crd, &client.DeleteOptions{PropagationPolicy: &deletionPolicy}); resource.IgnoreNotFound(err) != nil {
 				return errors.Wrap(err, errCleanup)
 
 			}
