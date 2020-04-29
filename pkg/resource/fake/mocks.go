@@ -344,7 +344,7 @@ type Composite struct {
 	metav1.ObjectMeta
 	CompositionSelector
 	CompositionReferencer
-	// TODO(negz): ComposedResourcesReferencer.
+	ComposedResourcesReferencer
 	RequirementReferencer
 	Reclaimer
 	ConnectionSecretWriterTo
