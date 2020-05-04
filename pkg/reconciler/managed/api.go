@@ -18,12 +18,19 @@ package managed
 
 import (
 	"context"
+	"net/url"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
@@ -53,6 +60,67 @@ func (a *NameAsExternalName) Initialize(ctx context.Context, mg resource.Managed
 	}
 	meta.SetExternalName(mg, mg.GetName())
 	return errors.Wrap(a.client.Update(ctx, mg), errUpdateManaged)
+}
+
+// ClusterDestructor cleans object out of a cluster before deletion such that
+// any external infrastructure that was provisioned on their behalf, such as a
+// load balancer or firewall rule, are cleaned up before the cluster is deleted.
+type ClusterDestructor struct{ client client.Client }
+
+// NewClusterDestructor returns a new ClusterDestructor.
+func NewClusterDestructor(c client.Client) *ClusterDestructor {
+	return &ClusterDestructor{client: c}
+}
+
+// Destruct the given managed resource.
+func (a *ClusterDestructor) Destruct(ctx context.Context, mg resource.Managed) error {
+	ref := mg.GetWriteConnectionSecretToReference()
+	s := &corev1.Secret{}
+	if err := a.client.Get(ctx, types.NamespacedName{Name: ref.Name, Namespace: ref.Namespace}, s); err != nil {
+		return err
+	}
+
+	config := &rest.Config{}
+	if len(s.Data[v1alpha1.ResourceCredentialsSecretKubeconfigKey]) != 0 {
+		conf, err := clientcmd.RESTConfigFromKubeConfig(s.Data[v1alpha1.ResourceCredentialsSecretKubeconfigKey])
+		if err != nil {
+			return err
+		}
+		config = conf
+	} else {
+		u, err := url.Parse(string(s.Data[v1alpha1.ResourceCredentialsSecretEndpointKey]))
+		if err != nil {
+			return errors.Wrap(err, "cannot parse Kubernetes endpoint as URL")
+		}
+
+		config = &rest.Config{
+			Host:     u.String(),
+			Username: string(s.Data[v1alpha1.ResourceCredentialsSecretUserKey]),
+			Password: string(s.Data[v1alpha1.ResourceCredentialsSecretPasswordKey]),
+			TLSClientConfig: rest.TLSClientConfig{
+				// This field's godoc claims clients will use 'the hostname used to
+				// contact the server' when it is left unset. In practice clients
+				// appear to use the URL, including scheme and port.
+				ServerName: u.Hostname(),
+				CAData:     s.Data[v1alpha1.ResourceCredentialsSecretCAKey],
+				CertData:   s.Data[v1alpha1.ResourceCredentialsSecretClientCertKey],
+				KeyData:    s.Data[v1alpha1.ResourceCredentialsSecretClientKeyKey],
+			},
+			BearerToken: string(s.Data[v1alpha1.ResourceCredentialsSecretTokenKey]),
+		}
+	}
+
+	kc, err := client.New(config, client.Options{})
+	if err != nil {
+		return errors.Wrap(err, "cannot create Kubernetes client")
+	}
+
+	deletionPolicy := metav1.DeletePropagationForeground
+	if err := kc.Delete(ctx, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: "wordpress"}}, &client.DeleteOptions{PropagationPolicy: &deletionPolicy}); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // An APISecretPublisher publishes ConnectionDetails by submitting a Secret to a

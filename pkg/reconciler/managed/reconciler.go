@@ -45,12 +45,13 @@ const (
 
 // Error strings.
 const (
-	errGetManaged       = "cannot get managed resource"
-	errReconcileConnect = "connect failed"
-	errReconcileObserve = "observe failed"
-	errReconcileCreate  = "create failed"
-	errReconcileUpdate  = "update failed"
-	errReconcileDelete  = "delete failed"
+	errGetManaged        = "cannot get managed resource"
+	errReconcileConnect  = "connect failed"
+	errReconcileObserve  = "observe failed"
+	errReconcileCreate   = "create failed"
+	errReconcileUpdate   = "update failed"
+	errReconcileDelete   = "delete failed"
+	errReconcileDestruct = "destruct failed"
 )
 
 // Event reasons.
@@ -61,6 +62,7 @@ const (
 	reasonCannotObserve     event.Reason = "CannotObserveExternalResource"
 	reasonCannotCreate      event.Reason = "CannotCreateExternalResource"
 	reasonCannotDelete      event.Reason = "CannotDeleteExternalResource"
+	reasonCannotDestruct    event.Reason = "CannotDestructExternalResource"
 	reasonCannotPublish     event.Reason = "CannotPublishConnectionDetails"
 	reasonCannotUnpublish   event.Reason = "CannotUnpublishConnectionDetails"
 	reasonCannotUpdate      event.Reason = "CannotUpdateExternalResource"
@@ -136,6 +138,35 @@ type InitializerFn func(ctx context.Context, mg resource.Managed) error
 
 // Initialize calls InitializerFn function.
 func (m InitializerFn) Initialize(ctx context.Context, mg resource.Managed) error {
+	return m(ctx, mg)
+}
+
+// A Destructor executes any operations required to run before the call to an
+// ExternalClient Delete method after the Managed resource is observed with a
+// deletion timestamp.
+type Destructor interface {
+	Destruct(ctx context.Context, mg resource.Managed) error
+}
+
+// A DestructorChain chains multiple managed deconstructors.
+type DestructorChain []Destructor
+
+// Destruct calls each Destructor serially. It returns the first error it
+// encounters, if any.
+func (dc DestructorChain) Destruct(ctx context.Context, mg resource.Managed) error {
+	for _, d := range dc {
+		if err := d.Destruct(ctx, mg); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// A DestructorFn is a function that satisfies the Destructor interface.
+type DestructorFn func(ctx context.Context, mg resource.Managed) error
+
+// Destruct calls DestructorFn function.
+func (m DestructorFn) Destruct(ctx context.Context, mg resource.Managed) error {
 	return m(ctx, mg)
 }
 
@@ -310,6 +341,7 @@ type mrManaged struct {
 	resource.Finalizer
 	Initializer
 	ReferenceResolver
+	Destructor
 }
 
 func defaultMRManaged(m manager.Manager) mrManaged {
@@ -386,6 +418,14 @@ func WithConnectionPublishers(p ...ConnectionPublisher) ReconcilerOption {
 func WithInitializers(i ...Initializer) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.managed.Initializer = InitializerChain(i)
+	}
+}
+
+// WithDestructors specifies how the Reconciler should deconstruct a managed
+// resource before calling the ExternalClient delete function.
+func WithDestructors(c ...Destructor) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.managed.Destructor = DestructorChain(c)
 	}
 }
 
@@ -546,6 +586,13 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		log = log.WithValues("deletion-timestamp", managed.GetDeletionTimestamp())
 
 		if observation.ResourceExists && managed.GetReclaimPolicy() == v1alpha1.ReclaimDelete {
+			if err := r.managed.Destruct(externalCtx, managed); err != nil {
+				log.Debug("Cannot destruct external resource", "error", err, "requeue-after", time.Now().Add(r.shortWait))
+				record.Event(managed, event.Warning(reasonCannotDestruct, err))
+				managed.SetConditions(v1alpha1.ReconcileError(errors.Wrap(err, errReconcileDestruct)))
+				return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+			}
+
 			if err := external.Delete(externalCtx, managed); err != nil {
 				// We'll hit this condition if we can't delete our external
 				// resource, for example if our provider credentials don't have
