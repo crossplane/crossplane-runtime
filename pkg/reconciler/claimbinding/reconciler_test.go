@@ -309,6 +309,9 @@ func TestReconciler(t *testing.T) {
 				of:   resource.ClaimKind(fake.GVK(&fake.Claim{})),
 				use:  resource.ClassKind(fake.GVK(&fake.Class{})),
 				with: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithClaimFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: aShortWait}},
 		},
@@ -344,6 +347,9 @@ func TestReconciler(t *testing.T) {
 				of:   resource.ClaimKind(fake.GVK(&fake.Claim{})),
 				use:  resource.ClassKind(fake.GVK(&fake.Class{})),
 				with: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithClaimFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: aShortWait}},
 		},
@@ -379,9 +385,14 @@ func TestReconciler(t *testing.T) {
 				of:   resource.ClaimKind(fake.GVK(&fake.Claim{})),
 				use:  resource.ClassKind(fake.GVK(&fake.Class{})),
 				with: resource.ManagedKind(fake.GVK(&fake.Managed{})),
-				o: []ReconcilerOption{WithManagedConfigurators(ManagedConfiguratorFn(
-					func(_ context.Context, _ resource.Claim, _ resource.Class, _ resource.Managed) error { return errBoom },
-				))},
+				o: []ReconcilerOption{
+					WithManagedConfigurators(ManagedConfiguratorFn(
+						func(_ context.Context, _ resource.Claim, _ resource.Class, _ resource.Managed) error { return errBoom },
+					)),
+					WithClaimFinalizer(resource.FinalizerFns{
+						AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }},
+					),
+				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: aShortWait}},
 		},
@@ -470,6 +481,9 @@ func TestReconciler(t *testing.T) {
 				of:   resource.ClaimKind(fake.GVK(&fake.Claim{})),
 				use:  resource.ClassKind(fake.GVK(&fake.Class{})),
 				with: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithClaimFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
 			},
 			want: want{result: reconcile.Result{Requeue: false}},
 		},
@@ -510,6 +524,9 @@ func TestReconciler(t *testing.T) {
 				of:   resource.ClaimKind(fake.GVK(&fake.Claim{})),
 				use:  resource.ClassKind(fake.GVK(&fake.Class{})),
 				with: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithClaimFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
 			},
 			want: want{result: reconcile.Result{Requeue: false}},
 		},
@@ -550,6 +567,7 @@ func TestReconciler(t *testing.T) {
 				use:  resource.ClassKind(fake.GVK(&fake.Class{})),
 				with: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ReconcilerOption{
+					WithClaimFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 					WithManagedConnectionPropagator(resource.ManagedConnectionPropagatorFn(
 						func(_ context.Context, _ resource.LocalConnectionSecretOwner, _ resource.Managed) error {
 							return errBoom
@@ -692,6 +710,9 @@ func TestReconciler(t *testing.T) {
 				of:   resource.ClaimKind(fake.GVK(&fake.Claim{})),
 				use:  resource.ClassKind(fake.GVK(&fake.Class{})),
 				with: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithClaimFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
 			},
 			want: want{result: reconcile.Result{Requeue: false}},
 		},

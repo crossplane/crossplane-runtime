@@ -384,6 +384,15 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{Requeue: false}, nil
 	}
 
+	if err := r.claim.AddFinalizer(ctx, claim); err != nil {
+		// If we didn't hit this error last time we'll be requeued
+		// implicitly due to the status update. Otherwise we want to retry
+		// after a brief wait, in case this was a transient error.
+		log.Debug("Cannot add resource claim finalizer", "error", err, "requeue-after", time.Now().Add(aShortWait))
+		claim.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(err))
+		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, claim), errUpdateClaimStatus)
+	}
+
 	// Claim reconcilers (should) watch for either claims with a resource ref,
 	// claims with a class ref, or managed resources with a claim ref. In the
 	// first case the managed resource always exists by the time we get here. In
@@ -470,15 +479,6 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			log.Debug("Cannot propagate connection details from managed resource to claim", "error", err, "requeue-after", time.Now().Add(aShortWait))
 			record.Event(claim, event.Warning(reasonCannotPropagate, err))
 			claim.SetConditions(Binding(), v1alpha1.ReconcileError(err))
-			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, claim), errUpdateClaimStatus)
-		}
-
-		if err := r.claim.AddFinalizer(ctx, claim); err != nil {
-			// If we didn't hit this error last time we'll be requeued
-			// implicitly due to the status update. Otherwise we want to retry
-			// after a brief wait, in case this was a transient error.
-			log.Debug("Cannot add resource claim finalizer", "error", err, "requeue-after", time.Now().Add(aShortWait))
-			claim.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(err))
 			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, claim), errUpdateClaimStatus)
 		}
 
