@@ -167,6 +167,7 @@ func TestBind(t *testing.T) {
 
 	errBoom := errors.New("boom")
 	externalName := "very-cool-external-resource"
+	controller := true
 
 	cases := map[string]struct {
 		client client.Client
@@ -174,6 +175,23 @@ func TestBind(t *testing.T) {
 		args   args
 		want   want
 	}{
+		"ControlledError": {
+			typer: fake.SchemeWith(&fake.Claim{}),
+			args: args{
+				ctx: context.Background(),
+				cm:  &fake.Claim{},
+				mg: &fake.Managed{ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{{Controller: &controller}},
+				}},
+			},
+			want: want{
+				err: errors.New(errBindControlled),
+				cm:  &fake.Claim{},
+				mg: &fake.Managed{ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{{Controller: &controller}},
+				}},
+			},
+		},
 		"RefMismatchError": {
 			typer: fake.SchemeWith(&fake.Claim{}),
 			args: args{
@@ -320,6 +338,7 @@ func TestStatusBind(t *testing.T) {
 
 	errBoom := errors.New("boom")
 	externalName := "very-cool-external-resource"
+	controller := true
 
 	cases := map[string]struct {
 		client client.Client
@@ -327,6 +346,23 @@ func TestStatusBind(t *testing.T) {
 		args   args
 		want   want
 	}{
+		"ControlledError": {
+			typer: fake.SchemeWith(&fake.Claim{}),
+			args: args{
+				ctx: context.Background(),
+				cm:  &fake.Claim{},
+				mg: &fake.Managed{ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{{Controller: &controller}},
+				}},
+			},
+			want: want{
+				err: errors.New(errBindControlled),
+				cm:  &fake.Claim{},
+				mg: &fake.Managed{ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{{Controller: &controller}},
+				}},
+			},
+		},
 		"RefMismatchError": {
 			typer: fake.SchemeWith(&fake.Claim{}),
 			args: args{

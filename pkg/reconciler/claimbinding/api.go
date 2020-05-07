@@ -21,6 +21,7 @@ import (
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -38,6 +39,7 @@ const (
 	errDeleteManaged       = "cannot delete managed resource"
 	errBindMismatch        = "refusing to bind to managed resource that does not reference resource claim"
 	errUnbindMismatch      = "refusing to 'unbind' from managed resource that does not reference resource claim"
+	errBindControlled      = "refusing to bind to managed resource that is controlled by another resource"
 )
 
 // An APIManagedCreator creates resources by submitting them to a Kubernetes
@@ -86,6 +88,14 @@ func NewAPIBinder(c client.Client, t runtime.ObjectTyper) *APIBinder {
 
 // Bind the supplied resource to the supplied claim.
 func (a *APIBinder) Bind(ctx context.Context, cm resource.Claim, mg resource.Managed) error {
+	// A managed resource that was statically provisioned by an infrastructure
+	// operator should not have a controller reference. We assume a managed
+	// resource with a controller reference is part of a composite resource or a
+	// stack, and therefore not available to be claimed.
+	if metav1.GetControllerOf(mg) != nil {
+		return errors.New(errBindControlled)
+	}
+
 	// Note that we allow a claim to bind to a managed resource with a nil claim
 	// reference in order to enable the static provisioning case in which a
 	// managed resource is provisioned ahead of time and is not associated with
@@ -156,6 +166,14 @@ func NewAPIStatusBinder(c client.Client, t runtime.ObjectTyper) *APIStatusBinder
 
 // Bind the supplied resource to the supplied claim.
 func (a *APIStatusBinder) Bind(ctx context.Context, cm resource.Claim, mg resource.Managed) error {
+	// A managed resource that was statically provisioned by an infrastructure
+	// operator should not have a controller reference. We assume a managed
+	// resource with a controller reference is part of a composite resource or a
+	// stack, and therefore not available to be claimed.
+	if metav1.GetControllerOf(mg) != nil {
+		return errors.New(errBindControlled)
+	}
+
 	// Note that we allow a claim to bind to a managed resource with a nil claim
 	// reference in order to enable the static provisioning case in which a
 	// managed resource is provisioned ahead of time and is not associated with
