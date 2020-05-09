@@ -167,6 +167,7 @@ func TestBind(t *testing.T) {
 
 	errBoom := errors.New("boom")
 	externalName := "very-cool-external-resource"
+	controller := true
 
 	cases := map[string]struct {
 		client client.Client
@@ -174,6 +175,40 @@ func TestBind(t *testing.T) {
 		args   args
 		want   want
 	}{
+		"ControlledError": {
+			typer: fake.SchemeWith(&fake.Claim{}),
+			args: args{
+				ctx: context.Background(),
+				cm:  &fake.Claim{},
+				mg: &fake.Managed{ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{{Controller: &controller}},
+				}},
+			},
+			want: want{
+				err: errors.New(errBindControlled),
+				cm:  &fake.Claim{},
+				mg: &fake.Managed{ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{{Controller: &controller}},
+				}},
+			},
+		},
+		"RefMismatchError": {
+			typer: fake.SchemeWith(&fake.Claim{}),
+			args: args{
+				ctx: context.Background(),
+				cm:  &fake.Claim{ObjectMeta: metav1.ObjectMeta{Name: "I'm different!"}},
+				mg: &fake.Managed{
+					ClaimReferencer: fake.ClaimReferencer{Ref: meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
+				},
+			},
+			want: want{
+				err: errors.New(errBindMismatch),
+				cm:  &fake.Claim{ObjectMeta: metav1.ObjectMeta{Name: "I'm different!"}},
+				mg: &fake.Managed{
+					ClaimReferencer: fake.ClaimReferencer{Ref: meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
+				},
+			},
+		},
 		"UpdateManagedError": {
 			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil, func(obj runtime.Object) error {
 				switch obj.(type) {
@@ -303,6 +338,7 @@ func TestStatusBind(t *testing.T) {
 
 	errBoom := errors.New("boom")
 	externalName := "very-cool-external-resource"
+	controller := true
 
 	cases := map[string]struct {
 		client client.Client
@@ -310,6 +346,40 @@ func TestStatusBind(t *testing.T) {
 		args   args
 		want   want
 	}{
+		"ControlledError": {
+			typer: fake.SchemeWith(&fake.Claim{}),
+			args: args{
+				ctx: context.Background(),
+				cm:  &fake.Claim{},
+				mg: &fake.Managed{ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{{Controller: &controller}},
+				}},
+			},
+			want: want{
+				err: errors.New(errBindControlled),
+				cm:  &fake.Claim{},
+				mg: &fake.Managed{ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{{Controller: &controller}},
+				}},
+			},
+		},
+		"RefMismatchError": {
+			typer: fake.SchemeWith(&fake.Claim{}),
+			args: args{
+				ctx: context.Background(),
+				cm:  &fake.Claim{ObjectMeta: metav1.ObjectMeta{Name: "I'm different!"}},
+				mg: &fake.Managed{
+					ClaimReferencer: fake.ClaimReferencer{Ref: meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
+				},
+			},
+			want: want{
+				err: errors.New(errBindMismatch),
+				cm:  &fake.Claim{ObjectMeta: metav1.ObjectMeta{Name: "I'm different!"}},
+				mg: &fake.Managed{
+					ClaimReferencer: fake.ClaimReferencer{Ref: meta.ReferenceTo(&fake.Claim{}, fake.GVK(&fake.Claim{}))},
+				},
+			},
+		},
 		"UpdateManagedError": {
 			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil, func(obj runtime.Object) error {
 				switch obj.(type) {
@@ -467,22 +537,39 @@ func TestUnbind(t *testing.T) {
 
 	errBoom := errors.New("boom")
 
+	typer := fake.SchemeWith(&fake.Claim{})
+	ref := meta.ReferenceTo(&fake.Claim{}, resource.MustGetKind(&fake.Claim{}, typer))
+
 	cases := map[string]struct {
 		client client.Client
 		typer  runtime.ObjectTyper
 		args   args
 		want   want
 	}{
+		"RefMismatchError": {
+			typer: fake.SchemeWith(&fake.Claim{}),
+			args: args{
+				ctx: context.Background(),
+				cm:  &fake.Claim{ObjectMeta: metav1.ObjectMeta{Name: "I'm different!"}},
+				mg:  &fake.Managed{ClaimReferencer: fake.ClaimReferencer{Ref: ref}},
+			},
+			want: want{
+				err: errors.New(errUnbindMismatch),
+				mg:  &fake.Managed{ClaimReferencer: fake.ClaimReferencer{Ref: ref}},
+			},
+		},
 		"SuccessfulRetain": {
 			client: &test.MockClient{
 				MockUpdate: test.NewMockUpdateFn(nil),
 			},
+			typer: typer,
 			args: args{
 				ctx: context.Background(),
+				cm:  &fake.Claim{},
 				mg: &fake.Managed{
 					Reclaimer:       fake.Reclaimer{Policy: v1alpha1.ReclaimRetain},
 					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
-					ClaimReferencer: fake.ClaimReferencer{Ref: &corev1.ObjectReference{}},
+					ClaimReferencer: fake.ClaimReferencer{Ref: ref},
 				},
 			},
 			want: want{
@@ -499,12 +586,14 @@ func TestUnbind(t *testing.T) {
 				MockUpdate: test.NewMockUpdateFn(nil),
 				MockDelete: test.NewMockDeleteFn(nil),
 			},
+			typer: typer,
 			args: args{
 				ctx: context.Background(),
+				cm:  &fake.Claim{},
 				mg: &fake.Managed{
 					Reclaimer:       fake.Reclaimer{Policy: v1alpha1.ReclaimDelete},
 					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
-					ClaimReferencer: fake.ClaimReferencer{Ref: &corev1.ObjectReference{}},
+					ClaimReferencer: fake.ClaimReferencer{Ref: ref},
 				},
 			},
 			want: want{
@@ -520,12 +609,14 @@ func TestUnbind(t *testing.T) {
 			client: &test.MockClient{
 				MockUpdate: test.NewMockUpdateFn(errBoom),
 			},
+			typer: typer,
 			args: args{
 				ctx: context.Background(),
+				cm:  &fake.Claim{},
 				mg: &fake.Managed{
 					Reclaimer:       fake.Reclaimer{Policy: v1alpha1.ReclaimRetain},
 					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
-					ClaimReferencer: fake.ClaimReferencer{Ref: &corev1.ObjectReference{}},
+					ClaimReferencer: fake.ClaimReferencer{Ref: ref},
 				},
 			},
 			want: want{
@@ -542,12 +633,14 @@ func TestUnbind(t *testing.T) {
 				MockUpdate: test.NewMockUpdateFn(nil),
 				MockDelete: test.NewMockDeleteFn(errBoom),
 			},
+			typer: typer,
 			args: args{
 				ctx: context.Background(),
+				cm:  &fake.Claim{},
 				mg: &fake.Managed{
 					Reclaimer:       fake.Reclaimer{Policy: v1alpha1.ReclaimDelete},
 					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
-					ClaimReferencer: fake.ClaimReferencer{Ref: &corev1.ObjectReference{}},
+					ClaimReferencer: fake.ClaimReferencer{Ref: ref},
 				},
 			},
 			want: want{
@@ -588,6 +681,8 @@ func TestStatusUnbind(t *testing.T) {
 	}
 
 	errBoom := errors.New("boom")
+	typer := fake.SchemeWith(&fake.Claim{})
+	ref := meta.ReferenceTo(&fake.Claim{}, resource.MustGetKind(&fake.Claim{}, typer))
 
 	cases := map[string]struct {
 		client client.Client
@@ -595,16 +690,30 @@ func TestStatusUnbind(t *testing.T) {
 		args   args
 		want   want
 	}{
+		"RefMismatchError": {
+			typer: fake.SchemeWith(&fake.Claim{}),
+			args: args{
+				ctx: context.Background(),
+				cm:  &fake.Claim{ObjectMeta: metav1.ObjectMeta{Name: "I'm different!"}},
+				mg:  &fake.Managed{ClaimReferencer: fake.ClaimReferencer{Ref: ref}},
+			},
+			want: want{
+				err: errors.New(errUnbindMismatch),
+				mg:  &fake.Managed{ClaimReferencer: fake.ClaimReferencer{Ref: ref}},
+			},
+		},
 		"SuccessfulRetain": {
 			client: &test.MockClient{
 				MockUpdate:       test.NewMockUpdateFn(nil),
 				MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 			},
+			typer: typer,
 			args: args{
 				ctx: context.Background(),
+				cm:  &fake.Claim{},
 				mg: &fake.Managed{
 					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
-					ClaimReferencer: fake.ClaimReferencer{Ref: &corev1.ObjectReference{}},
+					ClaimReferencer: fake.ClaimReferencer{Ref: ref},
 				},
 			},
 			want: want{
@@ -621,12 +730,14 @@ func TestStatusUnbind(t *testing.T) {
 				MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 				MockDelete:       test.NewMockDeleteFn(nil),
 			},
+			typer: typer,
 			args: args{
 				ctx: context.Background(),
+				cm:  &fake.Claim{},
 				mg: &fake.Managed{
 					Reclaimer:       fake.Reclaimer{Policy: v1alpha1.ReclaimDelete},
 					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
-					ClaimReferencer: fake.ClaimReferencer{Ref: &corev1.ObjectReference{}},
+					ClaimReferencer: fake.ClaimReferencer{Ref: ref},
 				},
 			},
 			want: want{
@@ -642,11 +753,13 @@ func TestStatusUnbind(t *testing.T) {
 			client: &test.MockClient{
 				MockUpdate: test.NewMockUpdateFn(errBoom),
 			},
+			typer: typer,
 			args: args{
 				ctx: context.Background(),
+				cm:  &fake.Claim{},
 				mg: &fake.Managed{
 					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
-					ClaimReferencer: fake.ClaimReferencer{Ref: &corev1.ObjectReference{}},
+					ClaimReferencer: fake.ClaimReferencer{Ref: ref},
 				},
 			},
 			want: want{
@@ -662,12 +775,14 @@ func TestStatusUnbind(t *testing.T) {
 				MockUpdate:       test.NewMockUpdateFn(nil),
 				MockStatusUpdate: test.NewMockStatusUpdateFn(errBoom),
 			},
+			typer: typer,
 			args: args{
 				ctx: context.Background(),
+				cm:  &fake.Claim{},
 				mg: &fake.Managed{
 					Reclaimer:       fake.Reclaimer{Policy: v1alpha1.ReclaimRetain},
 					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
-					ClaimReferencer: fake.ClaimReferencer{Ref: &corev1.ObjectReference{}},
+					ClaimReferencer: fake.ClaimReferencer{Ref: ref},
 				},
 			},
 			want: want{
@@ -685,12 +800,14 @@ func TestStatusUnbind(t *testing.T) {
 				MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 				MockDelete:       test.NewMockDeleteFn(errBoom),
 			},
+			typer: typer,
 			args: args{
 				ctx: context.Background(),
+				cm:  &fake.Claim{},
 				mg: &fake.Managed{
 					Reclaimer:       fake.Reclaimer{Policy: v1alpha1.ReclaimDelete},
 					BindingStatus:   v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound},
-					ClaimReferencer: fake.ClaimReferencer{Ref: &corev1.ObjectReference{}},
+					ClaimReferencer: fake.ClaimReferencer{Ref: ref},
 				},
 			},
 			want: want{
@@ -713,6 +830,89 @@ func TestStatusUnbind(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.mg, tc.args.mg, test.EquateConditions()); diff != "" {
 				t.Errorf("api.Unbind(...) Managed: -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestObjectReferenceEqual(t *testing.T) {
+	cases := map[string]struct {
+		a    *corev1.ObjectReference
+		b    *corev1.ObjectReference
+		want bool
+	}{
+		"BothNil": {
+			want: true,
+		},
+		"OneIsNil": {
+			a:    &corev1.ObjectReference{},
+			want: false,
+		},
+		"MismatchedAPIVersion": {
+			a: &corev1.ObjectReference{
+				APIVersion: "v",
+			},
+			b:    &corev1.ObjectReference{},
+			want: false,
+		},
+		"MismatchedKind": {
+			a: &corev1.ObjectReference{
+				APIVersion: "v",
+				Kind:       "k",
+			},
+			b: &corev1.ObjectReference{
+				APIVersion: "v",
+			},
+			want: false,
+		},
+		"MismatchedNamespace": {
+			a: &corev1.ObjectReference{
+				APIVersion: "v",
+				Kind:       "k",
+				Namespace:  "ns",
+			},
+			b: &corev1.ObjectReference{
+				APIVersion: "v",
+				Kind:       "k",
+			},
+			want: false,
+		},
+		"MismatchedName": {
+			a: &corev1.ObjectReference{
+				APIVersion: "v",
+				Kind:       "k",
+				Namespace:  "ns",
+				Name:       "cool",
+			},
+			b: &corev1.ObjectReference{
+				APIVersion: "v",
+				Kind:       "k",
+				Namespace:  "ns",
+			},
+			want: false,
+		},
+		"Match": {
+			a: &corev1.ObjectReference{
+				APIVersion: "v",
+				Kind:       "k",
+				Namespace:  "ns",
+				Name:       "cool",
+			},
+			b: &corev1.ObjectReference{
+				APIVersion: "v",
+				Kind:       "k",
+				Namespace:  "ns",
+				Name:       "cool",
+			},
+			want: true,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := equal(tc.a, tc.b)
+			if got != tc.want {
+				t.Errorf("equal(...): want %t, got %t", tc.want, got)
 			}
 		})
 	}
