@@ -18,6 +18,7 @@ package resource
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -230,8 +231,8 @@ func TestPropagateConnection(t *testing.T) {
 
 func TestAPIPatchingApplicator(t *testing.T) {
 	errBoom := errors.New("boom")
-	named := &object{}
-	named.SetName("barry")
+	desired := &object{}
+	desired.SetName("desired")
 
 	type args struct {
 		ctx context.Context
@@ -317,15 +318,15 @@ func TestAPIPatchingApplicator(t *testing.T) {
 			c: &test.MockClient{
 				MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				MockCreate: test.NewMockCreateFn(nil, func(o runtime.Object) error {
-					*o.(*object) = *named
+					*o.(*object) = *desired
 					return nil
 				}),
 			},
 			args: args{
-				o: &object{},
+				o: desired,
 			},
 			want: want{
-				o: named,
+				o: desired,
 			},
 		},
 		"Patched": {
@@ -333,15 +334,15 @@ func TestAPIPatchingApplicator(t *testing.T) {
 			c: &test.MockClient{
 				MockGet: test.NewMockGetFn(nil),
 				MockPatch: test.NewMockPatchFn(nil, func(o runtime.Object) error {
-					*o.(*object) = *named
+					*o.(*object) = *desired
 					return nil
 				}),
 			},
 			args: args{
-				o: &object{},
+				o: desired,
 			},
 			want: want{
-				o: named,
+				o: desired,
 			},
 		},
 	}
@@ -362,8 +363,10 @@ func TestAPIPatchingApplicator(t *testing.T) {
 
 func TestAPIUpdatingApplicator(t *testing.T) {
 	errBoom := errors.New("boom")
-	named := &object{}
-	named.SetName("barry")
+	desired := &object{}
+	desired.SetName("desired")
+	current := &object{}
+	current.SetName("current")
 
 	type args struct {
 		ctx context.Context
@@ -449,31 +452,39 @@ func TestAPIUpdatingApplicator(t *testing.T) {
 			c: &test.MockClient{
 				MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				MockCreate: test.NewMockCreateFn(nil, func(o runtime.Object) error {
-					*o.(*object) = *named
+					*o.(*object) = *desired
 					return nil
 				}),
 			},
 			args: args{
-				o: &object{},
+				o: desired,
 			},
 			want: want{
-				o: named,
+				o: desired,
 			},
 		},
 		"Updated": {
-			reason: "No error should be returned if we successfully update an existing object",
+			reason: "No error should be returned if we successfully update an existing object. If no ApplyOption is passed the existing should not be modified",
 			c: &test.MockClient{
-				MockGet: test.NewMockGetFn(nil),
+				MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+					*o.(*object) = *current
+					fmt.Println(current.Name)
+					return nil
+				}),
 				MockUpdate: test.NewMockUpdateFn(nil, func(o runtime.Object) error {
-					*o.(*object) = *named
+					fmt.Println(current.Name)
+					fmt.Println(o.(*object).Name)
+					if diff := cmp.Diff(*current, *o.(*object)); diff != "" {
+						t.Errorf("r: -want, +got:\n%s", diff)
+					}
 					return nil
 				}),
 			},
 			args: args{
-				o: &object{},
+				o: desired,
 			},
 			want: want{
-				o: named,
+				o: desired,
 			},
 		},
 	}
