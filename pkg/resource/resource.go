@@ -273,6 +273,15 @@ func (fn ApplyFn) Apply(ctx context.Context, o runtime.Object, ao ...ApplyOption
 // desired object. ApplyOptions are not called if no current object exists.
 type ApplyOption func(ctx context.Context, current, desired runtime.Object) error
 
+// UpdateFn returns an ApplyOption that is used to modify the current object to
+// match fields of the desired.
+func UpdateFn(fn func(current, desired runtime.Object)) ApplyOption {
+	return func(_ context.Context, c, d runtime.Object) error {
+		fn(c, d)
+		return nil
+	}
+}
+
 // MustBeControllableBy requires that the current object is controllable by an
 // object with the supplied UID. An object is controllable if its controller
 // reference matches the supplied UID, or it has no controller reference.
