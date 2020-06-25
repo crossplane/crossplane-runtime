@@ -197,7 +197,7 @@ type ResourceSpec struct {
 
 	// ProviderReference specifies the provider that will be used to create,
 	// observe, update, and delete this managed resource.
-	ProviderReference *corev1.ObjectReference `json:"providerRef"`
+	ProviderReference *Reference `json:"providerRef"`
 
 	// ReclaimPolicy specifies what will happen to this managed resource when
 	// its resource claim is deleted, and what will happen to the underlying
@@ -232,7 +232,7 @@ type ClassSpecTemplate struct {
 	// ProviderReference specifies the provider that will be used to create,
 	// observe, update, and delete managed resources that are dynamically
 	// provisioned using this resource class.
-	ProviderReference *corev1.ObjectReference `json:"providerRef"`
+	ProviderReference *Reference `json:"providerRef"`
 
 	// ReclaimPolicy specifies what will happen to managed resources dynamically
 	// provisioned using this class when their resource claims are deleted, and

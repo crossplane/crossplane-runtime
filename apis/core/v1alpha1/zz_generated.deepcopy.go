@@ -45,7 +45,7 @@ func (in *ClassSpecTemplate) DeepCopyInto(out *ClassSpecTemplate) {
 	*out = *in
 	if in.ProviderReference != nil {
 		in, out := &in.ProviderReference, &out.ProviderReference
-		*out = new(corev1.ObjectReference)
+		*out = new(Reference)
 		**out = **in
 	}
 }
@@ -220,7 +220,7 @@ func (in *ResourceSpec) DeepCopyInto(out *ResourceSpec) {
 	}
 	if in.ProviderReference != nil {
 		in, out := &in.ProviderReference, &out.ProviderReference
-		*out = new(corev1.ObjectReference)
+		*out = new(Reference)
 		**out = **in
 	}
 }
