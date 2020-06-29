@@ -628,7 +628,7 @@ func TestGetExternalTags(t *testing.T) {
 			o: &fake.Managed{ObjectMeta: metav1.ObjectMeta{
 				Name: name,
 			},
-				ProviderReferencer: fake.ProviderReferencer{Ref: &corev1.ObjectReference{Name: provName}},
+				ProviderReferencer: fake.ProviderReferencer{Ref: v1alpha1.Reference{Name: provName}},
 				ClassReferencer:    fake.ClassReferencer{Ref: &corev1.ObjectReference{Name: className}},
 			},
 			want: map[string]string{

@@ -360,7 +360,7 @@ func GetExternalTags(mg Managed) map[string]string {
 	if mg.GetClassReference() != nil {
 		tags[ExternalResourceTagKeyClass] = mg.GetClassReference().Name
 	}
-	if mg.GetProviderReference() != nil {
+	if mg.GetProviderReference().Name != "" {
 		tags[ExternalResourceTagKeyProvider] = mg.GetProviderReference().Name
 	}
 	return tags
