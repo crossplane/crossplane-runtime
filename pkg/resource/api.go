@@ -139,7 +139,11 @@ func (a *APIPatchingApplicator) Apply(ctx context.Context, o runtime.Object, ao 
 
 	err := a.client.Get(ctx, types.NamespacedName{Name: m.GetName(), Namespace: m.GetNamespace()}, o)
 	if kerrors.IsNotFound(err) {
-		// TODO(negz): Apply ApplyOptions here too?
+		for _, fn := range ao {
+			if err := fn(ctx, o, desired); err != nil {
+				return err
+			}
+		}
 		return errors.Wrap(a.client.Create(ctx, o), "cannot create object")
 	}
 	if err != nil {
@@ -190,7 +194,11 @@ func (a *APIUpdatingApplicator) Apply(ctx context.Context, o runtime.Object, ao 
 
 	err := a.client.Get(ctx, types.NamespacedName{Name: m.GetName(), Namespace: m.GetNamespace()}, current)
 	if kerrors.IsNotFound(err) {
-		// TODO(negz): Apply ApplyOptions here too?
+		for _, fn := range ao {
+			if err := fn(ctx, current, o); err != nil {
+				return err
+			}
+		}
 		return errors.Wrap(a.client.Create(ctx, o), "cannot create object")
 	}
 	if err != nil {
