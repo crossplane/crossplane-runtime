@@ -131,6 +131,7 @@ func (obj *TypedReference) GroupVersionKind() schema.GroupVersionKind {
 func (obj *TypedReference) GetObjectKind() schema.ObjectKind { return obj }
 
 // A ResourceClaimSpec defines the desired state of a resource claim.
+// Deprecated. See https://github.com/crossplane/crossplane/issues/1670
 type ResourceClaimSpec struct {
 	// WriteConnectionSecretToReference specifies the name of a Secret, in the
 	// same namespace as this resource claim, to which any connection details
@@ -164,6 +165,7 @@ type ResourceClaimSpec struct {
 }
 
 // A ResourceClaimStatus represents the observed status of a resource claim.
+// Deprecated. See https://github.com/crossplane/crossplane/issues/1670
 type ResourceClaimStatus struct {
 	ConditionedStatus `json:",inline"`
 	BindingStatus     `json:",inline"`
@@ -183,15 +185,15 @@ type ResourceSpec struct {
 
 	// ClaimReference specifies the resource claim to which this managed
 	// resource will be bound. ClaimReference is set automatically during
-	// dynamic provisioning. Crossplane does not currently support setting this
-	// field manually, per https://github.com/crossplane/crossplane-runtime/issues/19
+	// dynamic provisioning.
+	// Deprecated. See https://github.com/crossplane/crossplane/issues/1670
+	//
 	// +optional
 	ClaimReference *corev1.ObjectReference `json:"claimRef,omitempty"`
 
 	// ClassReference specifies the resource class that was used to dynamically
-	// provision this managed resource, if any. Crossplane does not currently
-	// support setting this field manually, per
-	// https://github.com/crossplane/crossplane-runtime/issues/20
+	// provision this managed resource, if any.
+	// Deprecated. See https://github.com/crossplane/crossplane/issues/1670
 	// +optional
 	ClassReference *corev1.ObjectReference `json:"classRef,omitempty"`
 

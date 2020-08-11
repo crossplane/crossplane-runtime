@@ -50,6 +50,7 @@ type BindingStatus struct {
 	// currently unavailable, or still being created. Unbound resource are
 	// available for binding, and Bound resources have successfully bound to
 	// another resource.
+	// Deprecated. See https://github.com/crossplane/crossplane/issues/1670
 	// +optional
 	// +kubebuilder:validation:Enum=Unbindable;Unbound;Bound;Released
 	Phase BindingPhase `json:"bindingPhase,omitempty"`
