@@ -125,22 +125,38 @@ func NewAPIPatchingApplicator(c client.Client) *APIPatchingApplicator {
 // Apply changes to the supplied object. The object will be created if it does
 // not exist, or patched if it does. If the object does it exist it will always
 // be patched, regardless of resource version.
-func (a *APIPatchingApplicator) Apply(ctx context.Context, o runtime.Object, ao ...ApplyOption) error {
+func (a *APIPatchingApplicator) Apply(ctx context.Context, o runtime.Object, ao ...ApplyOption) error { //nolint:gocyclo
 	m, ok := o.(metav1.Object)
 	if !ok {
 		return errors.New("cannot access object metadata")
 	}
 
-	if m.GetName() == "" && m.GetGenerateName() != "" {
-		return errors.Wrap(a.client.Create(ctx, o), "cannot create object")
-	}
-
+	empty := NewEmptyInstance(o)
 	desired := o.DeepCopyObject()
 
+	if m.GetName() == "" && m.GetGenerateName() != "" {
+		// This for loop is written twice but run only once for an object. If
+		// we put it out of these if blocks, then they will be called all the time
+		// in case object exists unnecessarily and also with a wrong input, i.e.
+		// empty object is a wrong input if the object exists.
+		for _, fn := range ao {
+			if err := fn(ctx, empty, desired); err != nil {
+				return err
+			}
+		}
+		return errors.Wrap(a.client.Create(ctx, desired), "cannot create object")
+	}
+	// In the end of the function, "o" needs to be returned as the most up-to-date
+	// form of the object that exists in the api-server. Hence, we stop using
+	// "empty" object the moment we realize the object already exists.
 	err := a.client.Get(ctx, types.NamespacedName{Name: m.GetName(), Namespace: m.GetNamespace()}, o)
 	if kerrors.IsNotFound(err) {
-		// TODO(negz): Apply ApplyOptions here too?
-		return errors.Wrap(a.client.Create(ctx, o), "cannot create object")
+		for _, fn := range ao {
+			if err := fn(ctx, empty, desired); err != nil {
+				return err
+			}
+		}
+		return errors.Wrap(a.client.Create(ctx, desired), "cannot create object")
 	}
 	if err != nil {
 		return errors.Wrap(err, "cannot get object")
@@ -176,34 +192,50 @@ func NewAPIUpdatingApplicator(c client.Client) *APIUpdatingApplicator {
 // Apply changes to the supplied object. The object will be created if it does
 // not exist, or updated if it does. If the object does exist and no
 // ApplyOptions are passed, the update will be a no-op.
-func (a *APIUpdatingApplicator) Apply(ctx context.Context, o runtime.Object, ao ...ApplyOption) error {
+func (a *APIUpdatingApplicator) Apply(ctx context.Context, o runtime.Object, ao ...ApplyOption) error { //nolint:gocyclo
 	m, ok := o.(metav1.Object)
 	if !ok {
 		return errors.New("cannot access object metadata")
 	}
 
+	empty := NewEmptyInstance(o)
+	desired := o.DeepCopyObject()
+
 	if m.GetName() == "" && m.GetGenerateName() != "" {
-		return errors.Wrap(a.client.Create(ctx, o), "cannot create object")
+		// This for loop is written twice but run only once for an object. If
+		// we put it out of these if blocks, then they will be called all the time
+		// in case object exists unnecessarily and also with a wrong input, i.e.
+		// empty object is a wrong input if the object exists.
+		for _, fn := range ao {
+			if err := fn(ctx, empty, desired); err != nil {
+				return err
+			}
+		}
+		return errors.Wrap(a.client.Create(ctx, desired), "cannot create object")
 	}
-
-	current := o.DeepCopyObject()
-
-	err := a.client.Get(ctx, types.NamespacedName{Name: m.GetName(), Namespace: m.GetNamespace()}, current)
+	// In the end of the function, "o" needs to be returned as the most up-to-date
+	// form of the object that exists in the api-server. Hence, we stop using
+	// "empty" object the moment we realize the object already exists.
+	err := a.client.Get(ctx, types.NamespacedName{Name: m.GetName(), Namespace: m.GetNamespace()}, o)
 	if kerrors.IsNotFound(err) {
-		// TODO(negz): Apply ApplyOptions here too?
-		return errors.Wrap(a.client.Create(ctx, o), "cannot create object")
+		for _, fn := range ao {
+			if err := fn(ctx, empty, desired); err != nil {
+				return err
+			}
+		}
+		return errors.Wrap(a.client.Create(ctx, desired), "cannot create object")
 	}
 	if err != nil {
 		return errors.Wrap(err, "cannot get object")
 	}
 
 	for _, fn := range ao {
-		if err := fn(ctx, current, o); err != nil {
+		if err := fn(ctx, o, desired); err != nil {
 			return err
 		}
 	}
 
-	return errors.Wrap(a.client.Update(ctx, current), "cannot update object")
+	return errors.Wrap(a.client.Update(ctx, o), "cannot update object")
 }
 
 // An APIFinalizer adds and removes finalizers to and from a resource.

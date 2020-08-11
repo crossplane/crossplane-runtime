@@ -329,6 +329,18 @@ func TestAPIPatchingApplicator(t *testing.T) {
 				o: desired,
 			},
 		},
+		"CreatedWithGenerateName": {
+			reason: "No error should be returned if we successfully create a new object with only generate name",
+			c: &test.MockClient{
+				MockCreate: test.NewMockCreateFn(nil),
+			},
+			args: args{
+				o: &object{ObjectMeta: metav1.ObjectMeta{GenerateName: "olala"}},
+			},
+			want: want{
+				o: &object{ObjectMeta: metav1.ObjectMeta{GenerateName: "olala"}},
+			},
+		},
 		"Patched": {
 			reason: "No error should be returned if we successfully patch an existing object",
 			c: &test.MockClient{
@@ -461,6 +473,18 @@ func TestAPIUpdatingApplicator(t *testing.T) {
 			},
 			want: want{
 				o: desired,
+			},
+		},
+		"CreatedWithGenerateName": {
+			reason: "No error should be returned if we successfully create a new object with only generate name",
+			c: &test.MockClient{
+				MockCreate: test.NewMockCreateFn(nil),
+			},
+			args: args{
+				o: &object{ObjectMeta: metav1.ObjectMeta{GenerateName: "olala"}},
+			},
+			want: want{
+				o: &object{ObjectMeta: metav1.ObjectMeta{GenerateName: "olala"}},
 			},
 		},
 		"Updated": {
