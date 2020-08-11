@@ -18,6 +18,7 @@ package resource
 
 import (
 	"context"
+	"reflect"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -340,6 +341,18 @@ func ControllersMustMatch() ApplyOption {
 		}
 		return nil
 	}
+}
+
+// NewEmptyInstance returns a runtime.Object whose fields are filled with zero
+// values.
+func NewEmptyInstance(o runtime.Object) runtime.Object {
+	if u, ok := o.(runtime.Unstructured); ok {
+		return u.NewEmptyInstance()
+	}
+	// We know that the input is runtime.Object so it is not possible for output
+	// to not satisfy runtime.Object interface, hence we skip returning error.
+	v, _ := reflect.New(reflect.TypeOf(o).Elem()).Interface().(runtime.Object)
+	return v
 }
 
 // Apply changes to the supplied object. The object will be created if it does

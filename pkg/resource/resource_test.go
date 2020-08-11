@@ -25,6 +25,7 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -645,6 +646,44 @@ func TestGetExternalTags(t *testing.T) {
 			got := GetExternalTags(tc.o)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("GetExternalTags(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestNewEmptyInstance(t *testing.T) {
+	cases := map[string]struct {
+		in  runtime.Object
+		out runtime.Object
+		err error
+	}{
+		"Typed": {
+			in:  &fake.Managed{ObjectMeta: metav1.ObjectMeta{Name: "ola"}},
+			out: &fake.Managed{},
+		},
+		"Unstructured": {
+			in: &unstructured.Unstructured{Object: map[string]interface{}{
+				"apiVersion": "mygroup.io/v1alpha1",
+				"kind":       "RandomKind",
+				"spec": map[string]interface{}{
+					"aField": "aValue",
+				},
+				"status": map[string]interface{}{
+					"aField": "aValue",
+				},
+			}},
+			out: &unstructured.Unstructured{Object: map[string]interface{}{
+				"apiVersion": "mygroup.io/v1alpha1",
+				"kind":       "RandomKind",
+			}},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := NewEmptyInstance(tc.in)
+			if diff := cmp.Diff(tc.out, got); diff != "" {
+				t.Errorf("NewEmptyInstance(...): -want, +got:\n%s", diff)
 			}
 		})
 	}
