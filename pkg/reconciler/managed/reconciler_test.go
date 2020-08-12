@@ -797,11 +797,11 @@ func TestShouldDelete(t *testing.T) {
 			want: false,
 		},
 		"NoPolicy": {
-			reason: "Resources should not be deleted when no deletion or reclaim policy is specified.",
+			reason: "Resources should be deleted when no deletion or reclaim policy is specified.",
 			mg: &fake.Managed{
 				Reclaimer: fake.Reclaimer{},
 			},
-			want: false,
+			want: true,
 		},
 	}
 

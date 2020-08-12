@@ -700,11 +700,18 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 // should be inlined when claims (and thus reclaim policies) are removed.
 func shouldDelete(mg resource.Managed) bool {
 	switch {
-	case mg.GetDeletionPolicy() == v1alpha1.DeletionDelete:
-		return true
+	// The deletion policy should take precedence over the reclaim policy.
 	case mg.GetDeletionPolicy() == v1alpha1.DeletionOrphan:
 		return false
+	case mg.GetDeletionPolicy() == v1alpha1.DeletionDelete:
+		return true
+
+	case mg.GetReclaimPolicy() == v1alpha1.ReclaimRetain:
+		return false
+	case mg.GetReclaimPolicy() == v1alpha1.ReclaimDelete:
+		return true
 	}
 
-	return mg.GetReclaimPolicy() == v1alpha1.ReclaimDelete
+	// If no policy is set, we default to deleting the resource.
+	return true
 }

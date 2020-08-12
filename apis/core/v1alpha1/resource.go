@@ -202,8 +202,9 @@ type ResourceSpec struct {
 	ProviderReference Reference `json:"providerRef"`
 
 	// DeletionPolicy specifies what will happen to the underlying external
-	// when this managed resource is deleted. The "Orphan" policy is used when
-	// no policy is specified.
+	// when this managed resource is deleted - either "Delete" or "Orphan" the
+	// external resource. The "Delete" policy is the default when no policy is
+	// specified.
 	//
 	// +optional
 	// +kubebuilder:validation:Enum=Orphan;Delete
@@ -217,7 +218,7 @@ type ResourceSpec struct {
 	// when its managed resource is deleted. The "Retain" policy causes the
 	// managed resource to be retained, in binding phase "Released", when its
 	// resource claim is deleted, and in turn causes the external resource to be
-	// retained when its managed resource is deleted. The "Retain" policy is
+	// retained when its managed resource is deleted. The "Delete" policy is
 	// used when no policy is specified.
 	//
 	// Deprecated. DeletionPolicy takes precedence when both are set.
@@ -257,8 +258,7 @@ type ClassSpecTemplate struct {
 	// policy causes the managed resource to be retained, in binding phase
 	// "Released", when its resource claim is deleted, and in turn causes the
 	// external resource to be retained when its managed resource is deleted.
-	// The "Retain" policy is used when no policy is specified, however the
-	// "Delete" policy is set at dynamic provisioning time if no policy is set.
+	// The "Delete" policy is used when no policy is specified.
 	// +optional
 	// +kubebuilder:validation:Enum=Retain;Delete
 	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
