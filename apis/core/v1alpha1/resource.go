@@ -201,6 +201,14 @@ type ResourceSpec struct {
 	// observe, update, and delete this managed resource.
 	ProviderReference Reference `json:"providerRef"`
 
+	// DeletionPolicy specifies what will happen to the underlying external
+	// when this managed resource is deleted. The "Orphan" policy is used when
+	// no policy is specified.
+	//
+	// +optional
+	// +kubebuilder:validation:Enum=Orphan;Delete
+	DeletionPolicy DeletionPolicy `json:"deletionPolicy,omitempty"`
+
 	// ReclaimPolicy specifies what will happen to this managed resource when
 	// its resource claim is deleted, and what will happen to the underlying
 	// external resource when the managed resource is deleted. The "Delete"
@@ -211,6 +219,10 @@ type ResourceSpec struct {
 	// resource claim is deleted, and in turn causes the external resource to be
 	// retained when its managed resource is deleted. The "Retain" policy is
 	// used when no policy is specified.
+	//
+	// Deprecated. DeletionPolicy takes precedence when both are set.
+	// See https://github.com/crossplane/crossplane-runtime/issues/179.
+	//
 	// +optional
 	// +kubebuilder:validation:Enum=Retain;Delete
 	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`

@@ -545,7 +545,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	if meta.WasDeleted(managed) {
 		log = log.WithValues("deletion-timestamp", managed.GetDeletionTimestamp())
 
-		if observation.ResourceExists && managed.GetReclaimPolicy() == v1alpha1.ReclaimDelete {
+		if observation.ResourceExists && shouldDelete(managed) {
 			if err := external.Delete(externalCtx, managed); err != nil {
 				// We'll hit this condition if we can't delete our external
 				// resource, for example if our provider credentials don't have
@@ -694,4 +694,17 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	record.Event(managed, event.Normal(reasonUpdated, "Successfully requested update of external resource"))
 	managed.SetConditions(v1alpha1.ReconcileSuccess())
 	return reconcile.Result{RequeueAfter: r.longWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+}
+
+// TODO(negz): ReclaimPolicy will be deprecated alongside resource claims; this
+// should be inlined when claims (and thus reclaim policies) are removed.
+func shouldDelete(mg resource.Managed) bool {
+	switch {
+	case mg.GetDeletionPolicy() == v1alpha1.DeletionDelete:
+		return true
+	case mg.GetDeletionPolicy() == v1alpha1.DeletionOrphan:
+		return false
+	}
+
+	return mg.GetReclaimPolicy() == v1alpha1.ReclaimDelete
 }

@@ -84,6 +84,12 @@ type Reclaimer interface {
 	GetReclaimPolicy() v1alpha1.ReclaimPolicy
 }
 
+// A Deletable may specify a DeletionPolicy.
+type Deletable interface {
+	SetDeletionPolicy(p v1alpha1.DeletionPolicy)
+	GetDeletionPolicy() v1alpha1.DeletionPolicy
+}
+
 // A CredentialsSecretReferencer may refer to a credential secret in an arbitrary
 // namespace.
 type CredentialsSecretReferencer interface {
@@ -187,6 +193,7 @@ type Managed interface {
 	ClaimReferencer
 	ProviderReferencer
 	ConnectionSecretWriterTo
+	Deletable
 	Reclaimer
 
 	Conditioned

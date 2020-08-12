@@ -759,3 +759,58 @@ func TestReconciler(t *testing.T) {
 		})
 	}
 }
+
+func TestShouldDelete(t *testing.T) {
+	cases := map[string]struct {
+		reason string
+		mg     resource.Managed
+		want   bool
+	}{
+		"DeletionPolicyDelete": {
+			reason: "The delete deletion policy should take precedence over the reclaim policy.",
+			mg: &fake.Managed{
+				Deletable: fake.Deletable{Policy: v1alpha1.DeletionDelete},
+				Reclaimer: fake.Reclaimer{Policy: v1alpha1.ReclaimRetain},
+			},
+			want: true,
+		},
+		"DeletionPolicyOrphan": {
+			reason: "The orphan deletion policy should take precedence over the reclaim policy.",
+			mg: &fake.Managed{
+				Deletable: fake.Deletable{Policy: v1alpha1.DeletionOrphan},
+				Reclaimer: fake.Reclaimer{Policy: v1alpha1.ReclaimDelete},
+			},
+			want: false,
+		},
+		"ReclaimPolicyDelete": {
+			reason: "The delete reclaim policy should take effect when no deletion policy exists.",
+			mg: &fake.Managed{
+				Reclaimer: fake.Reclaimer{Policy: v1alpha1.ReclaimDelete},
+			},
+			want: true,
+		},
+		"ReclaimPolicyRetain": {
+			reason: "The retain reclaim policy should take effect when no deletion policy exists.",
+			mg: &fake.Managed{
+				Reclaimer: fake.Reclaimer{Policy: v1alpha1.ReclaimRetain},
+			},
+			want: false,
+		},
+		"NoPolicy": {
+			reason: "Resources should not be deleted when no deletion or reclaim policy is specified.",
+			mg: &fake.Managed{
+				Reclaimer: fake.Reclaimer{},
+			},
+			want: false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := shouldDelete(tc.mg)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\nReason: %s\nshouldDelete(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
