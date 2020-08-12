@@ -769,16 +769,16 @@ func TestShouldDelete(t *testing.T) {
 		"DeletionPolicyDelete": {
 			reason: "The delete deletion policy should take precedence over the reclaim policy.",
 			mg: &fake.Managed{
-				Deletable: fake.Deletable{Policy: v1alpha1.DeletionDelete},
-				Reclaimer: fake.Reclaimer{Policy: v1alpha1.ReclaimRetain},
+				Orphanable: fake.Orphanable{Policy: v1alpha1.DeletionDelete},
+				Reclaimer:  fake.Reclaimer{Policy: v1alpha1.ReclaimRetain},
 			},
 			want: true,
 		},
 		"DeletionPolicyOrphan": {
 			reason: "The orphan deletion policy should take precedence over the reclaim policy.",
 			mg: &fake.Managed{
-				Deletable: fake.Deletable{Policy: v1alpha1.DeletionOrphan},
-				Reclaimer: fake.Reclaimer{Policy: v1alpha1.ReclaimDelete},
+				Orphanable: fake.Orphanable{Policy: v1alpha1.DeletionOrphan},
+				Reclaimer:  fake.Reclaimer{Policy: v1alpha1.ReclaimDelete},
 			},
 			want: false,
 		},

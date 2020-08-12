@@ -135,14 +135,14 @@ func (m *Reclaimer) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) { m.Policy = p }
 // GetReclaimPolicy gets the ReclaimPolicy.
 func (m *Reclaimer) GetReclaimPolicy() v1alpha1.ReclaimPolicy { return m.Policy }
 
-// Deletable implements the Deletable interface.
-type Deletable struct{ Policy v1alpha1.DeletionPolicy }
+// Orphanable implements the Orphanable interface.
+type Orphanable struct{ Policy v1alpha1.DeletionPolicy }
 
 // SetDeletionPolicy sets the DeletionPolicy.
-func (m *Deletable) SetDeletionPolicy(p v1alpha1.DeletionPolicy) { m.Policy = p }
+func (m *Orphanable) SetDeletionPolicy(p v1alpha1.DeletionPolicy) { m.Policy = p }
 
 // GetDeletionPolicy gets the DeletionPolicy.
-func (m *Deletable) GetDeletionPolicy() v1alpha1.DeletionPolicy { return m.Policy }
+func (m *Orphanable) GetDeletionPolicy() v1alpha1.DeletionPolicy { return m.Policy }
 
 // CredentialsSecretReferencer is a mock that satisfies CredentialsSecretReferencer
 // interface.
@@ -281,7 +281,7 @@ type Managed struct {
 	ClaimReferencer
 	ProviderReferencer
 	ConnectionSecretWriterTo
-	Deletable
+	Orphanable
 	Reclaimer
 	v1alpha1.ConditionedStatus
 	v1alpha1.BindingStatus
