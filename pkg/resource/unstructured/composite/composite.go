@@ -143,17 +143,6 @@ func (c *Unstructured) SetWriteConnectionSecretToReference(ref *v1alpha1.SecretR
 	_ = fieldpath.Pave(c.Object).SetValue("spec.writeConnectionSecretToRef", ref)
 }
 
-// GetReclaimPolicy of this Composite resource.
-func (c *Unstructured) GetReclaimPolicy() v1alpha1.ReclaimPolicy {
-	s, _ := fieldpath.Pave(c.Object).GetString("spec.reclaimPolicy")
-	return v1alpha1.ReclaimPolicy(s)
-}
-
-// SetReclaimPolicy of this Composite resource.
-func (c *Unstructured) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) {
-	_ = fieldpath.Pave(c.Object).SetValue("spec.reclaimPolicy", p)
-}
-
 // GetCondition of this Composite resource.
 func (c *Unstructured) GetCondition(ct v1alpha1.ConditionType) v1alpha1.Condition {
 	conditioned := v1alpha1.ConditionedStatus{}

@@ -238,27 +238,3 @@ func TestWriteConnectionSecretToReference(t *testing.T) {
 		})
 	}
 }
-
-func TestReclaimPolicy(t *testing.T) {
-	cases := map[string]struct {
-		u    *Unstructured
-		set  v1alpha1.ReclaimPolicy
-		want v1alpha1.ReclaimPolicy
-	}{
-		"NewRef": {
-			u:    New(),
-			set:  v1alpha1.ReclaimRetain,
-			want: v1alpha1.ReclaimRetain,
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			tc.u.SetReclaimPolicy(tc.set)
-			got := tc.u.GetReclaimPolicy()
-			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("\nu.GetReclaimPolicy(): -want, +got:\n%s", diff)
-			}
-		})
-	}
-}
