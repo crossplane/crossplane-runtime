@@ -84,6 +84,12 @@ type Reclaimer interface {
 	GetReclaimPolicy() v1alpha1.ReclaimPolicy
 }
 
+// An Orphanable resource may specify a DeletionPolicy.
+type Orphanable interface {
+	SetDeletionPolicy(p v1alpha1.DeletionPolicy)
+	GetDeletionPolicy() v1alpha1.DeletionPolicy
+}
+
 // A CredentialsSecretReferencer may refer to a credential secret in an arbitrary
 // namespace.
 type CredentialsSecretReferencer interface {
@@ -187,6 +193,7 @@ type Managed interface {
 	ClaimReferencer
 	ProviderReferencer
 	ConnectionSecretWriterTo
+	Orphanable
 	Reclaimer
 
 	Conditioned

@@ -131,6 +131,7 @@ func (obj *TypedReference) GroupVersionKind() schema.GroupVersionKind {
 func (obj *TypedReference) GetObjectKind() schema.ObjectKind { return obj }
 
 // A ResourceClaimSpec defines the desired state of a resource claim.
+// Deprecated. See https://github.com/crossplane/crossplane/issues/1670
 type ResourceClaimSpec struct {
 	// WriteConnectionSecretToReference specifies the name of a Secret, in the
 	// same namespace as this resource claim, to which any connection details
@@ -164,6 +165,7 @@ type ResourceClaimSpec struct {
 }
 
 // A ResourceClaimStatus represents the observed status of a resource claim.
+// Deprecated. See https://github.com/crossplane/crossplane/issues/1670
 type ResourceClaimStatus struct {
 	ConditionedStatus `json:",inline"`
 	BindingStatus     `json:",inline"`
@@ -183,21 +185,30 @@ type ResourceSpec struct {
 
 	// ClaimReference specifies the resource claim to which this managed
 	// resource will be bound. ClaimReference is set automatically during
-	// dynamic provisioning. Crossplane does not currently support setting this
-	// field manually, per https://github.com/crossplane/crossplane-runtime/issues/19
+	// dynamic provisioning.
+	// Deprecated. See https://github.com/crossplane/crossplane/issues/1670
+	//
 	// +optional
 	ClaimReference *corev1.ObjectReference `json:"claimRef,omitempty"`
 
 	// ClassReference specifies the resource class that was used to dynamically
-	// provision this managed resource, if any. Crossplane does not currently
-	// support setting this field manually, per
-	// https://github.com/crossplane/crossplane-runtime/issues/20
+	// provision this managed resource, if any.
+	// Deprecated. See https://github.com/crossplane/crossplane/issues/1670
 	// +optional
 	ClassReference *corev1.ObjectReference `json:"classRef,omitempty"`
 
 	// ProviderReference specifies the provider that will be used to create,
 	// observe, update, and delete this managed resource.
 	ProviderReference Reference `json:"providerRef"`
+
+	// DeletionPolicy specifies what will happen to the underlying external
+	// when this managed resource is deleted - either "Delete" or "Orphan" the
+	// external resource. The "Delete" policy is the default when no policy is
+	// specified.
+	//
+	// +optional
+	// +kubebuilder:validation:Enum=Orphan;Delete
+	DeletionPolicy DeletionPolicy `json:"deletionPolicy,omitempty"`
 
 	// ReclaimPolicy specifies what will happen to this managed resource when
 	// its resource claim is deleted, and what will happen to the underlying
@@ -207,8 +218,12 @@ type ResourceSpec struct {
 	// when its managed resource is deleted. The "Retain" policy causes the
 	// managed resource to be retained, in binding phase "Released", when its
 	// resource claim is deleted, and in turn causes the external resource to be
-	// retained when its managed resource is deleted. The "Retain" policy is
+	// retained when its managed resource is deleted. The "Delete" policy is
 	// used when no policy is specified.
+	//
+	// Deprecated. DeletionPolicy takes precedence when both are set.
+	// See https://github.com/crossplane/crossplane-runtime/issues/179.
+	//
 	// +optional
 	// +kubebuilder:validation:Enum=Retain;Delete
 	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
@@ -243,8 +258,7 @@ type ClassSpecTemplate struct {
 	// policy causes the managed resource to be retained, in binding phase
 	// "Released", when its resource claim is deleted, and in turn causes the
 	// external resource to be retained when its managed resource is deleted.
-	// The "Retain" policy is used when no policy is specified, however the
-	// "Delete" policy is set at dynamic provisioning time if no policy is set.
+	// The "Delete" policy is used when no policy is specified.
 	// +optional
 	// +kubebuilder:validation:Enum=Retain;Delete
 	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
