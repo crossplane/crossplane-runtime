@@ -229,7 +229,6 @@ type Composite interface {
 	CompositionReferencer
 	ComposedResourcesReferencer
 	ClaimReferencer
-	Reclaimer
 	ConnectionSecretWriterTo
 
 	Conditioned
