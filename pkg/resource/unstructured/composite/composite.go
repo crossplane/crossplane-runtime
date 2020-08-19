@@ -93,18 +93,18 @@ func (c *Unstructured) SetCompositionReference(ref *corev1.ObjectReference) {
 	_ = fieldpath.Pave(c.Object).SetValue("spec.compositionRef", ref)
 }
 
-// GetRequirementReference of this Composite resource.
-func (c *Unstructured) GetRequirementReference() *corev1.ObjectReference {
+// GetClaimReference of this Composite resource.
+func (c *Unstructured) GetClaimReference() *corev1.ObjectReference {
 	out := &corev1.ObjectReference{}
-	if err := fieldpath.Pave(c.Object).GetValueInto("spec.requirementRef", out); err != nil {
+	if err := fieldpath.Pave(c.Object).GetValueInto("spec.claimRef", out); err != nil {
 		return nil
 	}
 	return out
 }
 
-// SetRequirementReference of this Composite resource.
-func (c *Unstructured) SetRequirementReference(ref *corev1.ObjectReference) {
-	_ = fieldpath.Pave(c.Object).SetValue("spec.requirementRef", ref)
+// SetClaimReference of this Composite resource.
+func (c *Unstructured) SetClaimReference(ref *corev1.ObjectReference) {
+	_ = fieldpath.Pave(c.Object).SetValue("spec.claimRef", ref)
 }
 
 // GetResourceReferences of this Composite resource.

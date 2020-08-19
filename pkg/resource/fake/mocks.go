@@ -185,15 +185,6 @@ func (m *CompositeResourceReferencer) SetResourceReference(p *corev1.ObjectRefer
 // GetResourceReference gets the composite resource reference.
 func (m *CompositeResourceReferencer) GetResourceReference() *corev1.ObjectReference { return m.Ref }
 
-// RequirementReferencer is a mock that implements RequirementReferencer interface.
-type RequirementReferencer struct{ Ref *corev1.ObjectReference }
-
-// SetRequirementReference sets the requirement reference.
-func (m *RequirementReferencer) SetRequirementReference(p *corev1.ObjectReference) { m.Ref = p }
-
-// GetRequirementReference gets the requirement reference.
-func (m *RequirementReferencer) GetRequirementReference() *corev1.ObjectReference { return m.Ref }
-
 // ComposedResourcesReferencer is a mock that implements ComposedResourcesReferencer interface.
 type ComposedResourcesReferencer struct{ Refs []corev1.ObjectReference }
 
@@ -355,7 +346,7 @@ type Composite struct {
 	CompositionSelector
 	CompositionReferencer
 	ComposedResourcesReferencer
-	RequirementReferencer
+	ClaimReferencer
 	Reclaimer
 	ConnectionSecretWriterTo
 	v1alpha1.ConditionedStatus
@@ -400,8 +391,8 @@ func (m *Composed) DeepCopyObject() runtime.Object {
 	return out
 }
 
-// Requirement is a mock that implements Requirement interface.
-type Requirement struct {
+// CompositeClaim is a mock that implements the CompositeClaim interface.
+type CompositeClaim struct {
 	metav1.ObjectMeta
 	CompositionSelector
 	CompositionReferencer
@@ -411,13 +402,13 @@ type Requirement struct {
 }
 
 // GetObjectKind returns schema.ObjectKind.
-func (m *Requirement) GetObjectKind() schema.ObjectKind {
+func (m *CompositeClaim) GetObjectKind() schema.ObjectKind {
 	return schema.EmptyObjectKind
 }
 
 // DeepCopyObject returns a copy of the object as runtime.Object
-func (m *Requirement) DeepCopyObject() runtime.Object {
-	out := &Requirement{}
+func (m *CompositeClaim) DeepCopyObject() runtime.Object {
+	out := &CompositeClaim{}
 	j, err := json.Marshal(m)
 	if err != nil {
 		panic(err)
