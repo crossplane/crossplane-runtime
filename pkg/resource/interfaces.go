@@ -127,12 +127,6 @@ type ComposedResourcesReferencer interface {
 	GetResourceReferences() []corev1.ObjectReference
 }
 
-// A RequirementReferencer can reference a requirement resource.
-type RequirementReferencer interface {
-	SetRequirementReference(r *corev1.ObjectReference)
-	GetRequirementReference() *corev1.ObjectReference
-}
-
 // A CompositeResourceReferencer can reference a composite resource.
 type CompositeResourceReferencer interface {
 	SetResourceReference(r *corev1.ObjectReference)
@@ -234,7 +228,7 @@ type Composite interface {
 	CompositionSelector
 	CompositionReferencer
 	ComposedResourcesReferencer
-	RequirementReferencer
+	ClaimReferencer
 	Reclaimer
 	ConnectionSecretWriterTo
 
@@ -249,8 +243,8 @@ type Composed interface {
 	ConnectionSecretWriterTo
 }
 
-// A Requirement for a Composite resource.
-type Requirement interface {
+// A CompositeClaim for a Composite resource.
+type CompositeClaim interface {
 	Object
 
 	CompositionSelector

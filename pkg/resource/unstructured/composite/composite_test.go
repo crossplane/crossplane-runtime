@@ -163,7 +163,7 @@ func TestCompositionReference(t *testing.T) {
 	}
 }
 
-func TestRequirementReference(t *testing.T) {
+func TestClaimReference(t *testing.T) {
 	ref := &corev1.ObjectReference{Namespace: "ns", Name: "cool"}
 	cases := map[string]struct {
 		u    *Unstructured
@@ -179,10 +179,10 @@ func TestRequirementReference(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			tc.u.SetRequirementReference(tc.set)
-			got := tc.u.GetRequirementReference()
+			tc.u.SetClaimReference(tc.set)
+			got := tc.u.GetClaimReference()
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("\nu.GetRequirementReference(): -want, +got:\n%s", diff)
+				t.Errorf("\nu.GetClaimReference(): -want, +got:\n%s", diff)
 			}
 		})
 	}

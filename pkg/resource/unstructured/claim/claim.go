@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package requirement contains an unstructured resource requirement.
-package requirement
+// Package claim contains an unstructured composite resource claim.
+package claim
 
 import (
 	corev1 "k8s.io/api/core/v1"
@@ -27,11 +27,11 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 )
 
-// An Option modifies an unstructured resource requirement.
+// An Option modifies an unstructured composite resource claim.
 type Option func(*Unstructured)
 
-// WithGroupVersionKind sets the GroupVersionKind of the unstructured resource
-// requirement.
+// WithGroupVersionKind sets the GroupVersionKind of the unstructured composite
+// resource claim.
 func WithGroupVersionKind(gvk schema.GroupVersionKind) Option {
 	return func(c *Unstructured) {
 		c.SetGroupVersionKind(gvk)
@@ -39,14 +39,14 @@ func WithGroupVersionKind(gvk schema.GroupVersionKind) Option {
 }
 
 // WithConditions returns an Option that sets the supplied conditions on an
-// unstructured resource requirement.
+// unstructured composite resource claim.
 func WithConditions(c ...v1alpha1.Condition) Option {
 	return func(cr *Unstructured) {
 		cr.SetConditions(c...)
 	}
 }
 
-// New returns a new unstructured resource requirement.
+// New returns a new unstructured composite resource claim.
 func New(opts ...Option) *Unstructured {
 	c := &Unstructured{Unstructured: unstructured.Unstructured{Object: make(map[string]interface{})}}
 	for _, f := range opts {
@@ -55,7 +55,7 @@ func New(opts ...Option) *Unstructured {
 	return c
 }
 
-// An Unstructured resource requirement.
+// An Unstructured composite resource claim.
 type Unstructured struct {
 	unstructured.Unstructured
 }
@@ -65,7 +65,7 @@ func (c *Unstructured) GetUnstructured() *unstructured.Unstructured {
 	return &c.Unstructured
 }
 
-// GetCompositionSelector of this resource Requirement.
+// GetCompositionSelector of this composite resource claim.
 func (c *Unstructured) GetCompositionSelector() *metav1.LabelSelector {
 	out := &metav1.LabelSelector{}
 	if err := fieldpath.Pave(c.Object).GetValueInto("spec.compositionSelector", out); err != nil {
@@ -74,12 +74,12 @@ func (c *Unstructured) GetCompositionSelector() *metav1.LabelSelector {
 	return out
 }
 
-// SetCompositionSelector of this resource Requirement.
+// SetCompositionSelector of this composite resource claim.
 func (c *Unstructured) SetCompositionSelector(sel *metav1.LabelSelector) {
 	_ = fieldpath.Pave(c.Object).SetValue("spec.compositionSelector", sel)
 }
 
-// GetCompositionReference of this resource Requirement.
+// GetCompositionReference of this composite resource claim.
 func (c *Unstructured) GetCompositionReference() *corev1.ObjectReference {
 	out := &corev1.ObjectReference{}
 	if err := fieldpath.Pave(c.Object).GetValueInto("spec.compositionRef", out); err != nil {
@@ -88,12 +88,12 @@ func (c *Unstructured) GetCompositionReference() *corev1.ObjectReference {
 	return out
 }
 
-// SetCompositionReference of this resource Requirement.
+// SetCompositionReference of this composite resource claim.
 func (c *Unstructured) SetCompositionReference(ref *corev1.ObjectReference) {
 	_ = fieldpath.Pave(c.Object).SetValue("spec.compositionRef", ref)
 }
 
-// GetResourceReference of this resource Requirement.
+// GetResourceReference of this composite resource claim.
 func (c *Unstructured) GetResourceReference() *corev1.ObjectReference {
 	out := &corev1.ObjectReference{}
 	if err := fieldpath.Pave(c.Object).GetValueInto("spec.resourceRef", out); err != nil {
@@ -102,12 +102,12 @@ func (c *Unstructured) GetResourceReference() *corev1.ObjectReference {
 	return out
 }
 
-// SetResourceReference of this resource Requirement.
+// SetResourceReference of this composite resource claim.
 func (c *Unstructured) SetResourceReference(ref *corev1.ObjectReference) {
 	_ = fieldpath.Pave(c.Object).SetValue("spec.resourceRef", ref)
 }
 
-// GetWriteConnectionSecretToReference of this resource Requirement.
+// GetWriteConnectionSecretToReference of this composite resource claim.
 func (c *Unstructured) GetWriteConnectionSecretToReference() *v1alpha1.LocalSecretReference {
 	out := &v1alpha1.LocalSecretReference{}
 	if err := fieldpath.Pave(c.Object).GetValueInto("spec.writeConnectionSecretToRef", out); err != nil {
@@ -116,12 +116,12 @@ func (c *Unstructured) GetWriteConnectionSecretToReference() *v1alpha1.LocalSecr
 	return out
 }
 
-// SetWriteConnectionSecretToReference of this resource Requirement.
+// SetWriteConnectionSecretToReference of this composite resource claim.
 func (c *Unstructured) SetWriteConnectionSecretToReference(ref *v1alpha1.LocalSecretReference) {
 	_ = fieldpath.Pave(c.Object).SetValue("spec.writeConnectionSecretToRef", ref)
 }
 
-// GetCondition of this Requirement.
+// GetCondition of this composite resource claim.
 func (c *Unstructured) GetCondition(ct v1alpha1.ConditionType) v1alpha1.Condition {
 	conditioned := v1alpha1.ConditionedStatus{}
 	// The path is directly `status` because conditions are inline.
@@ -131,7 +131,7 @@ func (c *Unstructured) GetCondition(ct v1alpha1.ConditionType) v1alpha1.Conditio
 	return conditioned.GetCondition(ct)
 }
 
-// SetConditions of this Requirement.
+// SetConditions of this composite resource claim.
 func (c *Unstructured) SetConditions(conditions ...v1alpha1.Condition) {
 	conditioned := v1alpha1.ConditionedStatus{}
 	// The path is directly `status` because conditions are inline.
