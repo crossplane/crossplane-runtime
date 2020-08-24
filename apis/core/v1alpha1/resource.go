@@ -197,9 +197,15 @@ type ResourceSpec struct {
 	// +optional
 	ClassReference *corev1.ObjectReference `json:"classRef,omitempty"`
 
+	// ProviderConfigReference specifies how the provider that will be used to
+	// create, observe, update, and delete this managed resource should be
+	// configured.
+	ProviderConfigReference *Reference `json:"providerConfigRef,omitempty"`
+
 	// ProviderReference specifies the provider that will be used to create,
 	// observe, update, and delete this managed resource.
-	ProviderReference Reference `json:"providerRef"`
+	// Deprecated: Please use ProviderConfigReference, i.e. `providerConfigRef`
+	ProviderReference *Reference `json:"providerRef,omitempty"`
 
 	// DeletionPolicy specifies what will happen to the underlying external
 	// when this managed resource is deleted - either "Delete" or "Orphan" the
@@ -266,7 +272,17 @@ type ClassSpecTemplate struct {
 
 // A ProviderSpec defines the common way to get to the necessary objects to connect
 // to the provider.
+// Deprecated: Please use ProviderConfigSpec.
 type ProviderSpec struct {
+	// CredentialsSecretRef references a specific secret's key that contains
+	// the credentials that are used to connect to the provider.
+	// +optional
+	CredentialsSecretRef *SecretKeySelector `json:"credentialsSecretRef,omitempty"`
+}
+
+// A ProviderConfigSpec defines the common way to get to the necessary objects to connect
+// to the provider.
+type ProviderConfigSpec struct {
 	// CredentialsSecretRef references a specific secret's key that contains
 	// the credentials that are used to connect to the provider.
 	// +optional

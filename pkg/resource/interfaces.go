@@ -99,8 +99,14 @@ type CredentialsSecretReferencer interface {
 
 // A ProviderReferencer may reference a provider resource.
 type ProviderReferencer interface {
-	GetProviderReference() v1alpha1.Reference
-	SetProviderReference(p v1alpha1.Reference)
+	GetProviderReference() *v1alpha1.Reference
+	SetProviderReference(p *v1alpha1.Reference)
+}
+
+// A ProviderConfigReferencer may reference a provider config resource.
+type ProviderConfigReferencer interface {
+	GetProviderConfigReference() *v1alpha1.Reference
+	SetProviderConfigReference(p *v1alpha1.Reference)
 }
 
 // A Finalizer manages the finalizers on the resource.
@@ -186,6 +192,7 @@ type Managed interface {
 	ClassReferencer
 	ClaimReferencer
 	ProviderReferencer
+	ProviderConfigReferencer
 	ConnectionSecretWriterTo
 	Orphanable
 	Reclaimer
