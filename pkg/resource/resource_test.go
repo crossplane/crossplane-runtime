@@ -628,8 +628,22 @@ func TestGetExternalTags(t *testing.T) {
 			o: &fake.Managed{ObjectMeta: metav1.ObjectMeta{
 				Name: name,
 			},
-				ProviderReferencer: fake.ProviderReferencer{Ref: v1alpha1.Reference{Name: provName}},
+				ProviderReferencer: fake.ProviderReferencer{Ref: &v1alpha1.Reference{Name: provName}},
 				ClassReferencer:    fake.ClassReferencer{Ref: &corev1.ObjectReference{Name: className}},
+			},
+			want: map[string]string{
+				ExternalResourceTagKeyKind:     strings.ToLower((&fake.Managed{}).GetObjectKind().GroupVersionKind().GroupKind().String()),
+				ExternalResourceTagKeyName:     name,
+				ExternalResourceTagKeyProvider: provName,
+				ExternalResourceTagKeyClass:    className,
+			},
+		},
+		"SuccessfulWithProviderConfig": {
+			o: &fake.Managed{ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+			},
+				ProviderConfigReferencer: fake.ProviderConfigReferencer{Ref: &v1alpha1.Reference{Name: provName}},
+				ClassReferencer:          fake.ClassReferencer{Ref: &corev1.ObjectReference{Name: className}},
 			},
 			want: map[string]string{
 				ExternalResourceTagKeyKind:     strings.ToLower((&fake.Managed{}).GetObjectKind().GroupVersionKind().GroupKind().String()),

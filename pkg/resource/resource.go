@@ -42,7 +42,7 @@ const (
 	ExternalResourceTagKeyKind     = "crossplane-kind"
 	ExternalResourceTagKeyName     = "crossplane-name"
 	ExternalResourceTagKeyClass    = "crossplane-class"
-	ExternalResourceTagKeyProvider = "crossplane-provider"
+	ExternalResourceTagKeyProvider = "crossplane-providerconfig"
 )
 
 // A ClaimKind contains the type metadata for a kind of resource claim.
@@ -360,7 +360,13 @@ func GetExternalTags(mg Managed) map[string]string {
 	if mg.GetClassReference() != nil {
 		tags[ExternalResourceTagKeyClass] = mg.GetClassReference().Name
 	}
-	if mg.GetProviderReference().Name != "" {
+
+	switch {
+	case mg.GetProviderConfigReference() != nil && mg.GetProviderConfigReference().Name != "":
+		tags[ExternalResourceTagKeyProvider] = mg.GetProviderConfigReference().Name
+	// TODO(muvaf): Remove the branch once Provider type has been removed from
+	// everywhere.
+	case mg.GetProviderReference() != nil && mg.GetProviderReference().Name != "":
 		tags[ExternalResourceTagKeyProvider] = mg.GetProviderReference().Name
 	}
 	return tags

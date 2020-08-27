@@ -90,13 +90,22 @@ func (m *ManagedResourceReferencer) SetResourceReference(r *corev1.ObjectReferen
 func (m *ManagedResourceReferencer) GetResourceReference() *corev1.ObjectReference { return m.Ref }
 
 // ProviderReferencer is a mock that implements ProviderReferencer interface.
-type ProviderReferencer struct{ Ref v1alpha1.Reference }
+type ProviderReferencer struct{ Ref *v1alpha1.Reference }
 
 // SetProviderReference sets the ProviderReference.
-func (m *ProviderReferencer) SetProviderReference(p v1alpha1.Reference) { m.Ref = p }
+func (m *ProviderReferencer) SetProviderReference(p *v1alpha1.Reference) { m.Ref = p }
 
 // GetProviderReference gets the ProviderReference.
-func (m *ProviderReferencer) GetProviderReference() v1alpha1.Reference { return m.Ref }
+func (m *ProviderReferencer) GetProviderReference() *v1alpha1.Reference { return m.Ref }
+
+// ProviderConfigReferencer is a mock that implements ProviderConfigReferencer interface.
+type ProviderConfigReferencer struct{ Ref *v1alpha1.Reference }
+
+// SetProviderConfigReference sets the ProviderConfigReference.
+func (m *ProviderConfigReferencer) SetProviderConfigReference(p *v1alpha1.Reference) { m.Ref = p }
+
+// GetProviderConfigReference gets the ProviderConfigReference.
+func (m *ProviderConfigReferencer) GetProviderConfigReference() *v1alpha1.Reference { return m.Ref }
 
 // LocalConnectionSecretWriterTo is a mock that implements LocalConnectionSecretWriterTo interface.
 type LocalConnectionSecretWriterTo struct {
@@ -271,6 +280,7 @@ type Managed struct {
 	ClassReferencer
 	ClaimReferencer
 	ProviderReferencer
+	ProviderConfigReferencer
 	ConnectionSecretWriterTo
 	Orphanable
 	Reclaimer
