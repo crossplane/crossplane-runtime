@@ -176,7 +176,7 @@ func NewAPIUpdatingApplicator(c client.Client) *APIUpdatingApplicator {
 // Apply changes to the supplied object. The object will be created if it does
 // not exist, or updated if it does.
 func (a *APIUpdatingApplicator) Apply(ctx context.Context, o runtime.Object, ao ...ApplyOption) error {
-	m, ok := o.(metav1.Object)
+	m, ok := o.(Object)
 	if !ok {
 		return errors.New("cannot access object metadata")
 	}
@@ -190,22 +190,22 @@ func (a *APIUpdatingApplicator) Apply(ctx context.Context, o runtime.Object, ao 
 	err := a.client.Get(ctx, types.NamespacedName{Name: m.GetName(), Namespace: m.GetNamespace()}, current)
 	if kerrors.IsNotFound(err) {
 		// TODO(negz): Apply ApplyOptions here too?
-		return errors.Wrap(a.client.Create(ctx, o), "cannot create object")
+		return errors.Wrap(a.client.Create(ctx, m), "cannot create object")
 	}
 	if err != nil {
 		return errors.Wrap(err, "cannot get object")
 	}
 
 	for _, fn := range ao {
-		if err := fn(ctx, current, o); err != nil {
+		if err := fn(ctx, current, m); err != nil {
 			return err
 		}
 	}
 
 	// NOTE(hasheddan): we must set the resource version of the desired object
 	// to that of the current or the update will always fail.
-	o.(metav1.Object).SetResourceVersion(current.(metav1.Object).GetResourceVersion())
-	return errors.Wrap(a.client.Update(ctx, o), "cannot update object")
+	m.SetResourceVersion(current.(metav1.Object).GetResourceVersion())
+	return errors.Wrap(a.client.Update(ctx, m), "cannot update object")
 }
 
 // An APIFinalizer adds and removes finalizers to and from a resource.
