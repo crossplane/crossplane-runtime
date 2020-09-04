@@ -174,8 +174,7 @@ func NewAPIUpdatingApplicator(c client.Client) *APIUpdatingApplicator {
 }
 
 // Apply changes to the supplied object. The object will be created if it does
-// not exist, or updated if it does. If the object does exist and no
-// ApplyOptions are passed, the update will be a no-op.
+// not exist, or updated if it does.
 func (a *APIUpdatingApplicator) Apply(ctx context.Context, o runtime.Object, ao ...ApplyOption) error {
 	m, ok := o.(metav1.Object)
 	if !ok {
@@ -203,7 +202,10 @@ func (a *APIUpdatingApplicator) Apply(ctx context.Context, o runtime.Object, ao 
 		}
 	}
 
-	return errors.Wrap(a.client.Update(ctx, current), "cannot update object")
+	// NOTE(hasheddan): we must set the resource version of the desired object
+	// to that of the current or the update will always fail.
+	o.(metav1.Object).SetResourceVersion(current.(metav1.Object).GetResourceVersion())
+	return errors.Wrap(a.client.Update(ctx, o), "cannot update object")
 }
 
 // An APIFinalizer adds and removes finalizers to and from a resource.
