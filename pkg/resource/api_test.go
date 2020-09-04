@@ -18,7 +18,6 @@ package resource
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -468,13 +467,10 @@ func TestAPIUpdatingApplicator(t *testing.T) {
 			c: &test.MockClient{
 				MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 					*o.(*object) = *current
-					fmt.Println(current.Name)
 					return nil
 				}),
 				MockUpdate: test.NewMockUpdateFn(nil, func(o runtime.Object) error {
-					fmt.Println(current.Name)
-					fmt.Println(o.(*object).Name)
-					if diff := cmp.Diff(*current, *o.(*object)); diff != "" {
+					if diff := cmp.Diff(*desired, *o.(*object)); diff != "" {
 						t.Errorf("r: -want, +got:\n%s", diff)
 					}
 					return nil
