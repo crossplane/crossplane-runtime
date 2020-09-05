@@ -22,13 +22,9 @@ limitations under the License.
 // Generate deepcopy methodsets
 //go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./...
 
-// Generate crossplane-runtime methodsets (resource.Claim, etc)
-//go:generate go run -tags generate github.com/crossplane/crossplane-tools/cmd/angryjet generate-methodsets --header-file=../hack/boilerplate.go.txt ./...
-
 // Package apis contains Kubernetes API groups
 package apis
 
 import (
-	_ "github.com/crossplane/crossplane-tools/cmd/angryjet" //nolint:typecheck
-	_ "sigs.k8s.io/controller-tools/cmd/controller-gen"     //nolint:typecheck
+	_ "sigs.k8s.io/controller-tools/cmd/controller-gen" //nolint:typecheck
 )
