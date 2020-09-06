@@ -31,6 +31,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+// ObjectCreaterTyper know how to create and determine the type of objects.
+type ObjectCreaterTyper interface {
+	runtime.ObjectCreater
+	runtime.ObjectTyper
+}
+
 // Package is the set of metadata and objects in a package.
 type Package struct {
 	meta    []runtime.Object
@@ -59,19 +65,22 @@ type Parser interface {
 
 // DefaultParser is the default Parser implementation.
 type DefaultParser struct {
-	metaScheme *runtime.Scheme
-	objScheme  *runtime.Scheme
+	metaScheme ObjectCreaterTyper
+	objScheme  ObjectCreaterTyper
 }
 
 // New returns a new DefaultParser.
-func New(meta, obj *runtime.Scheme) *DefaultParser {
+func New(meta, obj ObjectCreaterTyper) *DefaultParser {
 	return &DefaultParser{
 		metaScheme: meta,
 		objScheme:  obj,
 	}
 }
 
-// Parse is the underlying parsing logic for parsing packages.
+// Parse is the underlying logic for parsing packages. It first attempts to
+// decode objects recognized by the meta scheme, then attempts to decode objects
+// recognized by the object scheme. Objects not recognized by either scheme
+// return an error rather than being skipped.
 func (p *DefaultParser) Parse(ctx context.Context, reader io.ReadCloser) (*Package, error) { //nolint:gocyclo
 	pkg := NewPackage()
 	if reader == nil {
