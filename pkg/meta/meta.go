@@ -54,6 +54,9 @@ const (
 
 // ReferenceTo returns an object reference to the supplied object, presumed to
 // be of the supplied group, version, and kind.
+// Deprecated: use a more specific reference type, such as TypedReference or
+// Reference instead of the overly verbose ObjectReference.
+// See https://github.com/crossplane/crossplane-runtime/issues/49
 func ReferenceTo(o metav1.Object, of schema.GroupVersionKind) *corev1.ObjectReference {
 	v, k := of.ToAPIVersionAndKind()
 	return &corev1.ObjectReference{
