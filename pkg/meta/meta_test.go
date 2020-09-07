@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
+	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
@@ -80,6 +81,49 @@ func TestReferenceTo(t *testing.T) {
 			got := ReferenceTo(tc.args.o, tc.args.of)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("ReferenceTo(): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestTypedReferenceTo(t *testing.T) {
+	type args struct {
+		o  metav1.Object
+		of schema.GroupVersionKind
+	}
+	tests := map[string]struct {
+		args
+		want *v1alpha1.TypedReference
+	}{
+		"WithTypeMeta": {
+			args: args{
+				o: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: namespace,
+						Name:      name,
+						UID:       uid,
+					},
+				},
+				of: schema.GroupVersionKind{
+					Group:   group,
+					Version: version,
+					Kind:    kind,
+				},
+			},
+			want: &v1alpha1.TypedReference{
+				APIVersion: groupVersion,
+				Kind:       kind,
+				Name:       name,
+				UID:        uid,
+			},
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			got := TypedReferenceTo(tc.args.o, tc.args.of)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("TypedReferenceTo(): -want, +got:\n%s", diff)
 			}
 		})
 	}

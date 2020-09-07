@@ -27,6 +27,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 )
 
 /*
@@ -58,6 +60,18 @@ func ReferenceTo(o metav1.Object, of schema.GroupVersionKind) *corev1.ObjectRefe
 		APIVersion: v,
 		Kind:       k,
 		Namespace:  o.GetNamespace(),
+		Name:       o.GetName(),
+		UID:        o.GetUID(),
+	}
+}
+
+// TypedReferenceTo returns a typed object reference to the supplied object,
+// presumed to be of the supplied group, version, and kind.
+func TypedReferenceTo(o metav1.Object, of schema.GroupVersionKind) *v1alpha1.TypedReference {
+	v, k := of.ToAPIVersionAndKind()
+	return &v1alpha1.TypedReference{
+		APIVersion: v,
+		Kind:       k,
 		Name:       o.GetName(),
 		UID:        o.GetUID(),
 	}
