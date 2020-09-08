@@ -116,7 +116,7 @@ func LocalConnectionSecretFor(o LocalConnectionSecretOwner, kind schema.GroupVer
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       o.GetNamespace(),
 			Name:            o.GetWriteConnectionSecretToReference().Name,
-			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.ReferenceTo(o, kind))},
+			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(o, kind))},
 		},
 		Type: SecretTypeConnection,
 		Data: make(map[string][]byte),
@@ -141,7 +141,7 @@ func ConnectionSecretFor(o ConnectionSecretOwner, kind schema.GroupVersionKind) 
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       o.GetWriteConnectionSecretToReference().Namespace,
 			Name:            o.GetWriteConnectionSecretToReference().Name,
-			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.ReferenceTo(o, kind))},
+			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(o, kind))},
 		},
 		Type: SecretTypeConnection,
 		Data: make(map[string][]byte),

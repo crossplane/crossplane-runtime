@@ -81,7 +81,7 @@ func TypedReferenceTo(o metav1.Object, of schema.GroupVersionKind) *v1alpha1.Typ
 }
 
 // AsOwner converts the supplied object reference to an owner reference.
-func AsOwner(r *corev1.ObjectReference) metav1.OwnerReference {
+func AsOwner(r *v1alpha1.TypedReference) metav1.OwnerReference {
 	return metav1.OwnerReference{
 		APIVersion: r.APIVersion,
 		Kind:       r.Kind,
@@ -92,7 +92,7 @@ func AsOwner(r *corev1.ObjectReference) metav1.OwnerReference {
 
 // AsController converts the supplied object reference to a controller
 // reference. You may also consider using metav1.NewControllerRef.
-func AsController(r *corev1.ObjectReference) metav1.OwnerReference {
+func AsController(r *v1alpha1.TypedReference) metav1.OwnerReference {
 	c := true
 	ref := AsOwner(r)
 	ref.Controller = &c

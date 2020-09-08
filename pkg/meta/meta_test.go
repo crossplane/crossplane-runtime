@@ -131,14 +131,13 @@ func TestTypedReferenceTo(t *testing.T) {
 
 func TestAsOwner(t *testing.T) {
 	tests := map[string]struct {
-		r    *corev1.ObjectReference
+		r    *v1alpha1.TypedReference
 		want metav1.OwnerReference
 	}{
 		"Successful": {
-			r: &corev1.ObjectReference{
+			r: &v1alpha1.TypedReference{
 				APIVersion: groupVersion,
 				Kind:       kind,
-				Namespace:  name,
 				Name:       name,
 				UID:        uid,
 			},
@@ -165,14 +164,13 @@ func TestAsController(t *testing.T) {
 	controller := true
 
 	tests := map[string]struct {
-		r    *corev1.ObjectReference
+		r    *v1alpha1.TypedReference
 		want metav1.OwnerReference
 	}{
 		"Successful": {
-			r: &corev1.ObjectReference{
+			r: &v1alpha1.TypedReference{
 				APIVersion: groupVersion,
 				Kind:       kind,
-				Namespace:  name,
 				Name:       name,
 				UID:        uid,
 			},
