@@ -16,4 +16,5 @@ limitations under the License.
 
 // Package claimscheduling provides a reconciler that selects a resource class
 // for a resource claim.
+// Deprecated: See https://github.com/crossplane/crossplane/issues/1670
 package claimscheduling

@@ -16,4 +16,5 @@ limitations under the License.
 
 // Package claimdefaulting provides a reconciler that sets the default resource
 // class for a resource claim.
+// Deprecated: See https://github.com/crossplane/crossplane/issues/1670
 package claimdefaulting

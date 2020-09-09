@@ -16,4 +16,5 @@ limitations under the License.
 
 // Package target provides a reconciler that propagates a Kubernetes cluster
 // managed resource's connection secret to a Kubernetes target.
+// Deprecated: See https://github.com/crossplane/crossplane/issues/1595
 package target
