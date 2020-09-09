@@ -22,6 +22,8 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -54,6 +56,18 @@ const (
 	reasonCannotPropagateSecret event.Reason = "CannotPropagateSecret"
 	reasonPropagatedSecret      event.Reason = "PropagatedSecret"
 )
+
+// TypeSecretPropagated resources have had connection information
+// propagated to their secret reference.
+const TypeSecretPropagated v1alpha1.ConditionType = "ConnectionSecretPropagated"
+
+// NOTE(negz): This reconciler exists to service KubernetesApplications, which
+// are deprecated per https://github.com/crossplane/crossplane/issues/1595. It
+// had a PropagationSuccess condition but did not use it. I elected not to fix
+// this due to its impending removal.
+
+// ReasonSecretPropagationError indicates that secret propagation failed.
+const ReasonSecretPropagationError v1alpha1.ConditionReason = "PropagationError"
 
 // ControllerName returns the recommended name for controllers that use this
 // package to reconcile a particular kind of target.
@@ -183,7 +197,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	if err := r.client.Get(ctx, meta.NamespacedNameOf(target.GetResourceReference()), managed); err != nil {
 		log.Debug("Cannot get referenced managed resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
 		record.Event(target, event.Warning(reasonCannotGetManaged, err))
-		target.SetConditions(v1alpha1.SecretPropagationError(err))
+		target.SetConditions(SecretPropagationError(err))
 		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, target), errUpdateTarget)
 	}
 
@@ -191,7 +205,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// TODO(negz): Should we really consider this an error?
 		log.Debug("Managed resource is not yet bound to a resource claim", "requeue-after", time.Now().Add(aShortWait))
 		record.Event(target, event.Normal(reasonWaitingUntilBound, "Managed resource is not yet bound to a resource claim"))
-		target.SetConditions(v1alpha1.SecretPropagationError(errors.New(errManagedResourceIsNotBound)))
+		target.SetConditions(SecretPropagationError(errors.New(errManagedResourceIsNotBound)))
 		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, target), errUpdateTarget)
 	}
 
@@ -200,7 +214,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// resource, we try again after a short wait.
 		log.Debug("Cannot propagate connection secret", "error", err, "requeue-after", time.Now().Add(aShortWait))
 		record.Event(target, event.Warning(reasonCannotPropagateSecret, err))
-		target.SetConditions(v1alpha1.SecretPropagationError(err))
+		target.SetConditions(SecretPropagationError(err))
 		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, target), errUpdateTarget)
 	}
 
@@ -208,4 +222,18 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	log.Debug("Successfully propagated connection secret")
 	record.Event(target, event.Normal(reasonPropagatedSecret, "Successfully propagated connection secret"))
 	return reconcile.Result{Requeue: false}, nil
+}
+
+// SecretPropagationError returns a condition indicating that Crossplane was
+// unable to propagate connection data to the referenced secret. This could be
+// because it was unable to find the managed resource that owns the secret to be
+// propagated.
+func SecretPropagationError(err error) v1alpha1.Condition {
+	return v1alpha1.Condition{
+		Type:               TypeSecretPropagated,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonSecretPropagationError,
+		Message:            err.Error(),
+	}
 }

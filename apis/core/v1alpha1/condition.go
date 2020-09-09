@@ -34,13 +34,6 @@ const (
 	// TypeSynced resources are believed to be in sync with the
 	// Kubernetes resources that manage their lifecycle.
 	TypeSynced ConditionType = "Synced"
-
-	// TypeReferencesResolved resources' references are resolved
-	TypeReferencesResolved ConditionType = "ReferencesResolved"
-
-	// TypeSecretPropagated resources have had connection information
-	// propagated to their secret reference.
-	TypeSecretPropagated ConditionType = "ConnectionSecretPropagated"
 )
 
 // A ConditionReason represents the reason a resource is in a condition.
@@ -48,28 +41,16 @@ type ConditionReason string
 
 // Reasons a resource is or is not ready.
 const (
-	ReasonAvailable   ConditionReason = "Resource is available for use"
-	ReasonUnavailable ConditionReason = "Resource is not available for use"
-	ReasonCreating    ConditionReason = "Resource is being created"
-	ReasonDeleting    ConditionReason = "Resource is being deleted"
+	ReasonAvailable   ConditionReason = "Available"
+	ReasonUnavailable ConditionReason = "Unavailable"
+	ReasonCreating    ConditionReason = "Creating"
+	ReasonDeleting    ConditionReason = "Deleting"
 )
 
 // Reasons a resource is or is not synced.
 const (
-	ReasonReconcileSuccess ConditionReason = "Successfully reconciled resource"
-	ReasonReconcileError   ConditionReason = "Encountered an error during resource reconciliation"
-)
-
-// Reason references for a resource are or are not resolved.
-const (
-	ReasonReferenceResolveSuccess  ConditionReason = "Successfully resolved resource references to other resources"
-	ReasonResolveReferencesBlocked ConditionReason = "One or more referenced resources do not exist, or are not yet Ready"
-)
-
-// Reason a referenced secret has or has not been propagated to.
-const (
-	ReasonSecretPropagationSuccess ConditionReason = "Successfully propagated connection data to referenced secret"
-	ReasonSecretPropagationError   ConditionReason = "Unable to propagate connection data to referenced secret"
+	ReasonReconcileSuccess ConditionReason = "ReconcileSuccess"
+	ReasonReconcileError   ConditionReason = "ReconcileError"
 )
 
 // A Condition that may apply to a resource.
@@ -266,60 +247,6 @@ func ReconcileError(err error) Condition {
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonReconcileError,
-		Message:            err.Error(),
-	}
-}
-
-// ReferenceResolutionSuccess returns a condition indicating that Crossplane
-// successfully resolved the references used in the resource.
-//
-// Deprecated: Use ReconcileSuccess.
-func ReferenceResolutionSuccess() Condition {
-	return Condition{
-		Type:               TypeReferencesResolved,
-		Status:             corev1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonReferenceResolveSuccess,
-	}
-}
-
-// ReferenceResolutionBlocked returns a condition indicating that Crossplane is
-// unable to resolve the references used in the resource. This could
-// mean that one or more of referred resources do not yet exist, or are not yet
-// Ready.
-//
-// Deprecated: Use ReconcileError.
-func ReferenceResolutionBlocked(err error) Condition {
-	return Condition{
-		Type:               TypeReferencesResolved,
-		Status:             corev1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonResolveReferencesBlocked,
-		Message:            err.Error(),
-	}
-}
-
-// SecretPropagationSuccess returns a condition indicating that Crossplane
-// successfully propagated connection data to the referenced secret.
-func SecretPropagationSuccess() Condition {
-	return Condition{
-		Type:               TypeSecretPropagated,
-		Status:             corev1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonSecretPropagationSuccess,
-	}
-}
-
-// SecretPropagationError returns a condition indicating that Crossplane was
-// unable to propagate connection data to the referenced secret. This could be
-// because it was unable to find the managed resource that owns the secret to be
-// propagated.
-func SecretPropagationError(err error) Condition {
-	return Condition{
-		Type:               TypeSecretPropagated,
-		Status:             corev1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonSecretPropagationError,
 		Message:            err.Error(),
 	}
 }
