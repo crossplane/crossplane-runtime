@@ -31,13 +31,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 )
 
-/*
-	Prefer taking *corev1.ObjectReference as an argument where possible when
-	adding new functions to this package. It's easier to convert an object to
-	an ObjectReference using ReferenceTo() than it is to make an ObjectReference
-	satisfy metav1.Object.
-*/
-
 // AnnotationKeyExternalName is the key in the annotations map of a resource for
 // the name of the resource as it appears on provider's systems.
 const AnnotationKeyExternalName = "crossplane.io/external-name"
