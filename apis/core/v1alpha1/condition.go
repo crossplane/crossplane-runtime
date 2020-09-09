@@ -34,13 +34,6 @@ const (
 	// TypeSynced resources are believed to be in sync with the
 	// Kubernetes resources that manage their lifecycle.
 	TypeSynced ConditionType = "Synced"
-
-	// TypeReferencesResolved resources' references are resolved
-	TypeReferencesResolved ConditionType = "ReferencesResolved"
-
-	// TypeSecretPropagated resources have had connection information
-	// propagated to their secret reference.
-	TypeSecretPropagated ConditionType = "ConnectionSecretPropagated"
 )
 
 // A ConditionReason represents the reason a resource is in a condition.
@@ -58,18 +51,6 @@ const (
 const (
 	ReasonReconcileSuccess ConditionReason = "ReconcileSuccess"
 	ReasonReconcileError   ConditionReason = "ReconcileError"
-)
-
-// Reason references for a resource are or are not resolved.
-const (
-	ReasonReferenceResolveSuccess  ConditionReason = "ResolutionSuccess"
-	ReasonResolveReferencesBlocked ConditionReason = "ResolutionBlocked"
-)
-
-// Reason a referenced secret has or has not been propagated to.
-const (
-	ReasonSecretPropagationSuccess ConditionReason = "PropagationSuccess"
-	ReasonSecretPropagationError   ConditionReason = "PropagationError"
 )
 
 // A Condition that may apply to a resource.
@@ -266,60 +247,6 @@ func ReconcileError(err error) Condition {
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonReconcileError,
-		Message:            err.Error(),
-	}
-}
-
-// ReferenceResolutionSuccess returns a condition indicating that Crossplane
-// successfully resolved the references used in the resource.
-//
-// Deprecated: Use ReconcileSuccess.
-func ReferenceResolutionSuccess() Condition {
-	return Condition{
-		Type:               TypeReferencesResolved,
-		Status:             corev1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonReferenceResolveSuccess,
-	}
-}
-
-// ReferenceResolutionBlocked returns a condition indicating that Crossplane is
-// unable to resolve the references used in the resource. This could
-// mean that one or more of referred resources do not yet exist, or are not yet
-// Ready.
-//
-// Deprecated: Use ReconcileError.
-func ReferenceResolutionBlocked(err error) Condition {
-	return Condition{
-		Type:               TypeReferencesResolved,
-		Status:             corev1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonResolveReferencesBlocked,
-		Message:            err.Error(),
-	}
-}
-
-// SecretPropagationSuccess returns a condition indicating that Crossplane
-// successfully propagated connection data to the referenced secret.
-func SecretPropagationSuccess() Condition {
-	return Condition{
-		Type:               TypeSecretPropagated,
-		Status:             corev1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonSecretPropagationSuccess,
-	}
-}
-
-// SecretPropagationError returns a condition indicating that Crossplane was
-// unable to propagate connection data to the referenced secret. This could be
-// because it was unable to find the managed resource that owns the secret to be
-// propagated.
-func SecretPropagationError(err error) Condition {
-	return Condition{
-		Type:               TypeSecretPropagated,
-		Status:             corev1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonSecretPropagationError,
 		Message:            err.Error(),
 	}
 }
