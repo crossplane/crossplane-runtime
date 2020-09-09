@@ -48,28 +48,28 @@ type ConditionReason string
 
 // Reasons a resource is or is not ready.
 const (
-	ReasonAvailable   ConditionReason = "Resource is available for use"
-	ReasonUnavailable ConditionReason = "Resource is not available for use"
-	ReasonCreating    ConditionReason = "Resource is being created"
-	ReasonDeleting    ConditionReason = "Resource is being deleted"
+	ReasonAvailable   ConditionReason = "Available"
+	ReasonUnavailable ConditionReason = "Unavailable"
+	ReasonCreating    ConditionReason = "Creating"
+	ReasonDeleting    ConditionReason = "Deleting"
 )
 
 // Reasons a resource is or is not synced.
 const (
-	ReasonReconcileSuccess ConditionReason = "Successfully reconciled resource"
-	ReasonReconcileError   ConditionReason = "Encountered an error during resource reconciliation"
+	ReasonReconcileSuccess ConditionReason = "ReconcileSuccess"
+	ReasonReconcileError   ConditionReason = "ReconcileError"
 )
 
 // Reason references for a resource are or are not resolved.
 const (
-	ReasonReferenceResolveSuccess  ConditionReason = "Successfully resolved resource references to other resources"
-	ReasonResolveReferencesBlocked ConditionReason = "One or more referenced resources do not exist, or are not yet Ready"
+	ReasonReferenceResolveSuccess  ConditionReason = "ResolutionSuccess"
+	ReasonResolveReferencesBlocked ConditionReason = "ResolutionBlocked"
 )
 
 // Reason a referenced secret has or has not been propagated to.
 const (
-	ReasonSecretPropagationSuccess ConditionReason = "Successfully propagated connection data to referenced secret"
-	ReasonSecretPropagationError   ConditionReason = "Unable to propagate connection data to referenced secret"
+	ReasonSecretPropagationSuccess ConditionReason = "PropagationSuccess"
+	ReasonSecretPropagationError   ConditionReason = "PropagationError"
 )
 
 // A Condition that may apply to a resource.
