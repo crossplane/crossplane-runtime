@@ -23,7 +23,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pkg/errors"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -77,7 +76,7 @@ func TestResolve(t *testing.T) {
 	controlled := &fake.Managed{}
 	controlled.SetName(value)
 	meta.SetExternalName(controlled, value)
-	meta.AddControllerReference(controlled, meta.AsController(&corev1.ObjectReference{UID: types.UID("very-unique")}))
+	meta.AddControllerReference(controlled, meta.AsController(&v1alpha1.TypedReference{UID: types.UID("very-unique")}))
 
 	type args struct {
 		ctx context.Context
@@ -268,7 +267,7 @@ func TestResolveMultiple(t *testing.T) {
 	controlled := &fake.Managed{}
 	controlled.SetName(value)
 	meta.SetExternalName(controlled, value)
-	meta.AddControllerReference(controlled, meta.AsController(&corev1.ObjectReference{UID: types.UID("very-unique")}))
+	meta.AddControllerReference(controlled, meta.AsController(&v1alpha1.TypedReference{UID: types.UID("very-unique")}))
 
 	type args struct {
 		ctx context.Context
