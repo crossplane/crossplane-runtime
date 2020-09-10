@@ -220,7 +220,15 @@ func (p *Paved) GetBool(path string) (bool, error) {
 	return b, nil
 }
 
+// NOTE(muvaf): If there is no CRD, unstructured.Unstructured reads numbers as
+// float64. However, in practice, use of float64 is discouraged and when you fetch
+// an instance of a CRD whose number fields are int64, you'll get int64. So,
+// it's not really possible to test this without an api-server but that's the
+// actual behavior.
+
 // GetNumber value of the supplied field path.
+// Deprecated: Use of float64 is discouraged. Please use GetInteger.
+// See https://github.com/kubernetes/community/blob/c9ae475/contributors/devel/sig-architecture/api-conventions.md#primitive-types
 func (p *Paved) GetNumber(path string) (float64, error) {
 	v, err := p.GetValue(path)
 	if err != nil {
@@ -230,6 +238,20 @@ func (p *Paved) GetNumber(path string) (float64, error) {
 	f, ok := v.(float64)
 	if !ok {
 		return 0, errors.Errorf("%s: not a (float64) number", path)
+	}
+	return f, nil
+}
+
+// GetInteger value of the supplied field path.
+func (p *Paved) GetInteger(path string) (int64, error) {
+	v, err := p.GetValue(path)
+	if err != nil {
+		return 0, err
+	}
+
+	f, ok := v.(int64)
+	if !ok {
+		return 0, errors.Errorf("%s: not a (int64) number", path)
 	}
 	return f, nil
 }
