@@ -17,10 +17,9 @@ limitations under the License.
 package fieldpath
 
 import (
-	"encoding/json"
-
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/json"
 )
 
 type errNotFound struct {
