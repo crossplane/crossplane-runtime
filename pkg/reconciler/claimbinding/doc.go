@@ -15,4 +15,5 @@ limitations under the License.
 */
 
 // Package claimbinding provides a resource claim binding reconciler.
+// Deprecated: See https://github.com/crossplane/crossplane/issues/1670
 package claimbinding
