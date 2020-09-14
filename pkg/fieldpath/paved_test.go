@@ -17,13 +17,13 @@ limitations under the License.
 package fieldpath
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/json"
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
@@ -105,9 +105,17 @@ func TestGetValue(t *testing.T) {
 			},
 		},
 		"MetadataVersion": {
-			reason: "Requesting a number field should work",
+			reason: "Requesting an integer field should work",
 			path:   "metadata.version",
 			data:   []byte(`{"metadata":{"version":2}}`),
+			want: want{
+				value: int64(2),
+			},
+		},
+		"SomeFloat": {
+			reason: "Requesting a float field should work",
+			path:   "metadata.version",
+			data:   []byte(`{"metadata":{"version":2.0}}`),
 			want: want{
 				value: float64(2),
 			},
@@ -488,7 +496,7 @@ func TestGetNumber(t *testing.T) {
 		"MetadataVersion": {
 			reason: "Requesting a number field should work",
 			path:   "metadata.version",
-			data:   []byte(`{"metadata":{"version":2}}`),
+			data:   []byte(`{"metadata":{"version":2.0}}`),
 			want: want{
 				value: 2,
 			},
@@ -517,6 +525,59 @@ func TestGetNumber(t *testing.T) {
 			p := Pave(in)
 
 			got, err := p.GetNumber(tc.path)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Fatalf("\np.GetNumber(%s): %s: -want error, +got error:\n%s", tc.path, tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.value, got); diff != "" {
+				t.Errorf("\np.GetNumber(%s): %s: -want, +got:\n%s", tc.path, tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestGetInteger(t *testing.T) {
+	type want struct {
+		value int64
+		err   error
+	}
+	cases := map[string]struct {
+		reason string
+		path   string
+		data   []byte
+		want   want
+	}{
+		"MetadataVersion": {
+			reason: "Requesting a number field should work",
+			path:   "metadata.version",
+			data:   []byte(`{"metadata":{"version":2}}`),
+			want: want{
+				value: 2,
+			},
+		},
+		"MalformedPath": {
+			reason: "Requesting an invalid field path should fail",
+			path:   "spec[]",
+			want: want{
+				err: errors.Wrap(errors.New("unexpected ']' at position 5"), "cannot parse path \"spec[]\""),
+			},
+		},
+		"NotANumber": {
+			reason: "Requesting an non-number field path should fail",
+			path:   "metadata.name",
+			data:   []byte(`{"metadata":{"name":"cool"}}`),
+			want: want{
+				err: errors.New("metadata.name: not a (int64) number"),
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			in := make(map[string]interface{})
+			_ = json.Unmarshal(tc.data, &in)
+			p := Pave(in)
+
+			got, err := p.GetInteger(tc.path)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Fatalf("\np.GetNumber(%s): %s: -want error, +got error:\n%s", tc.path, tc.reason, diff)
 			}
