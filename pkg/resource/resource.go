@@ -282,6 +282,22 @@ func UpdateFn(fn func(current, desired runtime.Object)) ApplyOption {
 	}
 }
 
+type errNotControllable struct{ error }
+
+func (e errNotControllable) NotControllable() bool {
+	return true
+}
+
+// IsNotControllable returns true if the supplied error indicates that a
+// resource is not controllable - i.e. that it another resource is not and may
+// not become its controller reference.
+func IsNotControllable(err error) bool {
+	_, ok := err.(interface {
+		NotControllable() bool
+	})
+	return ok
+}
+
 // MustBeControllableBy requires that the current object is controllable by an
 // object with the supplied UID. An object is controllable if its controller
 // reference matches the supplied UID, or it has no controller reference.
@@ -293,7 +309,7 @@ func MustBeControllableBy(u types.UID) ApplyOption {
 		}
 
 		if c.UID != u {
-			return errors.Errorf("existing object is not controlled by UID %q", u)
+			return errNotControllable{errors.Errorf("existing object is not controlled by UID %q", u)}
 
 		}
 		return nil
@@ -317,11 +333,11 @@ func ConnectionSecretMustBeControllableBy(u types.UID) ApplyOption {
 
 		switch {
 		case c == nil && s.Type != SecretTypeConnection:
-			return errors.Errorf("refusing to modify uncontrolled secret of type %q", s.Type)
+			return errNotControllable{errors.Errorf("refusing to modify uncontrolled secret of type %q", s.Type)}
 		case c == nil:
 			return nil
 		case c.UID != u:
-			return errors.Errorf("existing secret is not controlled by UID %q", u)
+			return errNotControllable{errors.Errorf("existing secret is not controlled by UID %q", u)}
 		}
 
 		return nil
