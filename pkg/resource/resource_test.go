@@ -488,6 +488,40 @@ func TestControllersMustMatch(t *testing.T) {
 	}
 }
 
+func TestIsNotControllable(t *testing.T) {
+	cases := map[string]struct {
+		reason string
+		err    error
+		want   bool
+	}{
+		"NilError": {
+			reason: "A nil error does not indicate something is not controllable.",
+			err:    nil,
+			want:   false,
+		},
+		"UnknownError": {
+			reason: "An that doesn't have a 'NotControllable() bool' method does not indicate something is not controllable.",
+			err:    errors.New("boom"),
+			want:   false,
+		},
+		"NotControllableError": {
+			reason: "An that has a 'NotControllable() bool' method indicates something is not controllable.",
+			err:    errNotControllable{errors.New("boom")},
+			want:   true,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := IsNotControllable(tc.err)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\n%s\nIsNotControllable(...): -want, +got:\n%s\n", tc.reason, diff)
+			}
+		})
+	}
+
+}
+
 func TestMustBeControllableBy(t *testing.T) {
 	uid := types.UID("very-unique-string")
 	controller := true
@@ -530,7 +564,7 @@ func TestMustBeControllableBy(t *testing.T) {
 					Controller: &controller,
 				}}}},
 			},
-			want: errors.Errorf("existing object is not controlled by UID %q", uid),
+			want: errNotControllable{errors.Errorf("existing object is not controlled by UID %q", uid)},
 		},
 	}
 
@@ -593,7 +627,7 @@ func TestConnectionSecretMustBeControllableBy(t *testing.T) {
 					Type: SecretTypeConnection,
 				},
 			},
-			want: errors.Errorf("existing secret is not controlled by UID %q", uid),
+			want: errNotControllable{errors.Errorf("existing secret is not controlled by UID %q", uid)},
 		},
 		"UncontrolledOpaqueSecret": {
 			reason: "A Secret of corev1.SecretTypeOpqaue with no controller is not controllable",
@@ -601,7 +635,7 @@ func TestConnectionSecretMustBeControllableBy(t *testing.T) {
 			args: args{
 				current: &corev1.Secret{Type: corev1.SecretTypeOpaque},
 			},
-			want: errors.Errorf("refusing to modify uncontrolled secret of type %q", corev1.SecretTypeOpaque),
+			want: errNotControllable{errors.Errorf("refusing to modify uncontrolled secret of type %q", corev1.SecretTypeOpaque)},
 		},
 	}
 
