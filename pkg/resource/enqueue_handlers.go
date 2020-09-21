@@ -30,41 +30,6 @@ type adder interface {
 	Add(item interface{})
 }
 
-// EnqueueRequestForClaim enqueues a reconcile.Request for the NamespacedName
-// of a ClaimReferencer's ClaimReference.
-type EnqueueRequestForClaim struct{}
-
-// Create adds a NamespacedName for the supplied CreateEvent if its Object is a
-// ClaimReferencer.
-func (e *EnqueueRequestForClaim) Create(evt event.CreateEvent, q workqueue.RateLimitingInterface) {
-	addClaim(evt.Object, q)
-}
-
-// Update adds a NamespacedName for the supplied UpdateEvent if its Objects are
-// ClaimReferencers.
-func (e *EnqueueRequestForClaim) Update(evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
-	addClaim(evt.ObjectOld, q)
-	addClaim(evt.ObjectNew, q)
-}
-
-// Delete adds a NamespacedName for the supplied DeleteEvent if its Object is a
-// ClaimReferencer.
-func (e *EnqueueRequestForClaim) Delete(evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
-	addClaim(evt.Object, q)
-}
-
-// Generic adds a NamespacedName for the supplied GenericEvent if its Object is a
-// ClaimReferencer.
-func (e *EnqueueRequestForClaim) Generic(evt event.GenericEvent, q workqueue.RateLimitingInterface) {
-	addClaim(evt.Object, q)
-}
-
-func addClaim(obj runtime.Object, queue adder) {
-	if cr, ok := obj.(ClaimReferencer); ok && cr.GetClaimReference() != nil {
-		queue.Add(reconcile.Request{NamespacedName: meta.NamespacedNameOf(cr.GetClaimReference())})
-	}
-}
-
 // EnqueueRequestForPropagated enqueues a reconcile.Request for the
 // NamespacedName of a propagated object, i.e. an object with propagation
 // metadata annotations.

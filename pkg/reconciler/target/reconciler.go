@@ -43,15 +43,13 @@ const (
 
 // Error strings
 const (
-	errGetTarget                 = "unable to get Target"
-	errManagedResourceIsNotBound = "managed resource in Target clusterRef is unbound"
-	errUpdateTarget              = "unable to update Target"
+	errGetTarget    = "unable to get Target"
+	errUpdateTarget = "unable to update Target"
 )
 
 // Event reasons.
 const (
 	reasonSetSecretRef          event.Reason = "SetSecretRef"
-	reasonWaitingUntilBound     event.Reason = "WaitingUntilBound"
 	reasonCannotGetManaged      event.Reason = "CannotGetManaged"
 	reasonCannotPropagateSecret event.Reason = "CannotPropagateSecret"
 	reasonPropagatedSecret      event.Reason = "PropagatedSecret"
@@ -198,14 +196,6 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		log.Debug("Cannot get referenced managed resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
 		record.Event(target, event.Warning(reasonCannotGetManaged, err))
 		target.SetConditions(SecretPropagationError(err))
-		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, target), errUpdateTarget)
-	}
-
-	if !resource.IsBound(managed) {
-		// TODO(negz): Should we really consider this an error?
-		log.Debug("Managed resource is not yet bound to a resource claim", "requeue-after", time.Now().Add(aShortWait))
-		record.Event(target, event.Normal(reasonWaitingUntilBound, "Managed resource is not yet bound to a resource claim"))
-		target.SetConditions(SecretPropagationError(errors.New(errManagedResourceIsNotBound)))
 		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, target), errUpdateTarget)
 	}
 

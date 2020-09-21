@@ -33,15 +33,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 )
 
-// Bindable is a mock that implements Bindable interface.
-type Bindable struct{ Phase v1alpha1.BindingPhase }
-
-// SetBindingPhase sets the BindingPhase.
-func (m *Bindable) SetBindingPhase(p v1alpha1.BindingPhase) { m.Phase = p }
-
-// GetBindingPhase sets the BindingPhase.
-func (m *Bindable) GetBindingPhase() v1alpha1.BindingPhase { return m.Phase }
-
 // Conditioned is a mock that implements Conditioned interface.
 type Conditioned struct{ Conditions []v1alpha1.Condition }
 
@@ -61,24 +52,6 @@ func (m *ClaimReferencer) SetClaimReference(r *corev1.ObjectReference) { m.Ref =
 
 // GetClaimReference gets the ClaimReference.
 func (m *ClaimReferencer) GetClaimReference() *corev1.ObjectReference { return m.Ref }
-
-// ClassSelector is a mock that implements ClassSelector interface.
-type ClassSelector struct{ Sel *metav1.LabelSelector }
-
-// SetClassSelector sets the ClassSelector.
-func (m *ClassSelector) SetClassSelector(s *metav1.LabelSelector) { m.Sel = s }
-
-// GetClassSelector gets the ClassSelector.
-func (m *ClassSelector) GetClassSelector() *metav1.LabelSelector { return m.Sel }
-
-// ClassReferencer is a mock that implements ClassReferencer interface.
-type ClassReferencer struct{ Ref *corev1.ObjectReference }
-
-// SetClassReference sets the ClassReference.
-func (m *ClassReferencer) SetClassReference(r *corev1.ObjectReference) { m.Ref = r }
-
-// GetClassReference gets the ClassReference.
-func (m *ClassReferencer) GetClassReference() *corev1.ObjectReference { return m.Ref }
 
 // ManagedResourceReferencer is a mock that implements ManagedResourceReferencer interface.
 type ManagedResourceReferencer struct{ Ref *corev1.ObjectReference }
@@ -134,15 +107,6 @@ func (m *ConnectionSecretWriterTo) SetWriteConnectionSecretToReference(r *v1alph
 func (m *ConnectionSecretWriterTo) GetWriteConnectionSecretToReference() *v1alpha1.SecretReference {
 	return m.Ref
 }
-
-// Reclaimer is a mock that implements Reclaimer interface.
-type Reclaimer struct{ Policy v1alpha1.ReclaimPolicy }
-
-// SetReclaimPolicy sets the ReclaimPolicy.
-func (m *Reclaimer) SetReclaimPolicy(p v1alpha1.ReclaimPolicy) { m.Policy = p }
-
-// GetReclaimPolicy gets the ReclaimPolicy.
-func (m *Reclaimer) GetReclaimPolicy() v1alpha1.ReclaimPolicy { return m.Policy }
 
 // Orphanable implements the Orphanable interface.
 type Orphanable struct{ Policy v1alpha1.DeletionPolicy }
@@ -225,67 +189,14 @@ func (o *Object) DeepCopyObject() runtime.Object {
 	return out
 }
 
-// Claim is a mock that implements Claim interface.
-type Claim struct {
-	metav1.ObjectMeta
-	ClassSelector
-	ClassReferencer
-	ManagedResourceReferencer
-	LocalConnectionSecretWriterTo
-	v1alpha1.ConditionedStatus
-	v1alpha1.BindingStatus
-}
-
-// GetObjectKind returns schema.ObjectKind.
-func (m *Claim) GetObjectKind() schema.ObjectKind {
-	return schema.EmptyObjectKind
-}
-
-// DeepCopyObject returns a copy of the object as runtime.Object
-func (m *Claim) DeepCopyObject() runtime.Object {
-	out := &Claim{}
-	j, err := json.Marshal(m)
-	if err != nil {
-		panic(err)
-	}
-	_ = json.Unmarshal(j, out)
-	return out
-}
-
-// Class is a mock that implements Class interface.
-type Class struct {
-	metav1.ObjectMeta
-	Reclaimer
-}
-
-// GetObjectKind returns schema.ObjectKind.
-func (m *Class) GetObjectKind() schema.ObjectKind {
-	return schema.EmptyObjectKind
-}
-
-// DeepCopyObject returns a copy of the object as runtime.Object
-func (m *Class) DeepCopyObject() runtime.Object {
-	out := &Class{}
-	j, err := json.Marshal(m)
-	if err != nil {
-		panic(err)
-	}
-	_ = json.Unmarshal(j, out)
-	return out
-}
-
 // Managed is a mock that implements Managed interface.
 type Managed struct {
 	metav1.ObjectMeta
-	ClassReferencer
-	ClaimReferencer
 	ProviderReferencer
 	ProviderConfigReferencer
 	ConnectionSecretWriterTo
 	Orphanable
-	Reclaimer
 	v1alpha1.ConditionedStatus
-	v1alpha1.BindingStatus
 }
 
 // GetObjectKind returns schema.ObjectKind.
@@ -357,7 +268,6 @@ type Composite struct {
 	CompositionReferencer
 	ComposedResourcesReferencer
 	ClaimReferencer
-	Reclaimer
 	ConnectionSecretWriterTo
 	v1alpha1.ConditionedStatus
 }

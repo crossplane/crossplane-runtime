@@ -207,13 +207,13 @@ func TestReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
 							mg := obj.(*fake.Managed)
 							mg.SetDeletionTimestamp(&now)
-							mg.SetReclaimPolicy(v1alpha1.ReclaimDelete)
+							mg.SetDeletionPolicy(v1alpha1.DeletionDelete)
 							return nil
 						}),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							want.SetDeletionTimestamp(&now)
-							want.SetReclaimPolicy(v1alpha1.ReclaimDelete)
+							want.SetDeletionPolicy(v1alpha1.DeletionDelete)
 							want.SetConditions(v1alpha1.ReconcileError(errors.Wrap(errBoom, errReconcileDelete)))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "An error deleting an external resource should be reported as a conditioned status."
@@ -251,13 +251,13 @@ func TestReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
 							mg := obj.(*fake.Managed)
 							mg.SetDeletionTimestamp(&now)
-							mg.SetReclaimPolicy(v1alpha1.ReclaimDelete)
+							mg.SetDeletionPolicy(v1alpha1.DeletionDelete)
 							return nil
 						}),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							want.SetDeletionTimestamp(&now)
-							want.SetReclaimPolicy(v1alpha1.ReclaimDelete)
+							want.SetDeletionPolicy(v1alpha1.DeletionDelete)
 							want.SetConditions(v1alpha1.ReconcileSuccess())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A deleted external resource should be reported as a conditioned status."
@@ -755,61 +755,6 @@ func TestReconciler(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want.result, got); diff != "" {
 				t.Errorf("\nReason: %s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
-			}
-		})
-	}
-}
-
-func TestShouldDelete(t *testing.T) {
-	cases := map[string]struct {
-		reason string
-		mg     resource.Managed
-		want   bool
-	}{
-		"DeletionPolicyDelete": {
-			reason: "The delete deletion policy should take precedence over the reclaim policy.",
-			mg: &fake.Managed{
-				Orphanable: fake.Orphanable{Policy: v1alpha1.DeletionDelete},
-				Reclaimer:  fake.Reclaimer{Policy: v1alpha1.ReclaimRetain},
-			},
-			want: true,
-		},
-		"DeletionPolicyOrphan": {
-			reason: "The orphan deletion policy should take precedence over the reclaim policy.",
-			mg: &fake.Managed{
-				Orphanable: fake.Orphanable{Policy: v1alpha1.DeletionOrphan},
-				Reclaimer:  fake.Reclaimer{Policy: v1alpha1.ReclaimDelete},
-			},
-			want: false,
-		},
-		"ReclaimPolicyDelete": {
-			reason: "The delete reclaim policy should take effect when no deletion policy exists.",
-			mg: &fake.Managed{
-				Reclaimer: fake.Reclaimer{Policy: v1alpha1.ReclaimDelete},
-			},
-			want: true,
-		},
-		"ReclaimPolicyRetain": {
-			reason: "The retain reclaim policy should take effect when no deletion policy exists.",
-			mg: &fake.Managed{
-				Reclaimer: fake.Reclaimer{Policy: v1alpha1.ReclaimRetain},
-			},
-			want: false,
-		},
-		"NoPolicy": {
-			reason: "Resources should be deleted when no deletion or reclaim policy is specified.",
-			mg: &fake.Managed{
-				Reclaimer: fake.Reclaimer{},
-			},
-			want: true,
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			got := shouldDelete(tc.mg)
-			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("\nReason: %s\nshouldDelete(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

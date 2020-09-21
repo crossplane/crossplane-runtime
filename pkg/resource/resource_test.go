@@ -215,7 +215,7 @@ func TestGetKind(t *testing.T) {
 		"TooManyKinds": {
 			args: args{
 				ot: MockTyper{GVKs: []schema.GroupVersionKind{
-					fake.GVK(&fake.Claim{}),
+					fake.GVK(&fake.Object{}),
 					fake.GVK(&fake.Managed{}),
 				}},
 			},
@@ -248,10 +248,10 @@ func TestMustCreateObject(t *testing.T) {
 	}{
 		"KindRegistered": {
 			args: args{
-				kind: fake.GVK(&fake.Claim{}),
-				oc:   fake.SchemeWith(&fake.Claim{}),
+				kind: fake.GVK(&fake.Managed{}),
+				oc:   fake.SchemeWith(&fake.Managed{}),
 			},
-			want: &fake.Claim{},
+			want: &fake.Managed{},
 		},
 	}
 
@@ -297,86 +297,6 @@ func TestIgnore(t *testing.T) {
 			got := Ignore(tc.args.is, tc.args.err)
 			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
 				t.Errorf("Ignore(...): -want error, +got error:\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestResolveClassClaimValues(t *testing.T) {
-	type args struct {
-		classValue string
-		claimValue string
-	}
-
-	type want struct {
-		err   error
-		value string
-	}
-
-	cases := map[string]struct {
-		args
-		want
-	}{
-		"ClassValueUnset": {
-			args: args{claimValue: "cool"},
-			want: want{value: "cool"},
-		},
-		"ClaimValueUnset": {
-			args: args{classValue: "cool"},
-			want: want{value: "cool"},
-		},
-		"IdenticalValues": {
-			args: args{classValue: "cool", claimValue: "cool"},
-			want: want{value: "cool"},
-		},
-		"ConflictingValues": {
-			args: args{classValue: "lame", claimValue: "cool"},
-			want: want{err: errors.New("claim value [cool] does not match class value [lame]")},
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			got, err := ResolveClassClaimValues(tc.args.classValue, tc.args.claimValue)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("ResolveClassClaimValues(...): -want error, +got error:\n%s", diff)
-			}
-			if diff := cmp.Diff(tc.want.value, got); diff != "" {
-				t.Errorf("ResolveClassClaimValues(...): -want, +got:\n%s", diff)
-			}
-
-		})
-	}
-}
-
-func TestSetBindable(t *testing.T) {
-	cases := map[string]struct {
-		b    Bindable
-		want v1alpha1.BindingPhase
-	}{
-		"BindableIsUnbindable": {
-			b:    &fake.Claim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseUnbindable}},
-			want: v1alpha1.BindingPhaseUnbound,
-		},
-		"BindableIsUnbound": {
-			b:    &fake.Claim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseUnbound}},
-			want: v1alpha1.BindingPhaseUnbound,
-		},
-		"BindableIsBound": {
-			b:    &fake.Claim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseBound}},
-			want: v1alpha1.BindingPhaseBound,
-		},
-		"BindableIsReleased": {
-			b:    &fake.Claim{BindingStatus: v1alpha1.BindingStatus{Phase: v1alpha1.BindingPhaseReleased}},
-			want: v1alpha1.BindingPhaseReleased,
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			SetBindable(tc.b)
-			if diff := cmp.Diff(tc.want, tc.b.GetBindingPhase()); diff != "" {
-				t.Errorf("SetBindable(...): -got, +want:\n%s", diff)
 			}
 		})
 	}
@@ -653,7 +573,6 @@ func TestConnectionSecretMustBeControllableBy(t *testing.T) {
 
 func TestGetExternalTags(t *testing.T) {
 	provName := "prov"
-	className := "classy"
 	cases := map[string]struct {
 		o    Managed
 		want map[string]string
@@ -663,13 +582,11 @@ func TestGetExternalTags(t *testing.T) {
 				Name: name,
 			},
 				ProviderReferencer: fake.ProviderReferencer{Ref: &v1alpha1.Reference{Name: provName}},
-				ClassReferencer:    fake.ClassReferencer{Ref: &corev1.ObjectReference{Name: className}},
 			},
 			want: map[string]string{
 				ExternalResourceTagKeyKind:     strings.ToLower((&fake.Managed{}).GetObjectKind().GroupVersionKind().GroupKind().String()),
 				ExternalResourceTagKeyName:     name,
 				ExternalResourceTagKeyProvider: provName,
-				ExternalResourceTagKeyClass:    className,
 			},
 		},
 		"SuccessfulWithProviderConfig": {
@@ -677,13 +594,11 @@ func TestGetExternalTags(t *testing.T) {
 				Name: name,
 			},
 				ProviderConfigReferencer: fake.ProviderConfigReferencer{Ref: &v1alpha1.Reference{Name: provName}},
-				ClassReferencer:          fake.ClassReferencer{Ref: &corev1.ObjectReference{Name: className}},
 			},
 			want: map[string]string{
 				ExternalResourceTagKeyKind:     strings.ToLower((&fake.Managed{}).GetObjectKind().GroupVersionKind().GroupKind().String()),
 				ExternalResourceTagKeyName:     name,
 				ExternalResourceTagKeyProvider: provName,
-				ExternalResourceTagKeyClass:    className,
 			},
 		},
 	}

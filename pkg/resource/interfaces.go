@@ -26,13 +26,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 )
 
-// A Bindable resource may be bound to another resource. Resources are bindable
-// when they available for use.
-type Bindable interface {
-	SetBindingPhase(p v1alpha1.BindingPhase)
-	GetBindingPhase() v1alpha1.BindingPhase
-}
-
 // A Conditioned may have conditions set or retrieved. Conditions are typically
 // indicate the status of both a resource and its reconciliation process.
 type Conditioned interface {
@@ -44,18 +37,6 @@ type Conditioned interface {
 type ClaimReferencer interface {
 	SetClaimReference(r *corev1.ObjectReference)
 	GetClaimReference() *corev1.ObjectReference
-}
-
-// A ClassSelector may reference a resource class.
-type ClassSelector interface {
-	SetClassSelector(s *metav1.LabelSelector)
-	GetClassSelector() *metav1.LabelSelector
-}
-
-// A ClassReferencer may reference a resource class.
-type ClassReferencer interface {
-	SetClassReference(r *corev1.ObjectReference)
-	GetClassReference() *corev1.ObjectReference
 }
 
 // A ManagedResourceReferencer may reference a concrete managed resource.
@@ -76,12 +57,6 @@ type LocalConnectionSecretWriterTo interface {
 type ConnectionSecretWriterTo interface {
 	SetWriteConnectionSecretToReference(r *v1alpha1.SecretReference)
 	GetWriteConnectionSecretToReference() *v1alpha1.SecretReference
-}
-
-// A Reclaimer may specify a ReclaimPolicy.
-type Reclaimer interface {
-	SetReclaimPolicy(p v1alpha1.ReclaimPolicy)
-	GetReclaimPolicy() v1alpha1.ReclaimPolicy
 }
 
 // An Orphanable resource may specify a DeletionPolicy.
@@ -145,60 +120,17 @@ type Object interface {
 	runtime.Object
 }
 
-// A Claim is a Kubernetes object representing an abstract resource claim (e.g.
-// an SQL database) that may be bound to a concrete managed resource (e.g. a
-// CloudSQL instance).
-type Claim interface {
-	Object
-
-	ClassSelector
-	ClassReferencer
-	ManagedResourceReferencer
-	LocalConnectionSecretWriterTo
-
-	Conditioned
-	Bindable
-}
-
-// A ClaimList is a list of resource claims.
-type ClaimList interface {
-	runtime.Object
-
-	// GetItems returns the list of resource claims.
-	GetItems() []Claim
-}
-
-// A Class is a Kubernetes object representing configuration specifications for
-// a managed resource.
-type Class interface {
-	Object
-
-	Reclaimer
-}
-
-// A ClassList is a list of resource classes.
-type ClassList interface {
-	runtime.Object
-
-	// GetItems returns the list of resource classes.
-	GetItems() []Class
-}
-
 // A Managed is a Kubernetes object representing a concrete managed
 // resource (e.g. a CloudSQL instance).
 type Managed interface {
 	Object
 
-	ClassReferencer
-	ClaimReferencer
 	ProviderReferencer
 	ProviderConfigReferencer
 	ConnectionSecretWriterTo
 	Orphanable
-	Reclaimer
 
 	Conditioned
-	Bindable
 }
 
 // A ManagedList is a list of managed resources.
