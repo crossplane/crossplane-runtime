@@ -316,8 +316,11 @@ func defaultMRManaged(m manager.Manager) mrManaged {
 	return mrManaged{
 		ConnectionPublisher: NewAPISecretPublisher(m.GetClient(), m.GetScheme()),
 		Finalizer:           resource.NewAPIFinalizer(m.GetClient(), managedFinalizerName),
-		Initializer:         NewNameAsExternalName(m.GetClient()),
-		ReferenceResolver:   NewAPIReferenceResolver(m.GetClient()),
+		Initializer: InitializerChain{
+			NewDefaultProviderConfig(m.GetClient()),
+			NewNameAsExternalName(m.GetClient()),
+		},
+		ReferenceResolver: NewAPIReferenceResolver(m.GetClient()),
 	}
 }
 
