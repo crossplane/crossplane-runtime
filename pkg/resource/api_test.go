@@ -56,7 +56,7 @@ func TestPropagateConnection(t *testing.T) {
 		},
 	}
 
-	cm := &fake.Claim{
+	cm := &fake.CompositeClaim{
 		ObjectMeta: metav1.ObjectMeta{Namespace: cmcsns},
 		LocalConnectionSecretWriterTo: fake.LocalConnectionSecretWriterTo{
 			Ref: &v1alpha1.LocalSecretReference{Name: cmcsname},
@@ -83,7 +83,7 @@ func TestPropagateConnection(t *testing.T) {
 		"ClaimDoesNotWantConnectionSecret": {
 			reason: "The managed resource's secret should not be propagated if the claim does not want to write one",
 			args: args{
-				o:  &fake.Claim{},
+				o:  &fake.CompositeClaim{},
 				mg: mg,
 			},
 			want: nil,

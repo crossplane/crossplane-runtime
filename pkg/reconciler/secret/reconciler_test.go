@@ -55,14 +55,14 @@ func TestReconciler(t *testing.T) {
 			Name:      "coolmanagedsecret",
 		}},
 	}
-	cm := &fake.Claim{
-		ObjectMeta: metav1.ObjectMeta{Namespace: "coolns", Name: "coolclaim"},
+	tg := &fake.Target{
+		ObjectMeta: metav1.ObjectMeta{Namespace: "coolns", Name: "cooltarget"},
 		LocalConnectionSecretWriterTo: fake.LocalConnectionSecretWriterTo{Ref: &v1alpha1.LocalSecretReference{
-			Name: "coolclaimsecret",
+			Name: "cooltargetsecret",
 		}},
 	}
 	from := resource.ConnectionSecretFor(mg, fake.GVK(mg))
-	to := resource.LocalConnectionSecretFor(cm, fake.GVK(cm))
+	to := resource.LocalConnectionSecretFor(tg, fake.GVK(tg))
 
 	fromData := map[string][]byte{"cool": {1}}
 

@@ -25,11 +25,9 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
 func TestAnyOf(t *testing.T) {
@@ -102,88 +100,6 @@ func TestAllOf(t *testing.T) {
 	}
 }
 
-func TestHasManagedResourceReferenceKind(t *testing.T) {
-	cases := map[string]struct {
-		obj  runtime.Object
-		c    client.Client
-		kind ManagedKind
-		want bool
-	}{
-		"NotAClassReferencer": {
-			c:    &test.MockClient{},
-			kind: ManagedKind(fake.GVK(&fake.Managed{})),
-			want: false,
-		},
-		"HasNoResourceReference": {
-			obj:  &fake.Claim{},
-			kind: ManagedKind(fake.GVK(&fake.Managed{})),
-			want: false,
-		},
-		"HasCorrectResourceReference": {
-			obj: &fake.Claim{
-				ManagedResourceReferencer: fake.ManagedResourceReferencer{
-					Ref: &corev1.ObjectReference{
-						APIVersion: fake.GVK(&fake.Managed{}).GroupVersion().String(),
-						Kind:       fake.GVK(&fake.Managed{}).Kind,
-					},
-				},
-			},
-			kind: ManagedKind(fake.GVK(&fake.Managed{})),
-			want: true,
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			got := HasManagedResourceReferenceKind(tc.kind)(tc.obj)
-			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("HasManagedResourceReferenceKind(...): -want, +got:\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestHasClassReferenceKind(t *testing.T) {
-	cases := map[string]struct {
-		obj  runtime.Object
-		c    client.Client
-		kind ClassKind
-		want bool
-	}{
-		"NotAClassReferencer": {
-			c:    &test.MockClient{},
-			kind: ClassKind(fake.GVK(&fake.Class{})),
-			want: false,
-		},
-		"HasNoClassReference": {
-			obj:  &fake.Claim{},
-			kind: ClassKind(fake.GVK(&fake.Class{})),
-			want: false,
-		},
-		"HasCorrectClassReference": {
-			obj: &fake.Claim{
-				ClassReferencer: fake.ClassReferencer{
-					Ref: &corev1.ObjectReference{
-						APIVersion: fake.GVK(&fake.Class{}).GroupVersion().String(),
-						Kind:       fake.GVK(&fake.Class{}).Kind,
-					},
-				},
-			},
-			kind: ClassKind(fake.GVK(&fake.Class{})),
-			want: true,
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			got := HasClassReferenceKind(tc.kind)(tc.obj)
-			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("HasClassReferenceKind(...): -want, +got:\n%s", diff)
-			}
-		})
-	}
-}
-
 func TestIsManagedKind(t *testing.T) {
 	cases := map[string]struct {
 		kind ManagedKind
@@ -198,7 +114,7 @@ func TestIsManagedKind(t *testing.T) {
 		},
 		"IsNotKind": {
 			kind: ManagedKind(fake.GVK(&fake.Managed{})),
-			ot:   MockTyper{GVKs: []schema.GroupVersionKind{fake.GVK(&fake.Claim{})}},
+			ot:   MockTyper{GVKs: []schema.GroupVersionKind{fake.GVK(&fake.Object{})}},
 			want: false,
 		},
 		"ErrorDeterminingKind": {
@@ -292,11 +208,11 @@ func TestIsPropagator(t *testing.T) {
 		},
 		"IsPropagator": {
 			obj: func() runtime.Object {
-				cm := &fake.Claim{}
-				cm.SetNamespace("somenamespace")
-				cm.SetName("somename")
+				o := &fake.Object{}
+				o.SetNamespace("somenamespace")
+				o.SetName("somename")
 				mg := &fake.Managed{}
-				meta.AllowPropagation(mg, cm)
+				meta.AllowPropagation(mg, o)
 				return mg
 			}(),
 			want: true,
@@ -329,12 +245,12 @@ func TestIsPropagated(t *testing.T) {
 		},
 		"IsPropagated": {
 			obj: func() runtime.Object {
-				cm := &fake.Claim{}
+				o := &fake.Object{}
 				mg := &fake.Managed{}
 				mg.SetNamespace("somenamespace")
 				mg.SetName("somename")
-				meta.AllowPropagation(mg, cm)
-				return cm
+				meta.AllowPropagation(mg, o)
+				return o
 			}(),
 			want: true,
 		},
@@ -345,118 +261,6 @@ func TestIsPropagated(t *testing.T) {
 			got := IsPropagated()(tc.obj)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("IsPropagated(...): -want, +got:\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestHasClassSelector(t *testing.T) {
-	cases := map[string]struct {
-		obj  runtime.Object
-		want bool
-	}{
-		"NotAClassSelector": {
-			want: false,
-		},
-		"NoClassSelector": {
-			obj:  &fake.Claim{},
-			want: false,
-		},
-		"HasClassSelector": {
-			obj:  &fake.Claim{ClassSelector: fake.ClassSelector{Sel: &v1.LabelSelector{}}},
-			want: true,
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			got := HasClassSelector()(tc.obj)
-			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("HasClassSelector(...): -want, +got:\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestHasNoClassSelector(t *testing.T) {
-	cases := map[string]struct {
-		obj  runtime.Object
-		want bool
-	}{
-		"NotAClassSelector": {
-			want: false,
-		},
-		"NoClassSelector": {
-			obj:  &fake.Claim{},
-			want: true,
-		},
-		"HasClassSelector": {
-			obj:  &fake.Claim{ClassSelector: fake.ClassSelector{Sel: &v1.LabelSelector{}}},
-			want: false,
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			got := HasNoClassSelector()(tc.obj)
-			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("HasNoClassSelector(...): -want, +got:\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestHasNoClassReference(t *testing.T) {
-	cases := map[string]struct {
-		obj  runtime.Object
-		want bool
-	}{
-		"NotAClassReferencer": {
-			want: false,
-		},
-		"NoClassReference": {
-			obj:  &fake.Claim{},
-			want: true,
-		},
-		"HasClassReference": {
-			obj:  &fake.Claim{ClassReferencer: fake.ClassReferencer{Ref: &corev1.ObjectReference{}}},
-			want: false,
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			got := HasNoClassReference()(tc.obj)
-			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("HasNoClassReference(...): -want, +got:\n%s", diff)
-			}
-		})
-	}
-}
-
-func TestHasNoMangedResourceReference(t *testing.T) {
-	cases := map[string]struct {
-		obj  runtime.Object
-		want bool
-	}{
-		"NotAManagedResourceReferencer": {
-			want: false,
-		},
-		"NoManagedResourceReference": {
-			obj:  &fake.Claim{},
-			want: true,
-		},
-		"HasClassReference": {
-			obj:  &fake.Claim{ManagedResourceReferencer: fake.ManagedResourceReferencer{Ref: &corev1.ObjectReference{}}},
-			want: false,
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			got := HasNoManagedResourceReference()(tc.obj)
-			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("HasNoManagedResourecReference(...): -want, +got:\n%s", diff)
 			}
 		})
 	}

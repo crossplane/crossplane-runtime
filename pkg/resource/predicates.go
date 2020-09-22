@@ -81,23 +81,6 @@ func HasManagedResourceReferenceKind(k ManagedKind) PredicateFn {
 	}
 }
 
-// HasClassReferenceKind accepts objects that reference the supplied resource
-// class kind.
-func HasClassReferenceKind(k ClassKind) PredicateFn {
-	return func(obj runtime.Object) bool {
-		r, ok := obj.(ClassReferencer)
-		if !ok {
-			return false
-		}
-
-		if r.GetClassReference() == nil {
-			return false
-		}
-
-		return r.GetClassReference().GroupVersionKind() == schema.GroupVersionKind(k)
-	}
-}
-
 // IsManagedKind accepts objects that are of the supplied managed resource kind.
 func IsManagedKind(k ManagedKind, ot runtime.ObjectTyper) PredicateFn {
 	return func(obj runtime.Object) bool {
@@ -150,53 +133,5 @@ func IsPropagated() PredicateFn {
 		}
 		nn := meta.AllowsPropagationFrom(to)
 		return nn.Namespace != "" && nn.Name != ""
-	}
-}
-
-// HasClassSelector accepts resource claims that do not specify a resource
-// class selector.
-func HasClassSelector() PredicateFn {
-	return func(obj runtime.Object) bool {
-		cs, ok := obj.(ClassSelector)
-		if !ok {
-			return false
-		}
-		return cs.GetClassSelector() != nil
-	}
-}
-
-// HasNoClassSelector accepts resource claims that do not specify a resource
-// class selector.
-func HasNoClassSelector() PredicateFn {
-	return func(obj runtime.Object) bool {
-		cs, ok := obj.(ClassSelector)
-		if !ok {
-			return false
-		}
-		return cs.GetClassSelector() == nil
-	}
-}
-
-// HasNoClassReference accepts resource claims that do not reference a specific
-// resource class.
-func HasNoClassReference() PredicateFn {
-	return func(obj runtime.Object) bool {
-		cr, ok := obj.(ClassReferencer)
-		if !ok {
-			return false
-		}
-		return cr.GetClassReference() == nil
-	}
-}
-
-// HasNoManagedResourceReference accepts resource claims that do not reference a
-// specific managed resource.
-func HasNoManagedResourceReference() PredicateFn {
-	return func(obj runtime.Object) bool {
-		cr, ok := obj.(ManagedResourceReferencer)
-		if !ok {
-			return false
-		}
-		return cr.GetResourceReference() == nil
 	}
 }

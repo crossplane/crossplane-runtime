@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -32,47 +31,13 @@ import (
 )
 
 var (
-	_ handler.EventHandler = &EnqueueRequestForClaim{}
+	_ handler.EventHandler = &EnqueueRequestForPropagated{}
 )
 
 type addFn func(item interface{})
 
 func (fn addFn) Add(item interface{}) {
 	fn(item)
-}
-
-func TestAddClaim(t *testing.T) {
-	ns := "coolns"
-	name := "coolname"
-
-	cases := map[string]struct {
-		obj   runtime.Object
-		queue adder
-	}{
-		"ObjectIsNotAClaimReferencer": {
-			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
-		},
-		"ObjectHasNilClaimReference": {
-			obj:   &fake.Managed{},
-			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
-		},
-		"ObjectHasClaimReference": {
-			obj: &fake.Managed{ClaimReferencer: fake.ClaimReferencer{Ref: &corev1.ObjectReference{
-				Namespace: ns,
-				Name:      name,
-			}}},
-			queue: addFn(func(got interface{}) {
-				want := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: ns, Name: name}}
-				if diff := cmp.Diff(want, got); diff != "" {
-					t.Errorf("-want, +got:\n%s", diff)
-				}
-			}),
-		},
-	}
-
-	for _, tc := range cases {
-		addClaim(tc.obj, tc.queue)
-	}
 }
 
 func TestAddPropagated(t *testing.T) {
@@ -94,11 +59,11 @@ func TestAddPropagated(t *testing.T) {
 		},
 		"IsPropagator": {
 			obj: func() runtime.Object {
-				cm := &fake.Claim{}
-				cm.SetNamespace(ns)
-				cm.SetName(name)
+				tg := &fake.Target{}
+				tg.SetNamespace(ns)
+				tg.SetName(name)
 				mg := &fake.Managed{}
-				meta.AllowPropagation(mg, cm)
+				meta.AllowPropagation(mg, tg)
 				return mg
 			}(),
 			queue: addFn(func(got interface{}) {

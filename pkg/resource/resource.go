@@ -41,24 +41,8 @@ const SecretTypeConnection corev1.SecretType = "connection.crossplane.io/v1alpha
 const (
 	ExternalResourceTagKeyKind     = "crossplane-kind"
 	ExternalResourceTagKeyName     = "crossplane-name"
-	ExternalResourceTagKeyClass    = "crossplane-class"
 	ExternalResourceTagKeyProvider = "crossplane-providerconfig"
 )
-
-// A ClaimKind contains the type metadata for a kind of resource claim.
-type ClaimKind schema.GroupVersionKind
-
-// A ClassKind contains the type metadata for a kind of resource class.
-type ClassKind schema.GroupVersionKind
-
-// List returns the list kind associated with a ClassKind.
-func (k ClassKind) List() schema.GroupVersionKind {
-	return schema.GroupVersionKind{
-		Group:   k.Group,
-		Version: k.Version,
-		Kind:    k.Kind + "List",
-	}
-}
 
 // A ManagedKind contains the type metadata for a kind of managed resource.
 type ManagedKind schema.GroupVersionKind
@@ -94,7 +78,7 @@ type ConnectionPropagatorFn func(ctx context.Context, to LocalConnectionSecretOw
 
 // A ManagedConnectionPropagator is responsible for propagating information
 // required to connect to a managed resource (for example the connection secret)
-// from the managed resource to its resource claim.
+// from the managed resource to a target.
 type ManagedConnectionPropagator interface {
 	PropagateConnection(ctx context.Context, o LocalConnectionSecretOwner, mg Managed) error
 }
@@ -202,46 +186,6 @@ func Ignore(is ErrorIs, err error) error {
 // Kubernetes resource was not found.
 func IgnoreNotFound(err error) error {
 	return Ignore(kerrors.IsNotFound, err)
-}
-
-// ResolveClassClaimValues validates the supplied claim value against the
-// supplied resource class value. If both are non-zero they must match.
-func ResolveClassClaimValues(classValue, claimValue string) (string, error) {
-	if classValue == "" {
-		return claimValue, nil
-	}
-	if claimValue == "" {
-		return classValue, nil
-	}
-	if classValue != claimValue {
-		return "", errors.Errorf("claim value [%s] does not match class value [%s]", claimValue, classValue)
-	}
-	return claimValue, nil
-}
-
-// SetBindable indicates that the supplied Bindable is ready for binding to
-// another Bindable, such as a resource claim or managed resource by setting its
-// binding phase to "Unbound". It is a no-op for Bindables in phases "Bound" or
-// "Released", because these phases may not transition back to "Unbound".
-func SetBindable(b Bindable) {
-	switch b.GetBindingPhase() {
-	case v1alpha1.BindingPhaseBound, v1alpha1.BindingPhaseReleased:
-		return
-	default:
-		b.SetBindingPhase(v1alpha1.BindingPhaseUnbound)
-	}
-}
-
-// IsBindable returns true if the supplied Bindable is ready for binding to
-// another Bindable, such as a resource claim or managed
-func IsBindable(b Bindable) bool {
-	return b.GetBindingPhase() == v1alpha1.BindingPhaseUnbound
-}
-
-// IsBound returns true if the supplied Bindable is bound to another Bindable,
-// such as a resource claim or managed
-func IsBound(b Bindable) bool {
-	return b.GetBindingPhase() == v1alpha1.BindingPhaseBound
 }
 
 // IsConditionTrue returns if condition status is true
@@ -372,9 +316,6 @@ func GetExternalTags(mg Managed) map[string]string {
 	tags := map[string]string{
 		ExternalResourceTagKeyKind: strings.ToLower(mg.GetObjectKind().GroupVersionKind().GroupKind().String()),
 		ExternalResourceTagKeyName: mg.GetName(),
-	}
-	if mg.GetClassReference() != nil {
-		tags[ExternalResourceTagKeyClass] = mg.GetClassReference().Name
 	}
 
 	switch {

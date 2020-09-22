@@ -19,18 +19,8 @@ package v1alpha1
 import (
 	corev1 "k8s.io/api/core/v1"
 
-	// NOTE(negz): Importing this as metav1 appears to break controller-gen's
-	// deepcopy generation logic. It generates a deepcopy file that omits this
-	// import and thus does not compile. Importing as v1 fixes this. ¯\_(ツ)_/¯
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-)
-
-// The annotation used to make a resource class the default.
-const (
-	AnnotationDefaultClassKey   = "resourceclass.crossplane.io/is-default-class"
-	AnnotationDefaultClassValue = "true"
 )
 
 const (
@@ -130,47 +120,6 @@ func (obj *TypedReference) GroupVersionKind() schema.GroupVersionKind {
 // GetObjectKind get the ObjectKind of a TypedReference.
 func (obj *TypedReference) GetObjectKind() schema.ObjectKind { return obj }
 
-// A ResourceClaimSpec defines the desired state of a resource claim.
-// Deprecated. See https://github.com/crossplane/crossplane/issues/1670
-type ResourceClaimSpec struct {
-	// WriteConnectionSecretToReference specifies the name of a Secret, in the
-	// same namespace as this resource claim, to which any connection details
-	// for this resource claim should be written. Connection details frequently
-	// include the endpoint, username, and password required to connect to the
-	// managed resource bound to this resource claim.
-	// +optional
-	WriteConnectionSecretToReference *LocalSecretReference `json:"writeConnectionSecretToRef,omitempty"`
-
-	// TODO(negz): Make the below references immutable once set? Doing so means
-	// we don't have to track what provisioner was used to create a resource.
-
-	// A ClassSelector specifies labels that will be used to select a resource
-	// class for this claim. If multiple classes match the labels one will be
-	// chosen at random.
-	// +optional
-	ClassSelector *v1.LabelSelector `json:"classSelector,omitempty"`
-
-	// A ClassReference specifies a resource class that will be used to
-	// dynamically provision a managed resource when the resource claim is
-	// created.
-	// +optional
-	ClassReference *corev1.ObjectReference `json:"classRef,omitempty"`
-
-	// A ResourceReference specifies an existing managed resource, in any
-	// namespace, to which this resource claim should attempt to bind. Omit the
-	// resource reference to enable dynamic provisioning using a resource class;
-	// the resource reference will be automatically populated by Crossplane.
-	// +optional
-	ResourceReference *corev1.ObjectReference `json:"resourceRef,omitempty"`
-}
-
-// A ResourceClaimStatus represents the observed status of a resource claim.
-// Deprecated. See https://github.com/crossplane/crossplane/issues/1670
-type ResourceClaimStatus struct {
-	ConditionedStatus `json:",inline"`
-	BindingStatus     `json:",inline"`
-}
-
 // TODO(negz): Rename Resource* to Managed* to clarify that they enable the
 // resource.Managed interface.
 
@@ -182,20 +131,6 @@ type ResourceSpec struct {
 	// and password required to connect to the managed resource.
 	// +optional
 	WriteConnectionSecretToReference *SecretReference `json:"writeConnectionSecretToRef,omitempty"`
-
-	// ClaimReference specifies the resource claim to which this managed
-	// resource will be bound. ClaimReference is set automatically during
-	// dynamic provisioning.
-	// Deprecated. See https://github.com/crossplane/crossplane/issues/1670
-	//
-	// +optional
-	ClaimReference *corev1.ObjectReference `json:"claimRef,omitempty"`
-
-	// ClassReference specifies the resource class that was used to dynamically
-	// provision this managed resource, if any.
-	// Deprecated. See https://github.com/crossplane/crossplane/issues/1670
-	// +optional
-	ClassReference *corev1.ObjectReference `json:"classRef,omitempty"`
 
 	// ProviderConfigReference specifies how the provider that will be used to
 	// create, observe, update, and delete this managed resource should be
@@ -215,59 +150,11 @@ type ResourceSpec struct {
 	// +optional
 	// +kubebuilder:validation:Enum=Orphan;Delete
 	DeletionPolicy DeletionPolicy `json:"deletionPolicy,omitempty"`
-
-	// ReclaimPolicy specifies what will happen to this managed resource when
-	// its resource claim is deleted, and what will happen to the underlying
-	// external resource when the managed resource is deleted. The "Delete"
-	// policy causes the managed resource to be deleted when its bound resource
-	// claim is deleted, and in turn causes the external resource to be deleted
-	// when its managed resource is deleted. The "Retain" policy causes the
-	// managed resource to be retained, in binding phase "Released", when its
-	// resource claim is deleted, and in turn causes the external resource to be
-	// retained when its managed resource is deleted. The "Delete" policy is
-	// used when no policy is specified.
-	//
-	// Deprecated. DeletionPolicy takes precedence when both are set.
-	// See https://github.com/crossplane/crossplane-runtime/issues/179.
-	//
-	// +optional
-	// +kubebuilder:validation:Enum=Retain;Delete
-	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
 // ResourceStatus represents the observed state of a managed resource.
 type ResourceStatus struct {
 	ConditionedStatus `json:",inline"`
-	BindingStatus     `json:",inline"`
-}
-
-// A ClassSpecTemplate defines a template that will be used to create the
-// specifications of managed resources dynamically provisioned using a resource
-// class.
-type ClassSpecTemplate struct {
-	// WriteConnectionSecretsToNamespace specifies the namespace in which the
-	// connection secrets of managed resources dynamically provisioned using
-	// this claim will be created.
-	WriteConnectionSecretsToNamespace string `json:"writeConnectionSecretsToNamespace"`
-
-	// ProviderReference specifies the provider that will be used to create,
-	// observe, update, and delete managed resources that are dynamically
-	// provisioned using this resource class.
-	ProviderReference Reference `json:"providerRef"`
-
-	// ReclaimPolicy specifies what will happen to managed resources dynamically
-	// provisioned using this class when their resource claims are deleted, and
-	// what will happen to their underlying external resource when they are
-	// deleted. The "Delete" policy causes the managed resource to be deleted
-	// when its bound resource claim is deleted, and in turn causes the external
-	// resource to be deleted when its managed resource is deleted. The "Retain"
-	// policy causes the managed resource to be retained, in binding phase
-	// "Released", when its resource claim is deleted, and in turn causes the
-	// external resource to be retained when its managed resource is deleted.
-	// The "Delete" policy is used when no policy is specified.
-	// +optional
-	// +kubebuilder:validation:Enum=Retain;Delete
-	ReclaimPolicy ReclaimPolicy `json:"reclaimPolicy,omitempty"`
 }
 
 // A ProviderSpec defines the common way to get to the necessary objects to connect

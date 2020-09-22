@@ -248,67 +248,6 @@ func TestReconciler(t *testing.T) {
 				result: reconcile.Result{RequeueAfter: aShortWait},
 			},
 		},
-		"ErrorManagedNotBound": {
-			args: args{
-				m: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: func(_ context.Context, n types.NamespacedName, o runtime.Object) error {
-							switch o := o.(type) {
-							case *fake.Target:
-								tg := &fake.Target{ObjectMeta: metav1.ObjectMeta{
-									UID:       tguid,
-									Name:      tgname,
-									Namespace: ns,
-								}}
-								tg.SetResourceReference(&corev1.ObjectReference{
-									Name: mgname,
-								})
-								tg.SetWriteConnectionSecretToReference(&v1alpha1.LocalSecretReference{
-									Name: tgcsname,
-								})
-								*o = *tg
-								return nil
-							case *fake.Managed:
-								mg := &fake.Managed{ObjectMeta: metav1.ObjectMeta{
-									UID:  mguid,
-									Name: mgname,
-								}}
-								mg.SetWriteConnectionSecretToReference(&v1alpha1.SecretReference{
-									Name:      mgcsname,
-									Namespace: mgcsnamespace,
-								})
-								mg.SetBindingPhase(v1alpha1.BindingPhaseUnbound)
-								*o = *mg
-								return nil
-							default:
-								return errUnexpected
-							}
-						},
-						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
-							want := &fake.Target{}
-							want.SetName(tgname)
-							want.SetNamespace(ns)
-							want.SetUID(tguid)
-							want.SetResourceReference(&corev1.ObjectReference{
-								Name: mgname,
-							})
-							want.SetWriteConnectionSecretToReference(&v1alpha1.LocalSecretReference{Name: tgcsname})
-							want.SetConditions(SecretPropagationError(errors.New(errManagedResourceIsNotBound)))
-							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
-								t.Errorf("-want, +got:\n%s", diff)
-							}
-							return nil
-						}),
-					},
-					Scheme: fake.SchemeWith(&fake.Target{}, &fake.Managed{}),
-				},
-				of:   resource.TargetKind(fake.GVK(&fake.Target{})),
-				with: resource.ManagedKind(fake.GVK(&fake.Managed{})),
-			},
-			want: want{
-				result: reconcile.Result{RequeueAfter: aShortWait},
-			},
-		},
 		"ErrorSecretPropagationFailed": {
 			args: args{
 				m: &fake.Manager{
@@ -338,7 +277,6 @@ func TestReconciler(t *testing.T) {
 									Name:      mgcsname,
 									Namespace: mgcsnamespace,
 								})
-								mg.SetBindingPhase(v1alpha1.BindingPhaseBound)
 								*o = *mg
 								return nil
 							default:
@@ -406,7 +344,6 @@ func TestReconciler(t *testing.T) {
 									Name:      mgcsname,
 									Namespace: mgcsnamespace,
 								})
-								mg.SetBindingPhase(v1alpha1.BindingPhaseBound)
 								*o = *mg
 								return nil
 							default:

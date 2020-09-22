@@ -16,21 +16,6 @@ limitations under the License.
 
 package v1alpha1
 
-// A ReclaimPolicy determines what should happen to managed resources when their
-// bound resource claims are deleted.
-type ReclaimPolicy string
-
-const (
-	// ReclaimDelete means both the managed resource and its underlying external
-	// resource will be deleted when its bound resource claim is deleted.
-	ReclaimDelete ReclaimPolicy = "Delete"
-
-	// ReclaimRetain means the managed resource will retained when its bound
-	// resource claim is deleted. Furthermore, its underlying external resource
-	// will be retained when the managed resource is deleted.
-	ReclaimRetain ReclaimPolicy = "Retain"
-)
-
 // A DeletionPolicy determines what should happen to the underlying external
 // resource when a managed resource is deleted.
 type DeletionPolicy string
