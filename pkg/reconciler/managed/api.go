@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
@@ -52,6 +53,24 @@ func (a *NameAsExternalName) Initialize(ctx context.Context, mg resource.Managed
 		return nil
 	}
 	meta.SetExternalName(mg, mg.GetName())
+	return errors.Wrap(a.client.Update(ctx, mg), errUpdateManaged)
+}
+
+// DefaultProviderConfig fills the ProviderConfigRef with `default` if it's left
+// empty.
+type DefaultProviderConfig struct{ client client.Client }
+
+// NewDefaultProviderConfig returns a new DefaultProviderConfig.
+func NewDefaultProviderConfig(c client.Client) *DefaultProviderConfig {
+	return &DefaultProviderConfig{client: c}
+}
+
+// Initialize the given managed resource.
+func (a *DefaultProviderConfig) Initialize(ctx context.Context, mg resource.Managed) error {
+	if mg.GetProviderConfigReference() != nil {
+		return nil
+	}
+	mg.SetProviderConfigReference(&v1alpha1.Reference{Name: "default"})
 	return errors.Wrap(a.client.Update(ctx, mg), errUpdateManaged)
 }
 
