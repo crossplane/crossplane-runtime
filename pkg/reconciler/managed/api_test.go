@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -182,7 +183,7 @@ func TestDefaultProviderConfig(t *testing.T) {
 	}
 }
 
-func TestAPISecretPublisher(t *testing.T) {
+func TestAPISecretPublisherPublishConnection(t *testing.T) {
 	errBoom := errors.New("boom")
 
 	mg := &fake.Managed{
@@ -195,7 +196,7 @@ func TestAPISecretPublisher(t *testing.T) {
 	cd := ConnectionDetails{"cool": {42}}
 
 	type fields struct {
-		secret resource.Applicator
+		secret resource.ClientApplicator
 		typer  runtime.ObjectTyper
 	}
 
@@ -221,8 +222,10 @@ func TestAPISecretPublisher(t *testing.T) {
 		"ApplyError": {
 			reason: "An error applying the connection secret should be returned",
 			fields: fields{
-				secret: resource.ApplyFn(func(_ context.Context, _ runtime.Object, _ ...resource.ApplyOption) error { return errBoom }),
-				typer:  fake.SchemeWith(&fake.Managed{}),
+				secret: resource.ClientApplicator{
+					Applicator: resource.ApplyFn(func(_ context.Context, _ runtime.Object, _ ...resource.ApplyOption) error { return errBoom }),
+				},
+				typer: fake.SchemeWith(&fake.Managed{}),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -233,14 +236,16 @@ func TestAPISecretPublisher(t *testing.T) {
 		"Success": {
 			reason: "A successful application of the connection secret should result in no error",
 			fields: fields{
-				secret: resource.ApplyFn(func(_ context.Context, o runtime.Object, _ ...resource.ApplyOption) error {
-					want := resource.ConnectionSecretFor(mg, fake.GVK(mg))
-					want.Data = cd
-					if diff := cmp.Diff(want, o); diff != "" {
-						t.Errorf("-want, +got:\n%s", diff)
-					}
-					return nil
-				}),
+				secret: resource.ClientApplicator{
+					Applicator: resource.ApplyFn(func(_ context.Context, o runtime.Object, _ ...resource.ApplyOption) error {
+						want := resource.ConnectionSecretFor(mg, fake.GVK(mg))
+						want.Data = cd
+						if diff := cmp.Diff(want, o); diff != "" {
+							t.Errorf("-want, +got:\n%s", diff)
+						}
+						return nil
+					}),
+				},
 				typer: fake.SchemeWith(&fake.Managed{}),
 			},
 			args: args{
@@ -256,7 +261,94 @@ func TestAPISecretPublisher(t *testing.T) {
 			a := &APISecretPublisher{tc.fields.secret, tc.fields.typer}
 			got := a.PublishConnection(tc.args.ctx, tc.args.mg, tc.args.c)
 			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nPublish(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nPublishConnection(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestAPISecretPublisherUnpublishConnection(t *testing.T) {
+	errBoom := errors.New("boom")
+
+	mg := &fake.Managed{
+		ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: &v1alpha1.SecretReference{
+			Namespace: "coolnamespace",
+			Name:      "coolsecret",
+		}},
+	}
+
+	type fields struct {
+		secret resource.ClientApplicator
+		typer  runtime.ObjectTyper
+	}
+
+	type args struct {
+		ctx context.Context
+		mg  resource.Managed
+		c   ConnectionDetails
+	}
+
+	cases := map[string]struct {
+		reason string
+		fields fields
+		args   args
+		want   error
+	}{
+		"ResourceDoesNotPublishSecret": {
+			reason: "A managed resource with a nil GetWriteConnectionSecretToReference should not publish a secret",
+			args: args{
+				ctx: context.Background(),
+				mg:  &fake.Managed{},
+			},
+		},
+		"GetSecretError": {
+			reason: "An error getting the connection secret should be returned",
+			fields: fields{
+				secret: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(errBoom),
+					},
+				},
+				typer: fake.SchemeWith(&fake.Managed{}),
+			},
+			args: args{
+				ctx: context.Background(),
+				mg:  mg,
+			},
+			want: errors.Wrap(errBoom, errGetSecret),
+		},
+		"MysteryOwnerError": {
+			reason: "An error should be returned if the secret has an owner other than the managed resource",
+			fields: fields{
+				secret: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+							s := obj.(*corev1.Secret)
+							s.SetOwnerReferences([]metav1.OwnerReference{{
+								Kind: "Mystery",
+								Name: "stranger",
+								UID:  "I'm different!",
+							}})
+							return nil
+						}),
+					},
+				},
+				typer: fake.SchemeWith(&fake.Managed{}),
+			},
+			args: args{
+				ctx: context.Background(),
+				mg:  mg,
+			},
+			want: errors.New("refusing to unpublish connection secret owned by Mystery \"stranger\""),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			a := &APISecretPublisher{tc.fields.secret, tc.fields.typer}
+			got := a.UnpublishConnection(tc.args.ctx, tc.args.mg, tc.args.c)
+			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nUnpublishConnection(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

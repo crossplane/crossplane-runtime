@@ -22,6 +22,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
@@ -32,6 +33,7 @@ import (
 // Error strings.
 const (
 	errCreateOrUpdateSecret = "cannot create or update connection secret"
+	errGetSecret            = "cannot get connection secret"
 	errUpdateManaged        = "cannot update managed resource"
 	errUpdateManagedStatus  = "cannot update managed resource status"
 	errResolveReferences    = "cannot resolve references"
@@ -77,15 +79,21 @@ func (a *DefaultProviderConfig) Initialize(ctx context.Context, mg resource.Mana
 // An APISecretPublisher publishes ConnectionDetails by submitting a Secret to a
 // Kubernetes API server.
 type APISecretPublisher struct {
-	secret resource.Applicator
+	secret resource.ClientApplicator
 	typer  runtime.ObjectTyper
 }
 
 // NewAPISecretPublisher returns a new APISecretPublisher.
 func NewAPISecretPublisher(c client.Client, ot runtime.ObjectTyper) *APISecretPublisher {
-	// NOTE(negz): We transparently inject an APIPatchingApplicator in order to maintain
-	// backward compatibility with the original API of this function.
-	return &APISecretPublisher{secret: resource.NewAPIPatchingApplicator(c), typer: ot}
+	// NOTE(negz): We transparently inject a ClientApplicator in order to
+	// maintain backward compatibility with the original API of this function.
+	return &APISecretPublisher{
+		secret: resource.ClientApplicator{
+			Applicator: resource.NewAPIPatchingApplicator(c),
+			Client:     c,
+		},
+		typer: ot,
+	}
 }
 
 // PublishConnection publishes the supplied ConnectionDetails to a Secret in the
@@ -102,10 +110,27 @@ func (a *APISecretPublisher) PublishConnection(ctx context.Context, mg resource.
 	return errors.Wrap(a.secret.Apply(ctx, s, resource.ConnectionSecretMustBeControllableBy(mg.GetUID())), errCreateOrUpdateSecret)
 }
 
-// UnpublishConnection is no-op since PublishConnection only creates resources
-// that will be garbage collected by Kubernetes when the managed resource is
-// deleted.
-func (a *APISecretPublisher) UnpublishConnection(ctx context.Context, mg resource.Managed, c ConnectionDetails) error {
+// UnpublishConnection defers deletion to Kubernetes garbage collection, but
+// returns an error if the secret has any owners beside the managed resource
+// that controls it.
+func (a *APISecretPublisher) UnpublishConnection(ctx context.Context, mg resource.Managed, _ ConnectionDetails) error {
+	if mg.GetWriteConnectionSecretToReference() == nil {
+		return nil
+	}
+	s := resource.ConnectionSecretFor(mg, resource.MustGetKind(mg, a.typer))
+	nn := types.NamespacedName{Namespace: s.GetNamespace(), Name: s.GetName()}
+	if err := a.secret.Get(ctx, nn, s); resource.IgnoreNotFound(err) != nil {
+		return errors.Wrap(err, errGetSecret)
+	}
+
+	for _, ref := range s.GetOwnerReferences() {
+		if ref.UID != mg.GetUID() {
+			return errors.Errorf("refusing to unpublish connection secret owned by %s %q", ref.Kind, ref.Name)
+		}
+	}
+
+	// We don't need to actually delete the connection secret; Kubernetes
+	// garbage collection will take care of that.
 	return nil
 }
 

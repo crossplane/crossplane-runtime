@@ -548,6 +548,16 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	if meta.WasDeleted(managed) {
 		log = log.WithValues("deletion-timestamp", managed.GetDeletionTimestamp())
 
+		if err := r.managed.UnpublishConnection(ctx, managed, observation.ConnectionDetails); err != nil {
+			// If this is the first time we encounter this issue we'll be
+			// requeued implicitly when we update our status with the new error
+			// condition. If not, we want to try again after a short wait.
+			log.Debug("Cannot unpublish connection details", "error", err, "requeue-after", time.Now().Add(r.shortWait))
+			record.Event(managed, event.Warning(reasonCannotUnpublish, err))
+			managed.SetConditions(v1alpha1.ReconcileError(err))
+			return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(resource.IgnoreNotFound(r.client.Status().Update(ctx, managed)), errUpdateManagedStatus)
+		}
+
 		if observation.ResourceExists && managed.GetDeletionPolicy() != v1alpha1.DeletionOrphan {
 			if err := external.Delete(externalCtx, managed); err != nil {
 				// We'll hit this condition if we can't delete our external
@@ -573,15 +583,6 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			record.Event(managed, event.Normal(reasonDeleted, "Successfully requested deletion of external resource"))
 			managed.SetConditions(v1alpha1.ReconcileSuccess())
 			return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
-		}
-		if err := r.managed.UnpublishConnection(ctx, managed, observation.ConnectionDetails); err != nil {
-			// If this is the first time we encounter this issue we'll be
-			// requeued implicitly when we update our status with the new error
-			// condition. If not, we want to try again after a short wait.
-			log.Debug("Cannot unpublish connection details", "error", err, "requeue-after", time.Now().Add(r.shortWait))
-			record.Event(managed, event.Warning(reasonCannotUnpublish, err))
-			managed.SetConditions(v1alpha1.ReconcileError(err))
-			return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(resource.IgnoreNotFound(r.client.Status().Update(ctx, managed)), errUpdateManagedStatus)
 		}
 		if err := r.managed.RemoveFinalizer(ctx, managed); err != nil {
 			// If this is the first time we encounter this issue we'll be
