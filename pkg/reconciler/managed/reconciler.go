@@ -488,18 +488,6 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		"external-name", meta.GetExternalName(managed),
 	)
 
-	external, err := r.external.Connect(externalCtx, managed)
-	if err != nil {
-		// We'll usually hit this case if our Provider or its secret are missing
-		// or invalid. If this is first time we encounter this issue we'll be
-		// requeued implicitly when we update our status with the new error
-		// condition. If not, we want to try again after a short wait.
-		log.Debug("Cannot connect to provider", "error", err, "requeue-after", time.Now().Add(r.shortWait))
-		record.Event(managed, event.Warning(reasonCannotConnect, err))
-		managed.SetConditions(v1alpha1.ReconcileError(errors.Wrap(err, errReconcileConnect)))
-		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
-	}
-
 	if err := r.managed.Initialize(ctx, managed); err != nil {
 		// If this is the first time we encounter this issue we'll be requeued
 		// implicitly when we update our status with the new error condition.
@@ -530,6 +518,18 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			managed.SetConditions(v1alpha1.ReconcileError(err))
 			return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 		}
+	}
+
+	external, err := r.external.Connect(externalCtx, managed)
+	if err != nil {
+		// We'll usually hit this case if our Provider or its secret are missing
+		// or invalid. If this is first time we encounter this issue we'll be
+		// requeued implicitly when we update our status with the new error
+		// condition. If not, we want to try again after a short wait.
+		log.Debug("Cannot connect to provider", "error", err, "requeue-after", time.Now().Add(r.shortWait))
+		record.Event(managed, event.Warning(reasonCannotConnect, err))
+		managed.SetConditions(v1alpha1.ReconcileError(errors.Wrap(err, errReconcileConnect)))
+		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
 	observation, err := external.Observe(externalCtx, managed)

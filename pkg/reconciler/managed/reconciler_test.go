@@ -82,33 +82,6 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{}},
 		},
-		"ExternalConnectError": {
-			reason: "Errors connecting to the provider should trigger a requeue after a short wait.",
-			args: args{
-				m: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, got runtime.Object, _ ...client.UpdateOption) error {
-							want := &fake.Managed{}
-							want.SetConditions(v1alpha1.ReconcileError(errors.Wrap(errBoom, errReconcileConnect)))
-							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
-								reason := "Errors connecting to the provider should be reported as a conditioned status."
-								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
-							}
-							return nil
-						}),
-					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
-				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
-				o: []ReconcilerOption{
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
-						return nil, errBoom
-					})),
-				},
-			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
-		},
 		"InitializeError": {
 			reason: "Errors initializing the managed resource should trigger a requeue after a short wait.",
 			args: args{
@@ -129,7 +102,6 @@ func TestReconciler(t *testing.T) {
 				},
 				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ReconcilerOption{
-					WithExternalConnecter(&NopConnecter{}),
 					WithInitializers(InitializerFn(func(_ context.Context, mg resource.Managed) error {
 						return errBoom
 					})),
@@ -158,9 +130,36 @@ func TestReconciler(t *testing.T) {
 				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
-					WithExternalConnecter(&NopConnecter{}),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, res resource.Managed) error {
 						return errBoom
+					})),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+		},
+		"ExternalConnectError": {
+			reason: "Errors connecting to the provider should trigger a requeue after a short wait.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, got runtime.Object, _ ...client.UpdateOption) error {
+							want := &fake.Managed{}
+							want.SetConditions(v1alpha1.ReconcileError(errors.Wrap(errBoom, errReconcileConnect)))
+							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+								reason := "Errors connecting to the provider should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
+						return nil, errBoom
 					})),
 				},
 			},
