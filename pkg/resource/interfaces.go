@@ -68,8 +68,8 @@ type Orphanable interface {
 // A CredentialsSecretReferencer may refer to a credential secret in an arbitrary
 // namespace.
 type CredentialsSecretReferencer interface {
-	GetCredentialsSecretReference() v1alpha1.SecretKeySelector
-	SetCredentialsSecretReference(r v1alpha1.SecretKeySelector)
+	GetCredentialsSecretReference() *v1alpha1.SecretKeySelector
+	SetCredentialsSecretReference(r *v1alpha1.SecretKeySelector)
 }
 
 // A ProviderReferencer may reference a provider resource.
