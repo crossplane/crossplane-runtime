@@ -499,6 +499,7 @@ func TestMustBeControllableBy(t *testing.T) {
 		})
 	}
 }
+
 func TestConnectionSecretMustBeControllableBy(t *testing.T) {
 	uid := types.UID("very-unique-string")
 	controller := true
@@ -566,6 +567,48 @@ func TestConnectionSecretMustBeControllableBy(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nConnectionSecretMustBeControllableBy(...)(...): -want error, +got error\n%s\n", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestAllowUpdateIf(t *testing.T) {
+	type args struct {
+		ctx     context.Context
+		current runtime.Object
+		desired runtime.Object
+	}
+
+	cases := map[string]struct {
+		reason string
+		fn     func(current, desired runtime.Object) bool
+		args   args
+		want   error
+	}{
+		"Allowed": {
+			reason: "No error should be returned when the supplied function returns true",
+			fn:     func(current, desired runtime.Object) bool { return true },
+			args: args{
+				current: &object{},
+			},
+		},
+		"NotAllowed": {
+			reason: "An error that satisfies IsNotAllowed should be returned when the supplied function returns false",
+			fn:     func(current, desired runtime.Object) bool { return false },
+			args: args{
+				current: &object{},
+			},
+			want: errNotAllowed{errors.New("update not allowed")},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			ao := AllowUpdateIf(tc.fn)
+			err := ao(tc.args.ctx, tc.args.current, tc.args.desired)
+
+			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nAllowUpdateIf(...)(...): -want error, +got error\n%s\n", tc.reason, diff)
 			}
 		})
 	}

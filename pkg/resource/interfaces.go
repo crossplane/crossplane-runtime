@@ -84,6 +84,13 @@ type ProviderConfigReferencer interface {
 	SetProviderConfigReference(p *v1alpha1.Reference)
 }
 
+// A RequiredProviderConfigReferencer may reference a provider config resource.
+// Unlike ProviderConfigReferencer, the reference is required (i.e. not nil).
+type RequiredProviderConfigReferencer interface {
+	GetProviderConfigReference() v1alpha1.Reference
+	SetProviderConfigReference(p v1alpha1.Reference)
+}
+
 // A Finalizer manages the finalizers on the resource.
 type Finalizer interface {
 	AddFinalizer(ctx context.Context, obj Object) error
@@ -114,6 +121,12 @@ type CompositeResourceReferencer interface {
 	GetResourceReference() *corev1.ObjectReference
 }
 
+// A UserCounter can count how many users it has.
+type UserCounter interface {
+	SetUsers(i *int64)
+	GetUsers() *int64
+}
+
 // An Object is a Kubernetes object.
 type Object interface {
 	metav1.Object
@@ -141,12 +154,28 @@ type ManagedList interface {
 	GetItems() []Managed
 }
 
-// A Provider is a Kubernetes object that refers to credentials to connect
-// to an external system.
-type Provider interface {
+// A ProviderConfig configures a Crossplane provider.
+type ProviderConfig interface {
 	Object
 
 	CredentialsSecretReferencer
+
+	UserCounter
+}
+
+// A ProviderConfigUsage indicates a usage of a Crossplane provider config.
+type ProviderConfigUsage interface {
+	Object
+
+	RequiredProviderConfigReferencer
+}
+
+// A ProviderConfigUsageList is a list of provider config usages.
+type ProviderConfigUsageList interface {
+	runtime.Object
+
+	// GetItems returns the list of provider config usages.
+	GetItems() []ProviderConfigUsage
 }
 
 // A Target is a Kubernetes object that refers to credentials to connect

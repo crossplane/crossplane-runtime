@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 )
@@ -77,5 +78,35 @@ func TestAddPropagated(t *testing.T) {
 
 	for _, tc := range cases {
 		addPropagated(tc.obj, tc.queue)
+	}
+}
+
+func TestAddProviderConfig(t *testing.T) {
+	name := "coolname"
+
+	cases := map[string]struct {
+		obj   runtime.Object
+		queue adder
+	}{
+		"NotProviderConfigReferencer": {
+			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
+		},
+		"IsProviderConfigReferencer": {
+			obj: &fake.ProviderConfigUsage{
+				RequiredProviderConfigReferencer: fake.RequiredProviderConfigReferencer{
+					Ref: v1alpha1.Reference{Name: name},
+				},
+			},
+			queue: addFn(func(got interface{}) {
+				want := reconcile.Request{NamespacedName: types.NamespacedName{Name: name}}
+				if diff := cmp.Diff(want, got); diff != "" {
+					t.Errorf("-want, +got:\n%s", diff)
+				}
+			}),
+		},
+	}
+
+	for _, tc := range cases {
+		addProviderConfig(tc.obj, tc.queue)
 	}
 }
