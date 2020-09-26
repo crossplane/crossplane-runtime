@@ -170,16 +170,17 @@ func (r *APIReferenceResolver) ResolveReferences(ctx context.Context, mg resourc
 }
 
 // findReferencers recursively finds all pointer types in a struct that satisfy
-// AttributeReferencer. It assesses only pointers, structs, and slices because
-// it is assumed that only struct fields or slice elements that are pointers to
-// a struct will satisfy AttributeReferencer.
+// AttributeReferencer.
 func findReferencers(obj interface{}) []resource.AttributeReferencer { // nolint:gocyclo
 	// NOTE(negz): This function is slightly over our complexity goal, but is
 	// easier to follow as a single function.
 
 	referencers := []resource.AttributeReferencer{}
 
-	switch v := reflect.ValueOf(obj); v.Kind() {
+	// We assess only pointers, structs, and slices because it is assumed that
+	// only struct fields or slice elements that are pointers to a struct will
+	// satisfy AttributeReferencer.
+	switch v := reflect.ValueOf(obj); v.Kind() { // nolint:exhaustive
 	case reflect.Ptr:
 		if v.IsNil() || !v.CanInterface() {
 			return nil
