@@ -121,7 +121,8 @@ func Parse(path string) (Segments, error) {
 
 	segments := make(Segments, 0, 1)
 	for i := range l.items {
-		switch i.typ {
+		// We're only worried about names, not separators.
+		switch i.typ { // nolint:exhaustive
 		case itemField:
 			segments = append(segments, Field(i.val))
 		case itemFieldOrIndex:

@@ -102,7 +102,7 @@ func (r *FsReadCloser) Read(p []byte) (n int, err error) {
 		return 0, io.EOF
 	}
 	if r.writeBreak {
-		n = copy(p, []byte("\n---\n"))
+		n = copy(p, "\n---\n")
 		r.writeBreak = false
 		return n, nil
 	}
