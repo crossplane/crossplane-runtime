@@ -172,7 +172,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			r.record.Event(pc, event.Warning(reasonAccount, errors.New("Blocking deletion while usages still exist")))
 
 			// We're watching our usages, so we'll be requeued when they go.
-			return reconcile.Result{Requeue: false}, nil
+			pc.SetUsers(&users)
+			return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pc), errUpdateStatus)
 		}
 
 		meta.RemoveFinalizer(pc, finalizer)

@@ -188,6 +188,7 @@ func TestReconciler(t *testing.T) {
 							}
 							return nil
 						}),
+						MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 					},
 					Scheme: fake.SchemeWith(&fake.ProviderConfig{}, &ProviderConfigUsageList{}),
 				},
