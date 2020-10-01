@@ -172,7 +172,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			r.record.Event(pc, event.Warning(reasonAccount, errors.New("Blocking deletion while usages still exist")))
 
 			// We're watching our usages, so we'll be requeued when they go.
-			pc.SetUsers(&users)
+			pc.SetUsers(users)
 			return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pc), errUpdateStatus)
 		}
 
@@ -193,6 +193,6 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	// There's no need to requeue explicitly - we're watching all PCs.
-	pc.SetUsers(&users)
+	pc.SetUsers(users)
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pc), errUpdateStatus)
 }

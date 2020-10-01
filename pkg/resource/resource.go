@@ -60,6 +60,7 @@ type CompositeClaimKind schema.GroupVersionKind
 // ProviderConfigKinds contains the type metadata for a kind of provider config.
 type ProviderConfigKinds struct {
 	Config    schema.GroupVersionKind
+	Usage     schema.GroupVersionKind
 	UsageList schema.GroupVersionKind
 }
 

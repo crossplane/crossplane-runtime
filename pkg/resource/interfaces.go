@@ -91,6 +91,12 @@ type RequiredProviderConfigReferencer interface {
 	SetProviderConfigReference(p v1alpha1.Reference)
 }
 
+// A RequiredTypedResourceReferencer can reference a resource.
+type RequiredTypedResourceReferencer interface {
+	SetResourceReference(r v1alpha1.TypedReference)
+	GetResourceReference() v1alpha1.TypedReference
+}
+
 // A Finalizer manages the finalizers on the resource.
 type Finalizer interface {
 	AddFinalizer(ctx context.Context, obj Object) error
@@ -123,8 +129,8 @@ type CompositeResourceReferencer interface {
 
 // A UserCounter can count how many users it has.
 type UserCounter interface {
-	SetUsers(i *int64)
-	GetUsers() *int64
+	SetUsers(i int64)
+	GetUsers() int64
 }
 
 // An Object is a Kubernetes object.
@@ -168,6 +174,7 @@ type ProviderConfigUsage interface {
 	Object
 
 	RequiredProviderConfigReferencer
+	RequiredTypedResourceReferencer
 }
 
 // A ProviderConfigUsageList is a list of provider config usages.

@@ -183,7 +183,7 @@ type ProviderConfigSpec struct {
 // A ProviderConfigStatus defines the observed status of a ProviderConfig.
 type ProviderConfigStatus struct {
 	// Users of this provider configuration.
-	Users *int64 `json:"users,omitempty"`
+	Users int64 `json:"users,omitempty"`
 }
 
 // A ProviderConfigUsage is a record that a particular managed resource is using

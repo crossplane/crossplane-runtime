@@ -94,6 +94,20 @@ func (m *RequiredProviderConfigReferencer) GetProviderConfigReference() v1alpha1
 	return m.Ref
 }
 
+// RequiredTypedResourceReferencer is a mock that implements the
+// RequiredTypedResourceReferencer interface.
+type RequiredTypedResourceReferencer struct{ Ref v1alpha1.TypedReference }
+
+// SetResourceReference sets the ResourceReference.
+func (m *RequiredTypedResourceReferencer) SetResourceReference(p v1alpha1.TypedReference) {
+	m.Ref = p
+}
+
+// GetResourceReference gets the ResourceReference.
+func (m *RequiredTypedResourceReferencer) GetResourceReference() v1alpha1.TypedReference {
+	return m.Ref
+}
+
 // LocalConnectionSecretWriterTo is a mock that implements LocalConnectionSecretWriterTo interface.
 type LocalConnectionSecretWriterTo struct {
 	Ref *v1alpha1.LocalSecretReference
@@ -183,15 +197,15 @@ func (m *ComposedResourcesReferencer) GetResourceReferences() []corev1.ObjectRef
 
 // UserCounter is a mock that satisfies UserCounter
 // interface.
-type UserCounter struct{ Users *int64 }
+type UserCounter struct{ Users int64 }
 
 // SetUsers sets the count of users.
-func (m *UserCounter) SetUsers(i *int64) {
+func (m *UserCounter) SetUsers(i int64) {
 	m.Users = i
 }
 
 // GetUsers gets the count of users.
-func (m *UserCounter) GetUsers() *int64 {
+func (m *UserCounter) GetUsers() int64 {
 	return m.Users
 }
 
@@ -488,6 +502,7 @@ type ProviderConfigUsage struct {
 	metav1.ObjectMeta
 
 	RequiredProviderConfigReferencer
+	RequiredTypedResourceReferencer
 }
 
 // GetObjectKind returns schema.ObjectKind.
