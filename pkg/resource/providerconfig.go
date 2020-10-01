@@ -46,6 +46,20 @@ func IsMissingReference(err error) bool {
 	return ok
 }
 
+// A Tracker tracks managed resources.
+type Tracker interface {
+	// Track the supplied managed resource.
+	Track(ctx context.Context, mg Managed) error
+}
+
+// A TrackerFn is a function that tracks managed resources.
+type TrackerFn func(ctx context.Context, mg Managed) error
+
+// Track the supplied managed resource.
+func (fn TrackerFn) Track(ctx context.Context, mg Managed) error {
+	return fn(ctx, mg)
+}
+
 // A ProviderConfigUsageTracker tracks usages of a ProviderConfig by creating or
 // updating the appropriate ProviderConfigUsage.
 type ProviderConfigUsageTracker struct {
