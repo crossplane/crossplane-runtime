@@ -46,16 +46,16 @@ func IsMissingReference(err error) bool {
 	return ok
 }
 
-// A UsageTracker tracks usages of a ProviderConfig by creating or updating the
-// appropriate ProviderConfigUsage.
-type UsageTracker struct {
+// A ProviderConfigUsageTracker tracks usages of a ProviderConfig by creating or
+// updating the appropriate ProviderConfigUsage.
+type ProviderConfigUsageTracker struct {
 	c  Applicator
 	of ProviderConfigUsage
 }
 
-// NewUsageTracker creates a UsageTracker.
-func NewUsageTracker(c client.Client, of ProviderConfigUsage) *UsageTracker {
-	return &UsageTracker{c: NewAPIUpdatingApplicator(c), of: of}
+// NewProviderConfigUsageTracker creates a ProviderConfigUsageTracker.
+func NewProviderConfigUsageTracker(c client.Client, of ProviderConfigUsage) *ProviderConfigUsageTracker {
+	return &ProviderConfigUsageTracker{c: NewAPIUpdatingApplicator(c), of: of}
 }
 
 // Track that the supplied Managed resource is using the ProviderConfig it
@@ -63,7 +63,7 @@ func NewUsageTracker(c client.Client, of ProviderConfigUsage) *UsageTracker {
 // called _before_ attempting to use the ProviderConfig. This ensures the
 // managed resource's usage is updated if the managed resource is updated to
 // reference a misconfigured ProviderConfig.
-func (u *UsageTracker) Track(ctx context.Context, mg Managed) error {
+func (u *ProviderConfigUsageTracker) Track(ctx context.Context, mg Managed) error {
 	pcu := u.of.DeepCopyObject().(ProviderConfigUsage)
 	gvk := mg.GetObjectKind().GroupVersionKind()
 	ref := mg.GetProviderConfigReference()

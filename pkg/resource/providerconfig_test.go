@@ -113,7 +113,7 @@ func TestTrack(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			ut := &UsageTracker{c: tc.fields.c, of: tc.fields.of}
+			ut := &ProviderConfigUsageTracker{c: tc.fields.c, of: tc.fields.of}
 			got := ut.Track(tc.args.ctx, tc.args.mg)
 			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nut.Track(...): -want error, +got error:\n%s\n", tc.reason, diff)
