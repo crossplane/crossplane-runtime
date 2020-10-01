@@ -167,6 +167,7 @@ type ProviderConfig interface {
 	CredentialsSecretReferencer
 
 	UserCounter
+	Conditioned
 }
 
 // A ProviderConfigUsage indicates a usage of a Crossplane provider config.

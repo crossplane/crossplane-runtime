@@ -478,6 +478,7 @@ type ProviderConfig struct {
 	CredentialsSecretReferencer
 
 	UserCounter
+	v1alpha1.ConditionedStatus
 }
 
 // GetObjectKind returns schema.ObjectKind.

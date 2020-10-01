@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -50,6 +51,23 @@ const (
 const (
 	reasonAccount event.Reason = "UsageAccounting"
 )
+
+// Condition types and reasons.
+const (
+	TypeTerminating v1alpha1.ConditionType   = "Terminating"
+	ReasonInUse     v1alpha1.ConditionReason = "InUse"
+)
+
+// Terminating indicates a ProviderConfig has been deleted, but that the
+// deletion is being blocked because it is still in use.
+func Terminating() v1alpha1.Condition {
+	return v1alpha1.Condition{
+		Type:               TypeTerminating,
+		Status:             corev1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonInUse,
+	}
+}
 
 // ControllerName returns the recommended name for controllers that use this
 // package to reconcile a particular kind of managed resource.
@@ -168,11 +186,14 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	if meta.WasDeleted(pc) {
 		if users > 0 {
-			log.Debug("Blocking deletion while usages still exist")
-			r.record.Event(pc, event.Warning(reasonAccount, errors.New("Blocking deletion while usages still exist")))
+			msg := "Blocking deletion while usages still exist"
+
+			log.Debug(msg)
+			r.record.Event(pc, event.Warning(reasonAccount, errors.New(msg)))
 
 			// We're watching our usages, so we'll be requeued when they go.
 			pc.SetUsers(users)
+			pc.SetConditions(Terminating().WithMessage(msg))
 			return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pc), errUpdateStatus)
 		}
 

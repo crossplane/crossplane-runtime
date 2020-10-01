@@ -182,6 +182,8 @@ type ProviderConfigSpec struct {
 
 // A ProviderConfigStatus defines the observed status of a ProviderConfig.
 type ProviderConfigStatus struct {
+	ConditionedStatus `json:",inline"`
+
 	// Users of this provider configuration.
 	Users int64 `json:"users,omitempty"`
 }
