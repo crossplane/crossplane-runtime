@@ -44,6 +44,10 @@ const (
 	ResourceCredentialsSecretKubeconfigKey = "kubeconfig"
 )
 
+// LabelKeyProviderName is added to ProviderConfigUsages to relate them to their
+// ProviderConfig.
+const LabelKeyProviderName = "crossplane.io/provider-config"
+
 // NOTE(negz): The below secret references differ from ObjectReference and
 // LocalObjectReference in that they include only the fields Crossplane needs to
 // reference a secret, and make those fields required. This reduces ambiguity in
@@ -157,8 +161,8 @@ type ResourceStatus struct {
 	ConditionedStatus `json:",inline"`
 }
 
-// A ProviderSpec defines the common way to get to the necessary objects to connect
-// to the provider.
+// A ProviderSpec defines the common way to get to the necessary objects to
+// connect to the provider.
 // Deprecated: Please use ProviderConfigSpec.
 type ProviderSpec struct {
 	// CredentialsSecretRef references a specific secret's key that contains
@@ -167,13 +171,31 @@ type ProviderSpec struct {
 	CredentialsSecretRef *SecretKeySelector `json:"credentialsSecretRef,omitempty"`
 }
 
-// A ProviderConfigSpec defines the common way to get to the necessary objects to connect
-// to the provider.
+// A ProviderConfigSpec defines the common way to get to the necessary objects
+// to connect to the provider.
 type ProviderConfigSpec struct {
 	// CredentialsSecretRef references a specific secret's key that contains
 	// the credentials that are used to connect to the provider.
 	// +optional
 	CredentialsSecretRef *SecretKeySelector `json:"credentialsSecretRef,omitempty"`
+}
+
+// A ProviderConfigStatus defines the observed status of a ProviderConfig.
+type ProviderConfigStatus struct {
+	ConditionedStatus `json:",inline"`
+
+	// Users of this provider configuration.
+	Users int64 `json:"users,omitempty"`
+}
+
+// A ProviderConfigUsage is a record that a particular managed resource is using
+// a particular provider configuration.
+type ProviderConfigUsage struct {
+	// ProviderConfigReference to the provider config being used.
+	ProviderConfigReference Reference `json:"providerConfigRef"`
+
+	// ResourceReference to the managed resource using the provider config.
+	ResourceReference TypedReference `json:"resourceRef"`
 }
 
 // A TargetSpec defines the common fields of objects used for exposing

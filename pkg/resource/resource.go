@@ -57,6 +57,13 @@ type CompositeKind schema.GroupVersionKind
 // resource claim.
 type CompositeClaimKind schema.GroupVersionKind
 
+// ProviderConfigKinds contains the type metadata for a kind of provider config.
+type ProviderConfigKinds struct {
+	Config    schema.GroupVersionKind
+	Usage     schema.GroupVersionKind
+	UsageList schema.GroupVersionKind
+}
+
 // A LocalConnectionSecretOwner may create and manage a connection secret in its
 // own namespace.
 type LocalConnectionSecretOwner interface {
@@ -244,7 +251,9 @@ func IsNotControllable(err error) bool {
 
 // MustBeControllableBy requires that the current object is controllable by an
 // object with the supplied UID. An object is controllable if its controller
-// reference matches the supplied UID, or it has no controller reference.
+// reference matches the supplied UID, or it has no controller reference. An
+// error that satisfies IsNotControllable will be returned if the current object
+// cannot be controlled by the supplied UID.
 func MustBeControllableBy(u types.UID) ApplyOption {
 	return func(_ context.Context, current, _ runtime.Object) error {
 		c := metav1.GetControllerOf(current.(metav1.Object))
@@ -269,7 +278,9 @@ func MustBeControllableBy(u types.UID) ApplyOption {
 // only considered controllable if they are already controlled by the supplied
 // UID. It is not safe to assume legacy connection secrets without a controller
 // reference are controllable because they are indistinguishable from Kubernetes
-// secrets that have nothing to do with Crossplane.
+// secrets that have nothing to do with Crossplane. An error that satisfies
+// IsNotControllable will be returned if the current secret is not a connection
+// secret or cannot be controlled by the supplied UID.
 func ConnectionSecretMustBeControllableBy(u types.UID) ApplyOption {
 	return func(_ context.Context, current, _ runtime.Object) error {
 		s := current.(*corev1.Secret)
@@ -299,6 +310,34 @@ func ControllersMustMatch() ApplyOption {
 			return errors.New("existing object has a different (or no) controller")
 		}
 		return nil
+	}
+}
+
+type errNotAllowed struct{ error }
+
+func (e errNotAllowed) NotAllowed() bool {
+	return true
+}
+
+// IsNotAllowed returns true if the supplied error indicates that an operation
+// was not allowed.
+func IsNotAllowed(err error) bool {
+	_, ok := err.(interface {
+		NotAllowed() bool
+	})
+	return ok
+}
+
+// AllowUpdateIf will only update the current object if the supplied fn returns
+// true. An error that satisfies IsNotAllowed will be returned if the supplied
+// function returns false. Creation of a desired object that does not currently
+// exist is always allowed.
+func AllowUpdateIf(fn func(current, desired runtime.Object) bool) ApplyOption {
+	return func(_ context.Context, current, desired runtime.Object) error {
+		if fn(current, desired) {
+			return nil
+		}
+		return errNotAllowed{errors.New("update not allowed")}
 	}
 }
 

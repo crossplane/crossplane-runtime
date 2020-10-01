@@ -68,8 +68,8 @@ type Orphanable interface {
 // A CredentialsSecretReferencer may refer to a credential secret in an arbitrary
 // namespace.
 type CredentialsSecretReferencer interface {
-	GetCredentialsSecretReference() v1alpha1.SecretKeySelector
-	SetCredentialsSecretReference(r v1alpha1.SecretKeySelector)
+	GetCredentialsSecretReference() *v1alpha1.SecretKeySelector
+	SetCredentialsSecretReference(r *v1alpha1.SecretKeySelector)
 }
 
 // A ProviderReferencer may reference a provider resource.
@@ -82,6 +82,19 @@ type ProviderReferencer interface {
 type ProviderConfigReferencer interface {
 	GetProviderConfigReference() *v1alpha1.Reference
 	SetProviderConfigReference(p *v1alpha1.Reference)
+}
+
+// A RequiredProviderConfigReferencer may reference a provider config resource.
+// Unlike ProviderConfigReferencer, the reference is required (i.e. not nil).
+type RequiredProviderConfigReferencer interface {
+	GetProviderConfigReference() v1alpha1.Reference
+	SetProviderConfigReference(p v1alpha1.Reference)
+}
+
+// A RequiredTypedResourceReferencer can reference a resource.
+type RequiredTypedResourceReferencer interface {
+	SetResourceReference(r v1alpha1.TypedReference)
+	GetResourceReference() v1alpha1.TypedReference
 }
 
 // A Finalizer manages the finalizers on the resource.
@@ -114,6 +127,12 @@ type CompositeResourceReferencer interface {
 	GetResourceReference() *corev1.ObjectReference
 }
 
+// A UserCounter can count how many users it has.
+type UserCounter interface {
+	SetUsers(i int64)
+	GetUsers() int64
+}
+
 // An Object is a Kubernetes object.
 type Object interface {
 	metav1.Object
@@ -141,12 +160,30 @@ type ManagedList interface {
 	GetItems() []Managed
 }
 
-// A Provider is a Kubernetes object that refers to credentials to connect
-// to an external system.
-type Provider interface {
+// A ProviderConfig configures a Crossplane provider.
+type ProviderConfig interface {
 	Object
 
 	CredentialsSecretReferencer
+
+	UserCounter
+	Conditioned
+}
+
+// A ProviderConfigUsage indicates a usage of a Crossplane provider config.
+type ProviderConfigUsage interface {
+	Object
+
+	RequiredProviderConfigReferencer
+	RequiredTypedResourceReferencer
+}
+
+// A ProviderConfigUsageList is a list of provider config usages.
+type ProviderConfigUsageList interface {
+	runtime.Object
+
+	// GetItems returns the list of provider config usages.
+	GetItems() []ProviderConfigUsage
 }
 
 // A Target is a Kubernetes object that refers to credentials to connect

@@ -80,6 +80,34 @@ func (m *ProviderConfigReferencer) SetProviderConfigReference(p *v1alpha1.Refere
 // GetProviderConfigReference gets the ProviderConfigReference.
 func (m *ProviderConfigReferencer) GetProviderConfigReference() *v1alpha1.Reference { return m.Ref }
 
+// RequiredProviderConfigReferencer is a mock that implements the
+// RequiredProviderConfigReferencer interface.
+type RequiredProviderConfigReferencer struct{ Ref v1alpha1.Reference }
+
+// SetProviderConfigReference sets the ProviderConfigReference.
+func (m *RequiredProviderConfigReferencer) SetProviderConfigReference(p v1alpha1.Reference) {
+	m.Ref = p
+}
+
+// GetProviderConfigReference gets the ProviderConfigReference.
+func (m *RequiredProviderConfigReferencer) GetProviderConfigReference() v1alpha1.Reference {
+	return m.Ref
+}
+
+// RequiredTypedResourceReferencer is a mock that implements the
+// RequiredTypedResourceReferencer interface.
+type RequiredTypedResourceReferencer struct{ Ref v1alpha1.TypedReference }
+
+// SetResourceReference sets the ResourceReference.
+func (m *RequiredTypedResourceReferencer) SetResourceReference(p v1alpha1.TypedReference) {
+	m.Ref = p
+}
+
+// GetResourceReference gets the ResourceReference.
+func (m *RequiredTypedResourceReferencer) GetResourceReference() v1alpha1.TypedReference {
+	return m.Ref
+}
+
 // LocalConnectionSecretWriterTo is a mock that implements LocalConnectionSecretWriterTo interface.
 type LocalConnectionSecretWriterTo struct {
 	Ref *v1alpha1.LocalSecretReference
@@ -119,15 +147,15 @@ func (m *Orphanable) GetDeletionPolicy() v1alpha1.DeletionPolicy { return m.Poli
 
 // CredentialsSecretReferencer is a mock that satisfies CredentialsSecretReferencer
 // interface.
-type CredentialsSecretReferencer struct{ Ref v1alpha1.SecretKeySelector }
+type CredentialsSecretReferencer struct{ Ref *v1alpha1.SecretKeySelector }
 
 // SetCredentialsSecretReference sets CredentialsSecretReference.
-func (m *CredentialsSecretReferencer) SetCredentialsSecretReference(r v1alpha1.SecretKeySelector) {
+func (m *CredentialsSecretReferencer) SetCredentialsSecretReference(r *v1alpha1.SecretKeySelector) {
 	m.Ref = r
 }
 
 // GetCredentialsSecretReference gets CredentialsSecretReference.
-func (m *CredentialsSecretReferencer) GetCredentialsSecretReference() v1alpha1.SecretKeySelector {
+func (m *CredentialsSecretReferencer) GetCredentialsSecretReference() *v1alpha1.SecretKeySelector {
 	return m.Ref
 }
 
@@ -166,6 +194,20 @@ func (m *ComposedResourcesReferencer) SetResourceReferences(r []corev1.ObjectRef
 
 // GetResourceReferences gets the composed references.
 func (m *ComposedResourcesReferencer) GetResourceReferences() []corev1.ObjectReference { return m.Refs }
+
+// UserCounter is a mock that satisfies UserCounter
+// interface.
+type UserCounter struct{ Users int64 }
+
+// SetUsers sets the count of users.
+func (m *UserCounter) SetUsers(i int64) {
+	m.Users = i
+}
+
+// GetUsers gets the count of users.
+func (m *UserCounter) GetUsers() int64 {
+	return m.Users
+}
 
 // Object is a mock that implements Object interface.
 type Object struct {
@@ -207,28 +249,6 @@ func (m *Managed) GetObjectKind() schema.ObjectKind {
 // DeepCopyObject returns a copy of the object as runtime.Object
 func (m *Managed) DeepCopyObject() runtime.Object {
 	out := &Managed{}
-	j, err := json.Marshal(m)
-	if err != nil {
-		panic(err)
-	}
-	_ = json.Unmarshal(j, out)
-	return out
-}
-
-// Provider is a mock that satisfies Provider interface.
-type Provider struct {
-	metav1.ObjectMeta
-	CredentialsSecretReferencer
-}
-
-// GetObjectKind returns schema.ObjectKind.
-func (m *Provider) GetObjectKind() schema.ObjectKind {
-	return schema.EmptyObjectKind
-}
-
-// DeepCopyObject returns a deep copy of Provider as runtime.Object.
-func (m *Provider) DeepCopyObject() runtime.Object {
-	out := &Provider{}
 	j, err := json.Marshal(m)
 	if err != nil {
 		panic(err)
@@ -444,6 +464,57 @@ func (m *MockLocalConnectionSecretOwner) GetObjectKind() schema.ObjectKind {
 func (m *MockLocalConnectionSecretOwner) DeepCopyObject() runtime.Object {
 	out := &MockLocalConnectionSecretOwner{}
 	j, err := json.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	_ = json.Unmarshal(j, out)
+	return out
+}
+
+// ProviderConfig is a mock implementation of the ProviderConfig interface.
+type ProviderConfig struct {
+	metav1.ObjectMeta
+
+	CredentialsSecretReferencer
+
+	UserCounter
+	v1alpha1.ConditionedStatus
+}
+
+// GetObjectKind returns schema.ObjectKind.
+func (p *ProviderConfig) GetObjectKind() schema.ObjectKind {
+	return schema.EmptyObjectKind
+}
+
+// DeepCopyObject returns a copy of the object as runtime.Object
+func (p *ProviderConfig) DeepCopyObject() runtime.Object {
+	out := &ProviderConfig{}
+	j, err := json.Marshal(p)
+	if err != nil {
+		panic(err)
+	}
+	_ = json.Unmarshal(j, out)
+	return out
+}
+
+// ProviderConfigUsage is a mock implementation of the ProviderConfigUsage
+// interface.
+type ProviderConfigUsage struct {
+	metav1.ObjectMeta
+
+	RequiredProviderConfigReferencer
+	RequiredTypedResourceReferencer
+}
+
+// GetObjectKind returns schema.ObjectKind.
+func (p *ProviderConfigUsage) GetObjectKind() schema.ObjectKind {
+	return schema.EmptyObjectKind
+}
+
+// DeepCopyObject returns a copy of the object as runtime.Object
+func (p *ProviderConfigUsage) DeepCopyObject() runtime.Object {
+	out := &ProviderConfigUsage{}
+	j, err := json.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
