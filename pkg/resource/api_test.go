@@ -131,12 +131,12 @@ func TestPropagateConnection(t *testing.T) {
 			reason: "Errors applying the claim connection secret should be returned",
 			fields: fields{
 				client: ClientApplicator{
-					Client: &test.MockClient{MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+					Client: &test.MockClient{MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 						s := ConnectionSecretFor(mg, fake.GVK(mg))
 						*o.(*corev1.Secret) = *s
 						return nil
 					})},
-					Applicator: ApplyFn(func(_ context.Context, _ runtime.Object, _ ...ApplyOption) error { return errBoom }),
+					Applicator: ApplyFn(func(_ context.Context, _ client.Object, _ ...ApplyOption) error { return errBoom }),
 				},
 				typer: fake.SchemeWith(mg, cm),
 			},
@@ -151,14 +151,14 @@ func TestPropagateConnection(t *testing.T) {
 			fields: fields{
 				client: ClientApplicator{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 							s := ConnectionSecretFor(mg, fake.GVK(mg))
 							*o.(*corev1.Secret) = *s
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(errBoom),
 					},
-					Applicator: ApplyFn(func(_ context.Context, _ runtime.Object, _ ...ApplyOption) error { return nil }),
+					Applicator: ApplyFn(func(_ context.Context, _ client.Object, _ ...ApplyOption) error { return nil }),
 				},
 				typer: fake.SchemeWith(mg, cm),
 			},
@@ -173,7 +173,7 @@ func TestPropagateConnection(t *testing.T) {
 			fields: fields{
 				client: ClientApplicator{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 							// The managed secret has some data when we get it.
 							s := ConnectionSecretFor(mg, fake.GVK(mg))
 							s.Data = mgcsdata
@@ -181,7 +181,7 @@ func TestPropagateConnection(t *testing.T) {
 							*o.(*corev1.Secret) = *s
 							return nil
 						}),
-						MockUpdate: test.NewMockUpdateFn(nil, func(o runtime.Object) error {
+						MockUpdate: test.NewMockUpdateFn(nil, func(o client.Object) error {
 							// Ensure the managed secret is annotated to allow
 							// constant propagation to the claim secret.
 							want := ConnectionSecretFor(mg, fake.GVK(mg))
@@ -193,7 +193,7 @@ func TestPropagateConnection(t *testing.T) {
 							return nil
 						}),
 					},
-					Applicator: ApplyFn(func(_ context.Context, o runtime.Object, _ ...ApplyOption) error {
+					Applicator: ApplyFn(func(_ context.Context, o client.Object, _ ...ApplyOption) error {
 						// Ensure the managed secret's data is copied to the
 						// claim secret, and that the claim secret is annotated
 						// to allow constant propagation from the managed
@@ -235,12 +235,12 @@ func TestAPIPatchingApplicator(t *testing.T) {
 
 	type args struct {
 		ctx context.Context
-		o   runtime.Object
+		o   client.Object
 		ao  []ApplyOption
 	}
 
 	type want struct {
-		o   runtime.Object
+		o   client.Object
 		err error
 	}
 
@@ -250,17 +250,6 @@ func TestAPIPatchingApplicator(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"NotAMetadataObject": {
-			reason: "An error should be returned if we can't access the object's metadata",
-			c:      &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
-			args: args{
-				o: &nopeject{},
-			},
-			want: want{
-				o:   &nopeject{},
-				err: errors.New("cannot access object metadata"),
-			},
-		},
 		"GetError": {
 			reason: "An error should be returned if we can't get the object",
 			c:      &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
@@ -316,7 +305,7 @@ func TestAPIPatchingApplicator(t *testing.T) {
 			reason: "No error should be returned if we successfully create a new object",
 			c: &test.MockClient{
 				MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-				MockCreate: test.NewMockCreateFn(nil, func(o runtime.Object) error {
+				MockCreate: test.NewMockCreateFn(nil, func(o client.Object) error {
 					*o.(*object) = *desired
 					return nil
 				}),
@@ -332,7 +321,7 @@ func TestAPIPatchingApplicator(t *testing.T) {
 			reason: "No error should be returned if we successfully patch an existing object",
 			c: &test.MockClient{
 				MockGet: test.NewMockGetFn(nil),
-				MockPatch: test.NewMockPatchFn(nil, func(o runtime.Object) error {
+				MockPatch: test.NewMockPatchFn(nil, func(o client.Object) error {
 					*o.(*object) = *desired
 					return nil
 				}),
@@ -369,12 +358,12 @@ func TestAPIUpdatingApplicator(t *testing.T) {
 
 	type args struct {
 		ctx context.Context
-		o   runtime.Object
+		o   client.Object
 		ao  []ApplyOption
 	}
 
 	type want struct {
-		o   runtime.Object
+		o   client.Object
 		err error
 	}
 
@@ -384,17 +373,6 @@ func TestAPIUpdatingApplicator(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"NotAMetadataObject": {
-			reason: "An error should be returned if we can't access the object's metadata",
-			c:      &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
-			args: args{
-				o: &nopeject{},
-			},
-			want: want{
-				o:   &nopeject{},
-				err: errors.New("cannot access object metadata"),
-			},
-		},
 		"GetError": {
 			reason: "An error should be returned if we can't get the object",
 			c:      &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
@@ -450,7 +428,7 @@ func TestAPIUpdatingApplicator(t *testing.T) {
 			reason: "No error should be returned if we successfully create a new object",
 			c: &test.MockClient{
 				MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-				MockCreate: test.NewMockCreateFn(nil, func(o runtime.Object) error {
+				MockCreate: test.NewMockCreateFn(nil, func(o client.Object) error {
 					*o.(*object) = *desired
 					return nil
 				}),
@@ -465,11 +443,11 @@ func TestAPIUpdatingApplicator(t *testing.T) {
 		"Updated": {
 			reason: "No error should be returned if we successfully update an existing object. If no ApplyOption is passed the existing should not be modified",
 			c: &test.MockClient{
-				MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+				MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 					*o.(*object) = *current
 					return nil
 				}),
-				MockUpdate: test.NewMockUpdateFn(nil, func(o runtime.Object) error {
+				MockUpdate: test.NewMockUpdateFn(nil, func(o client.Object) error {
 					if diff := cmp.Diff(*desired, *o.(*object)); diff != "" {
 						t.Errorf("r: -want, +got:\n%s", diff)
 					}

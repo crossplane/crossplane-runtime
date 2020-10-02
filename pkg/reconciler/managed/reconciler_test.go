@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -88,7 +87,7 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -115,7 +114,7 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -143,7 +142,7 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, got runtime.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, got client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileConnect)))
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
@@ -171,7 +170,7 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileObserve)))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -203,13 +202,13 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := obj.(*fake.Managed)
 							mg.SetDeletionTimestamp(&now)
 							mg.SetDeletionPolicy(xpv1.DeletionDelete)
 							return nil
 						}),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							want.SetDeletionTimestamp(&now)
 							want.SetDeletionPolicy(xpv1.DeletionDelete)
@@ -247,13 +246,13 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := obj.(*fake.Managed)
 							mg.SetDeletionTimestamp(&now)
 							mg.SetDeletionPolicy(xpv1.DeletionDelete)
 							return nil
 						}),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							want.SetDeletionTimestamp(&now)
 							want.SetDeletionPolicy(xpv1.DeletionDelete)
@@ -291,12 +290,12 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := obj.(*fake.Managed)
 							mg.SetDeletionTimestamp(&now)
 							return nil
 						}),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							want.SetDeletionTimestamp(&now)
 							want.SetConditions(xpv1.ReconcileError(errBoom))
@@ -333,12 +332,12 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := obj.(*fake.Managed)
 							mg.SetDeletionTimestamp(&now)
 							return nil
 						}),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							want.SetDeletionTimestamp(&now)
 							want.SetConditions(xpv1.ReconcileError(errBoom))
@@ -374,7 +373,7 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := obj.(*fake.Managed)
 							mg.SetDeletionTimestamp(&now)
 							return nil
@@ -406,7 +405,7 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -436,7 +435,7 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -465,7 +464,7 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileCreate)))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -504,7 +503,7 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -554,7 +553,7 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileSuccess())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -584,7 +583,7 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet:    test.NewMockGetFn(nil),
 						MockUpdate: test.NewMockUpdateFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							meta.SetExternalName(want, "test")
 							want.SetConditions(xpv1.ReconcileSuccess())
@@ -624,13 +623,13 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
+						MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
 							if meta.GetExternalName(obj.(metav1.Object)) == "test" {
 								return errBoom
 							}
 							return nil
 						},
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							meta.SetExternalName(want, "test")
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateManagedAfterCreate)))
@@ -672,7 +671,7 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet:    test.NewMockGetFn(nil),
 						MockUpdate: test.NewMockUpdateFn(errBoom),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							meta.SetExternalName(want, "test")
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateManagedAfterCreate)))
@@ -714,7 +713,7 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet:    test.NewMockGetFn(nil),
 						MockUpdate: test.NewMockUpdateFn(errBoom),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateManaged)))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -750,7 +749,7 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileSuccess())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -786,7 +785,7 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileUpdate)))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -825,7 +824,7 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -875,7 +874,7 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileSuccess())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -913,7 +912,7 @@ func TestReconciler(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewReconciler(tc.args.m, tc.args.mg, tc.args.o...)
-			got, err := r.Reconcile(reconcile.Request{})
+			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\nReason: %s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)

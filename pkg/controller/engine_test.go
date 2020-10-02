@@ -17,6 +17,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -37,21 +38,21 @@ import (
 type MockCache struct {
 	cache.Cache
 
-	MockStart func(stop <-chan struct{}) error
+	MockStart func(stop context.Context) error
 }
 
-func (c *MockCache) Start(stop <-chan struct{}) error {
+func (c *MockCache) Start(stop context.Context) error {
 	return c.MockStart(stop)
 }
 
 type MockController struct {
 	controller.Controller
 
-	MockStart func(stop <-chan struct{}) error
+	MockStart func(stop context.Context) error
 	MockWatch func(s source.Source, h handler.EventHandler, p ...predicate.Predicate) error
 }
 
-func (c *MockController) Start(stop <-chan struct{}) error {
+func (c *MockController) Start(stop context.Context) error {
 	return c.MockStart(stop)
 }
 
@@ -123,12 +124,11 @@ func TestEngine(t *testing.T) {
 			reason: "Errors starting or running a cache should be returned",
 			e: NewEngine(&fake.Manager{},
 				WithNewCacheFn(func(*rest.Config, cache.Options) (cache.Cache, error) {
-					c := &MockCache{MockStart: func(stop <-chan struct{}) error { return errBoom }}
+					c := &MockCache{MockStart: func(stop context.Context) error { return errBoom }}
 					return c, nil
 				}),
 				WithNewControllerFn(func(string, manager.Manager, controller.Options) (controller.Controller, error) {
-					c := &MockController{MockStart: func(stop <-chan struct{}) error {
-						<-stop
+					c := &MockController{MockStart: func(stop context.Context) error {
 						return nil
 					}}
 					return c, nil
@@ -145,14 +145,13 @@ func TestEngine(t *testing.T) {
 			reason: "Errors starting or running a controller should be returned",
 			e: NewEngine(&fake.Manager{},
 				WithNewCacheFn(func(*rest.Config, cache.Options) (cache.Cache, error) {
-					c := &MockCache{MockStart: func(stop <-chan struct{}) error {
-						<-stop
+					c := &MockCache{MockStart: func(stop context.Context) error {
 						return nil
 					}}
 					return c, nil
 				}),
 				WithNewControllerFn(func(string, manager.Manager, controller.Options) (controller.Controller, error) {
-					c := &MockController{MockStart: func(stop <-chan struct{}) error {
+					c := &MockController{MockStart: func(stop context.Context) error {
 						return errBoom
 					}}
 					return c, nil

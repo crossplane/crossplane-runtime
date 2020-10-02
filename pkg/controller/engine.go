@@ -18,12 +18,13 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"sync"
 
 	"github.com/pkg/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -58,7 +59,7 @@ var (
 type Engine struct {
 	mgr manager.Manager
 
-	started map[string]chan struct{}
+	started map[string]context.CancelFunc
 	errors  map[string]error
 	mx      sync.RWMutex
 
@@ -90,7 +91,7 @@ func NewEngine(mgr manager.Manager, o ...EngineOption) *Engine {
 	e := &Engine{
 		mgr: mgr,
 
-		started: make(map[string]chan struct{}),
+		started: make(map[string]context.CancelFunc),
 		errors:  make(map[string]error),
 
 		newCache: DefaultNewCacheFn,
@@ -134,7 +135,7 @@ func (e *Engine) done(name string, err error) {
 
 	stop, ok := e.started[name]
 	if ok {
-		close(stop)
+		stop()
 		delete(e.started, name)
 	}
 
@@ -147,14 +148,14 @@ func (e *Engine) done(name string, err error) {
 
 // Watch an object.
 type Watch struct {
-	kind       runtime.Object
+	kind       client.Object
 	handler    handler.EventHandler
 	predicates []predicate.Predicate
 }
 
 // For returns a Watch for the supplied kind of object. Events will be handled
 // by the supplied EventHandler, and may be filtered by the supplied predicates.
-func For(kind runtime.Object, h handler.EventHandler, p ...predicate.Predicate) Watch {
+func For(kind client.Object, h handler.EventHandler, p ...predicate.Predicate) Watch {
 	return Watch{kind: kind, handler: h, predicates: p}
 }
 
@@ -167,7 +168,7 @@ func (e *Engine) Start(name string, o controller.Options, w ...Watch) error {
 		return nil
 	}
 
-	stop := make(chan struct{})
+	ctx, stop := context.WithCancel(context.Background())
 	e.mx.Lock()
 	e.started[name] = stop
 	e.errors[name] = nil
@@ -196,11 +197,11 @@ func (e *Engine) Start(name string, o controller.Options, w ...Watch) error {
 
 	go func() {
 		<-e.mgr.Elected()
-		e.done(name, errors.Wrap(ca.Start(stop), errCrashCache))
+		e.done(name, errors.Wrap(ca.Start(ctx), errCrashCache))
 	}()
 	go func() {
 		<-e.mgr.Elected()
-		e.done(name, errors.Wrap(ctrl.Start(stop), errCrashController))
+		e.done(name, errors.Wrap(ctrl.Start(ctx), errCrashController))
 	}()
 
 	return nil

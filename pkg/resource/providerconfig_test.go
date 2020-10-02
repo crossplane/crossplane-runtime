@@ -22,7 +22,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
-	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
@@ -62,7 +62,7 @@ func TestTrack(t *testing.T) {
 		"NopUpdate": {
 			reason: "No error should be returned if the apply fails because it would be a no-op",
 			fields: fields{
-				c: ApplyFn(func(c context.Context, r runtime.Object, ao ...ApplyOption) error {
+				c: ApplyFn(func(c context.Context, r client.Object, ao ...ApplyOption) error {
 					for _, fn := range ao {
 						// Exercise the MustBeControllableBy and AllowUpdateIf
 						// ApplyOptions. The former should pass because the
@@ -95,7 +95,7 @@ func TestTrack(t *testing.T) {
 		"ApplyError": {
 			reason: "Errors applying the ProviderConfigUsage should be returned",
 			fields: fields{
-				c: ApplyFn(func(c context.Context, r runtime.Object, ao ...ApplyOption) error {
+				c: ApplyFn(func(c context.Context, r client.Object, ao ...ApplyOption) error {
 					return errBoom
 				}),
 				of: &fake.ProviderConfigUsage{},

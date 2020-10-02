@@ -24,7 +24,6 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -39,7 +38,7 @@ import (
 // its contemporaries in pkg/resource/fake because it would cause an import
 // cycle.
 type FakeManagedList struct {
-	runtime.Object
+	client.ObjectList
 
 	Items []resource.Managed
 }
@@ -165,7 +164,7 @@ func TestResolve(t *testing.T) {
 		"SuccessfulResolve": {
 			reason: "No error should be returned when the value is successfully extracted",
 			c: &test.MockClient{
-				MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 					meta.SetExternalName(obj.(metav1.Object), value)
 					return nil
 				}),
@@ -357,7 +356,7 @@ func TestResolveMultiple(t *testing.T) {
 		"SuccessfulResolve": {
 			reason: "No error should be returned when the value is successfully extracted",
 			c: &test.MockClient{
-				MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 					meta.SetExternalName(obj.(metav1.Object), value)
 					return nil
 				}),

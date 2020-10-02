@@ -221,7 +221,7 @@ func TestAPISecretPublisher(t *testing.T) {
 		"ApplyError": {
 			reason: "An error applying the connection secret should be returned",
 			fields: fields{
-				secret: resource.ApplyFn(func(_ context.Context, _ runtime.Object, _ ...resource.ApplyOption) error { return errBoom }),
+				secret: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error { return errBoom }),
 				typer:  fake.SchemeWith(&fake.Managed{}),
 			},
 			args: args{
@@ -233,7 +233,7 @@ func TestAPISecretPublisher(t *testing.T) {
 		"Success": {
 			reason: "A successful application of the connection secret should result in no error",
 			fields: fields{
-				secret: resource.ApplyFn(func(_ context.Context, o runtime.Object, _ ...resource.ApplyOption) error {
+				secret: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
 					want := resource.ConnectionSecretFor(mg, fake.GVK(mg))
 					want.Data = cd
 					if diff := cmp.Diff(want, o); diff != "" {

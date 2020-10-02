@@ -20,6 +20,7 @@ package unstructured
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -53,7 +54,7 @@ type WrapperClient struct {
 // Get retrieves an obj for the given object key from the Kubernetes Cluster.
 // obj must be a struct pointer so that obj can be updated with the response
 // returned by the Server.
-func (c *WrapperClient) Get(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
+func (c *WrapperClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object) error {
 	if u, ok := obj.(Wrapper); ok {
 		return c.kube.Get(ctx, key, u.GetUnstructured())
 	}
@@ -63,7 +64,7 @@ func (c *WrapperClient) Get(ctx context.Context, key client.ObjectKey, obj runti
 // List retrieves list of objects for a given namespace and list options. On a
 // successful call, Items field in the list will be populated with the
 // result returned from the server.
-func (c *WrapperClient) List(ctx context.Context, list runtime.Object, opts ...client.ListOption) error {
+func (c *WrapperClient) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
 	if u, ok := list.(ListWrapper); ok {
 		return c.kube.List(ctx, u.GetUnstructuredList(), opts...)
 	}
@@ -71,7 +72,7 @@ func (c *WrapperClient) List(ctx context.Context, list runtime.Object, opts ...c
 }
 
 // Create saves the object obj in the Kubernetes cluster.
-func (c *WrapperClient) Create(ctx context.Context, obj runtime.Object, opts ...client.CreateOption) error {
+func (c *WrapperClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
 	if u, ok := obj.(Wrapper); ok {
 		return c.kube.Create(ctx, u.GetUnstructured(), opts...)
 	}
@@ -79,7 +80,7 @@ func (c *WrapperClient) Create(ctx context.Context, obj runtime.Object, opts ...
 }
 
 // Delete deletes the given obj from Kubernetes cluster.
-func (c *WrapperClient) Delete(ctx context.Context, obj runtime.Object, opts ...client.DeleteOption) error {
+func (c *WrapperClient) Delete(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
 	if u, ok := obj.(Wrapper); ok {
 		return c.kube.Delete(ctx, u.GetUnstructured(), opts...)
 	}
@@ -88,7 +89,7 @@ func (c *WrapperClient) Delete(ctx context.Context, obj runtime.Object, opts ...
 
 // Update updates the given obj in the Kubernetes cluster. obj must be a
 // struct pointer so that obj can be updated with the content returned by the Server.
-func (c *WrapperClient) Update(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error {
+func (c *WrapperClient) Update(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
 	if u, ok := obj.(Wrapper); ok {
 		return c.kube.Update(ctx, u.GetUnstructured(), opts...)
 	}
@@ -97,7 +98,7 @@ func (c *WrapperClient) Update(ctx context.Context, obj runtime.Object, opts ...
 
 // Patch patches the given obj in the Kubernetes cluster. obj must be a
 // struct pointer so that obj can be updated with the content returned by the Server.
-func (c *WrapperClient) Patch(ctx context.Context, obj runtime.Object, patch client.Patch, opts ...client.PatchOption) error {
+func (c *WrapperClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 	if u, ok := obj.(Wrapper); ok {
 		return c.kube.Patch(ctx, u.GetUnstructured(), patch, opts...)
 	}
@@ -105,7 +106,7 @@ func (c *WrapperClient) Patch(ctx context.Context, obj runtime.Object, patch cli
 }
 
 // DeleteAllOf deletes all objects of the given type matching the given options.
-func (c *WrapperClient) DeleteAllOf(ctx context.Context, obj runtime.Object, opts ...client.DeleteAllOfOption) error {
+func (c *WrapperClient) DeleteAllOf(ctx context.Context, obj client.Object, opts ...client.DeleteAllOfOption) error {
 	if u, ok := obj.(Wrapper); ok {
 		return c.kube.DeleteAllOf(ctx, u.GetUnstructured(), opts...)
 	}
@@ -119,6 +120,16 @@ func (c *WrapperClient) Status() client.StatusWriter {
 	}
 }
 
+// Scheme returns the scheme this client is using.
+func (c *WrapperClient) Scheme() *runtime.Scheme {
+	return c.kube.Scheme()
+}
+
+// RESTMapper returns the rest this client is using.
+func (c *WrapperClient) RESTMapper() meta.RESTMapper {
+	return c.kube.RESTMapper()
+}
+
 type wrapperStatusClient struct {
 	kube client.StatusWriter
 }
@@ -126,7 +137,7 @@ type wrapperStatusClient struct {
 // Update updates the fields corresponding to the status subresource for the
 // given obj. obj must be a struct pointer so that obj can be updated
 // with the content returned by the Server.
-func (c *wrapperStatusClient) Update(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error {
+func (c *wrapperStatusClient) Update(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
 	if u, ok := obj.(Wrapper); ok {
 		return c.kube.Update(ctx, u.GetUnstructured(), opts...)
 	}
@@ -136,7 +147,7 @@ func (c *wrapperStatusClient) Update(ctx context.Context, obj runtime.Object, op
 // Patch patches the given object's subresource. obj must be a struct
 // pointer so that obj can be updated with the content returned by the
 // Server.
-func (c *wrapperStatusClient) Patch(ctx context.Context, obj runtime.Object, patch client.Patch, opts ...client.PatchOption) error {
+func (c *wrapperStatusClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 	if u, ok := obj.(Wrapper); ok {
 		return c.kube.Patch(ctx, u.GetUnstructured(), patch, opts...)
 	}

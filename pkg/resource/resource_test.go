@@ -391,14 +391,6 @@ func (o *object) DeepCopyObject() runtime.Object {
 	return &object{ObjectMeta: *o.ObjectMeta.DeepCopy()}
 }
 
-type nopeject struct {
-	runtime.Object
-}
-
-func (o *nopeject) DeepCopyObject() runtime.Object {
-	return &nopeject{}
-}
-
 func TestIsNotControllable(t *testing.T) {
 	cases := map[string]struct {
 		reason string
