@@ -63,15 +63,15 @@ type Parser interface {
 	Parse(context.Context, io.ReadCloser) (*Package, error)
 }
 
-// DefaultParser is the default Parser implementation.
-type DefaultParser struct {
+// PackageParser is a Parser implementation for parsing packages.
+type PackageParser struct {
 	metaScheme ObjectCreaterTyper
 	objScheme  ObjectCreaterTyper
 }
 
-// New returns a new DefaultParser.
-func New(meta, obj ObjectCreaterTyper) *DefaultParser {
-	return &DefaultParser{
+// New returns a new PackageParser.
+func New(meta, obj ObjectCreaterTyper) *PackageParser {
+	return &PackageParser{
 		metaScheme: meta,
 		objScheme:  obj,
 	}
@@ -81,7 +81,7 @@ func New(meta, obj ObjectCreaterTyper) *DefaultParser {
 // decode objects recognized by the meta scheme, then attempts to decode objects
 // recognized by the object scheme. Objects not recognized by either scheme
 // return an error rather than being skipped.
-func (p *DefaultParser) Parse(ctx context.Context, reader io.ReadCloser) (*Package, error) { //nolint:gocyclo
+func (p *PackageParser) Parse(ctx context.Context, reader io.ReadCloser) (*Package, error) { //nolint:gocyclo
 	pkg := NewPackage()
 	if reader == nil {
 		return pkg, nil
