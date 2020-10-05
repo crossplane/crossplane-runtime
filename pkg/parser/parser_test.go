@@ -30,21 +30,26 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-var crdBytes = []byte(`apiVersion: apiextensions.k8s.io/v1beta1
+var _ Parser = &PackageParser{}
+
+var (
+	crdBytes = []byte(`apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
   name: test`)
 
-var deployBytes = []byte(`apiVersion: apps/v1
+	deployBytes = []byte(`apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: test`)
 
+	crd    = &apiextensions.CustomResourceDefinition{}
+	_      = yaml.Unmarshal(crdBytes, crd)
+	deploy = &appsv1.Deployment{}
+	_      = yaml.Unmarshal(deployBytes, deploy)
+)
+
 func TestParser(t *testing.T) {
-	crd := &apiextensions.CustomResourceDefinition{}
-	_ = yaml.Unmarshal(crdBytes, crd)
-	deploy := &appsv1.Deployment{}
-	_ = yaml.Unmarshal(deployBytes, deploy)
 	allBytes := bytes.Join([][]byte{crdBytes, deployBytes}, []byte("\n---\n"))
 	fs := afero.NewMemMapFs()
 	_ = afero.WriteFile(fs, "crd.yaml", crdBytes, 0o644)
