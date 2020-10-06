@@ -171,13 +171,43 @@ type ProviderSpec struct {
 	CredentialsSecretRef *SecretKeySelector `json:"credentialsSecretRef,omitempty"`
 }
 
-// A ProviderConfigSpec defines the common way to get to the necessary objects
-// to connect to the provider.
+// A ProviderConfigSpec defines the desired state of a provider config. A
+// provider config may embed this type in its spec in order to support standard
+// fields. Provider configs may choose to avoid embedding this type as
+// appropriate, but are encouraged to follow its conventions.
 type ProviderConfigSpec struct {
-	// CredentialsSecretRef references a specific secret's key that contains
-	// the credentials that are used to connect to the provider.
+	// Credentials required to authenticate to this provider.
+	Credentials ProviderCredentials `json:"credentials"`
+}
+
+// A CredentialsSource is a source from which provider credentials may be
+// acquired.
+type CredentialsSource string
+
+const (
+	// CredentialsSourceNone indicates that a provider does not require
+	// credentials.
+	CredentialsSourceNone CredentialsSource = "None"
+
+	// CredentialsSourceSecret indicates that a provider should acquire
+	// credentials from a secret.
+	CredentialsSourceSecret CredentialsSource = "Secret"
+
+	// CredentialsSourceNative indicates that a provider should acquire
+	// credentials via its native environment; i.e. via IRSA for AWS, Workload
+	// Identity for GCP, Pod identity for Azure, or in-cluster authentication
+	// for the Kubernetes API.
+	CredentialsSourceNative CredentialsSource = "Native"
+)
+
+// ProviderCredentials required to authenticate.
+type ProviderCredentials struct {
+	Source CredentialsSource `json:"source"`
+
+	// A CredentialsSecretRef is a reference to a secret key that contains the
+	// credentials that must be used to connect to the provider.
 	// +optional
-	CredentialsSecretRef *SecretKeySelector `json:"credentialsSecretRef,omitempty"`
+	SecretRef *SecretKeySelector `json:"secretRef,omitempty"`
 }
 
 // A ProviderConfigStatus defines the observed status of a ProviderConfig.

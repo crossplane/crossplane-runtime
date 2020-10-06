@@ -145,20 +145,6 @@ func (m *Orphanable) SetDeletionPolicy(p v1alpha1.DeletionPolicy) { m.Policy = p
 // GetDeletionPolicy gets the DeletionPolicy.
 func (m *Orphanable) GetDeletionPolicy() v1alpha1.DeletionPolicy { return m.Policy }
 
-// CredentialsSecretReferencer is a mock that satisfies CredentialsSecretReferencer
-// interface.
-type CredentialsSecretReferencer struct{ Ref *v1alpha1.SecretKeySelector }
-
-// SetCredentialsSecretReference sets CredentialsSecretReference.
-func (m *CredentialsSecretReferencer) SetCredentialsSecretReference(r *v1alpha1.SecretKeySelector) {
-	m.Ref = r
-}
-
-// GetCredentialsSecretReference gets CredentialsSecretReference.
-func (m *CredentialsSecretReferencer) GetCredentialsSecretReference() *v1alpha1.SecretKeySelector {
-	return m.Ref
-}
-
 // CompositionReferencer is a mock that implements CompositionReferencer interface.
 type CompositionReferencer struct{ Ref *corev1.ObjectReference }
 
@@ -474,8 +460,6 @@ func (m *MockLocalConnectionSecretOwner) DeepCopyObject() runtime.Object {
 // ProviderConfig is a mock implementation of the ProviderConfig interface.
 type ProviderConfig struct {
 	metav1.ObjectMeta
-
-	CredentialsSecretReferencer
 
 	UserCounter
 	v1alpha1.ConditionedStatus
