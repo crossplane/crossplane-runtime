@@ -30,10 +30,10 @@ import (
 
 // Error strings.
 const (
-	errGetManaged  = "cannot get managed resource"
-	errListManaged = "cannot list managed resources"
-	errNoMatches   = "no managed resources matched selector"
-	errNoValue     = "referenced field was empty (reference may not yet be ready)"
+	errGetManaged  = "cannot get referenced resource"
+	errListManaged = "cannot list resources that match selector"
+	errNoMatches   = "no resources matched selector"
+	errNoValue     = "referenced field was empty (referenced resource may not yet be ready)"
 )
 
 // NOTE(negz): There are many equivalents of FromPtrValue and ToPtrValue
