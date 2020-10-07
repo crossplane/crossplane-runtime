@@ -193,11 +193,11 @@ const (
 	// credentials from a secret.
 	CredentialsSourceSecret CredentialsSource = "Secret"
 
-	// CredentialsSourceNative indicates that a provider should acquire
-	// credentials via its native environment; i.e. via IRSA for AWS, Workload
-	// Identity for GCP, Pod identity for Azure, or in-cluster authentication
-	// for the Kubernetes API.
-	CredentialsSourceNative CredentialsSource = "Native"
+	// CredentialsSourceInjectedIdentity indicates that a provider should use
+	// credentials via its (pod's) identity; i.e. via IRSA for AWS,
+	// Workload Identity for GCP, Pod Identity for Azure, or in-cluster
+	// authentication for the Kubernetes API.
+	CredentialsSourceInjectedIdentity CredentialsSource = "InjectedIdentity"
 )
 
 // ProviderCredentials required to authenticate.
