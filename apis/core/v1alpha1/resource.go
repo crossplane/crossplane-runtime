@@ -202,6 +202,8 @@ const (
 
 // ProviderCredentials required to authenticate.
 type ProviderCredentials struct {
+	// Source of the provider credentials.
+	// +kubebuilder:validation:Enum=None;Secret;InjectedIdentity
 	Source CredentialsSource `json:"source"`
 
 	// A CredentialsSecretRef is a reference to a secret key that contains the
