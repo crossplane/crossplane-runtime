@@ -65,13 +65,6 @@ type Orphanable interface {
 	GetDeletionPolicy() v1alpha1.DeletionPolicy
 }
 
-// A CredentialsSecretReferencer may refer to a credential secret in an arbitrary
-// namespace.
-type CredentialsSecretReferencer interface {
-	GetCredentialsSecretReference() *v1alpha1.SecretKeySelector
-	SetCredentialsSecretReference(r *v1alpha1.SecretKeySelector)
-}
-
 // A ProviderReferencer may reference a provider resource.
 type ProviderReferencer interface {
 	GetProviderReference() *v1alpha1.Reference
@@ -163,8 +156,6 @@ type ManagedList interface {
 // A ProviderConfig configures a Crossplane provider.
 type ProviderConfig interface {
 	Object
-
-	CredentialsSecretReferencer
 
 	UserCounter
 	Conditioned
