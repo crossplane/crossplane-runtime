@@ -84,6 +84,11 @@ func TestFieldOrIndex(t *testing.T) {
 			s:      "'coolField'",
 			want:   Segment{Type: SegmentField, Field: "coolField"},
 		},
+		"QuotedFieldWithPeriods": {
+			reason: "A quoted string with periods should be interpreted as a field segment with the quotes removed",
+			s:      "'cool.Field'",
+			want:   Segment{Type: SegmentField, Field: "cool.Field"},
+		},
 		"Index": {
 			reason: "An unambiguous integer should be interpreted as an index segment",
 			s:      "3",
@@ -209,6 +214,17 @@ func TestParse(t *testing.T) {
 				s: Segments{
 					Field("data"),
 					FieldOrIndex(".config.yml"),
+				},
+			},
+		},
+		"QuotedFieldWithPeriodInBracket": {
+			reason: "A field name specified using quote and in bracket can include a period",
+			path:   "metadata.labels['app.hash']",
+			want: want{
+				s: Segments{
+					Field("metadata"),
+					Field("labels"),
+					FieldOrIndex("app.hash"),
 				},
 			},
 		},
