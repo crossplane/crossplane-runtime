@@ -75,6 +75,17 @@ func NewFsReadCloser(fs afero.Fs, dir string, fns ...FilterFn) (*FsReadCloser, e
 		if err != nil {
 			return err
 		}
+		if lr, ok := fs.(afero.LinkReader); ok && info.Mode()&os.ModeSymlink != 0 {
+			path, err = lr.ReadlinkIfPossible(path)
+			if err != nil {
+				return err
+			}
+			// File could be symlinked to a relative path.
+			path, err = filepath.Abs(path)
+			if err != nil {
+				return err
+			}
+		}
 		for _, fn := range fns {
 			filter, err := fn(path, info)
 			if err != nil {
