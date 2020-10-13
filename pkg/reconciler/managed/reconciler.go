@@ -282,6 +282,14 @@ type ExternalObservation struct {
 	// the external resource.
 	ResourceUpToDate bool
 
+	// ResourceLateInitialized should be true if the managed resource's spec was
+	// updated during its observation. A Crossplane provider may update a
+	// managed resource's spec fields after it is created or updated, as long as
+	// the updates are limited to setting previously unset fields, and adding
+	// keys to maps. Crossplane uses this information to determine whether there
+	// changes to the spec were made during observation that must be persisted.
+	ResourceLateInitialized bool
+
 	// ConnectionDetails required to connect to this resource. These details
 	// are a set that is collated throughout the managed resource's lifecycle -
 	// i.e. returning new connection details will have no affect on old details
@@ -680,6 +688,15 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		record.Event(managed, event.Normal(reasonCreated, "Successfully requested creation of external resource"))
 		managed.SetConditions(v1alpha1.ReconcileSuccess())
 		return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+	}
+
+	if observation.ResourceLateInitialized {
+		if err := r.client.Update(ctx, managed); err != nil {
+			log.Debug(errUpdateManaged, "error", err, "requeue-after", time.Now().Add(r.shortWait))
+			record.Event(managed, event.Warning(reasonCannotUpdate, err))
+			managed.SetConditions(v1alpha1.ReconcileError(errors.Wrap(err, errUpdateManaged)))
+			return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		}
 	}
 
 	if observation.ResourceUpToDate {
