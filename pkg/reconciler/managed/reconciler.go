@@ -267,18 +267,46 @@ func (c *NopClient) Delete(ctx context.Context, mg resource.Managed) error { ret
 // An ExternalObservation is the result of an observation of an external
 // resource.
 type ExternalObservation struct {
-	ResourceExists    bool
-	ResourceUpToDate  bool
+	// ResourceExists must be true if a corresponding external resource exists
+	// for the managed resource. Typically this is proven by the presence of an
+	// external resource of the expected kind whose unique identifier matches
+	// the managed resource's external name. Crossplane uses this information to
+	// determine whether it needs to create or delete the external resource.
+	ResourceExists bool
+
+	// ResourceUpToDate should be true if the corresponding external resource
+	// appears to be up-to-date - i.e. updating the external resource to match
+	// the desired state of the managed resource would be a no-op. Keep in mind
+	// that often only a subset of external resource fields can be updated.
+	// Crossplane uses this information to determine whether it needs to update
+	// the external resource.
+	ResourceUpToDate bool
+
+	// ConnectionDetails required to connect to this resource. These details
+	// are a set that is collated throughout the managed resource's lifecycle -
+	// i.e. returning new connection details will have no affect on old details
+	// unless an existing key is overwritten. Crossplane may publish these
+	// credentials to a store (e.g. a Secret).
 	ConnectionDetails ConnectionDetails
 }
 
 // An ExternalCreation is the result of the creation of an external resource.
 type ExternalCreation struct {
+	// ConnectionDetails required to connect to this resource. These details
+	// are a set that is collated throughout the managed resource's lifecycle -
+	// i.e. returning new connection details will have no affect on old details
+	// unless an existing key is overwritten. Crossplane may publish these
+	// credentials to a store (e.g. a Secret).
 	ConnectionDetails ConnectionDetails
 }
 
 // An ExternalUpdate is the result of an update to an external resource.
 type ExternalUpdate struct {
+	// ConnectionDetails required to connect to this resource. These details
+	// are a set that is collated throughout the managed resource's lifecycle -
+	// i.e. returning new connection details will have no affect on old details
+	// unless an existing key is overwritten. Crossplane may publish these
+	// credentials to a store (e.g. a Secret).
 	ConnectionDetails ConnectionDetails
 }
 
