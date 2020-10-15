@@ -286,8 +286,14 @@ type ExternalObservation struct {
 	// updated during its observation. A Crossplane provider may update a
 	// managed resource's spec fields after it is created or updated, as long as
 	// the updates are limited to setting previously unset fields, and adding
-	// keys to maps. Crossplane uses this information to determine whether there
+	// keys to maps. Crossplane uses this information to determine whether
 	// changes to the spec were made during observation that must be persisted.
+	// Note that changes to the spec will be persisted before changes to the
+	// status, and that pending changes to the status may be lost when the spec
+	// is persisted. Status changes will be persisted by the first subsequent
+	// observation that _does not_ late initialize the managed resource, so it
+	// is important that Observe implementations do not late initialize the
+	// resource every time they are called.
 	ResourceLateInitialized bool
 
 	// ConnectionDetails required to connect to this resource. These details
@@ -691,6 +697,13 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	if observation.ResourceLateInitialized {
+		// Note that this update may reset any pending updates to the status of
+		// the managed resource from when it was observed above. This is because
+		// the API server replies to the update with its unchanged view of the
+		// resource's status, which is subsequently deserialized into managed.
+		// This is usually tolerable because the update will implicitly requeue
+		// an immediate reconcile which should re-observe the external resource
+		// and persist its status.
 		if err := r.client.Update(ctx, managed); err != nil {
 			log.Debug(errUpdateManaged, "error", err, "requeue-after", time.Now().Add(r.shortWait))
 			record.Event(managed, event.Warning(reasonCannotUpdate, err))
