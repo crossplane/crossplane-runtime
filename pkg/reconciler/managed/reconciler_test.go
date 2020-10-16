@@ -577,6 +577,43 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
 		},
+		"LateInitializeUpdateError": {
+			reason: "Errors updating a managed resource to persist late initialized fields should trigger a requeue after a short wait.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet:    test.NewMockGetFn(nil),
+						MockUpdate: test.NewMockUpdateFn(errBoom),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj runtime.Object, _ ...client.UpdateOption) error {
+							want := &fake.Managed{}
+							want.SetConditions(v1alpha1.ReconcileError(errors.Wrap(errBoom, errUpdateManaged)))
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := "Errors updating a managed resource should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+								return ExternalObservation{ResourceExists: true, ResourceUpToDate: true, ResourceLateInitialized: true}, nil
+							},
+						}
+						return c, nil
+					})),
+					WithConnectionPublishers(),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+		},
 		"ExternalResourceUpToDate": {
 			reason: "When the external resource exists and is up to date a requeue should be triggered after a long wait.",
 			args: args{
