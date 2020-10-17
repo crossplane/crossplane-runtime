@@ -243,30 +243,6 @@ func (m *Managed) DeepCopyObject() runtime.Object {
 	return out
 }
 
-// Target is a mock that implements Target interface.
-type Target struct {
-	metav1.ObjectMeta
-	ManagedResourceReferencer
-	LocalConnectionSecretWriterTo
-	v1alpha1.ConditionedStatus
-}
-
-// GetObjectKind returns schema.ObjectKind.
-func (m *Target) GetObjectKind() schema.ObjectKind {
-	return schema.EmptyObjectKind
-}
-
-// DeepCopyObject returns a deep copy of Target as runtime.Object.
-func (m *Target) DeepCopyObject() runtime.Object {
-	out := &Target{}
-	j, err := json.Marshal(m)
-	if err != nil {
-		panic(err)
-	}
-	_ = json.Unmarshal(j, out)
-	return out
-}
-
 // Composite is a mock that implements Composite interface.
 type Composite struct {
 	metav1.ObjectMeta

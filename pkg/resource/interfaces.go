@@ -177,17 +177,6 @@ type ProviderConfigUsageList interface {
 	GetItems() []ProviderConfigUsage
 }
 
-// A Target is a Kubernetes object that refers to credentials to connect
-// to a deployment target. Target is a subset of the Claim interface.
-type Target interface {
-	Object
-
-	LocalConnectionSecretWriterTo
-	ManagedResourceReferencer
-
-	Conditioned
-}
-
 // A Composite resource composes one or more Composed resources.
 type Composite interface {
 	Object

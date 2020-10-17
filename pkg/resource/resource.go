@@ -47,9 +47,6 @@ const (
 // A ManagedKind contains the type metadata for a kind of managed resource.
 type ManagedKind schema.GroupVersionKind
 
-// A TargetKind contains the type metadata for a kind of target resource.
-type TargetKind schema.GroupVersionKind
-
 // A CompositeKind contains the type metadata for a kind of composite resource.
 type CompositeKind schema.GroupVersionKind
 

@@ -47,13 +47,6 @@ type APIManagedConnectionPropagator struct {
 	Propagator ConnectionPropagator
 }
 
-// NewAPIManagedConnectionPropagator returns a new APIConnectionPropagator.
-//
-// Deprecated: Use NewAPIConnectionPropagator.
-func NewAPIManagedConnectionPropagator(c client.Client, t runtime.ObjectTyper) *APIManagedConnectionPropagator {
-	return &APIManagedConnectionPropagator{Propagator: NewAPIConnectionPropagator(c, t)}
-}
-
 // PropagateConnection details from the supplied resource.
 func (a *APIManagedConnectionPropagator) PropagateConnection(ctx context.Context, to LocalConnectionSecretOwner, mg Managed) error {
 	return a.Propagator.PropagateConnection(ctx, to, mg)
