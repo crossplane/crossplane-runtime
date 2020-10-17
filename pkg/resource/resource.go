@@ -296,20 +296,6 @@ func ConnectionSecretMustBeControllableBy(u types.UID) ApplyOption {
 	}
 }
 
-// ControllersMustMatch requires the current object to have a controller
-// reference, and for that controller reference to match the controller
-// reference of the desired object.
-//
-// Deprecated: Use ControllableBy.
-func ControllersMustMatch() ApplyOption {
-	return func(_ context.Context, current, desired runtime.Object) error {
-		if !meta.HaveSameController(current.(metav1.Object), desired.(metav1.Object)) {
-			return errors.New("existing object has a different (or no) controller")
-		}
-		return nil
-	}
-}
-
 type errNotAllowed struct{ error }
 
 func (e errNotAllowed) NotAllowed() bool {
