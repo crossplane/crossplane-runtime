@@ -60,11 +60,12 @@ func NewManager(config *rest.Config, options Options) (ctrl.Manager, error) {
 			ctrloptions.RetryPeriod = options.RetryPeriod
 		}
 
-		if options.LeaderElectionNamespace != "" {
+		switch {
+		case options.LeaderElectionNamespace != "":
 			ctrloptions.LeaderElectionNamespace = options.LeaderElectionNamespace
-		} else if options.ManagerNamespace != "" {
+		case options.ManagerNamespace != "":
 			ctrloptions.LeaderElectionNamespace = options.ManagerNamespace
-		} else {
+		default:
 			return nil, fmt.Errorf("TODO: namespace for leader election resources is missing")
 		}
 	}
