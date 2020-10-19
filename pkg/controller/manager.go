@@ -17,6 +17,8 @@ limitations under the License.
 package controller
 
 import (
+	"fmt"
+
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
@@ -28,17 +30,44 @@ import (
 // default for production deployment. This can be useful to
 // opt out of this 1) on development 2) CI tests 3) per user
 // decision.
-var leaderElection = true
+// var leaderElection = true
 
 // NewManager returns a new Manager for creating Controllers.
 // This takes crossplane specific configuration into consideration
 // to either enable leader election for the said Manager or opt
 // out of it.
-func NewManager(config *rest.Config, options ctrl.Options) (ctrl.Manager, error) {
-	if leaderElection {
-		options.LeaderElection = true
-		options.LeaderElectionID = "crossplane-leader-election-id"
-		options.LeaderElectionNamespace = "crossplane-system"
+func NewManager(config *rest.Config, options Options) (ctrl.Manager, error) {
+	ctrloptions := ctrl.Options{
+		SyncPeriod:     options.SyncPeriod,
+		LeaderElection: options.LeaderElection,
 	}
-	return ctrl.NewManager(config, options)
+
+	if options.LeaderElection {
+		if options.ManagerName == "" {
+			return nil, fmt.Errorf("manager name must be set for leader election")
+		}
+		ctrloptions.LeaderElectionID = fmt.Sprintf("crossplane-leader-election-%s", options.ManagerName)
+
+		if options.LeaseDuration != nil {
+			ctrloptions.LeaseDuration = options.LeaseDuration
+		}
+
+		if options.RenewDeadline != nil {
+			ctrloptions.RenewDeadline = options.RenewDeadline
+		}
+
+		if options.RetryPeriod != nil {
+			ctrloptions.RetryPeriod = options.RetryPeriod
+		}
+
+		if options.LeaderElectionNamespace != "" {
+			ctrloptions.LeaderElectionNamespace = options.LeaderElectionNamespace
+		} else if options.ManagerNamespace != "" {
+			ctrloptions.LeaderElectionNamespace = options.ManagerNamespace
+		} else {
+			return nil, fmt.Errorf("TODO: namespace for leader election resources is missing")
+		}
+	}
+
+	return ctrl.NewManager(config, ctrloptions)
 }
