@@ -47,9 +47,6 @@ const (
 // A ManagedKind contains the type metadata for a kind of managed resource.
 type ManagedKind schema.GroupVersionKind
 
-// A TargetKind contains the type metadata for a kind of target resource.
-type TargetKind schema.GroupVersionKind
-
 // A CompositeKind contains the type metadata for a kind of composite resource.
 type CompositeKind schema.GroupVersionKind
 
@@ -295,20 +292,6 @@ func ConnectionSecretMustBeControllableBy(u types.UID) ApplyOption {
 			return errNotControllable{errors.Errorf("existing secret is not controlled by UID %q", u)}
 		}
 
-		return nil
-	}
-}
-
-// ControllersMustMatch requires the current object to have a controller
-// reference, and for that controller reference to match the controller
-// reference of the desired object.
-//
-// Deprecated: Use ControllableBy.
-func ControllersMustMatch() ApplyOption {
-	return func(_ context.Context, current, desired runtime.Object) error {
-		if !meta.HaveSameController(current.(metav1.Object), desired.(metav1.Object)) {
-			return errors.New("existing object has a different (or no) controller")
-		}
 		return nil
 	}
 }

@@ -352,62 +352,6 @@ func (o *nopeject) DeepCopyObject() runtime.Object {
 	return &nopeject{}
 }
 
-func TestControllersMustMatch(t *testing.T) {
-	uid := types.UID("very-unique-string")
-	controller := true
-
-	type args struct {
-		ctx     context.Context
-		current runtime.Object
-		desired runtime.Object
-	}
-
-	cases := map[string]struct {
-		reason string
-		args   args
-		want   error
-	}{
-		"ControllersMatch": {
-			reason: "The current and desired objects have matching controller references",
-			args: args{
-				current: &object{ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{
-					UID:        uid,
-					Controller: &controller,
-				}}}},
-				desired: &object{ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{
-					UID:        uid,
-					Controller: &controller,
-				}}}},
-			},
-		},
-		"ControllersDoNotMatch": {
-			reason: "The current and desired objects do not have matching controller references",
-			args: args{
-				current: &object{ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{
-					UID:        uid,
-					Controller: &controller,
-				}}}},
-				desired: &object{ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{
-					UID:        types.UID("some-other-uid"),
-					Controller: &controller,
-				}}}},
-			},
-			want: errors.New("existing object has a different (or no) controller"),
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			ao := ControllersMustMatch()
-			err := ao(tc.args.ctx, tc.args.current, tc.args.desired)
-
-			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nControllersMustMatch(...)(...): -want error, +got error\n%s\n", tc.reason, diff)
-			}
-		})
-	}
-}
-
 func TestIsNotControllable(t *testing.T) {
 	cases := map[string]struct {
 		reason string

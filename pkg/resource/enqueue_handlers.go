@@ -17,60 +17,15 @@ limitations under the License.
 package resource
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
 )
 
 type adder interface {
 	Add(item interface{})
-}
-
-// EnqueueRequestForPropagated enqueues a reconcile.Request for the
-// NamespacedName of a propagated object, i.e. an object with propagation
-// metadata annotations.
-type EnqueueRequestForPropagated struct{}
-
-// Create adds a NamespacedName for the supplied CreateEvent if its Object is
-// propagated.
-func (e *EnqueueRequestForPropagated) Create(evt event.CreateEvent, q workqueue.RateLimitingInterface) {
-	addPropagated(evt.Object, q)
-}
-
-// Update adds a NamespacedName for the supplied UpdateEvent if its Objects are
-// propagated.
-func (e *EnqueueRequestForPropagated) Update(evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
-	addPropagated(evt.ObjectOld, q)
-	addPropagated(evt.ObjectNew, q)
-}
-
-// Delete adds a NamespacedName for the supplied DeleteEvent if its Object is
-// propagated.
-func (e *EnqueueRequestForPropagated) Delete(evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
-	addPropagated(evt.Object, q)
-}
-
-// Generic adds a NamespacedName for the supplied GenericEvent if its Object is
-// propagated.
-func (e *EnqueueRequestForPropagated) Generic(evt event.GenericEvent, q workqueue.RateLimitingInterface) {
-	addPropagated(evt.Object, q)
-}
-
-func addPropagated(obj runtime.Object, queue adder) {
-	o, ok := obj.(metav1.Object)
-	if !ok {
-		return
-	}
-
-	// Otherwise we should enqueue a request for the objects it propagates to.
-	for nn := range meta.AllowsPropagationTo(o) {
-		queue.Add(reconcile.Request{NamespacedName: nn})
-	}
 }
 
 // EnqueueRequestForProviderConfig enqueues a reconcile.Request for a referenced

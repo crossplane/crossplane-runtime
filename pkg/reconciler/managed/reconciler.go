@@ -362,7 +362,7 @@ func defaultMRManaged(m manager.Manager) mrManaged {
 			NewDefaultProviderConfig(m.GetClient()),
 			NewNameAsExternalName(m.GetClient()),
 		},
-		ReferenceResolver: NewAPIReferenceResolver(m.GetClient()),
+		ReferenceResolver: NewAPISimpleReferenceResolver(m.GetClient()),
 	}
 }
 
