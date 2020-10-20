@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -38,8 +39,9 @@ import (
 // out of it.
 func NewManager(config *rest.Config, options Options) (ctrl.Manager, error) {
 	ctrloptions := ctrl.Options{
-		SyncPeriod:     options.SyncPeriod,
-		LeaderElection: options.LeaderElection,
+		SyncPeriod:                 options.SyncPeriod,
+		LeaderElection:             options.LeaderElection,
+		LeaderElectionResourceLock: resourcelock.LeasesResourceLock,
 	}
 
 	if options.LeaderElection {
