@@ -17,6 +17,7 @@ limitations under the License.
 package controller
 
 import (
+	"errors"
 	"fmt"
 
 	"k8s.io/client-go/rest"
@@ -24,42 +25,27 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-// TODO potentially this can be extracted from _some_
-// configuration (i.e. crossplane itself and providers).
-// New attributes can be added to set enable/disable this
-// and also the number of desired replicas, with some sane
-// default for production deployment. This can be useful to
-// opt out of this 1) on development 2) CI tests 3) per user
-// decision.
-// var leaderElection = true
+// Error strings
+const (
+	errManagerName      = "manager name is empty"
+	errManagerNamespace = "manager namespace is empty"
+)
 
 // NewManager returns a new Manager for creating Controllers.
 // This takes crossplane specific configuration into consideration
 // to either enable leader election for the said Manager or opt
 // out of it.
 func NewManager(config *rest.Config, options Options) (ctrl.Manager, error) {
-	ctrloptions := ctrl.Options{
-		SyncPeriod:                 options.SyncPeriod,
-		LeaderElection:             options.LeaderElection,
-		LeaderElectionResourceLock: resourcelock.LeasesResourceLock,
-	}
+	ctrloptions := *options.Options
 
 	if options.LeaderElection {
 		if options.ManagerName == "" {
-			return nil, fmt.Errorf("manager name must be set for leader election")
+			return nil, errors.New(errManagerName)
 		}
 		ctrloptions.LeaderElectionID = fmt.Sprintf("crossplane-leader-election-%s", options.ManagerName)
 
-		if options.LeaseDuration != nil {
-			ctrloptions.LeaseDuration = options.LeaseDuration
-		}
-
-		if options.RenewDeadline != nil {
-			ctrloptions.RenewDeadline = options.RenewDeadline
-		}
-
-		if options.RetryPeriod != nil {
-			ctrloptions.RetryPeriod = options.RetryPeriod
+		if options.LeaderElectionResourceLock == "" {
+			ctrloptions.LeaderElectionResourceLock = resourcelock.LeasesResourceLock
 		}
 
 		switch {
@@ -68,7 +54,7 @@ func NewManager(config *rest.Config, options Options) (ctrl.Manager, error) {
 		case options.ManagerNamespace != "":
 			ctrloptions.LeaderElectionNamespace = options.ManagerNamespace
 		default:
-			return nil, fmt.Errorf("TODO: namespace for leader election resources is missing")
+			return nil, errors.New(errManagerNamespace)
 		}
 	}
 
