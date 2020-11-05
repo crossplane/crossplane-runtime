@@ -41,6 +41,7 @@ const AnnotationKeyExternalName = "crossplane.io/external-name"
 const (
 	AnnotationKeyPropagateToPrefix = "to.propagate.crossplane.io/"
 
+	// Deprecated: This functionality will be removed soon.
 	AnnotationKeyPropagateFromNamespace = "from.propagate.crossplane.io/namespace"
 	AnnotationKeyPropagateFromName      = "from.propagate.crossplane.io/name"
 )
@@ -246,6 +247,7 @@ func SetExternalName(o metav1.Object, name string) {
 
 // AllowPropagation from one object to another by adding consenting annotations
 // to both.
+// Deprecated: This functionality will be removed soon.
 func AllowPropagation(from, to metav1.Object) {
 	AddAnnotations(to, map[string]string{
 		AnnotationKeyPropagateFromNamespace: from.GetNamespace(),

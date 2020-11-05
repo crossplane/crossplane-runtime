@@ -43,6 +43,7 @@ const (
 
 // An APIManagedConnectionPropagator propagates connection details by reading
 // them from and writing them to a Kubernetes API server.
+// Deprecated: This functionality will be removed soon.
 type APIManagedConnectionPropagator struct {
 	Propagator ConnectionPropagator
 }
@@ -54,12 +55,14 @@ func (a *APIManagedConnectionPropagator) PropagateConnection(ctx context.Context
 
 // An APIConnectionPropagator propagates connection details by reading
 // them from and writing them to a Kubernetes API server.
+// Deprecated: This functionality will be removed soon.
 type APIConnectionPropagator struct {
 	client ClientApplicator
 	typer  runtime.ObjectTyper
 }
 
 // NewAPIConnectionPropagator returns a new APIConnectionPropagator.
+// Deprecated: This functionality will be removed soon.
 func NewAPIConnectionPropagator(c client.Client, t runtime.ObjectTyper) *APIConnectionPropagator {
 	return &APIConnectionPropagator{
 		client: ClientApplicator{Client: c, Applicator: NewAPIUpdatingApplicator(c)},
