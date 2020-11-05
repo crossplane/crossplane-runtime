@@ -17,7 +17,9 @@ limitations under the License.
 package claim
 
 import (
+	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
@@ -209,6 +211,41 @@ func TestWriteConnectionSecretToReference(t *testing.T) {
 			got := tc.u.GetWriteConnectionSecretToReference()
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("\nu.GetWriteConnectionSecretToReference(): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestConnectionDetailsLastPublishedTime(t *testing.T) {
+	now := &metav1.Time{Time: time.Now()}
+
+	// The timestamp loses a little resolution when round-tripped through JSON
+	// encoding.
+	lores := func(t *metav1.Time) *metav1.Time {
+		out := &metav1.Time{}
+		j, _ := json.Marshal(t)
+		_ = json.Unmarshal(j, out)
+		return out
+	}
+
+	cases := map[string]struct {
+		u    *Unstructured
+		set  *metav1.Time
+		want *metav1.Time
+	}{
+		"NewTime": {
+			u:    New(),
+			set:  now,
+			want: lores(now),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			tc.u.SetConnectionDetailsLastPublishedTime(tc.set)
+			got := tc.u.GetConnectionDetailsLastPublishedTime()
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\nu.GetConnectionDetailsLastPublishedTime(): -want, +got:\n%s", diff)
 			}
 		})
 	}

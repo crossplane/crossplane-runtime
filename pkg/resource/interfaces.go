@@ -126,6 +126,13 @@ type UserCounter interface {
 	GetUsers() int64
 }
 
+// A ConnectionDetailsPublishedTimer can record the last time its connection
+// details were published.
+type ConnectionDetailsPublishedTimer interface {
+	SetConnectionDetailsLastPublishedTime(t *metav1.Time)
+	GetConnectionDetailsLastPublishedTime() *metav1.Time
+}
+
 // An Object is a Kubernetes object.
 type Object interface {
 	metav1.Object
@@ -188,6 +195,7 @@ type Composite interface {
 	ConnectionSecretWriterTo
 
 	Conditioned
+	ConnectionDetailsPublishedTimer
 }
 
 // Composed resources can be a composed into a Composite resource.
@@ -208,4 +216,5 @@ type CompositeClaim interface {
 	LocalConnectionSecretWriterTo
 
 	Conditioned
+	ConnectionDetailsPublishedTimer
 }
