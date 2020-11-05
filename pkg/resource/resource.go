@@ -72,6 +72,7 @@ type LocalConnectionSecretOwner interface {
 
 // A ConnectionPropagator is responsible for propagating information required to
 // connect to a resource.
+// Deprecated: This functionality will be removed soon.
 type ConnectionPropagator interface {
 	PropagateConnection(ctx context.Context, to LocalConnectionSecretOwner, from ConnectionSecretOwner) error
 }
@@ -83,6 +84,7 @@ type ConnectionPropagatorFn func(ctx context.Context, to LocalConnectionSecretOw
 // A ManagedConnectionPropagator is responsible for propagating information
 // required to connect to a managed resource (for example the connection secret)
 // from the managed resource to a target.
+// Deprecated: This functionality will be removed soon.
 type ManagedConnectionPropagator interface {
 	PropagateConnection(ctx context.Context, o LocalConnectionSecretOwner, mg Managed) error
 }

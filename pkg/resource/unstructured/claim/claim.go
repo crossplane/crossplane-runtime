@@ -139,3 +139,17 @@ func (c *Unstructured) SetConditions(conditions ...v1alpha1.Condition) {
 	conditioned.SetConditions(conditions...)
 	_ = fieldpath.Pave(c.Object).SetValue("status.conditions", conditioned.Conditions)
 }
+
+// GetConnectionDetailsLastPublishedTime of this composite resource claim.
+func (c *Unstructured) GetConnectionDetailsLastPublishedTime() *metav1.Time {
+	out := &metav1.Time{}
+	if err := fieldpath.Pave(c.Object).GetValueInto("status.connectionDetails.lastPublishedTime", out); err != nil {
+		return nil
+	}
+	return out
+}
+
+// SetConnectionDetailsLastPublishedTime of this composite resource claim.
+func (c *Unstructured) SetConnectionDetailsLastPublishedTime(t *metav1.Time) {
+	_ = fieldpath.Pave(c.Object).SetValue("status.connectionDetails.lastPublishedTime", t)
+}

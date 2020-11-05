@@ -181,6 +181,20 @@ func (m *ComposedResourcesReferencer) SetResourceReferences(r []corev1.ObjectRef
 // GetResourceReferences gets the composed references.
 func (m *ComposedResourcesReferencer) GetResourceReferences() []corev1.ObjectReference { return m.Refs }
 
+// ConnectionDetailsLastPublishedTimer is a mock that implements the
+// ConnectionDetailsLastPublishedTimer interface.
+type ConnectionDetailsLastPublishedTimer struct{ Time *metav1.Time }
+
+// SetConnectionDetailsLastPublishedTime sets the published time.
+func (c *ConnectionDetailsLastPublishedTimer) SetConnectionDetailsLastPublishedTime(t *metav1.Time) {
+	c.Time = t
+}
+
+// GetConnectionDetailsLastPublishedTime gets the published time.
+func (c *ConnectionDetailsLastPublishedTimer) GetConnectionDetailsLastPublishedTime() *metav1.Time {
+	return c.Time
+}
+
 // UserCounter is a mock that satisfies UserCounter
 // interface.
 type UserCounter struct{ Users int64 }
@@ -251,7 +265,9 @@ type Composite struct {
 	ComposedResourcesReferencer
 	ClaimReferencer
 	ConnectionSecretWriterTo
+
 	v1alpha1.ConditionedStatus
+	ConnectionDetailsLastPublishedTimer
 }
 
 // GetObjectKind returns schema.ObjectKind.
@@ -300,7 +316,9 @@ type CompositeClaim struct {
 	CompositionReferencer
 	CompositeResourceReferencer
 	LocalConnectionSecretWriterTo
+
 	v1alpha1.ConditionedStatus
+	ConnectionDetailsLastPublishedTimer
 }
 
 // GetObjectKind returns schema.ObjectKind.
