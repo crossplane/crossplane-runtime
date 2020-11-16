@@ -194,6 +194,12 @@ func IgnoreNotFound(err error) error {
 	return Ignore(kerrors.IsNotFound, err)
 }
 
+// IsAPIError returns true if the given error's type is of Kubernetes API error.
+func IsAPIError(err error) bool {
+	_, ok := err.(kerrors.APIStatus)
+	return ok
+}
+
 // IsConditionTrue returns if condition status is true
 func IsConditionTrue(c v1alpha1.Condition) bool {
 	return c.Status == corev1.ConditionTrue
