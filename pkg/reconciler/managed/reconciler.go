@@ -21,6 +21,9 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
+
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -45,25 +48,27 @@ const (
 
 // Error strings.
 const (
-	errGetManaged       = "cannot get managed resource"
-	errReconcileConnect = "connect failed"
-	errReconcileObserve = "observe failed"
-	errReconcileCreate  = "create failed"
-	errReconcileUpdate  = "update failed"
-	errReconcileDelete  = "delete failed"
+	errGetManaged               = "cannot get managed resource"
+	errUpdateManagedAfterCreate = "cannot update managed resource. this may have resulted in a leaked external resource"
+	errReconcileConnect         = "connect failed"
+	errReconcileObserve         = "observe failed"
+	errReconcileCreate          = "create failed"
+	errReconcileUpdate          = "update failed"
+	errReconcileDelete          = "delete failed"
 )
 
 // Event reasons.
 const (
-	reasonCannotConnect     event.Reason = "CannotConnectToProvider"
-	reasonCannotInitialize  event.Reason = "CannotInitializeManagedResource"
-	reasonCannotResolveRefs event.Reason = "CannotResolveResourceReferences"
-	reasonCannotObserve     event.Reason = "CannotObserveExternalResource"
-	reasonCannotCreate      event.Reason = "CannotCreateExternalResource"
-	reasonCannotDelete      event.Reason = "CannotDeleteExternalResource"
-	reasonCannotPublish     event.Reason = "CannotPublishConnectionDetails"
-	reasonCannotUnpublish   event.Reason = "CannotUnpublishConnectionDetails"
-	reasonCannotUpdate      event.Reason = "CannotUpdateExternalResource"
+	reasonCannotConnect       event.Reason = "CannotConnectToProvider"
+	reasonCannotInitialize    event.Reason = "CannotInitializeManagedResource"
+	reasonCannotResolveRefs   event.Reason = "CannotResolveResourceReferences"
+	reasonCannotObserve       event.Reason = "CannotObserveExternalResource"
+	reasonCannotCreate        event.Reason = "CannotCreateExternalResource"
+	reasonCannotDelete        event.Reason = "CannotDeleteExternalResource"
+	reasonCannotPublish       event.Reason = "CannotPublishConnectionDetails"
+	reasonCannotUnpublish     event.Reason = "CannotUnpublishConnectionDetails"
+	reasonCannotUpdate        event.Reason = "CannotUpdateExternalResource"
+	reasonCannotUpdateManaged event.Reason = "CannotUpdateManagedResource"
 
 	reasonDeleted event.Reason = "DeletedExternalResource"
 	reasonCreated event.Reason = "CreatedExternalResource"
@@ -306,6 +311,12 @@ type ExternalObservation struct {
 
 // An ExternalCreation is the result of the creation of an external resource.
 type ExternalCreation struct {
+	// ExternalNameAssigned is true if the Create operation resulted in a change
+	// in the external name annotation. If that's the case, we need to issue a
+	// spec update and make sure it goes through so that we don't lose the identifier
+	// of the resource we just created.
+	ExternalNameAssigned bool
+
 	// ConnectionDetails required to connect to this resource. These details
 	// are a set that is collated throughout the managed resource's lifecycle -
 	// i.e. returning new connection details will have no affect on old details
@@ -676,6 +687,28 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 		}
 
+		if creation.ExternalNameAssigned {
+			en := meta.GetExternalName(managed)
+			// We will retry in all cases where the error comes from the api-server.
+			// At one point, context deadline will be exceeded and we'll get out
+			// of the loop. In that case, we warn the user that the external resource
+			// might be leaked.
+			err := retry.OnError(retry.DefaultRetry, resource.IsAPIError, func() error {
+				nn := types.NamespacedName{Name: managed.GetName()}
+				if err := r.client.Get(ctx, nn, managed); err != nil {
+					return err
+				}
+				meta.SetExternalName(managed, en)
+				return r.client.Update(ctx, managed)
+			})
+			if err != nil {
+				log.Debug("Cannot update managed resource", "error", err, "requeue-after", time.Now().Add(r.shortWait))
+				record.Event(managed, event.Warning(reasonCannotUpdateManaged, errors.Wrap(err, errUpdateManagedAfterCreate)))
+				managed.SetConditions(v1alpha1.ReconcileError(errors.Wrap(err, errUpdateManagedAfterCreate)))
+				return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+			}
+		}
+
 		if err := r.managed.PublishConnection(ctx, managed, creation.ConnectionDetails); err != nil {
 			// If this is the first time we encounter this issue we'll be
 			// requeued implicitly when we update our status with the new error
@@ -706,7 +739,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// and persist its status.
 		if err := r.client.Update(ctx, managed); err != nil {
 			log.Debug(errUpdateManaged, "error", err, "requeue-after", time.Now().Add(r.shortWait))
-			record.Event(managed, event.Warning(reasonCannotUpdate, err))
+			record.Event(managed, event.Warning(reasonCannotUpdateManaged, err))
 			managed.SetConditions(v1alpha1.ReconcileError(errors.Wrap(err, errUpdateManaged)))
 			return reconcile.Result{RequeueAfter: r.shortWait}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 		}
