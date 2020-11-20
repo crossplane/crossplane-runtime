@@ -24,7 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
@@ -70,7 +70,7 @@ func (a *DefaultProviderConfig) Initialize(ctx context.Context, mg resource.Mana
 	if mg.GetProviderConfigReference() != nil {
 		return nil
 	}
-	mg.SetProviderConfigReference(&v1alpha1.Reference{Name: "default"})
+	mg.SetProviderConfigReference(&xpv1.Reference{Name: "default"})
 	return errors.Wrap(a.client.Update(ctx, mg), errUpdateManaged)
 }
 

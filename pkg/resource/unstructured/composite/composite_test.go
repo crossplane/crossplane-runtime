@@ -27,7 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
 func TestWithGroupVersionKind(t *testing.T) {
@@ -66,32 +66,32 @@ func TestConditions(t *testing.T) {
 	cases := map[string]struct {
 		reason string
 		u      *Unstructured
-		set    []v1alpha1.Condition
-		get    v1alpha1.ConditionType
-		want   v1alpha1.Condition
+		set    []xpv1.Condition
+		get    xpv1.ConditionType
+		want   xpv1.Condition
 	}{
 		"NewCondition": {
 			reason: "It should be possible to set a condition of an empty Unstructured.",
 			u:      New(),
-			set:    []v1alpha1.Condition{v1alpha1.Available(), v1alpha1.ReconcileSuccess()},
-			get:    v1alpha1.TypeReady,
-			want:   v1alpha1.Available(),
+			set:    []xpv1.Condition{xpv1.Available(), xpv1.ReconcileSuccess()},
+			get:    xpv1.TypeReady,
+			want:   xpv1.Available(),
 		},
 		"ExistingCondition": {
 			reason: "It should be possible to overwrite a condition that is already set.",
-			u:      New(WithConditions(v1alpha1.Creating())),
-			set:    []v1alpha1.Condition{v1alpha1.Available()},
-			get:    v1alpha1.TypeReady,
-			want:   v1alpha1.Available(),
+			u:      New(WithConditions(xpv1.Creating())),
+			set:    []xpv1.Condition{xpv1.Available()},
+			get:    xpv1.TypeReady,
+			want:   xpv1.Available(),
 		},
 		"WeirdStatus": {
 			reason: "It should not be possible to set a condition when status is not an object.",
 			u: &Unstructured{unstructured.Unstructured{Object: map[string]interface{}{
 				"status": "wat",
 			}}},
-			set:  []v1alpha1.Condition{v1alpha1.Available()},
-			get:  v1alpha1.TypeReady,
-			want: v1alpha1.Condition{},
+			set:  []xpv1.Condition{xpv1.Available()},
+			get:  xpv1.TypeReady,
+			want: xpv1.Condition{},
 		},
 		"WeirdStatusConditions": {
 			reason: "Conditions should be overwritten if they are not an object.",
@@ -100,9 +100,9 @@ func TestConditions(t *testing.T) {
 					"conditions": "wat",
 				},
 			}}},
-			set:  []v1alpha1.Condition{v1alpha1.Available()},
-			get:  v1alpha1.TypeReady,
-			want: v1alpha1.Available(),
+			set:  []xpv1.Condition{xpv1.Available()},
+			get:  xpv1.TypeReady,
+			want: xpv1.Available(),
 		},
 	}
 
@@ -217,11 +217,11 @@ func TestResourceReferences(t *testing.T) {
 }
 
 func TestWriteConnectionSecretToReference(t *testing.T) {
-	ref := &v1alpha1.SecretReference{Namespace: "ns", Name: "cool"}
+	ref := &xpv1.SecretReference{Namespace: "ns", Name: "cool"}
 	cases := map[string]struct {
 		u    *Unstructured
-		set  *v1alpha1.SecretReference
-		want *v1alpha1.SecretReference
+		set  *xpv1.SecretReference
+		want *xpv1.SecretReference
 	}{
 		"NewRef": {
 			u:    New(),

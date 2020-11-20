@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1alpha1 contains core API types used by most Crossplane resources.
+// Package v1 contains core API types used by most Crossplane resources.
 // +kubebuilder:object:generate=true
-// +groupName=core.crossplane.io
-// +versionName=v1alpha1
-package v1alpha1
+package v1

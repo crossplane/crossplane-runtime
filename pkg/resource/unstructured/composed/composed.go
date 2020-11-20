@@ -21,7 +21,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 )
 
@@ -41,7 +41,7 @@ func FromReference(ref corev1.ObjectReference) Option {
 
 // WithConditions returns an Option that sets the supplied conditions on an
 // unstructured composed resource.
-func WithConditions(c ...v1alpha1.Condition) Option {
+func WithConditions(c ...xpv1.Condition) Option {
 	return func(cr *Unstructured) {
 		cr.SetConditions(c...)
 	}
@@ -67,18 +67,18 @@ func (cr *Unstructured) GetUnstructured() *unstructured.Unstructured {
 }
 
 // GetCondition of this Composed resource.
-func (cr *Unstructured) GetCondition(ct v1alpha1.ConditionType) v1alpha1.Condition {
-	conditioned := v1alpha1.ConditionedStatus{}
+func (cr *Unstructured) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+	conditioned := xpv1.ConditionedStatus{}
 	// The path is directly `status` because conditions are inline.
 	if err := fieldpath.Pave(cr.Object).GetValueInto("status", &conditioned); err != nil {
-		return v1alpha1.Condition{}
+		return xpv1.Condition{}
 	}
 	return conditioned.GetCondition(ct)
 }
 
 // SetConditions of this Composed resource.
-func (cr *Unstructured) SetConditions(c ...v1alpha1.Condition) {
-	conditioned := v1alpha1.ConditionedStatus{}
+func (cr *Unstructured) SetConditions(c ...xpv1.Condition) {
+	conditioned := xpv1.ConditionedStatus{}
 	// The path is directly `status` because conditions are inline.
 	_ = fieldpath.Pave(cr.Object).GetValueInto("status", &conditioned)
 	conditioned.SetConditions(c...)
@@ -86,8 +86,8 @@ func (cr *Unstructured) SetConditions(c ...v1alpha1.Condition) {
 }
 
 // GetWriteConnectionSecretToReference of this Composed resource.
-func (cr *Unstructured) GetWriteConnectionSecretToReference() *v1alpha1.SecretReference {
-	out := &v1alpha1.SecretReference{}
+func (cr *Unstructured) GetWriteConnectionSecretToReference() *xpv1.SecretReference {
+	out := &xpv1.SecretReference{}
 	if err := fieldpath.Pave(cr.Object).GetValueInto("spec.writeConnectionSecretToRef", out); err != nil {
 		return nil
 	}
@@ -95,6 +95,6 @@ func (cr *Unstructured) GetWriteConnectionSecretToReference() *v1alpha1.SecretRe
 }
 
 // SetWriteConnectionSecretToReference of this Composed resource.
-func (cr *Unstructured) SetWriteConnectionSecretToReference(r *v1alpha1.SecretReference) {
+func (cr *Unstructured) SetWriteConnectionSecretToReference(r *xpv1.SecretReference) {
 	_ = fieldpath.Pave(cr.Object).SetValue("spec.writeConnectionSecretToRef", r)
 }

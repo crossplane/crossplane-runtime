@@ -29,7 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
@@ -68,7 +68,7 @@ func TestLocalConnectionSecretFor(t *testing.T) {
 						Name:      name,
 						UID:       uid,
 					},
-					Ref: &v1alpha1.LocalSecretReference{Name: secretName},
+					Ref: &xpv1.LocalSecretReference{Name: secretName},
 				},
 				kind: MockOwnerGVK,
 			},
@@ -121,7 +121,7 @@ func TestConnectionSecretFor(t *testing.T) {
 						Name:      name,
 						UID:       uid,
 					},
-					Ref: &v1alpha1.SecretReference{Namespace: namespace, Name: secretName},
+					Ref: &xpv1.SecretReference{Namespace: namespace, Name: secretName},
 				},
 				kind: MockOwnerGVK,
 			},
@@ -304,23 +304,23 @@ func TestIgnore(t *testing.T) {
 
 func TestIsConditionTrue(t *testing.T) {
 	cases := map[string]struct {
-		c    v1alpha1.Condition
+		c    xpv1.Condition
 		want bool
 	}{
 		"IsTrue": {
-			c:    v1alpha1.Condition{Status: corev1.ConditionTrue},
+			c:    xpv1.Condition{Status: corev1.ConditionTrue},
 			want: true,
 		},
 		"IsFalse": {
-			c:    v1alpha1.Condition{Status: corev1.ConditionFalse},
+			c:    xpv1.Condition{Status: corev1.ConditionFalse},
 			want: false,
 		},
 		"IsUnknown": {
-			c:    v1alpha1.Condition{Status: corev1.ConditionUnknown},
+			c:    xpv1.Condition{Status: corev1.ConditionUnknown},
 			want: false,
 		},
 		"IsUnset": {
-			c:    v1alpha1.Condition{},
+			c:    xpv1.Condition{},
 			want: false,
 		},
 	}
@@ -568,7 +568,7 @@ func TestGetExternalTags(t *testing.T) {
 			o: &fake.Managed{ObjectMeta: metav1.ObjectMeta{
 				Name: name,
 			},
-				ProviderReferencer: fake.ProviderReferencer{Ref: &v1alpha1.Reference{Name: provName}},
+				ProviderReferencer: fake.ProviderReferencer{Ref: &xpv1.Reference{Name: provName}},
 			},
 			want: map[string]string{
 				ExternalResourceTagKeyKind:     strings.ToLower((&fake.Managed{}).GetObjectKind().GroupVersionKind().GroupKind().String()),
@@ -580,7 +580,7 @@ func TestGetExternalTags(t *testing.T) {
 			o: &fake.Managed{ObjectMeta: metav1.ObjectMeta{
 				Name: name,
 			},
-				ProviderConfigReferencer: fake.ProviderConfigReferencer{Ref: &v1alpha1.Reference{Name: provName}},
+				ProviderConfigReferencer: fake.ProviderConfigReferencer{Ref: &xpv1.Reference{Name: provName}},
 			},
 			want: map[string]string{
 				ExternalResourceTagKeyKind:     strings.ToLower((&fake.Managed{}).GetObjectKind().GroupVersionKind().GroupKind().String()),

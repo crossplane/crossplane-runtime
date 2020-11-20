@@ -23,7 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 )
 
@@ -40,7 +40,7 @@ func WithGroupVersionKind(gvk schema.GroupVersionKind) Option {
 
 // WithConditions returns an Option that sets the supplied conditions on an
 // unstructured composite resource claim.
-func WithConditions(c ...v1alpha1.Condition) Option {
+func WithConditions(c ...xpv1.Condition) Option {
 	return func(cr *Unstructured) {
 		cr.SetConditions(c...)
 	}
@@ -108,8 +108,8 @@ func (c *Unstructured) SetResourceReference(ref *corev1.ObjectReference) {
 }
 
 // GetWriteConnectionSecretToReference of this composite resource claim.
-func (c *Unstructured) GetWriteConnectionSecretToReference() *v1alpha1.LocalSecretReference {
-	out := &v1alpha1.LocalSecretReference{}
+func (c *Unstructured) GetWriteConnectionSecretToReference() *xpv1.LocalSecretReference {
+	out := &xpv1.LocalSecretReference{}
 	if err := fieldpath.Pave(c.Object).GetValueInto("spec.writeConnectionSecretToRef", out); err != nil {
 		return nil
 	}
@@ -117,23 +117,23 @@ func (c *Unstructured) GetWriteConnectionSecretToReference() *v1alpha1.LocalSecr
 }
 
 // SetWriteConnectionSecretToReference of this composite resource claim.
-func (c *Unstructured) SetWriteConnectionSecretToReference(ref *v1alpha1.LocalSecretReference) {
+func (c *Unstructured) SetWriteConnectionSecretToReference(ref *xpv1.LocalSecretReference) {
 	_ = fieldpath.Pave(c.Object).SetValue("spec.writeConnectionSecretToRef", ref)
 }
 
 // GetCondition of this composite resource claim.
-func (c *Unstructured) GetCondition(ct v1alpha1.ConditionType) v1alpha1.Condition {
-	conditioned := v1alpha1.ConditionedStatus{}
+func (c *Unstructured) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+	conditioned := xpv1.ConditionedStatus{}
 	// The path is directly `status` because conditions are inline.
 	if err := fieldpath.Pave(c.Object).GetValueInto("status", &conditioned); err != nil {
-		return v1alpha1.Condition{}
+		return xpv1.Condition{}
 	}
 	return conditioned.GetCondition(ct)
 }
 
 // SetConditions of this composite resource claim.
-func (c *Unstructured) SetConditions(conditions ...v1alpha1.Condition) {
-	conditioned := v1alpha1.ConditionedStatus{}
+func (c *Unstructured) SetConditions(conditions ...xpv1.Condition) {
+	conditioned := xpv1.ConditionedStatus{}
 	// The path is directly `status` because conditions are inline.
 	_ = fieldpath.Pave(c.Object).GetValueInto("status", &conditioned)
 	conditioned.SetConditions(conditions...)

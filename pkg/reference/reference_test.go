@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
@@ -71,12 +71,12 @@ func TestResolve(t *testing.T) {
 	errBoom := errors.New("boom")
 	now := metav1.Now()
 	value := "coolv"
-	ref := &v1alpha1.Reference{Name: "cool"}
+	ref := &xpv1.Reference{Name: "cool"}
 
 	controlled := &fake.Managed{}
 	controlled.SetName(value)
 	meta.SetExternalName(controlled, value)
-	meta.AddControllerReference(controlled, meta.AsController(&v1alpha1.TypedReference{UID: types.UID("very-unique")}))
+	meta.AddControllerReference(controlled, meta.AsController(&xpv1.TypedReference{UID: types.UID("very-unique")}))
 
 	type args struct {
 		ctx context.Context
@@ -193,7 +193,7 @@ func TestResolve(t *testing.T) {
 			from: &fake.Managed{},
 			args: args{
 				req: ResolutionRequest{
-					Selector: &v1alpha1.Selector{},
+					Selector: &xpv1.Selector{},
 				},
 			},
 			want: want{
@@ -209,7 +209,7 @@ func TestResolve(t *testing.T) {
 			from: &fake.Managed{},
 			args: args{
 				req: ResolutionRequest{
-					Selector: &v1alpha1.Selector{},
+					Selector: &xpv1.Selector{},
 					To:       To{List: &FakeManagedList{}},
 				},
 			},
@@ -226,7 +226,7 @@ func TestResolve(t *testing.T) {
 			from: controlled,
 			args: args{
 				req: ResolutionRequest{
-					Selector: &v1alpha1.Selector{
+					Selector: &xpv1.Selector{
 						MatchControllerRef: func() *bool { t := true; return &t }(),
 					},
 					To: To{List: &FakeManagedList{Items: []resource.Managed{
@@ -239,7 +239,7 @@ func TestResolve(t *testing.T) {
 			want: want{
 				rsp: ResolutionResponse{
 					ResolvedValue:     value,
-					ResolvedReference: &v1alpha1.Reference{Name: value},
+					ResolvedReference: &xpv1.Reference{Name: value},
 				},
 				err: nil,
 			},
@@ -262,12 +262,12 @@ func TestResolveMultiple(t *testing.T) {
 	errBoom := errors.New("boom")
 	now := metav1.Now()
 	value := "coolv"
-	ref := v1alpha1.Reference{Name: "cool"}
+	ref := xpv1.Reference{Name: "cool"}
 
 	controlled := &fake.Managed{}
 	controlled.SetName(value)
 	meta.SetExternalName(controlled, value)
-	meta.AddControllerReference(controlled, meta.AsController(&v1alpha1.TypedReference{UID: types.UID("very-unique")}))
+	meta.AddControllerReference(controlled, meta.AsController(&xpv1.TypedReference{UID: types.UID("very-unique")}))
 
 	type args struct {
 		ctx context.Context
@@ -324,7 +324,7 @@ func TestResolveMultiple(t *testing.T) {
 			from: &fake.Managed{},
 			args: args{
 				req: MultiResolutionRequest{
-					References: []v1alpha1.Reference{ref},
+					References: []xpv1.Reference{ref},
 					To:         To{Managed: &fake.Managed{}},
 					Extract:    ExternalName(),
 				},
@@ -341,7 +341,7 @@ func TestResolveMultiple(t *testing.T) {
 			from: &fake.Managed{},
 			args: args{
 				req: MultiResolutionRequest{
-					References: []v1alpha1.Reference{ref},
+					References: []xpv1.Reference{ref},
 					To:         To{Managed: &fake.Managed{}},
 					Extract:    func(resource.Managed) string { return "" },
 				},
@@ -349,7 +349,7 @@ func TestResolveMultiple(t *testing.T) {
 			want: want{
 				rsp: MultiResolutionResponse{
 					ResolvedValues:     []string{""},
-					ResolvedReferences: []v1alpha1.Reference{ref},
+					ResolvedReferences: []xpv1.Reference{ref},
 				},
 				err: errors.New(errNoValue),
 			},
@@ -365,7 +365,7 @@ func TestResolveMultiple(t *testing.T) {
 			from: &fake.Managed{},
 			args: args{
 				req: MultiResolutionRequest{
-					References: []v1alpha1.Reference{ref},
+					References: []xpv1.Reference{ref},
 					To:         To{Managed: &fake.Managed{}},
 					Extract:    ExternalName(),
 				},
@@ -373,7 +373,7 @@ func TestResolveMultiple(t *testing.T) {
 			want: want{
 				rsp: MultiResolutionResponse{
 					ResolvedValues:     []string{value},
-					ResolvedReferences: []v1alpha1.Reference{ref},
+					ResolvedReferences: []xpv1.Reference{ref},
 				},
 			},
 		},
@@ -385,7 +385,7 @@ func TestResolveMultiple(t *testing.T) {
 			from: &fake.Managed{},
 			args: args{
 				req: MultiResolutionRequest{
-					Selector: &v1alpha1.Selector{},
+					Selector: &xpv1.Selector{},
 				},
 			},
 			want: want{
@@ -401,7 +401,7 @@ func TestResolveMultiple(t *testing.T) {
 			from: &fake.Managed{},
 			args: args{
 				req: MultiResolutionRequest{
-					Selector: &v1alpha1.Selector{},
+					Selector: &xpv1.Selector{},
 					To:       To{List: &FakeManagedList{}},
 				},
 			},
@@ -418,7 +418,7 @@ func TestResolveMultiple(t *testing.T) {
 			from: controlled,
 			args: args{
 				req: MultiResolutionRequest{
-					Selector: &v1alpha1.Selector{
+					Selector: &xpv1.Selector{
 						MatchControllerRef: func() *bool { t := true; return &t }(),
 					},
 					To: To{List: &FakeManagedList{Items: []resource.Managed{
@@ -431,7 +431,7 @@ func TestResolveMultiple(t *testing.T) {
 			want: want{
 				rsp: MultiResolutionResponse{
 					ResolvedValues:     []string{value},
-					ResolvedReferences: []v1alpha1.Reference{{Name: value}},
+					ResolvedReferences: []xpv1.Reference{{Name: value}},
 				},
 				err: nil,
 			},
@@ -453,7 +453,7 @@ func TestResolveMultiple(t *testing.T) {
 
 func TestControllersMustMatch(t *testing.T) {
 	cases := map[string]struct {
-		s    *v1alpha1.Selector
+		s    *xpv1.Selector
 		want bool
 	}{
 		"NilSelector": {
@@ -461,15 +461,15 @@ func TestControllersMustMatch(t *testing.T) {
 			want: false,
 		},
 		"NilMatchControllerRef": {
-			s:    &v1alpha1.Selector{},
+			s:    &xpv1.Selector{},
 			want: false,
 		},
 		"False": {
-			s:    &v1alpha1.Selector{MatchControllerRef: func() *bool { f := false; return &f }()},
+			s:    &xpv1.Selector{MatchControllerRef: func() *bool { f := false; return &f }()},
 			want: false,
 		},
 		"True": {
-			s:    &v1alpha1.Selector{MatchControllerRef: func() *bool { t := true; return &t }()},
+			s:    &xpv1.Selector{MatchControllerRef: func() *bool { t := true; return &t }()},
 			want: true,
 		},
 	}

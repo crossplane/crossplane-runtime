@@ -23,14 +23,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
 // A Conditioned may have conditions set or retrieved. Conditions are typically
 // indicate the status of both a resource and its reconciliation process.
 type Conditioned interface {
-	SetConditions(c ...v1alpha1.Condition)
-	GetCondition(v1alpha1.ConditionType) v1alpha1.Condition
+	SetConditions(c ...xpv1.Condition)
+	GetCondition(xpv1.ConditionType) xpv1.Condition
 }
 
 // A ClaimReferencer may reference a resource claim.
@@ -48,46 +48,46 @@ type ManagedResourceReferencer interface {
 // A LocalConnectionSecretWriterTo may write a connection secret to its own
 // namespace.
 type LocalConnectionSecretWriterTo interface {
-	SetWriteConnectionSecretToReference(r *v1alpha1.LocalSecretReference)
-	GetWriteConnectionSecretToReference() *v1alpha1.LocalSecretReference
+	SetWriteConnectionSecretToReference(r *xpv1.LocalSecretReference)
+	GetWriteConnectionSecretToReference() *xpv1.LocalSecretReference
 }
 
 // A ConnectionSecretWriterTo may write a connection secret to an arbitrary
 // namespace.
 type ConnectionSecretWriterTo interface {
-	SetWriteConnectionSecretToReference(r *v1alpha1.SecretReference)
-	GetWriteConnectionSecretToReference() *v1alpha1.SecretReference
+	SetWriteConnectionSecretToReference(r *xpv1.SecretReference)
+	GetWriteConnectionSecretToReference() *xpv1.SecretReference
 }
 
 // An Orphanable resource may specify a DeletionPolicy.
 type Orphanable interface {
-	SetDeletionPolicy(p v1alpha1.DeletionPolicy)
-	GetDeletionPolicy() v1alpha1.DeletionPolicy
+	SetDeletionPolicy(p xpv1.DeletionPolicy)
+	GetDeletionPolicy() xpv1.DeletionPolicy
 }
 
 // A ProviderReferencer may reference a provider resource.
 type ProviderReferencer interface {
-	GetProviderReference() *v1alpha1.Reference
-	SetProviderReference(p *v1alpha1.Reference)
+	GetProviderReference() *xpv1.Reference
+	SetProviderReference(p *xpv1.Reference)
 }
 
 // A ProviderConfigReferencer may reference a provider config resource.
 type ProviderConfigReferencer interface {
-	GetProviderConfigReference() *v1alpha1.Reference
-	SetProviderConfigReference(p *v1alpha1.Reference)
+	GetProviderConfigReference() *xpv1.Reference
+	SetProviderConfigReference(p *xpv1.Reference)
 }
 
 // A RequiredProviderConfigReferencer may reference a provider config resource.
 // Unlike ProviderConfigReferencer, the reference is required (i.e. not nil).
 type RequiredProviderConfigReferencer interface {
-	GetProviderConfigReference() v1alpha1.Reference
-	SetProviderConfigReference(p v1alpha1.Reference)
+	GetProviderConfigReference() xpv1.Reference
+	SetProviderConfigReference(p xpv1.Reference)
 }
 
 // A RequiredTypedResourceReferencer can reference a resource.
 type RequiredTypedResourceReferencer interface {
-	SetResourceReference(r v1alpha1.TypedReference)
-	GetResourceReference() v1alpha1.TypedReference
+	SetResourceReference(r xpv1.TypedReference)
+	GetResourceReference() xpv1.TypedReference
 }
 
 // A Finalizer manages the finalizers on the resource.

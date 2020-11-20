@@ -29,7 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 )
 
@@ -201,7 +201,7 @@ func IsAPIError(err error) bool {
 }
 
 // IsConditionTrue returns if condition status is true
-func IsConditionTrue(c v1alpha1.Condition) bool {
+func IsConditionTrue(c xpv1.Condition) bool {
 	return c.Status == corev1.ConditionTrue
 }
 
