@@ -25,7 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 )
 
@@ -52,7 +52,7 @@ func TestAddProviderConfig(t *testing.T) {
 		"IsProviderConfigReferencer": {
 			obj: &fake.ProviderConfigUsage{
 				RequiredProviderConfigReferencer: fake.RequiredProviderConfigReferencer{
-					Ref: v1alpha1.Reference{Name: name},
+					Ref: xpv1.Reference{Name: name},
 				},
 			},
 			queue: addFn(func(got interface{}) {

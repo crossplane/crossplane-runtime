@@ -30,18 +30,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
 // Conditioned is a mock that implements Conditioned interface.
-type Conditioned struct{ Conditions []v1alpha1.Condition }
+type Conditioned struct{ Conditions []xpv1.Condition }
 
 // SetConditions sets the Conditions.
-func (m *Conditioned) SetConditions(c ...v1alpha1.Condition) { m.Conditions = c }
+func (m *Conditioned) SetConditions(c ...xpv1.Condition) { m.Conditions = c }
 
 // GetCondition get the Condition with the given ConditionType.
-func (m *Conditioned) GetCondition(ct v1alpha1.ConditionType) v1alpha1.Condition {
-	return v1alpha1.Condition{Type: ct, Status: corev1.ConditionUnknown}
+func (m *Conditioned) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+	return xpv1.Condition{Type: ct, Status: corev1.ConditionUnknown}
 }
 
 // ClaimReferencer is a mock that implements ClaimReferencer interface.
@@ -63,87 +63,87 @@ func (m *ManagedResourceReferencer) SetResourceReference(r *corev1.ObjectReferen
 func (m *ManagedResourceReferencer) GetResourceReference() *corev1.ObjectReference { return m.Ref }
 
 // ProviderReferencer is a mock that implements ProviderReferencer interface.
-type ProviderReferencer struct{ Ref *v1alpha1.Reference }
+type ProviderReferencer struct{ Ref *xpv1.Reference }
 
 // SetProviderReference sets the ProviderReference.
-func (m *ProviderReferencer) SetProviderReference(p *v1alpha1.Reference) { m.Ref = p }
+func (m *ProviderReferencer) SetProviderReference(p *xpv1.Reference) { m.Ref = p }
 
 // GetProviderReference gets the ProviderReference.
-func (m *ProviderReferencer) GetProviderReference() *v1alpha1.Reference { return m.Ref }
+func (m *ProviderReferencer) GetProviderReference() *xpv1.Reference { return m.Ref }
 
 // ProviderConfigReferencer is a mock that implements ProviderConfigReferencer interface.
-type ProviderConfigReferencer struct{ Ref *v1alpha1.Reference }
+type ProviderConfigReferencer struct{ Ref *xpv1.Reference }
 
 // SetProviderConfigReference sets the ProviderConfigReference.
-func (m *ProviderConfigReferencer) SetProviderConfigReference(p *v1alpha1.Reference) { m.Ref = p }
+func (m *ProviderConfigReferencer) SetProviderConfigReference(p *xpv1.Reference) { m.Ref = p }
 
 // GetProviderConfigReference gets the ProviderConfigReference.
-func (m *ProviderConfigReferencer) GetProviderConfigReference() *v1alpha1.Reference { return m.Ref }
+func (m *ProviderConfigReferencer) GetProviderConfigReference() *xpv1.Reference { return m.Ref }
 
 // RequiredProviderConfigReferencer is a mock that implements the
 // RequiredProviderConfigReferencer interface.
-type RequiredProviderConfigReferencer struct{ Ref v1alpha1.Reference }
+type RequiredProviderConfigReferencer struct{ Ref xpv1.Reference }
 
 // SetProviderConfigReference sets the ProviderConfigReference.
-func (m *RequiredProviderConfigReferencer) SetProviderConfigReference(p v1alpha1.Reference) {
+func (m *RequiredProviderConfigReferencer) SetProviderConfigReference(p xpv1.Reference) {
 	m.Ref = p
 }
 
 // GetProviderConfigReference gets the ProviderConfigReference.
-func (m *RequiredProviderConfigReferencer) GetProviderConfigReference() v1alpha1.Reference {
+func (m *RequiredProviderConfigReferencer) GetProviderConfigReference() xpv1.Reference {
 	return m.Ref
 }
 
 // RequiredTypedResourceReferencer is a mock that implements the
 // RequiredTypedResourceReferencer interface.
-type RequiredTypedResourceReferencer struct{ Ref v1alpha1.TypedReference }
+type RequiredTypedResourceReferencer struct{ Ref xpv1.TypedReference }
 
 // SetResourceReference sets the ResourceReference.
-func (m *RequiredTypedResourceReferencer) SetResourceReference(p v1alpha1.TypedReference) {
+func (m *RequiredTypedResourceReferencer) SetResourceReference(p xpv1.TypedReference) {
 	m.Ref = p
 }
 
 // GetResourceReference gets the ResourceReference.
-func (m *RequiredTypedResourceReferencer) GetResourceReference() v1alpha1.TypedReference {
+func (m *RequiredTypedResourceReferencer) GetResourceReference() xpv1.TypedReference {
 	return m.Ref
 }
 
 // LocalConnectionSecretWriterTo is a mock that implements LocalConnectionSecretWriterTo interface.
 type LocalConnectionSecretWriterTo struct {
-	Ref *v1alpha1.LocalSecretReference
+	Ref *xpv1.LocalSecretReference
 }
 
 // SetWriteConnectionSecretToReference sets the WriteConnectionSecretToReference.
-func (m *LocalConnectionSecretWriterTo) SetWriteConnectionSecretToReference(r *v1alpha1.LocalSecretReference) {
+func (m *LocalConnectionSecretWriterTo) SetWriteConnectionSecretToReference(r *xpv1.LocalSecretReference) {
 	m.Ref = r
 }
 
 // GetWriteConnectionSecretToReference gets the WriteConnectionSecretToReference.
-func (m *LocalConnectionSecretWriterTo) GetWriteConnectionSecretToReference() *v1alpha1.LocalSecretReference {
+func (m *LocalConnectionSecretWriterTo) GetWriteConnectionSecretToReference() *xpv1.LocalSecretReference {
 	return m.Ref
 }
 
 // ConnectionSecretWriterTo is a mock that implements ConnectionSecretWriterTo interface.
-type ConnectionSecretWriterTo struct{ Ref *v1alpha1.SecretReference }
+type ConnectionSecretWriterTo struct{ Ref *xpv1.SecretReference }
 
 // SetWriteConnectionSecretToReference sets the WriteConnectionSecretToReference.
-func (m *ConnectionSecretWriterTo) SetWriteConnectionSecretToReference(r *v1alpha1.SecretReference) {
+func (m *ConnectionSecretWriterTo) SetWriteConnectionSecretToReference(r *xpv1.SecretReference) {
 	m.Ref = r
 }
 
 // GetWriteConnectionSecretToReference gets the WriteConnectionSecretToReference.
-func (m *ConnectionSecretWriterTo) GetWriteConnectionSecretToReference() *v1alpha1.SecretReference {
+func (m *ConnectionSecretWriterTo) GetWriteConnectionSecretToReference() *xpv1.SecretReference {
 	return m.Ref
 }
 
 // Orphanable implements the Orphanable interface.
-type Orphanable struct{ Policy v1alpha1.DeletionPolicy }
+type Orphanable struct{ Policy xpv1.DeletionPolicy }
 
 // SetDeletionPolicy sets the DeletionPolicy.
-func (m *Orphanable) SetDeletionPolicy(p v1alpha1.DeletionPolicy) { m.Policy = p }
+func (m *Orphanable) SetDeletionPolicy(p xpv1.DeletionPolicy) { m.Policy = p }
 
 // GetDeletionPolicy gets the DeletionPolicy.
-func (m *Orphanable) GetDeletionPolicy() v1alpha1.DeletionPolicy { return m.Policy }
+func (m *Orphanable) GetDeletionPolicy() xpv1.DeletionPolicy { return m.Policy }
 
 // CompositionReferencer is a mock that implements CompositionReferencer interface.
 type CompositionReferencer struct{ Ref *corev1.ObjectReference }
@@ -238,7 +238,7 @@ type Managed struct {
 	ProviderConfigReferencer
 	ConnectionSecretWriterTo
 	Orphanable
-	v1alpha1.ConditionedStatus
+	xpv1.ConditionedStatus
 }
 
 // GetObjectKind returns schema.ObjectKind.
@@ -266,7 +266,7 @@ type Composite struct {
 	ClaimReferencer
 	ConnectionSecretWriterTo
 
-	v1alpha1.ConditionedStatus
+	xpv1.ConditionedStatus
 	ConnectionDetailsLastPublishedTimer
 }
 
@@ -290,7 +290,7 @@ func (m *Composite) DeepCopyObject() runtime.Object {
 type Composed struct {
 	metav1.ObjectMeta
 	ConnectionSecretWriterTo
-	v1alpha1.ConditionedStatus
+	xpv1.ConditionedStatus
 }
 
 // GetObjectKind returns schema.ObjectKind.
@@ -317,7 +317,7 @@ type CompositeClaim struct {
 	CompositeResourceReferencer
 	LocalConnectionSecretWriterTo
 
-	v1alpha1.ConditionedStatus
+	xpv1.ConditionedStatus
 	ConnectionDetailsLastPublishedTimer
 }
 
@@ -387,16 +387,16 @@ type MockConnectionSecretOwner struct {
 	runtime.Object
 	metav1.ObjectMeta
 
-	Ref *v1alpha1.SecretReference
+	Ref *xpv1.SecretReference
 }
 
 // GetWriteConnectionSecretToReference returns the connection secret reference.
-func (m *MockConnectionSecretOwner) GetWriteConnectionSecretToReference() *v1alpha1.SecretReference {
+func (m *MockConnectionSecretOwner) GetWriteConnectionSecretToReference() *xpv1.SecretReference {
 	return m.Ref
 }
 
 // SetWriteConnectionSecretToReference sets the connection secret reference.
-func (m *MockConnectionSecretOwner) SetWriteConnectionSecretToReference(r *v1alpha1.SecretReference) {
+func (m *MockConnectionSecretOwner) SetWriteConnectionSecretToReference(r *xpv1.SecretReference) {
 	m.Ref = r
 }
 
@@ -422,16 +422,16 @@ type MockLocalConnectionSecretOwner struct {
 	runtime.Object
 	metav1.ObjectMeta
 
-	Ref *v1alpha1.LocalSecretReference
+	Ref *xpv1.LocalSecretReference
 }
 
 // GetWriteConnectionSecretToReference returns the connection secret reference.
-func (m *MockLocalConnectionSecretOwner) GetWriteConnectionSecretToReference() *v1alpha1.LocalSecretReference {
+func (m *MockLocalConnectionSecretOwner) GetWriteConnectionSecretToReference() *xpv1.LocalSecretReference {
 	return m.Ref
 }
 
 // SetWriteConnectionSecretToReference sets the connection secret reference.
-func (m *MockLocalConnectionSecretOwner) SetWriteConnectionSecretToReference(r *v1alpha1.LocalSecretReference) {
+func (m *MockLocalConnectionSecretOwner) SetWriteConnectionSecretToReference(r *xpv1.LocalSecretReference) {
 	m.Ref = r
 }
 
@@ -456,7 +456,7 @@ type ProviderConfig struct {
 	metav1.ObjectMeta
 
 	UserCounter
-	v1alpha1.ConditionedStatus
+	xpv1.ConditionedStatus
 }
 
 // GetObjectKind returns schema.ObjectKind.

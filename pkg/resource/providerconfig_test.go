@@ -24,7 +24,7 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
@@ -72,7 +72,7 @@ func TestTrack(t *testing.T) {
 						// new one we would apply.
 						current := &fake.ProviderConfigUsage{
 							RequiredProviderConfigReferencer: fake.RequiredProviderConfigReferencer{
-								Ref: v1alpha1.Reference{Name: name},
+								Ref: xpv1.Reference{Name: name},
 							},
 						}
 						if err := fn(context.TODO(), current, nil); err != nil {
@@ -86,7 +86,7 @@ func TestTrack(t *testing.T) {
 			args: args{
 				mg: &fake.Managed{
 					ProviderConfigReferencer: fake.ProviderConfigReferencer{
-						Ref: &v1alpha1.Reference{Name: name},
+						Ref: &xpv1.Reference{Name: name},
 					},
 				},
 			},
@@ -103,7 +103,7 @@ func TestTrack(t *testing.T) {
 			args: args{
 				mg: &fake.Managed{
 					ProviderConfigReferencer: fake.ProviderConfigReferencer{
-						Ref: &v1alpha1.Reference{Name: name},
+						Ref: &xpv1.Reference{Name: name},
 					},
 				},
 			},

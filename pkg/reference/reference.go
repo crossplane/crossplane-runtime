@@ -23,7 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
@@ -78,8 +78,8 @@ func ExternalName() ExtractValueFn {
 // managed resource be resolved.
 type ResolutionRequest struct {
 	CurrentValue string
-	Reference    *v1alpha1.Reference
-	Selector     *v1alpha1.Selector
+	Reference    *xpv1.Reference
+	Selector     *xpv1.Selector
 	To           To
 	Extract      ExtractValueFn
 }
@@ -103,7 +103,7 @@ func (rr ResolutionRequest) IsNoOp() bool {
 // returned values are always safe to set if resolution was successful.
 type ResolutionResponse struct {
 	ResolvedValue     string
-	ResolvedReference *v1alpha1.Reference
+	ResolvedReference *xpv1.Reference
 }
 
 // Validate this ResolutionResponse.
@@ -119,8 +119,8 @@ func (rr ResolutionResponse) Validate() error {
 // kind of managed resource be resolved.
 type MultiResolutionRequest struct {
 	CurrentValues []string
-	References    []v1alpha1.Reference
-	Selector      *v1alpha1.Selector
+	References    []xpv1.Reference
+	Selector      *xpv1.Selector
 	To            To
 	Extract       ExtractValueFn
 }
@@ -147,7 +147,7 @@ func (rr MultiResolutionRequest) IsNoOp() bool {
 // successful.
 type MultiResolutionResponse struct {
 	ResolvedValues     []string
-	ResolvedReferences []v1alpha1.Reference
+	ResolvedReferences []xpv1.Reference
 }
 
 // Validate this MultiResolutionResponse.
@@ -207,7 +207,7 @@ func (r *APIResolver) Resolve(ctx context.Context, req ResolutionRequest) (Resol
 			continue
 		}
 
-		rsp := ResolutionResponse{ResolvedValue: req.Extract(to), ResolvedReference: &v1alpha1.Reference{Name: to.GetName()}}
+		rsp := ResolutionResponse{ResolvedValue: req.Extract(to), ResolvedReference: &xpv1.Reference{Name: to.GetName()}}
 		return rsp, rsp.Validate()
 	}
 
@@ -244,7 +244,7 @@ func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRe
 	}
 
 	items := req.To.List.GetItems()
-	refs := make([]v1alpha1.Reference, 0, len(items))
+	refs := make([]xpv1.Reference, 0, len(items))
 	vals := make([]string, 0, len(items))
 	for _, to := range req.To.List.GetItems() {
 		if ControllersMustMatch(req.Selector) && !meta.HaveSameController(r.from, to) {
@@ -252,7 +252,7 @@ func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRe
 		}
 
 		vals = append(vals, req.Extract(to))
-		refs = append(refs, v1alpha1.Reference{Name: to.GetName()})
+		refs = append(refs, xpv1.Reference{Name: to.GetName()})
 	}
 
 	rsp := MultiResolutionResponse{ResolvedValues: vals, ResolvedReferences: refs}
@@ -262,7 +262,7 @@ func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRe
 // ControllersMustMatch returns true if the supplied Selector requires that a
 // reference be to a managed resource whose controller reference matches the
 // referencing resource.
-func ControllersMustMatch(s *v1alpha1.Selector) bool {
+func ControllersMustMatch(s *xpv1.Selector) bool {
 	if s == nil {
 		return false
 	}

@@ -22,7 +22,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 
-	corev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
 // TODO(negz): Replace this if a similar option is added to cmpopts per
@@ -50,5 +50,5 @@ func EquateErrors() cmp.Option {
 
 // EquateConditions sorts any slices of Condition before comparing them.
 func EquateConditions() cmp.Option {
-	return cmpopts.SortSlices(func(i, j corev1alpha1.Condition) bool { return i.Type < j.Type })
+	return cmpopts.SortSlices(func(i, j xpv1.Condition) bool { return i.Type < j.Type })
 }

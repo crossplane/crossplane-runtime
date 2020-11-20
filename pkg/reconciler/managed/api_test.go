@@ -26,7 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
@@ -142,7 +142,7 @@ func TestDefaultProviderConfig(t *testing.T) {
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateManaged),
-				mg:  &fake.Managed{ProviderConfigReferencer: fake.ProviderConfigReferencer{Ref: &v1alpha1.Reference{Name: "default"}}},
+				mg:  &fake.Managed{ProviderConfigReferencer: fake.ProviderConfigReferencer{Ref: &xpv1.Reference{Name: "default"}}},
 			},
 		},
 		"UpdateSuccessful": {
@@ -153,17 +153,17 @@ func TestDefaultProviderConfig(t *testing.T) {
 			},
 			want: want{
 				err: nil,
-				mg:  &fake.Managed{ProviderConfigReferencer: fake.ProviderConfigReferencer{Ref: &v1alpha1.Reference{Name: "default"}}},
+				mg:  &fake.Managed{ProviderConfigReferencer: fake.ProviderConfigReferencer{Ref: &xpv1.Reference{Name: "default"}}},
 			},
 		},
 		"UpdateNotNeeded": {
 			args: args{
 				ctx: context.Background(),
-				mg:  &fake.Managed{ProviderConfigReferencer: fake.ProviderConfigReferencer{Ref: &v1alpha1.Reference{Name: "some-value"}}},
+				mg:  &fake.Managed{ProviderConfigReferencer: fake.ProviderConfigReferencer{Ref: &xpv1.Reference{Name: "some-value"}}},
 			},
 			want: want{
 				err: nil,
-				mg:  &fake.Managed{ProviderConfigReferencer: fake.ProviderConfigReferencer{Ref: &v1alpha1.Reference{Name: "some-value"}}},
+				mg:  &fake.Managed{ProviderConfigReferencer: fake.ProviderConfigReferencer{Ref: &xpv1.Reference{Name: "some-value"}}},
 			},
 		},
 	}
@@ -186,7 +186,7 @@ func TestAPISecretPublisher(t *testing.T) {
 	errBoom := errors.New("boom")
 
 	mg := &fake.Managed{
-		ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: &v1alpha1.SecretReference{
+		ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: &xpv1.SecretReference{
 			Namespace: "coolnamespace",
 			Name:      "coolsecret",
 		}},

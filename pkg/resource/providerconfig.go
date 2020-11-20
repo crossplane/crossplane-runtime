@@ -24,7 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 )
 
@@ -86,10 +86,10 @@ func (u *ProviderConfigUsageTracker) Track(ctx context.Context, mg Managed) erro
 	}
 
 	pcu.SetName(string(mg.GetUID()))
-	pcu.SetLabels(map[string]string{v1alpha1.LabelKeyProviderName: ref.Name})
+	pcu.SetLabels(map[string]string{xpv1.LabelKeyProviderName: ref.Name})
 	pcu.SetOwnerReferences([]metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(mg, gvk))})
-	pcu.SetProviderConfigReference(v1alpha1.Reference{Name: ref.Name})
-	pcu.SetResourceReference(v1alpha1.TypedReference{
+	pcu.SetProviderConfigReference(xpv1.Reference{Name: ref.Name})
+	pcu.SetResourceReference(xpv1.TypedReference{
 		APIVersion: gvk.GroupVersion().String(),
 		Kind:       gvk.Kind,
 		Name:       mg.GetName(),
