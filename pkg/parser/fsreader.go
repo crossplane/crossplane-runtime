@@ -68,7 +68,7 @@ func SkipNotYAML() FilterFn {
 
 // NewFsReadCloser returns an FsReadCloser that implements io.ReadCloser. It
 // walks the filesystem ahead of time, then reads file contents when Read is
-// invoked.
+// invoked. It does not follow symbolic links.
 func NewFsReadCloser(fs afero.Fs, dir string, fns ...FilterFn) (*FsReadCloser, error) {
 	paths := []string{}
 	err := afero.Walk(fs, dir, func(path string, info os.FileInfo, err error) error {
