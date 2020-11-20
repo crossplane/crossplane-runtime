@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1
 
 // A DeletionPolicy determines what should happen to the underlying external
 // resource when a managed resource is deleted.
