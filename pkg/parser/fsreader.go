@@ -65,6 +65,13 @@ func SkipDirs() FilterFn {
 	}
 }
 
+// SkipEmpty skips empty files.
+func SkipEmpty() FilterFn {
+	return func(path string, info os.FileInfo) (bool, error) {
+		return info.Size() == 0, nil
+	}
+}
+
 // SkipNotYAML skips files that do not have YAML extension.
 func SkipNotYAML() FilterFn {
 	return func(path string, info os.FileInfo) (bool, error) {

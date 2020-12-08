@@ -131,7 +131,7 @@ func TestParser(t *testing.T) {
 		"FsBackendSkip": {
 			reason:  "should skip empty files and files without yaml extension",
 			parser:  New(metaScheme, objScheme),
-			backend: NewFsBackend(emptyFs, FsDir("."), FsFilters(SkipDirs(), SkipNotYAML())),
+			backend: NewFsBackend(emptyFs, FsDir("."), FsFilters(SkipDirs(), SkipEmpty(), SkipNotYAML())),
 			pkg:     NewPackage(),
 		},
 	}
