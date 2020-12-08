@@ -24,6 +24,14 @@ import (
 	"github.com/spf13/afero"
 )
 
+var _ AnnotatedReadCloser = &FsReadCloser{}
+
+// FsReadCloserAnnotation annotates data for an FsReadCloser.
+type FsReadCloserAnnotation struct {
+	path     string
+	position int
+}
+
 // FsReadCloser implements io.ReadCloser for an Afero filesystem.
 type FsReadCloser struct {
 	fs         afero.Fs
@@ -32,6 +40,7 @@ type FsReadCloser struct {
 	index      int
 	position   int
 	writeBreak bool
+	wroteBreak bool
 }
 
 // A FilterFn filters files when the FsReadCloser walks the filesystem.
@@ -53,6 +62,13 @@ func SkipDirs() FilterFn {
 			return true, nil
 		}
 		return false, nil
+	}
+}
+
+// SkipEmpty skips empty files.
+func SkipEmpty() FilterFn {
+	return func(path string, info os.FileInfo) (bool, error) {
+		return info.Size() == 0, nil
 	}
 }
 
@@ -94,24 +110,29 @@ func NewFsReadCloser(fs afero.Fs, dir string, fns ...FilterFn) (*FsReadCloser, e
 		index:      0,
 		position:   0,
 		writeBreak: false,
+		wroteBreak: false,
 	}, err
 }
 
 func (r *FsReadCloser) Read(p []byte) (n int, err error) {
+	if r.wroteBreak {
+		r.index++
+		r.position = 0
+		r.wroteBreak = false
+	}
 	if r.index == len(r.paths) {
 		return 0, io.EOF
 	}
 	if r.writeBreak {
 		n = copy(p, "\n---\n")
 		r.writeBreak = false
+		r.wroteBreak = true
 		return n, nil
 	}
 	b, err := afero.ReadFile(r.fs, r.paths[r.index])
 	n = copy(p, b[r.position:])
 	r.position += n
 	if err == io.EOF || n == 0 {
-		r.position = 0
-		r.index++
 		r.writeBreak = true
 		err = nil
 	}
@@ -121,4 +142,18 @@ func (r *FsReadCloser) Read(p []byte) (n int, err error) {
 // Close is a no op for an FsReadCloser.
 func (r *FsReadCloser) Close() error {
 	return nil
+}
+
+// Annotate returns additional about the data currently being read.
+func (r *FsReadCloser) Annotate() interface{} {
+	// Index will be out of bounds if we error after the final file has been
+	// read.
+	index := r.index
+	if index == len(r.paths) {
+		index--
+	}
+	return FsReadCloserAnnotation{
+		path:     r.paths[index],
+		position: r.position,
+	}
 }

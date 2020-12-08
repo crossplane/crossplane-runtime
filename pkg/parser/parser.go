@@ -19,10 +19,12 @@ package parser
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -30,6 +32,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes"
 )
+
+// AnnotatedReadCloser is a wrapper around io.ReadCloser that allows
+// implementations to supply additional information about data that is read.
+type AnnotatedReadCloser interface {
+	io.ReadCloser
+	Annotate() interface{}
+}
 
 // ObjectCreaterTyper know how to create and determine the type of objects.
 type ObjectCreaterTyper interface {
@@ -105,6 +114,9 @@ func (p *PackageParser) Parse(ctx context.Context, reader io.ReadCloser) (*Packa
 		if err != nil {
 			o, _, err := do.Decode(bytes, nil, nil)
 			if err != nil {
+				if anno, ok := reader.(AnnotatedReadCloser); ok {
+					return pkg, errors.Wrap(err, fmt.Sprintf("%+v", anno.Annotate()))
+				}
 				return pkg, err
 			}
 			pkg.objects = append(pkg.objects, o)
