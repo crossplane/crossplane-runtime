@@ -302,6 +302,53 @@ func TestIgnore(t *testing.T) {
 	}
 }
 
+func TestIgnoreAny(t *testing.T) {
+	errBoom := errors.New("boom")
+
+	type args struct {
+		is  []ErrorIs
+		err error
+	}
+	cases := map[string]struct {
+		args args
+		want error
+	}{
+		"IgnoreError": {
+			args: args{
+				is:  []ErrorIs{func(err error) bool { return true }},
+				err: errBoom,
+			},
+			want: nil,
+		},
+		"IgnoreErrorArr": {
+			args: args{
+				is: []ErrorIs{
+					func(err error) bool { return true },
+					func(err error) bool { return false },
+				},
+				err: errBoom,
+			},
+			want: nil,
+		},
+		"PropagateError": {
+			args: args{
+				is:  []ErrorIs{func(err error) bool { return false }},
+				err: errBoom,
+			},
+			want: errBoom,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := IgnoreAny(tc.args.err, tc.args.is...)
+			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
+				t.Errorf("Ignore(...): -want error, +got error:\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestIsConditionTrue(t *testing.T) {
 	cases := map[string]struct {
 		c    xpv1.Condition
