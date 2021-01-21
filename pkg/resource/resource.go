@@ -219,7 +219,7 @@ func IsConditionTrue(c xpv1.Condition) bool {
 
 // An Applicator applies changes to an object.
 type Applicator interface {
-	Apply(context.Context, runtime.Object, ...ApplyOption) error
+	Apply(context.Context, client.Object, ...ApplyOption) error
 }
 
 // A ClientApplicator may be used to build a single 'client' that satisfies both
@@ -230,10 +230,10 @@ type ClientApplicator struct {
 }
 
 // An ApplyFn is a function that satisfies the Applicator interface.
-type ApplyFn func(context.Context, runtime.Object, ...ApplyOption) error
+type ApplyFn func(context.Context, client.Object, ...ApplyOption) error
 
 // Apply changes to the supplied object.
-func (fn ApplyFn) Apply(ctx context.Context, o runtime.Object, ao ...ApplyOption) error {
+func (fn ApplyFn) Apply(ctx context.Context, o client.Object, ao ...ApplyOption) error {
 	return fn(ctx, o, ao...)
 }
 
@@ -348,7 +348,7 @@ func AllowUpdateIf(fn func(current, desired runtime.Object) bool) ApplyOption {
 // not exist, or patched if it does.
 //
 // Deprecated: use APIPatchingApplicator instead.
-func Apply(ctx context.Context, c client.Client, o runtime.Object, ao ...ApplyOption) error {
+func Apply(ctx context.Context, c client.Client, o client.Object, ao ...ApplyOption) error {
 	return NewAPIPatchingApplicator(c).Apply(ctx, o, ao...)
 }
 

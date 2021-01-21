@@ -17,6 +17,7 @@ limitations under the License.
 package providerconfig
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
@@ -27,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -38,6 +40,7 @@ import (
 // This can't live in fake, because it would cause an import cycle due to
 // GetItems returning managed.ProviderConfigUsage.
 type ProviderConfigUsageList struct {
+	client.ObjectList
 	Items []resource.ProviderConfigUsage
 }
 
@@ -143,7 +146,7 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockList: test.NewMockListFn(nil, func(obj runtime.Object) error {
+						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
 							l := obj.(*ProviderConfigUsageList)
 							l.Items = []resource.ProviderConfigUsage{
 								&fake.ProviderConfigUsage{},
@@ -168,13 +171,13 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							pc := obj.(*fake.ProviderConfig)
 							pc.SetDeletionTimestamp(&now)
 							pc.SetUID(uid)
 							return nil
 						}),
-						MockList: test.NewMockListFn(nil, func(obj runtime.Object) error {
+						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
 							l := obj.(*ProviderConfigUsageList)
 							l.Items = []resource.ProviderConfigUsage{
 								&fake.ProviderConfigUsage{
@@ -206,7 +209,7 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							pc := obj.(*fake.ProviderConfig)
 							pc.SetDeletionTimestamp(&now)
 							return nil
@@ -230,7 +233,7 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							pc := obj.(*fake.ProviderConfig)
 							pc.SetDeletionTimestamp(&now)
 							return nil
@@ -317,7 +320,7 @@ func TestReconciler(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewReconciler(tc.args.m, tc.args.of)
-			got, err := r.Reconcile(reconcile.Request{})
+			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)

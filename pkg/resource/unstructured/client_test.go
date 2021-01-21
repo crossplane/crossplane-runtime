@@ -24,7 +24,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
@@ -38,7 +37,7 @@ var (
 	errUnwrapped = errors.New("unexpected Unwrapped object")
 )
 
-type Wrapped struct{ runtime.Object }
+type Wrapped struct{ client.Object }
 
 func (w *Wrapped) GetUnstructured() *unstructured.Unstructured {
 	return &unstructured.Unstructured{Object: map[string]interface{}{
@@ -50,7 +49,7 @@ func (w *Wrapped) GetUnstructured() *unstructured.Unstructured {
 
 func NewWrapped() *Wrapped { return &Wrapped{} }
 
-type WrappedList struct{ runtime.Object }
+type WrappedList struct{ client.ObjectList }
 
 func (w *WrappedList) GetUnstructuredList() *unstructured.UnstructuredList {
 	u := NewWrapped().GetUnstructured()
@@ -76,7 +75,7 @@ func TestGet(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		key client.ObjectKey
-		obj runtime.Object
+		obj client.Object
 	}
 	cases := map[string]struct {
 		c    client.Client
@@ -84,7 +83,7 @@ func TestGet(t *testing.T) {
 		want error
 	}{
 		"Unwrapped": {
-			c: &test.MockClient{MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+			c: &test.MockClient{MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 				if obj.(metav1.Object).GetName() != nameUnwrapped {
 					return errWrapped
 				}
@@ -93,7 +92,7 @@ func TestGet(t *testing.T) {
 			args: args{obj: NewUnwrapped()},
 		},
 		"Wrapped": {
-			c: &test.MockClient{MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+			c: &test.MockClient{MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 				if obj.(metav1.Object).GetName() != nameWrapped {
 					return errUnwrapped
 				}
@@ -117,7 +116,7 @@ func TestGet(t *testing.T) {
 func TestList(t *testing.T) {
 	type args struct {
 		ctx context.Context
-		obj runtime.Object
+		obj client.ObjectList
 	}
 	cases := map[string]struct {
 		c    client.Client
@@ -125,7 +124,7 @@ func TestList(t *testing.T) {
 		want error
 	}{
 		"Unwrapped": {
-			c: &test.MockClient{MockList: test.NewMockListFn(nil, func(obj runtime.Object) error {
+			c: &test.MockClient{MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
 				u := &obj.(*unstructured.UnstructuredList).Items[0]
 				if u.GetName() != nameUnwrapped {
 					return errWrapped
@@ -135,7 +134,7 @@ func TestList(t *testing.T) {
 			args: args{obj: NewUnwrappedList()},
 		},
 		"Wrapped": {
-			c: &test.MockClient{MockList: test.NewMockListFn(nil, func(obj runtime.Object) error {
+			c: &test.MockClient{MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
 				u := &obj.(*unstructured.UnstructuredList).Items[0]
 				if u.GetName() != nameWrapped {
 					return errUnwrapped
@@ -160,7 +159,7 @@ func TestList(t *testing.T) {
 func TestCreate(t *testing.T) {
 	type args struct {
 		ctx context.Context
-		obj runtime.Object
+		obj client.Object
 	}
 	cases := map[string]struct {
 		c    client.Client
@@ -168,7 +167,7 @@ func TestCreate(t *testing.T) {
 		want error
 	}{
 		"Unwrapped": {
-			c: &test.MockClient{MockCreate: test.NewMockCreateFn(nil, func(obj runtime.Object) error {
+			c: &test.MockClient{MockCreate: test.NewMockCreateFn(nil, func(obj client.Object) error {
 				if obj.(metav1.Object).GetName() != nameUnwrapped {
 					return errWrapped
 				}
@@ -177,7 +176,7 @@ func TestCreate(t *testing.T) {
 			args: args{obj: NewUnwrapped()},
 		},
 		"Wrapped": {
-			c: &test.MockClient{MockCreate: test.NewMockCreateFn(nil, func(obj runtime.Object) error {
+			c: &test.MockClient{MockCreate: test.NewMockCreateFn(nil, func(obj client.Object) error {
 				if obj.(metav1.Object).GetName() != nameWrapped {
 					return errUnwrapped
 				}
@@ -201,7 +200,7 @@ func TestCreate(t *testing.T) {
 func TestDelete(t *testing.T) {
 	type args struct {
 		ctx context.Context
-		obj runtime.Object
+		obj client.Object
 	}
 	cases := map[string]struct {
 		c    client.Client
@@ -209,7 +208,7 @@ func TestDelete(t *testing.T) {
 		want error
 	}{
 		"Unwrapped": {
-			c: &test.MockClient{MockDelete: test.NewMockDeleteFn(nil, func(obj runtime.Object) error {
+			c: &test.MockClient{MockDelete: test.NewMockDeleteFn(nil, func(obj client.Object) error {
 				if obj.(metav1.Object).GetName() != nameUnwrapped {
 					return errWrapped
 				}
@@ -218,7 +217,7 @@ func TestDelete(t *testing.T) {
 			args: args{obj: NewUnwrapped()},
 		},
 		"Wrapped": {
-			c: &test.MockClient{MockDelete: test.NewMockDeleteFn(nil, func(obj runtime.Object) error {
+			c: &test.MockClient{MockDelete: test.NewMockDeleteFn(nil, func(obj client.Object) error {
 				if obj.(metav1.Object).GetName() != nameWrapped {
 					return errUnwrapped
 				}
@@ -242,7 +241,7 @@ func TestDelete(t *testing.T) {
 func TestUpdate(t *testing.T) {
 	type args struct {
 		ctx context.Context
-		obj runtime.Object
+		obj client.Object
 	}
 	cases := map[string]struct {
 		c    client.Client
@@ -250,7 +249,7 @@ func TestUpdate(t *testing.T) {
 		want error
 	}{
 		"Unwrapped": {
-			c: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil, func(obj runtime.Object) error {
+			c: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
 				if obj.(metav1.Object).GetName() != nameUnwrapped {
 					return errWrapped
 				}
@@ -259,7 +258,7 @@ func TestUpdate(t *testing.T) {
 			args: args{obj: NewUnwrapped()},
 		},
 		"Wrapped": {
-			c: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil, func(obj runtime.Object) error {
+			c: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
 				if obj.(metav1.Object).GetName() != nameWrapped {
 					return errUnwrapped
 				}
@@ -283,7 +282,7 @@ func TestUpdate(t *testing.T) {
 func TestPatch(t *testing.T) {
 	type args struct {
 		ctx   context.Context
-		obj   runtime.Object
+		obj   client.Object
 		patch client.Patch
 	}
 	cases := map[string]struct {
@@ -292,7 +291,7 @@ func TestPatch(t *testing.T) {
 		want error
 	}{
 		"Unwrapped": {
-			c: &test.MockClient{MockPatch: test.NewMockPatchFn(nil, func(obj runtime.Object) error {
+			c: &test.MockClient{MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
 				if obj.(metav1.Object).GetName() != nameUnwrapped {
 					return errWrapped
 				}
@@ -301,7 +300,7 @@ func TestPatch(t *testing.T) {
 			args: args{obj: NewUnwrapped()},
 		},
 		"Wrapped": {
-			c: &test.MockClient{MockPatch: test.NewMockPatchFn(nil, func(obj runtime.Object) error {
+			c: &test.MockClient{MockPatch: test.NewMockPatchFn(nil, func(obj client.Object) error {
 				if obj.(metav1.Object).GetName() != nameWrapped {
 					return errUnwrapped
 				}
@@ -325,7 +324,7 @@ func TestPatch(t *testing.T) {
 func TestDeleteAllOf(t *testing.T) {
 	type args struct {
 		ctx context.Context
-		obj runtime.Object
+		obj client.Object
 	}
 	cases := map[string]struct {
 		c    client.Client
@@ -333,7 +332,7 @@ func TestDeleteAllOf(t *testing.T) {
 		want error
 	}{
 		"Unwrapped": {
-			c: &test.MockClient{MockDeleteAllOf: test.NewMockDeleteAllOfFn(nil, func(obj runtime.Object) error {
+			c: &test.MockClient{MockDeleteAllOf: test.NewMockDeleteAllOfFn(nil, func(obj client.Object) error {
 				if obj.(metav1.Object).GetName() != nameUnwrapped {
 					return errWrapped
 				}
@@ -342,7 +341,7 @@ func TestDeleteAllOf(t *testing.T) {
 			args: args{obj: NewUnwrapped()},
 		},
 		"Wrapped": {
-			c: &test.MockClient{MockDeleteAllOf: test.NewMockDeleteAllOfFn(nil, func(obj runtime.Object) error {
+			c: &test.MockClient{MockDeleteAllOf: test.NewMockDeleteAllOfFn(nil, func(obj client.Object) error {
 				if obj.(metav1.Object).GetName() != nameWrapped {
 					return errUnwrapped
 				}
@@ -366,7 +365,7 @@ func TestDeleteAllOf(t *testing.T) {
 func TestStatusUpdate(t *testing.T) {
 	type args struct {
 		ctx context.Context
-		obj runtime.Object
+		obj client.Object
 	}
 	cases := map[string]struct {
 		c    client.Client
@@ -374,7 +373,7 @@ func TestStatusUpdate(t *testing.T) {
 		want error
 	}{
 		"Unwrapped": {
-			c: &test.MockClient{MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(obj runtime.Object) error {
+			c: &test.MockClient{MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(obj client.Object) error {
 				if obj.(metav1.Object).GetName() != nameUnwrapped {
 					return errWrapped
 				}
@@ -383,7 +382,7 @@ func TestStatusUpdate(t *testing.T) {
 			args: args{obj: NewUnwrapped()},
 		},
 		"Wrapped": {
-			c: &test.MockClient{MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(obj runtime.Object) error {
+			c: &test.MockClient{MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(obj client.Object) error {
 				if obj.(metav1.Object).GetName() != nameWrapped {
 					return errUnwrapped
 				}
@@ -407,7 +406,7 @@ func TestStatusUpdate(t *testing.T) {
 func TestStatusPatch(t *testing.T) {
 	type args struct {
 		ctx   context.Context
-		obj   runtime.Object
+		obj   client.Object
 		patch client.Patch
 	}
 	cases := map[string]struct {
@@ -416,7 +415,7 @@ func TestStatusPatch(t *testing.T) {
 		want error
 	}{
 		"Unwrapped": {
-			c: &test.MockClient{MockStatusPatch: test.NewMockStatusPatchFn(nil, func(obj runtime.Object) error {
+			c: &test.MockClient{MockStatusPatch: test.NewMockStatusPatchFn(nil, func(obj client.Object) error {
 				if obj.(metav1.Object).GetName() != nameUnwrapped {
 					return errWrapped
 				}
@@ -425,7 +424,7 @@ func TestStatusPatch(t *testing.T) {
 			args: args{obj: NewUnwrapped()},
 		},
 		"Wrapped": {
-			c: &test.MockClient{MockStatusPatch: test.NewMockStatusPatchFn(nil, func(obj runtime.Object) error {
+			c: &test.MockClient{MockStatusPatch: test.NewMockStatusPatchFn(nil, func(obj client.Object) error {
 				if obj.(metav1.Object).GetName() != nameWrapped {
 					return errUnwrapped
 				}

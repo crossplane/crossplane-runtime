@@ -511,7 +511,7 @@ func NewReconciler(m manager.Manager, of resource.ManagedKind, o ...ReconcilerOp
 }
 
 // Reconcile a managed resource with an external resource.
-func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
+func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
 	// NOTE(negz): This method is a well over our cyclomatic complexity goal.
 	// Be wary of adding additional complexity.
 

@@ -210,7 +210,7 @@ func New(cfg *rest.Config, o ...Option) (*Manager, error) {
 // Run starts a controller-runtime manager with a signal channel.
 func (m *Manager) Run() {
 	go func() {
-		if err := m.Start(m.stop); err != nil {
+		if err := m.Start(context.Background()); err != nil {
 			panic(err)
 		}
 	}()
