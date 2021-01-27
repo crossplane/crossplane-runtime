@@ -181,9 +181,9 @@ func (a *APIUpdatingApplicator) Apply(ctx context.Context, o client.Object, ao .
 		return errors.Wrap(a.client.Create(ctx, o), "cannot create object")
 	}
 
-	current := o.DeepCopyObject()
+	current := o.DeepCopyObject().(client.Object)
 
-	err := a.client.Get(ctx, types.NamespacedName{Name: m.GetName(), Namespace: m.GetNamespace()}, o)
+	err := a.client.Get(ctx, types.NamespacedName{Name: m.GetName(), Namespace: m.GetNamespace()}, current)
 	if kerrors.IsNotFound(err) {
 		// TODO(negz): Apply ApplyOptions here too?
 		return errors.Wrap(a.client.Create(ctx, m), "cannot create object")
