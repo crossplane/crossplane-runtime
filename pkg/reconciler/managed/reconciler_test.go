@@ -213,6 +213,7 @@ func TestReconciler(t *testing.T) {
 							want.SetDeletionTimestamp(&now)
 							want.SetDeletionPolicy(xpv1.DeletionDelete)
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileDelete)))
+							want.SetConditions(xpv1.Deleting())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "An error deleting an external resource should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
@@ -257,6 +258,7 @@ func TestReconciler(t *testing.T) {
 							want.SetDeletionTimestamp(&now)
 							want.SetDeletionPolicy(xpv1.DeletionDelete)
 							want.SetConditions(xpv1.ReconcileSuccess())
+							want.SetConditions(xpv1.Deleting())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A deleted external resource should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
@@ -467,6 +469,7 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileCreate)))
+							want.SetConditions(xpv1.Creating())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors while creating an external resource should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
@@ -506,6 +509,7 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileError(errBoom))
+							want.SetConditions(xpv1.Creating())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors publishing connection details after creation should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
@@ -556,6 +560,7 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileSuccess())
+							want.SetConditions(xpv1.Creating())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Successful managed resource creation should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
@@ -587,6 +592,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Managed{}
 							meta.SetExternalName(want, "test")
 							want.SetConditions(xpv1.ReconcileSuccess())
+							want.SetConditions(xpv1.Creating())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Successful managed resource creation should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
@@ -633,6 +639,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Managed{}
 							meta.SetExternalName(want, "test")
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateManagedAfterCreate)))
+							want.SetConditions(xpv1.Creating())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Successful managed resource creation should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
@@ -675,6 +682,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Managed{}
 							meta.SetExternalName(want, "test")
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateManagedAfterCreate)))
+							want.SetConditions(xpv1.Creating())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Successful managed resource creation should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)

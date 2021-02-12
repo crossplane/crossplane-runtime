@@ -602,6 +602,7 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 		log = log.WithValues("deletion-timestamp", managed.GetDeletionTimestamp())
 
 		if observation.ResourceExists && managed.GetDeletionPolicy() != xpv1.DeletionOrphan {
+			managed.SetConditions(xpv1.Deleting())
 			if err := external.Delete(externalCtx, managed); err != nil {
 				// We'll hit this condition if we can't delete our external
 				// resource, for example if our provider credentials don't have
@@ -673,6 +674,7 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 	}
 
 	if !observation.ResourceExists {
+		managed.SetConditions(xpv1.Creating())
 		creation, err := external.Create(externalCtx, managed)
 		if err != nil {
 			// We'll hit this condition if we can't create our external
