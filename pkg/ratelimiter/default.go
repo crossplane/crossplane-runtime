@@ -37,12 +37,11 @@ func NewDefaultProviderRateLimiter(rps int) *workqueue.BucketRateLimiter {
 }
 
 // NewDefaultManagedRateLimiter returns a rate limiter that takes the maximum
-// delay between the passed providerRateLimiter and a per-item exponential
-// backoff limiter. The exponential backoff limiter has a base delay of 1s and a
-// maximum of 60s.
-func NewDefaultManagedRateLimiter(providerRateLimiter ratelimiter.RateLimiter) ratelimiter.RateLimiter {
+// delay between the passed provider and a per-item exponential backoff limiter.
+// The exponential backoff limiter has a base delay of 1s and a maximum of 60s.
+func NewDefaultManagedRateLimiter(provider ratelimiter.RateLimiter) ratelimiter.RateLimiter {
 	return workqueue.NewMaxOfRateLimiter(
 		workqueue.NewItemExponentialFailureRateLimiter(1*time.Second, 60*time.Second),
-		providerRateLimiter,
+		provider,
 	)
 }

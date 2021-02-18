@@ -530,8 +530,8 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 
 	if err := r.managed.Initialize(ctx, managed); err != nil {
 		// If this is the first time we encounter this issue we'll be requeued
-		// implicitly when we update our status with the new error condition.
-		// If not, we want to try again after a short wait.
+		// implicitly when we update our status with the new error condition. If
+		// not, we requeue explicitly, which will trigger backoff.
 		log.Debug("Cannot initialize managed resource", "error", err)
 		record.Event(managed, event.Warning(reasonCannotInitialize, err))
 		managed.SetConditions(xpv1.ReconcileError(err))
@@ -550,9 +550,10 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 	if !meta.WasDeleted(managed) {
 		if err := r.managed.ResolveReferences(ctx, managed); err != nil {
 			// If any of our referenced resources are not yet ready (or if we
-			// encountered an error resolving them) we want to try again after a
-			// short wait. If this is the first time we encounter this situation
-			// we'll be requeued implicitly due to the status update.
+			// encountered an error resolving them) we want to try again. If
+			// this is the first time we encounter this situation we'll be
+			// requeued implicitly due to the status update. If not, we want
+			// requeue explicitly, which will trigger backoff.
 			log.Debug("Cannot resolve managed resource references", "error", err)
 			record.Event(managed, event.Warning(reasonCannotResolveRefs, err))
 			managed.SetConditions(xpv1.ReconcileError(err))
@@ -565,7 +566,8 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 		// We'll usually hit this case if our Provider or its secret are missing
 		// or invalid. If this is first time we encounter this issue we'll be
 		// requeued implicitly when we update our status with the new error
-		// condition. If not, we want to try again after a short wait.
+		// condition. If not, we requeue explicitly, which will trigger
+		// backoff.
 		log.Debug("Cannot connect to provider", "error", err)
 		record.Event(managed, event.Warning(reasonCannotConnect, err))
 		managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, errReconcileConnect)))
@@ -578,7 +580,8 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 		// or insufficient for observing the external resource type we're
 		// concerned with. If this is the first time we encounter this issue
 		// we'll be requeued implicitly when we update our status with the new
-		// error condition. If not, we want to try again after a short wait.
+		// error condition. If not, we requeue explicitly, which will
+		// trigger backoff.
 		log.Debug("Cannot observe external resource", "error", err)
 		record.Event(managed, event.Warning(reasonCannotObserve, err))
 		managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, errReconcileObserve)))
@@ -592,10 +595,10 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 			if err := external.Delete(externalCtx, managed); err != nil {
 				// We'll hit this condition if we can't delete our external
 				// resource, for example if our provider credentials don't have
-				// access to delete it. If this is the first time we encounter this
-				// issue we'll be requeued implicitly when we update our status with
-				// the new error condition. If not, we want to try again after a
-				// short wait.
+				// access to delete it. If this is the first time we encounter
+				// this issue we'll be requeued implicitly when we update our
+				// status with the new error condition. If not, we want requeue
+				// explicitly, which will trigger backoff.
 				log.Debug("Cannot delete external resource", "error", err, "requeue-after")
 				record.Event(managed, event.Warning(reasonCannotDelete, err))
 				managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, errReconcileDelete)))
@@ -617,7 +620,8 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 		if err := r.managed.UnpublishConnection(ctx, managed, observation.ConnectionDetails); err != nil {
 			// If this is the first time we encounter this issue we'll be
 			// requeued implicitly when we update our status with the new error
-			// condition. If not, we want to try again after a short wait.
+			// condition. If not, we requeue explicitly, which will trigger
+			// backoff.
 			log.Debug("Cannot unpublish connection details", "error", err)
 			record.Event(managed, event.Warning(reasonCannotUnpublish, err))
 			managed.SetConditions(xpv1.ReconcileError(err))
@@ -626,7 +630,8 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 		if err := r.managed.RemoveFinalizer(ctx, managed); err != nil {
 			// If this is the first time we encounter this issue we'll be
 			// requeued implicitly when we update our status with the new error
-			// condition. If not, we want to try again after a short wait.
+			// condition. If not, we requeue explicitly, which will trigger
+			// backoff.
 			log.Debug("Cannot remove managed resource finalizer", "error", err)
 			managed.SetConditions(xpv1.ReconcileError(err))
 			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
@@ -643,7 +648,7 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 	if err := r.managed.PublishConnection(ctx, managed, observation.ConnectionDetails); err != nil {
 		// If this is the first time we encounter this issue we'll be requeued
 		// implicitly when we update our status with the new error condition. If
-		// not, we want to try again after a short wait.
+		// not, we requeue explicitly, which will trigger backoff.
 		log.Debug("Cannot publish connection details", "error", err)
 		record.Event(managed, event.Warning(reasonCannotPublish, err))
 		managed.SetConditions(xpv1.ReconcileError(err))
@@ -651,9 +656,9 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 	}
 
 	if err := r.managed.AddFinalizer(ctx, managed); err != nil {
-		// If this is the first time we encounter this issue we'll be
-		// requeued implicitly when we update our status with the new error
-		// condition. If not, we want to try again after a short wait.
+		// If this is the first time we encounter this issue we'll be requeued
+		// implicitly when we update our status with the new error condition. If
+		// not, we requeue explicitly, which will trigger backoff.
 		log.Debug("Cannot add finalizer", "error", err)
 		managed.SetConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
@@ -666,8 +671,7 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 			// resource, for example if our provider credentials don't have
 			// access to create it. If this is the first time we encounter this
 			// issue we'll be requeued implicitly when we update our status with
-			// the new error condition. If not, we want to try again after a
-			// short wait.
+			// the new error condition. If not, we requeue explicitly, which will trigger backoff.
 			log.Debug("Cannot create external resource", "error", err)
 			record.Event(managed, event.Warning(reasonCannotCreate, err))
 			managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, errReconcileCreate)))
@@ -699,7 +703,7 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 		if err := r.managed.PublishConnection(ctx, managed, creation.ConnectionDetails); err != nil {
 			// If this is the first time we encounter this issue we'll be
 			// requeued implicitly when we update our status with the new error
-			// condition. If not, we want to try again after a short wait.
+			// condition. If not, we requeue explicitly, which will trigger backoff.
 			log.Debug("Cannot publish connection details", "error", err)
 			record.Event(managed, event.Warning(reasonCannotPublish, err))
 			managed.SetConditions(xpv1.ReconcileError(err))
@@ -707,9 +711,9 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 		}
 
 		// We've successfully created our external resource. In many cases the
-		// creation process takes a little time to finish. We requeue a short
-		// wait in order to observe the external resource to determine whether
-		// it's ready for use.
+		// creation process takes a little time to finish. We requeue explicitly
+		// order to observe the external resource to determine whether it's
+		// ready for use.
 		log.Debug("Successfully requested creation of external resource")
 		record.Event(managed, event.Normal(reasonCreated, "Successfully requested creation of external resource"))
 		managed.SetConditions(xpv1.ReconcileSuccess())
@@ -736,7 +740,8 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 		// We did not need to create, update, or delete our external resource.
 		// Per the below issue nothing will notify us if and when the external
 		// resource we manage changes, so we requeue a speculative reconcile
-		// after a long wait in order to observe it and react accordingly.
+		// after the specified poll interval in order to observe it and react
+		// accordingly.
 		// https://github.com/crossplane/crossplane/issues/289
 		log.Debug("External resource is up to date", "requeue-after", time.Now().Add(r.pollInterval))
 		managed.SetConditions(xpv1.ReconcileSuccess())
@@ -749,7 +754,7 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 		// for example if our provider credentials don't have access to update
 		// it. If this is the first time we encounter this issue we'll be
 		// requeued implicitly when we update our status with the new error
-		// condition. If not, we want to try again after a short wait.
+		// condition. If not, we requeue explicitly, which will trigger backoff.
 		log.Debug("Cannot update external resource")
 		record.Event(managed, event.Warning(reasonCannotUpdate, err))
 		managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, errReconcileUpdate)))
@@ -759,7 +764,7 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 	if err := r.managed.PublishConnection(ctx, managed, update.ConnectionDetails); err != nil {
 		// If this is the first time we encounter this issue we'll be requeued
 		// implicitly when we update our status with the new error condition. If
-		// not, we want to try again after a short wait.
+		// not, we requeue explicitly, which will trigger backoff.
 		log.Debug("Cannot publish connection details", "error", err)
 		record.Event(managed, event.Warning(reasonCannotPublish, err))
 		managed.SetConditions(xpv1.ReconcileError(err))
@@ -768,8 +773,8 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 
 	// We've successfully updated our external resource. Per the below issue
 	// nothing will notify us if and when the external resource we manage
-	// changes, so we requeue a speculative reconcile after a long wait in order
-	// to observe it and react accordingly.
+	// changes, so we requeue a speculative reconcile after the specified poll
+	// interval in order to observe it and react accordingly.
 	// https://github.com/crossplane/crossplane/issues/289
 	log.Debug("Successfully requested update of external resource", "requeue-after", time.Now().Add(r.pollInterval))
 	record.Event(managed, event.Normal(reasonUpdated, "Successfully requested update of external resource"))
