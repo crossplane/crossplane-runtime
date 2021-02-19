@@ -106,7 +106,7 @@ func TestReconciler(t *testing.T) {
 					})),
 				},
 			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+			want: want{result: reconcile.Result{Requeue: true}},
 		},
 		"ResolveReferencesError": {
 			reason: "Errors during reference resolution references should trigger a requeue after a short wait.",
@@ -134,7 +134,7 @@ func TestReconciler(t *testing.T) {
 					})),
 				},
 			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+			want: want{result: reconcile.Result{Requeue: true}},
 		},
 		"ExternalConnectError": {
 			reason: "Errors connecting to the provider should trigger a requeue after a short wait.",
@@ -162,7 +162,7 @@ func TestReconciler(t *testing.T) {
 					})),
 				},
 			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+			want: want{result: reconcile.Result{Requeue: true}},
 		},
 		"ExternalObserveError": {
 			reason: "Errors observing the external resource should trigger a requeue after a short wait.",
@@ -195,7 +195,7 @@ func TestReconciler(t *testing.T) {
 					})),
 				},
 			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+			want: want{result: reconcile.Result{Requeue: true}},
 		},
 		"ExternalDeleteError": {
 			reason: "Errors deleting the external resource should trigger a requeue after a short wait.",
@@ -240,7 +240,7 @@ func TestReconciler(t *testing.T) {
 					})),
 				},
 			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+			want: want{result: reconcile.Result{Requeue: true}},
 		},
 		"ExternalDeleteSuccessful": {
 			reason: "A deleted managed resource with the 'delete' reclaim policy should delete its external resource then requeue after a short wait.",
@@ -285,7 +285,7 @@ func TestReconciler(t *testing.T) {
 					})),
 				},
 			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+			want: want{result: reconcile.Result{Requeue: true}},
 		},
 		"UnpublishConnectionDetailsError": {
 			reason: "Errors unpublishing connection details should trigger a requeue after a short wait.",
@@ -327,7 +327,7 @@ func TestReconciler(t *testing.T) {
 					}),
 				},
 			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+			want: want{result: reconcile.Result{Requeue: true}},
 		},
 		"RemoveFinalizerError": {
 			reason: "Errors removing the managed resource finalizer should trigger a requeue after a short wait.",
@@ -368,7 +368,7 @@ func TestReconciler(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error { return errBoom }}),
 				},
 			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+			want: want{result: reconcile.Result{Requeue: true}},
 		},
 		"DeleteSuccessful": {
 			reason: "Successful managed resource deletion should not trigger a requeue or status update.",
@@ -429,7 +429,7 @@ func TestReconciler(t *testing.T) {
 					}),
 				},
 			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+			want: want{result: reconcile.Result{Requeue: true}},
 		},
 		"AddFinalizerError": {
 			reason: "Errors adding a finalizer should trigger a requeue after a short wait.",
@@ -458,7 +458,7 @@ func TestReconciler(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return errBoom }}),
 				},
 			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+			want: want{result: reconcile.Result{Requeue: true}},
 		},
 		"CreateExternalError": {
 			reason: "Errors while creating an external resource should trigger a requeue after a short wait.",
@@ -498,7 +498,7 @@ func TestReconciler(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+			want: want{result: reconcile.Result{Requeue: true}},
 		},
 		"PublishCreationConnectionDetailsError": {
 			reason: "Errors publishing connection details after creation should trigger a requeue after a short wait.",
@@ -549,7 +549,7 @@ func TestReconciler(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+			want: want{result: reconcile.Result{Requeue: true}},
 		},
 		"CreateSuccessful": {
 			reason: "Successful managed resource creation should trigger a requeue after a short wait.",
@@ -579,7 +579,7 @@ func TestReconciler(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+			want: want{result: reconcile.Result{Requeue: true}},
 		},
 		"CreateWithExternalNameAssignmentSuccessful": {
 			reason: "Successful managed resource creation with external name assignment should trigger an update.",
@@ -622,7 +622,7 @@ func TestReconciler(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+			want: want{result: reconcile.Result{Requeue: true}},
 		},
 		"CreateWithExternalNameAssignmentGetError": {
 			reason: "If the Get call during the update after Create does not go through, we need to inform the user and requeue shortly.",
@@ -669,7 +669,7 @@ func TestReconciler(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+			want: want{result: reconcile.Result{Requeue: true}},
 		},
 		"CreateWithExternalNameAssignmentUpdateError": {
 			reason: "If the update after Create does not go through, we need to inform the user and requeue shortly.",
@@ -712,7 +712,7 @@ func TestReconciler(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+			want: want{result: reconcile.Result{Requeue: true}},
 		},
 		"LateInitializeUpdateError": {
 			reason: "Errors updating a managed resource to persist late initialized fields should trigger a requeue after a short wait.",
@@ -749,7 +749,7 @@ func TestReconciler(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+			want: want{result: reconcile.Result{Requeue: true}},
 		},
 		"ExternalResourceUpToDate": {
 			reason: "When the external resource exists and is up to date a requeue should be triggered after a long wait.",
@@ -785,7 +785,7 @@ func TestReconciler(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedLongWait}},
+			want: want{result: reconcile.Result{RequeueAfter: defaultpollInterval}},
 		},
 		"UpdateExternalError": {
 			reason: "Errors while updating an external resource should trigger a requeue after a short wait.",
@@ -824,7 +824,7 @@ func TestReconciler(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+			want: want{result: reconcile.Result{Requeue: true}},
 		},
 		"PublishUpdateConnectionDetailsError": {
 			reason: "Errors publishing connection details after an update should trigger a requeue after a short wait.",
@@ -874,7 +874,7 @@ func TestReconciler(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedShortWait}},
+			want: want{result: reconcile.Result{Requeue: true}},
 		},
 		"UpdateSuccessful": {
 			reason: "A successful managed resource update should trigger a requeue after a long wait.",
@@ -913,7 +913,7 @@ func TestReconciler(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultManagedLongWait}},
+			want: want{result: reconcile.Result{RequeueAfter: defaultpollInterval}},
 		},
 	}
 

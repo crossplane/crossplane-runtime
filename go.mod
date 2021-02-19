@@ -8,6 +8,7 @@ require (
 	github.com/hashicorp/go-getter v1.4.0
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/afero v1.2.2
+	golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e
 	k8s.io/api v0.20.1
 	k8s.io/apiextensions-apiserver v0.20.1
 	k8s.io/apimachinery v0.20.1
