@@ -687,7 +687,7 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 			// of the loop. In that case, we warn the user that the external resource
 			// might be leaked.
 			err := retry.OnError(retry.DefaultRetry, resource.IsAPIError, func() error {
-				nn := types.NamespacedName{Name: managed.GetName()}
+				nn := types.NamespacedName{Name: managed.GetName(), Namespace: managed.GetNamespace()}
 				if err := r.client.Get(ctx, nn, managed); err != nil {
 					return err
 				}
