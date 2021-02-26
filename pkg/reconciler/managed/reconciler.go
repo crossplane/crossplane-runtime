@@ -600,7 +600,7 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 				// this issue we'll be requeued implicitly when we update our
 				// status with the new error condition. If not, we want requeue
 				// explicitly, which will trigger backoff.
-				log.Debug("Cannot delete external resource", "error", err, "requeue-after")
+				log.Debug("Cannot delete external resource", "error", err)
 				record.Event(managed, event.Warning(reasonCannotDelete, err))
 				managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, errReconcileDelete)))
 				return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
