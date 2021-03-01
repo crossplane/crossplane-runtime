@@ -56,6 +56,32 @@ func ToPtrValue(v string) *string {
 	return &v
 }
 
+// FromPtrValues adapts a slice of string pointer fields for use as CurrentValues.
+// NOTE: Do not use this utility function unless you have to.
+// Using pointer slices does not adhere to our current API practices.
+// The current use case is where generated code creates reference-able fields in a provider which are
+// string pointers and need to be resolved as part of `ResolveMultiple`
+func FromPtrValues(v []*string) []string {
+	var res = make([]string, len(v))
+	for i := 0; i < len(v); i++ {
+		res[i] = FromPtrValue(v[i])
+	}
+	return res
+}
+
+// ToPtrValues adapts ResolvedValues for use as a slice of string pointer fields.
+// NOTE: Do not use this utility function unless you have to.
+// Using pointer slices does not adhere to our current API practices.
+// The current use case is where generated code creates reference-able fields in a provider which are
+// string pointers and need to be resolved as part of `ResolveMultiple`
+func ToPtrValues(v []string) []*string {
+	var res = make([]*string, len(v))
+	for i := 0; i < len(v); i++ {
+		res[i] = ToPtrValue(v[i])
+	}
+	return res
+}
+
 // To indicates the kind of managed resource a reference is to.
 type To struct {
 	Managed resource.Managed
