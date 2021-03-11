@@ -58,9 +58,11 @@ func (a *NameAsExternalName) Initialize(ctx context.Context, mg resource.Managed
 
 // DefaultProviderConfig fills the ProviderConfigRef with `default` if it's left
 // empty.
+// Deprecated: Use OpenAPI schema defaulting instead.
 type DefaultProviderConfig struct{ client client.Client }
 
 // NewDefaultProviderConfig returns a new DefaultProviderConfig.
+// Deprecated: Use OpenAPI schema defaulting instead.
 func NewDefaultProviderConfig(c client.Client) *DefaultProviderConfig {
 	return &DefaultProviderConfig{client: c}
 }
