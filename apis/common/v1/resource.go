@@ -139,6 +139,7 @@ type ResourceSpec struct {
 	// ProviderConfigReference specifies how the provider that will be used to
 	// create, observe, update, and delete this managed resource should be
 	// configured.
+	// +kubebuilder:default={"name": "default"}
 	ProviderConfigReference *Reference `json:"providerConfigRef,omitempty"`
 
 	// ProviderReference specifies the provider that will be used to create,
