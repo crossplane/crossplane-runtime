@@ -360,13 +360,8 @@ func GetExternalTags(mg Managed) map[string]string {
 		ExternalResourceTagKeyName: mg.GetName(),
 	}
 
-	switch {
-	case mg.GetProviderConfigReference() != nil && mg.GetProviderConfigReference().Name != "":
+	if mg.GetProviderConfigReference() != nil && mg.GetProviderConfigReference().Name != "" {
 		tags[ExternalResourceTagKeyProvider] = mg.GetProviderConfigReference().Name
-	// TODO(muvaf): Remove the branch once Provider type has been removed from
-	// everywhere.
-	case mg.GetProviderReference() != nil && mg.GetProviderReference().Name != "":
-		tags[ExternalResourceTagKeyProvider] = mg.GetProviderReference().Name
 	}
 	return tags
 }

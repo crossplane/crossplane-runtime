@@ -603,18 +603,6 @@ func TestGetExternalTags(t *testing.T) {
 		o    Managed
 		want map[string]string
 	}{
-		"Successful": {
-			o: &fake.Managed{ObjectMeta: metav1.ObjectMeta{
-				Name: name,
-			},
-				ProviderReferencer: fake.ProviderReferencer{Ref: &xpv1.Reference{Name: provName}},
-			},
-			want: map[string]string{
-				ExternalResourceTagKeyKind:     strings.ToLower((&fake.Managed{}).GetObjectKind().GroupVersionKind().GroupKind().String()),
-				ExternalResourceTagKeyName:     name,
-				ExternalResourceTagKeyProvider: provName,
-			},
-		},
 		"SuccessfulWithProviderConfig": {
 			o: &fake.Managed{ObjectMeta: metav1.ObjectMeta{
 				Name: name,

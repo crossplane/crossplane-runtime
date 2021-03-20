@@ -66,12 +66,6 @@ type Orphanable interface {
 	GetDeletionPolicy() xpv1.DeletionPolicy
 }
 
-// A ProviderReferencer may reference a provider resource.
-type ProviderReferencer interface {
-	GetProviderReference() *xpv1.Reference
-	SetProviderReference(p *xpv1.Reference)
-}
-
 // A ProviderConfigReferencer may reference a provider config resource.
 type ProviderConfigReferencer interface {
 	GetProviderConfigReference() *xpv1.Reference
@@ -145,7 +139,6 @@ type Object interface {
 type Managed interface {
 	Object
 
-	ProviderReferencer
 	ProviderConfigReferencer
 	ConnectionSecretWriterTo
 	Orphanable

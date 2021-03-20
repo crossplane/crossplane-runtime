@@ -142,11 +142,6 @@ type ResourceSpec struct {
 	// +kubebuilder:default={"name": "default"}
 	ProviderConfigReference *Reference `json:"providerConfigRef,omitempty"`
 
-	// ProviderReference specifies the provider that will be used to create,
-	// observe, update, and delete this managed resource.
-	// Deprecated: Please use ProviderConfigReference, i.e. `providerConfigRef`
-	ProviderReference *Reference `json:"providerRef,omitempty"`
-
 	// DeletionPolicy specifies what will happen to the underlying external
 	// when this managed resource is deleted - either "Delete" or "Orphan" the
 	// external resource.
