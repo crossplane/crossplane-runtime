@@ -627,9 +627,9 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 
 	if meta.WasDeleted(managed) {
 		log = log.WithValues("deletion-timestamp", managed.GetDeletionTimestamp())
+		managed.SetConditions(xpv1.Deleting())
 
 		if observation.ResourceExists && managed.GetDeletionPolicy() != xpv1.DeletionOrphan {
-			managed.SetConditions(xpv1.Deleting())
 			if err := external.Delete(externalCtx, managed); err != nil {
 				// We'll hit this condition if we can't delete our external
 				// resource, for example if our provider credentials don't have
