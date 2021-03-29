@@ -265,3 +265,35 @@ func TestIsPropagated(t *testing.T) {
 		})
 	}
 }
+
+func TestIsNamed(t *testing.T) {
+	cases := map[string]struct {
+		name string
+		obj  runtime.Object
+		want bool
+	}{
+		"NoObjectMeta": {
+			name: "test",
+			want: false,
+		},
+		"NameDoesNotMatch": {
+			name: "test",
+			obj:  &corev1.Secret{ObjectMeta: v1.ObjectMeta{Name: "not-test"}},
+			want: false,
+		},
+		"NameMatches": {
+			name: "test",
+			obj:  &corev1.Secret{ObjectMeta: v1.ObjectMeta{Name: "test"}},
+			want: true,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := IsNamed(tc.name)(tc.obj)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("IsNamed(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
