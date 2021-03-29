@@ -81,6 +81,97 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{}},
 		},
+		"UnpublishConnectionDetailsDeletionPolicyDeleteOrpahn": {
+			reason: "Errors unpublishing connection details should trigger a requeue after a short wait.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							mg := obj.(*fake.Managed)
+							mg.SetDeletionTimestamp(&now)
+							mg.SetDeletionPolicy(xpv1.DeletionOrphan)
+							return nil
+						}),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+							want := &fake.Managed{}
+							want.SetDeletionTimestamp(&now)
+							want.SetDeletionPolicy(xpv1.DeletionOrphan)
+							want.SetConditions(xpv1.Deleting())
+							want.SetConditions(xpv1.ReconcileError(errBoom))
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := "Errors unpublishing connection details should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithConnectionPublishers(ConnectionPublisherFns{
+						UnpublishConnectionFn: func(_ context.Context, _ resource.Managed, _ ConnectionDetails) error { return errBoom },
+					}),
+				},
+			},
+			want: want{result: reconcile.Result{Requeue: true}},
+		},
+		"RemoveFinalizerErrorDeletionPolicyOrphan": {
+			reason: "Errors removing the managed resource finalizer should trigger a requeue after a short wait.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							mg := obj.(*fake.Managed)
+							mg.SetDeletionTimestamp(&now)
+							mg.SetDeletionPolicy(xpv1.DeletionOrphan)
+							return nil
+						}),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+							want := &fake.Managed{}
+							want.SetDeletionTimestamp(&now)
+							want.SetDeletionPolicy(xpv1.DeletionOrphan)
+							want.SetConditions(xpv1.Deleting())
+							want.SetConditions(xpv1.ReconcileError(errBoom))
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := "Errors removing the managed resource finalizer should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithConnectionPublishers(),
+					WithFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error { return errBoom }}),
+				},
+			},
+			want: want{result: reconcile.Result{Requeue: true}},
+		},
+		"DeleteSuccessfulDeletionPolicyOrphan": {
+			reason: "Successful managed resource deletion with deletion policy Orphan should not trigger a requeue or status update.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							mg := obj.(*fake.Managed)
+							mg.SetDeletionTimestamp(&now)
+							mg.SetDeletionPolicy(xpv1.DeletionOrphan)
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithConnectionPublishers(),
+					WithFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
+			},
+			want: want{result: reconcile.Result{Requeue: false}},
+		},
 		"InitializeError": {
 			reason: "Errors initializing the managed resource should trigger a requeue after a short wait.",
 			args: args{
@@ -287,7 +378,7 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{Requeue: true}},
 		},
-		"UnpublishConnectionDetailsError": {
+		"UnpublishConnectionDetailsDeletionPolicyDeleteError": {
 			reason: "Errors unpublishing connection details should trigger a requeue after a short wait.",
 			args: args{
 				m: &fake.Manager{
@@ -295,11 +386,14 @@ func TestReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := obj.(*fake.Managed)
 							mg.SetDeletionTimestamp(&now)
+							mg.SetDeletionPolicy(xpv1.DeletionDelete)
 							return nil
 						}),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							want.SetDeletionTimestamp(&now)
+							want.SetDeletionPolicy(xpv1.DeletionDelete)
+							want.SetConditions(xpv1.Deleting())
 							want.SetConditions(xpv1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors unpublishing connection details should be reported as a conditioned status."
@@ -329,7 +423,7 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{Requeue: true}},
 		},
-		"RemoveFinalizerError": {
+		"RemoveFinalizerErrorDeletionPolicyDelete": {
 			reason: "Errors removing the managed resource finalizer should trigger a requeue after a short wait.",
 			args: args{
 				m: &fake.Manager{
@@ -337,11 +431,14 @@ func TestReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := obj.(*fake.Managed)
 							mg.SetDeletionTimestamp(&now)
+							mg.SetDeletionPolicy(xpv1.DeletionDelete)
 							return nil
 						}),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							want.SetDeletionTimestamp(&now)
+							want.SetDeletionPolicy(xpv1.DeletionDelete)
+							want.SetConditions(xpv1.Deleting())
 							want.SetConditions(xpv1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors removing the managed resource finalizer should be reported as a conditioned status."
@@ -370,14 +467,15 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{Requeue: true}},
 		},
-		"DeleteSuccessful": {
-			reason: "Successful managed resource deletion should not trigger a requeue or status update.",
+		"DeleteSuccessfulDeletionPolicyDelete": {
+			reason: "Successful managed resource deletion with deletion policy Delete should not trigger a requeue or status update.",
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := obj.(*fake.Managed)
 							mg.SetDeletionTimestamp(&now)
+							mg.SetDeletionPolicy(xpv1.DeletionDelete)
 							return nil
 						}),
 					},

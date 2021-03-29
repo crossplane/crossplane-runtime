@@ -525,6 +525,46 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 		"external-name", meta.GetExternalName(managed),
 	)
 
+	// If managed resource has a deletion timestamp and and a deletion policy of
+	// Orphan, we do not need to observe the external resource before attempting
+	// to unpublish connection details and remove finalizer.
+	if meta.WasDeleted(managed) && managed.GetDeletionPolicy() == xpv1.DeletionOrphan {
+		log = log.WithValues("deletion-timestamp", managed.GetDeletionTimestamp())
+		managed.SetConditions(xpv1.Deleting())
+
+		// Empty ConnectionDetails are passed to UnpublishConnection because we
+		// have not retrieved them from the external resource. In practice we
+		// currently only write connection details to a Secret, and we rely on
+		// garbage collection to delete the entire secret, regardless of the
+		// supplied connection details.
+		if err := r.managed.UnpublishConnection(ctx, managed, ConnectionDetails{}); err != nil {
+			// If this is the first time we encounter this issue we'll be
+			// requeued implicitly when we update our status with the new error
+			// condition. If not, we requeue explicitly, which will trigger
+			// backoff.
+			log.Debug("Cannot unpublish connection details", "error", err)
+			record.Event(managed, event.Warning(reasonCannotUnpublish, err))
+			managed.SetConditions(xpv1.ReconcileError(err))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		}
+		if err := r.managed.RemoveFinalizer(ctx, managed); err != nil {
+			// If this is the first time we encounter this issue we'll be
+			// requeued implicitly when we update our status with the new error
+			// condition. If not, we requeue explicitly, which will trigger
+			// backoff.
+			log.Debug("Cannot remove managed resource finalizer", "error", err)
+			managed.SetConditions(xpv1.ReconcileError(err))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		}
+
+		// We've successfully unpublished our managed resource's connection
+		// details and removed our finalizer. If we assume we were the only
+		// controller that added a finalizer to this resource then it should no
+		// longer exist and thus there is no point trying to update its status.
+		log.Debug("Successfully deleted managed resource")
+		return reconcile.Result{Requeue: false}, nil
+	}
+
 	if err := r.managed.Initialize(ctx, managed); err != nil {
 		// If this is the first time we encounter this issue we'll be requeued
 		// implicitly when we update our status with the new error condition. If
@@ -587,9 +627,11 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 
 	if meta.WasDeleted(managed) {
 		log = log.WithValues("deletion-timestamp", managed.GetDeletionTimestamp())
+		managed.SetConditions(xpv1.Deleting())
 
-		if observation.ResourceExists && managed.GetDeletionPolicy() != xpv1.DeletionOrphan {
-			managed.SetConditions(xpv1.Deleting())
+		// We'll only reach this point if deletion policy is not orphan, so we
+		// are safe to call external deletion if external resource exists.
+		if observation.ResourceExists {
 			if err := external.Delete(externalCtx, managed); err != nil {
 				// We'll hit this condition if we can't delete our external
 				// resource, for example if our provider credentials don't have
