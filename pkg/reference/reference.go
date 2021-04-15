@@ -30,10 +30,11 @@ import (
 
 // Error strings.
 const (
-	errGetManaged  = "cannot get referenced resource"
-	errListManaged = "cannot list resources that match selector"
-	errNoMatches   = "no resources matched selector"
-	errNoValue     = "referenced field was empty (referenced resource may not yet be ready)"
+	errGetManaged       = "cannot get referenced resource"
+	errListManaged      = "cannot list resources that match selector"
+	errNoMatches        = "no resources matched selector"
+	errMatchTerminating = "referenced object was under deletion"
+	errNoValue          = "referenced field was empty (referenced resource may not yet be ready)"
 )
 
 // NOTE(negz): There are many equivalents of FromPtrValue and ToPtrValue
@@ -207,7 +208,7 @@ func NewAPIResolver(c client.Reader, from resource.Managed) *APIResolver {
 
 // Resolve the supplied ResolutionRequest. The returned ResolutionResponse
 // always contains valid values unless an error was returned.
-func (r *APIResolver) Resolve(ctx context.Context, req ResolutionRequest) (ResolutionResponse, error) {
+func (r *APIResolver) Resolve(ctx context.Context, req ResolutionRequest) (ResolutionResponse, error) { //nolint:gocyclo
 	// Return early if from is being deleted, or the request is a no-op.
 	if meta.WasDeleted(r.from) || req.IsNoOp() {
 		return ResolutionResponse{ResolvedValue: req.CurrentValue, ResolvedReference: req.Reference}, nil
@@ -217,6 +218,9 @@ func (r *APIResolver) Resolve(ctx context.Context, req ResolutionRequest) (Resol
 	if req.Reference != nil {
 		if err := r.client.Get(ctx, types.NamespacedName{Name: req.Reference.Name}, req.To.Managed); err != nil {
 			return ResolutionResponse{}, errors.Wrap(err, errGetManaged)
+		}
+		if meta.WasDeleted(req.To.Managed) {
+			return ResolutionResponse{}, errors.New(errMatchTerminating)
 		}
 
 		rsp := ResolutionResponse{ResolvedValue: req.Extract(req.To.Managed), ResolvedReference: req.Reference}
@@ -233,6 +237,10 @@ func (r *APIResolver) Resolve(ctx context.Context, req ResolutionRequest) (Resol
 			continue
 		}
 
+		if meta.WasDeleted(to) {
+			continue
+		}
+
 		rsp := ResolutionResponse{ResolvedValue: req.Extract(to), ResolvedReference: &xpv1.Reference{Name: to.GetName()}}
 		return rsp, rsp.Validate()
 	}
@@ -244,7 +252,7 @@ func (r *APIResolver) Resolve(ctx context.Context, req ResolutionRequest) (Resol
 // ResolveMultiple resolves the supplied MultiResolutionRequest. The returned
 // MultiResolutionResponse always contains valid values unless an error was
 // returned.
-func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRequest) (MultiResolutionResponse, error) {
+func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRequest) (MultiResolutionResponse, error) { //nolint:gocyclo
 	// Return early if from is being deleted, or the request is a no-op.
 	if meta.WasDeleted(r.from) || req.IsNoOp() {
 		return MultiResolutionResponse{ResolvedValues: req.CurrentValues, ResolvedReferences: req.References}, nil
@@ -252,12 +260,15 @@ func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRe
 
 	// The references are already set - resolve them.
 	if len(req.References) > 0 {
-		vals := make([]string, len(req.References))
+		var vals []string
 		for i := range req.References {
 			if err := r.client.Get(ctx, types.NamespacedName{Name: req.References[i].Name}, req.To.Managed); err != nil {
 				return MultiResolutionResponse{}, errors.Wrap(err, errGetManaged)
 			}
-			vals[i] = req.Extract(req.To.Managed)
+			if meta.WasDeleted(req.To.Managed) {
+				continue
+			}
+			vals = append(vals, req.Extract(req.To.Managed))
 		}
 
 		rsp := MultiResolutionResponse{ResolvedValues: vals, ResolvedReferences: req.References}
@@ -274,6 +285,10 @@ func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRe
 	vals := make([]string, 0, len(items))
 	for _, to := range req.To.List.GetItems() {
 		if ControllersMustMatch(req.Selector) && !meta.HaveSameController(r.from, to) {
+			continue
+		}
+
+		if meta.WasDeleted(to) {
 			continue
 		}
 

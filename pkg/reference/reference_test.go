@@ -204,6 +204,23 @@ func TestResolve(t *testing.T) {
 				},
 			},
 		},
+		"ResolvedTerminating": {
+			reason: "Object found was in terminating state",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil)},
+			from: &fake.Managed{},
+			args: args{
+				req: ResolutionRequest{
+					Reference: ref,
+					To:        To{Managed: &fake.Managed{ObjectMeta: metav1.ObjectMeta{DeletionTimestamp: &now}}},
+					Extract:   ExternalName(),
+				},
+			},
+			want: want{
+				rsp: ResolutionResponse{},
+				err: errors.New(errMatchTerminating),
+			},
+		},
 		"ListError": {
 			reason: "Should return errors encountered while listing potential referenced resources",
 			c: &test.MockClient{
@@ -263,6 +280,31 @@ func TestResolve(t *testing.T) {
 				err: nil,
 			},
 		},
+		"DiscardTerminatingFromSelect": {
+			reason: "A managed resource with a matching controller reference should be selected and returned",
+			c: &test.MockClient{
+				MockList: test.NewMockListFn(nil),
+			},
+			from: controlled,
+			args: args{
+				req: ResolutionRequest{
+					Selector: &xpv1.Selector{},
+					To: To{List: &FakeManagedList{Items: []resource.Managed{
+						&fake.Managed{ObjectMeta: metav1.ObjectMeta{Name: "Deleted", DeletionTimestamp: &now}}, // A resource that does not match.
+						controlled, // A resource with a matching controller reference.
+					},
+					}},
+					Extract: ExternalName(),
+				},
+			},
+			want: want{
+				rsp: ResolutionResponse{
+					ResolvedValue:     value,
+					ResolvedReference: &xpv1.Reference{Name: value},
+				},
+				err: nil,
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -287,6 +329,15 @@ func TestResolveMultiple(t *testing.T) {
 	controlled.SetName(value)
 	meta.SetExternalName(controlled, value)
 	meta.AddControllerReference(controlled, meta.AsController(&xpv1.TypedReference{UID: types.UID("very-unique")}))
+
+	deletedName := "deleted"
+	deletedValue := "deletedv"
+	deleted := &fake.Managed{}
+	deleted.SetName(deletedName)
+	deleted.ObjectMeta.DeletionTimestamp = &now
+	deletedRef := xpv1.Reference{Name: deletedName}
+	meta.SetExternalName(deleted, deletedValue)
+	meta.AddControllerReference(deleted, meta.AsController(&xpv1.TypedReference{UID: types.UID("very-unique-2")}))
 
 	type args struct {
 		ctx context.Context
@@ -396,6 +447,35 @@ func TestResolveMultiple(t *testing.T) {
 				},
 			},
 		},
+		"ResolveTerminating": {
+			reason: "No terminating object should be returned",
+			c: &test.MockClient{
+				MockList: test.NewMockListFn(nil),
+
+				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+					return nil
+				}),
+			},
+			from: controlled,
+			args: args{
+				req: MultiResolutionRequest{
+					References: []xpv1.Reference{deletedRef},
+					To: To{
+						Managed: deleted,
+						List: &FakeManagedList{Items: []resource.Managed{
+							deleted,
+						}}},
+					Extract: ExternalName(),
+				},
+			},
+			want: want{
+				rsp: MultiResolutionResponse{
+					ResolvedValues:     []string{},
+					ResolvedReferences: []xpv1.Reference{deletedRef},
+				},
+				err: errors.New(errNoMatches),
+			},
+		},
 		"ListError": {
 			reason: "Should return errors encountered while listing potential referenced resources",
 			c: &test.MockClient{
@@ -443,6 +523,30 @@ func TestResolveMultiple(t *testing.T) {
 					To: To{List: &FakeManagedList{Items: []resource.Managed{
 						&fake.Managed{}, // A resource that does not match.
 						controlled,      // A resource with a matching controller reference.
+					}}},
+					Extract: ExternalName(),
+				},
+			},
+			want: want{
+				rsp: MultiResolutionResponse{
+					ResolvedValues:     []string{value},
+					ResolvedReferences: []xpv1.Reference{{Name: value}},
+				},
+				err: nil,
+			},
+		},
+		"DiscardTerminatingFromSelect": {
+			reason: "A managed resource should not resolve a deleted object",
+			c: &test.MockClient{
+				MockList: test.NewMockListFn(nil),
+			},
+			from: controlled,
+			args: args{
+				req: MultiResolutionRequest{
+					Selector: &xpv1.Selector{},
+					To: To{List: &FakeManagedList{Items: []resource.Managed{
+						&fake.Managed{ObjectMeta: metav1.ObjectMeta{Name: "Deleted", DeletionTimestamp: &now}}, // A resource that does not match.
+						controlled, // A resource with a matching controller reference.
 					}}},
 					Extract: ExternalName(),
 				},
