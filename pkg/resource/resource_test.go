@@ -22,12 +22,17 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/util/retry"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
@@ -38,13 +43,19 @@ const (
 	namespace = "coolns"
 	name      = "cool"
 	uid       = types.UID("definitely-a-uuid")
+	testSteps = 3
 )
 
-var MockOwnerGVK = schema.GroupVersionKind{
-	Group:   "cool",
-	Version: "large",
-	Kind:    "MockOwner",
-}
+var (
+	MockOwnerGVK = schema.GroupVersionKind{
+		Group:   "cool",
+		Version: "large",
+		Kind:    "MockOwner",
+	}
+
+	testBackoff = wait.Backoff{}
+	errTest     = errors.New("test-error")
+)
 
 func TestLocalConnectionSecretFor(t *testing.T) {
 	secretName := "coolsecret"
@@ -634,6 +645,244 @@ func TestGetExternalTags(t *testing.T) {
 			got := GetExternalTags(tc.o)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("GetExternalTags(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+// single test case => not using tables
+func Test_errNotControllable_NotControllable(t *testing.T) {
+	err := errNotControllable{
+		errors.New("test-error"),
+	}
+
+	if !err.NotControllable() {
+		t.Errorf("NotControllable(): false")
+	}
+}
+
+// single test case => not using tables
+func Test_errNotAllowed_NotAllowed(t *testing.T) {
+	err := errNotAllowed{
+		errors.New("test-error"),
+	}
+
+	if !err.NotAllowed() {
+		t.Errorf("NotAllowed(): false")
+	}
+}
+
+func TestIsAPIErrorWrapped(t *testing.T) {
+	testCases := map[string]struct {
+		err  error
+		want bool
+	}{
+		"NoError": {
+			want: false,
+		},
+		"NotAPIError": {
+			err:  errors.New("test-error"),
+			want: false,
+		},
+		"APIError": {
+			err:  kerrors.NewNotFound(schema.GroupResource{}, "test-resource"),
+			want: true,
+		},
+		"WrappedAPIError": {
+			err: errors.Wrap(
+				kerrors.NewNotFound(schema.GroupResource{}, "test-resource"), "test-wrapper"),
+			want: true,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			if got := IsAPIErrorWrapped(tc.err); got != tc.want {
+				t.Errorf("IsAPIErrorWrapped() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestNewApplicatorWithRetry(t *testing.T) {
+	type args struct {
+		applicator  Applicator
+		shouldRetry shouldRetryFunc
+		backoff     *wait.Backoff
+	}
+
+	testCases := map[string]struct {
+		args args
+		want Applicator
+	}{
+		"DefaultBackoff": {
+			args: args{},
+			want: &ApplicatorWithRetry{
+				backoff: retry.DefaultRetry,
+			},
+		},
+		"CustomBackoff": {
+			args: args{
+				backoff: &testBackoff,
+			},
+			want: &ApplicatorWithRetry{
+				backoff: testBackoff,
+			},
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			if diff := cmp.Diff(tc.want,
+				NewApplicatorWithRetry(tc.args.applicator, tc.args.shouldRetry, tc.args.backoff),
+				cmp.AllowUnexported(ApplicatorWithRetry{})); diff != "" {
+				t.Errorf("NewApplicatorWithRetry(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+type mockApplicator struct {
+	returnError bool
+	count       uint
+}
+
+func (m *mockApplicator) Apply(_ context.Context, _ client.Object, _ ...ApplyOption) error {
+	m.count++
+
+	if m.returnError {
+		return errTest
+	}
+
+	return nil
+}
+
+func TestApplicatorWithRetry_Apply(t *testing.T) {
+	type fields struct {
+		applicator  Applicator
+		shouldRetry shouldRetryFunc
+		backoff     wait.Backoff
+	}
+
+	type args struct {
+		ctx  context.Context
+		c    client.Object
+		opts []ApplyOption
+	}
+
+	testCases := map[string]struct {
+		fields    fields
+		args      args
+		wantErr   error
+		wantCount uint
+	}{
+		"NoRetry": {
+			fields: fields{
+				applicator: &mockApplicator{returnError: true},
+				shouldRetry: func(_ error) bool {
+					return false
+				},
+				backoff: wait.Backoff{Steps: testSteps},
+			},
+			args:      args{},
+			wantErr:   errTest,
+			wantCount: 1,
+		},
+		"ShouldRetry": {
+			fields: fields{
+				applicator: &mockApplicator{returnError: true},
+				shouldRetry: func(_ error) bool {
+					return true
+				},
+				backoff: wait.Backoff{Steps: testSteps},
+			},
+			args:      args{},
+			wantErr:   errTest,
+			wantCount: testSteps,
+		},
+		"NoError": {
+			fields: fields{
+				applicator: &mockApplicator{},
+				shouldRetry: func(_ error) bool {
+					return true
+				},
+				backoff: wait.Backoff{Steps: testSteps},
+			},
+			args:      args{},
+			wantErr:   nil,
+			wantCount: 1,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			awr := &ApplicatorWithRetry{
+				Applicator:  tc.fields.applicator,
+				shouldRetry: tc.fields.shouldRetry,
+				backoff:     tc.fields.backoff,
+			}
+
+			if diff := cmp.Diff(tc.wantErr, awr.Apply(tc.args.ctx, tc.args.c, tc.args.opts...), cmpopts.EquateErrors()); diff != "" {
+				t.Fatalf("ApplicatorWithRetry.Apply(...): -want, +got:\n%s", diff)
+			}
+
+			if diff := cmp.Diff(awr.Applicator.(*mockApplicator).count, tc.wantCount); diff != "" {
+				t.Errorf("Retry count mismatch: -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestUpdate(t *testing.T) {
+	type args struct {
+		fn      func(current, desired runtime.Object)
+		current runtime.Object
+		desired runtime.Object
+	}
+
+	tests := map[string]struct {
+		args args
+		want runtime.Object
+	}{
+		"Update": {
+			args: args{fn: func(current, desired runtime.Object) {
+				c, d := current.(*corev1.Secret), desired.(*corev1.Secret)
+
+				c.StringData = d.StringData
+			},
+				current: &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "current",
+					},
+				},
+				desired: &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "desired",
+					},
+					StringData: map[string]string{
+						"key": "value",
+					},
+				},
+			},
+			want: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "current",
+				},
+				StringData: map[string]string{
+					"key": "value",
+				},
+			},
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			if err := UpdateFn(tt.args.fn)(nil, tt.args.current, tt.args.desired); err != nil {
+				t.Fatalf("ApplyOption() = %v, want %v", err, nil)
+			}
+
+			if diff := cmp.Diff(tt.want, tt.args.current); diff != "" {
+				t.Errorf("UpdateFn updated object mismatch: -want, +got: %s", diff)
 			}
 		})
 	}
