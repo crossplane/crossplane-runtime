@@ -13,3 +13,5 @@ external-dns-*.tgz
 gitlab-*.tgz
 gitlab-gcp.yaml
 gitlab/
+
+.idea/
