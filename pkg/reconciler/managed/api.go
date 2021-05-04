@@ -87,7 +87,11 @@ type APISecretPublisher struct {
 func NewAPISecretPublisher(c client.Client, ot runtime.ObjectTyper) *APISecretPublisher {
 	// NOTE(negz): We transparently inject an APIPatchingApplicator in order to maintain
 	// backward compatibility with the original API of this function.
-	return &APISecretPublisher{secret: resource.NewAPIPatchingApplicator(c), typer: ot}
+	return &APISecretPublisher{
+		secret: resource.NewApplicatorWithRetry(resource.NewAPIPatchingApplicator(c),
+			resource.IsAPIErrorWrapped, nil),
+		typer: ot,
+	}
 }
 
 // PublishConnection publishes the supplied ConnectionDetails to a Secret in the
