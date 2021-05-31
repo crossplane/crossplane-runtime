@@ -41,12 +41,18 @@ func (li *LateInitializer) IsChanged() bool {
 	return li.changed
 }
 
+// SetChanged marks the LateInitializer such that users can tell whether any
+// of the late initialization calls returned the non-original argument.
+func (li *LateInitializer) SetChanged() {
+	li.changed = true
+}
+
 // LateInitializeStringPtr implements late initialization for *string.
 func (li *LateInitializer) LateInitializeStringPtr(org *string, from *string) *string {
 	if org != nil || from == nil {
 		return org
 	}
-	li.changed = true
+	li.SetChanged()
 	return from
 }
 
@@ -55,7 +61,7 @@ func (li *LateInitializer) LateInitializeInt64Ptr(org *int64, from *int64) *int6
 	if org != nil || from == nil {
 		return org
 	}
-	li.changed = true
+	li.SetChanged()
 	return from
 }
 
@@ -64,7 +70,7 @@ func (li *LateInitializer) LateInitializeBoolPtr(org *bool, from *bool) *bool {
 	if org != nil || from == nil {
 		return org
 	}
-	li.changed = true
+	li.SetChanged()
 	return from
 }
 
@@ -74,7 +80,7 @@ func (li *LateInitializer) LateInitializeTimePtr(org *metav1.Time, from *time.Ti
 	if org != nil || from == nil {
 		return org
 	}
-	li.changed = true
+	li.SetChanged()
 	t := metav1.NewTime(*from)
 	return &t
 }
