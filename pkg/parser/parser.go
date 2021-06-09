@@ -23,6 +23,7 @@ import (
 	"io"
 	"io/ioutil"
 	"strings"
+	"unicode"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
@@ -114,6 +115,18 @@ func (p *PackageParser) Parse(ctx context.Context, reader io.ReadCloser) (*Packa
 		if err != nil {
 			o, _, err := do.Decode(bytes, nil, nil)
 			if err != nil {
+				empty := true
+				for _, b := range bytes {
+					if !unicode.IsSpace(rune(b)) {
+						empty = false
+						break
+					}
+				}
+				// If the YAML document only contains Unicode White Space we
+				// ignore and do not return an error.
+				if empty {
+					continue
+				}
 				if anno, ok := reader.(AnnotatedReadCloser); ok {
 					return pkg, errors.Wrap(err, fmt.Sprintf("%+v", anno.Annotate()))
 				}
