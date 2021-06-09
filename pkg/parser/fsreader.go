@@ -119,12 +119,14 @@ func (r *FsReadCloser) Read(p []byte) (n int, err error) {
 		r.index++
 		r.position = 0
 		r.wroteBreak = false
+		n = copy(p, "\n---\n")
+		return n, nil
 	}
 	if r.index == len(r.paths) {
 		return 0, io.EOF
 	}
 	if r.writeBreak {
-		n = copy(p, "\n---\n")
+		n = copy(p, "\n...\n")
 		r.writeBreak = false
 		r.wroteBreak = true
 		return n, nil
