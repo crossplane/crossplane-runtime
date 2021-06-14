@@ -38,6 +38,21 @@ kind: CustomResourceDefinition
 metadata:
   name: test`)
 
+	whitespaceBytes = []byte(`---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: test
+---
+
+---
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: test`)
+
 	deployBytes = []byte(`apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -53,6 +68,7 @@ func TestParser(t *testing.T) {
 	allBytes := bytes.Join([][]byte{crdBytes, deployBytes}, []byte("\n---\n"))
 	fs := afero.NewMemMapFs()
 	_ = afero.WriteFile(fs, "crd.yaml", crdBytes, 0o644)
+	_ = afero.WriteFile(fs, "whitespace.yaml", whitespaceBytes, 0o644)
 	_ = afero.WriteFile(fs, "deployment.yaml", deployBytes, 0o644)
 	_ = afero.WriteFile(fs, "some/nested/dir/crd.yaml", crdBytes, 0o644)
 	_ = afero.WriteFile(fs, ".crossplane/bad.yaml", crdBytes, 0o644)
@@ -109,7 +125,7 @@ func TestParser(t *testing.T) {
 			backend: NewFsBackend(fs, FsDir("."), FsFilters(SkipDirs(), SkipNotYAML(), SkipPath(".crossplane/*"))),
 			pkg: &Package{
 				meta:    []runtime.Object{deploy},
-				objects: []runtime.Object{crd, crd},
+				objects: []runtime.Object{crd, crd, crd, crd},
 			},
 		},
 		"FsBackendAll": {
