@@ -6,6 +6,7 @@ require (
 	github.com/go-logr/logr v0.4.0
 	github.com/google/go-cmp v0.5.5
 	github.com/hashicorp/go-getter v1.4.0
+	github.com/imdario/mergo v0.3.12
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/afero v1.2.2
 	golang.org/x/time v0.0.0-20210611083556-38a9dc6acbc6
