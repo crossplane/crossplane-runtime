@@ -111,7 +111,7 @@ func MergePath(fieldPath string, dst, src runtime.Object, mergeOptions *MergeOpt
 
 	val, err := srcPaved.GetValue(fieldPath)
 	// if src has no value at the specified path, then nothing to merge
-	if IsNotFound(err) {
+	if IsNotFound(err) || val == nil {
 		return nil
 	}
 	if err != nil {
@@ -119,6 +119,19 @@ func MergePath(fieldPath string, dst, src runtime.Object, mergeOptions *MergeOpt
 	}
 
 	return PatchFieldValueToObject(fieldPath, val, dst, mergeOptions)
+}
+
+// MergeReplace merges the value at fieldPath from desired into
+// a copy of current and then replaces the value at fieldPath of
+// desired with the merged value. current object is not modified.
+func MergeReplace(fieldPath string, current, desired runtime.Object, mergeOptions *MergeOptions) error {
+	copyCurrent := current.DeepCopyObject()
+	if err := MergePath(fieldPath, copyCurrent, desired, mergeOptions); err != nil {
+		return err
+	}
+	// replace desired object's value at fieldPath with
+	// the computed (merged) current value at the same path
+	return MergePath(fieldPath, desired, copyCurrent, nil)
 }
 
 // merges the given src onto the given dst.

@@ -158,12 +158,7 @@ func (a *APIPatchingApplicator) Apply(ctx context.Context, o client.Object, ao .
 // the given merge options.
 func WithMergeOptions(fieldPath string, mergeOptions *fieldpath.MergeOptions) ApplyOption {
 	return func(_ context.Context, current, desired runtime.Object) error {
-		if err := fieldpath.MergePath(fieldPath, current, desired, mergeOptions); err != nil {
-			return err
-		}
-		// replace desired object's value at fieldPath with
-		// the computed (merged) current value at the same path
-		return fieldpath.MergePath(fieldPath, desired, current, nil)
+		return fieldpath.MergeReplace(fieldPath, current, desired, mergeOptions)
 	}
 }
 
