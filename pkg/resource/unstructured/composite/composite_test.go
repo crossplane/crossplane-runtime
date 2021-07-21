@@ -165,6 +165,56 @@ func TestCompositionReference(t *testing.T) {
 	}
 }
 
+func TestCompositionRevisionReference(t *testing.T) {
+	ref := &corev1.ObjectReference{Namespace: "ns", Name: "cool"}
+	cases := map[string]struct {
+		u    *Unstructured
+		set  *corev1.ObjectReference
+		want *corev1.ObjectReference
+	}{
+		"NewRef": {
+			u:    New(),
+			set:  ref,
+			want: ref,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			tc.u.SetCompositionRevisionReference(tc.set)
+			got := tc.u.GetCompositionRevisionReference()
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\nu.GetCompositionRevisionReference(): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestCompositionUpdatePolicy(t *testing.T) {
+	p := xpv1.UpdateManual
+	cases := map[string]struct {
+		u    *Unstructured
+		set  *xpv1.UpdatePolicy
+		want *xpv1.UpdatePolicy
+	}{
+		"NewRef": {
+			u:    New(),
+			set:  &p,
+			want: &p,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			tc.u.SetCompositionUpdatePolicy(tc.set)
+			got := tc.u.GetCompositionUpdatePolicy()
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\nu.GetCompositionUpdatePolicy(): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestClaimReference(t *testing.T) {
 	ref := &corev1.ObjectReference{Namespace: "ns", Name: "cool"}
 	cases := map[string]struct {
@@ -192,7 +242,6 @@ func TestClaimReference(t *testing.T) {
 
 func TestResourceReferences(t *testing.T) {
 	ref := corev1.ObjectReference{Namespace: "ns", Name: "cool"}
-	t.Log(ref.String())
 	cases := map[string]struct {
 		u    *Unstructured
 		set  []corev1.ObjectReference

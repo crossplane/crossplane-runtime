@@ -109,6 +109,20 @@ type CompositionReferencer interface {
 	GetCompositionReference() *corev1.ObjectReference
 }
 
+// A CompositionRevisionReferencer may reference a specific revision of a
+// composition of resources.
+type CompositionRevisionReferencer interface {
+	SetCompositionRevisionReference(*corev1.ObjectReference)
+	GetCompositionRevisionReference() *corev1.ObjectReference
+}
+
+// A CompositionUpdater uses a composition, and may update which revision of
+// that composition it uses.
+type CompositionUpdater interface {
+	SetCompositionUpdatePolicy(*xpv1.UpdatePolicy)
+	GetCompositionUpdatePolicy() *xpv1.UpdatePolicy
+}
+
 // A ComposedResourcesReferencer may reference the resources it composes.
 type ComposedResourcesReferencer interface {
 	SetResourceReferences([]corev1.ObjectReference)
@@ -191,6 +205,8 @@ type Composite interface {
 
 	CompositionSelector
 	CompositionReferencer
+	CompositionUpdater
+	CompositionRevisionReferencer
 	ComposedResourcesReferencer
 	ClaimReferencer
 	ConnectionSecretWriterTo
@@ -213,6 +229,8 @@ type CompositeClaim interface {
 
 	CompositionSelector
 	CompositionReferencer
+	CompositionUpdater
+	CompositionRevisionReferencer
 	CompositeResourceReferencer
 	LocalConnectionSecretWriterTo
 
