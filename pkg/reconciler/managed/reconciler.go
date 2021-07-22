@@ -306,6 +306,12 @@ type ExternalObservation struct {
 	// unless an existing key is overwritten. Crossplane may publish these
 	// credentials to a store (e.g. a Secret).
 	ConnectionDetails ConnectionDetails
+
+	// Diff is a Debug level message that is sent to the reconciler when
+	// there is a change in the observed Managed Resource. It is useful for
+	// finding where the observed diverges from the desired state.
+	// The string should be a cmp.Diff that details the difference.
+	Diff string
 }
 
 // An ExternalCreation is the result of the creation of an external resource.
@@ -787,6 +793,10 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 		log.Debug("External resource is up to date", "requeue-after", time.Now().Add(r.pollInterval))
 		managed.SetConditions(xpv1.ReconcileSuccess())
 		return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+	}
+
+	if observation.Diff != "" {
+		log.Debug("External resource differs from desired state", "diff", observation.Diff)
 	}
 
 	update, err := external.Update(externalCtx, managed)
