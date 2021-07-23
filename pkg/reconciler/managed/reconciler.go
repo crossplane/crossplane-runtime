@@ -72,6 +72,8 @@ const (
 	reasonDeleted event.Reason = "DeletedExternalResource"
 	reasonCreated event.Reason = "CreatedExternalResource"
 	reasonUpdated event.Reason = "UpdatedExternalResource"
+
+	reasonNeedReconcile event.Reason = "NeedReconcileManagedResource"
 )
 
 // ControllerName returns the recommended name for controllers that use this
@@ -797,6 +799,7 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 
 	if observation.Diff != "" {
 		log.Debug("External resource differs from desired state", "diff", observation.Diff)
+		record.Event(managed, event.Normal(reasonNeedReconcile, observation.Diff))
 	}
 
 	update, err := external.Update(externalCtx, managed)
