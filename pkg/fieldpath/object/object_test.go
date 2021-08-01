@@ -14,85 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package fieldpath
+package object
 
 import (
 	"fmt"
 	"reflect"
-	"runtime"
-	"sort"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/imdario/mergo"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	k8s "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
-
-type mergoOptArr []func(*mergo.Config)
-
-func (arr mergoOptArr) names() []string {
-	names := make([]string, len(arr))
-	for i, opt := range arr {
-		names[i] = runtime.FuncForPC(reflect.ValueOf(opt).Pointer()).Name()
-	}
-	sort.Strings(names)
-	return names
-}
-
-func TestMergoConfiguration(t *testing.T) {
-	tests := map[string]struct {
-		mo   *MergeOptions
-		want mergoOptArr
-	}{
-		"DefaultOptionsNil": {
-			want: mergoOptArr{
-				mergo.WithOverride,
-			},
-		},
-		"DefaultOptionsEmptyStruct": {
-			mo: &MergeOptions{},
-			want: mergoOptArr{
-				mergo.WithOverride,
-			},
-		},
-		"MapKeepOnly": {
-			mo: &MergeOptions{
-				KeepMapValues: true,
-			},
-			want: mergoOptArr{},
-		},
-		"AppendSliceOnly": {
-			mo: &MergeOptions{
-				AppendSlice: true,
-			},
-			want: mergoOptArr{
-				mergo.WithAppendSlice,
-				mergo.WithOverride,
-			},
-		},
-		"MapKeepAppendSlice": {
-			mo: &MergeOptions{
-				AppendSlice:   true,
-				KeepMapValues: true,
-			},
-			want: mergoOptArr{
-				mergo.WithAppendSlice,
-			},
-		},
-	}
-	for name, tc := range tests {
-		t.Run(name, func(t *testing.T) {
-			if diff := cmp.Diff(tc.want.names(), mergoOptArr(tc.mo.MergoConfiguration()).names()); diff != "" {
-				t.Errorf("\nmo.MergoConfiguration(): -want, +got:\n %s", diff)
-			}
-
-		})
-	}
-}
 
 type objWithUnstructuredContent struct {
 	m map[string]interface{}
@@ -110,7 +47,7 @@ func (o objWithUnstructuredContent) UnstructuredContent() map[string]interface{}
 	return o.m
 }
 
-func pavedComparer(p1, p2 Paved) bool {
+func pavedComparer(p1, p2 fieldpath.Paved) bool {
 	return reflect.DeepEqual(p1, p2)
 }
 
@@ -119,7 +56,7 @@ func TestToPaved(t *testing.T) {
 		o k8s.Object
 	}
 	type want struct {
-		paved  *Paved
+		paved  *fieldpath.Paved
 		copied bool
 		err    error
 	}
@@ -138,25 +75,25 @@ func TestToPaved(t *testing.T) {
 				},
 			},
 			want: want{
-				paved: &Paved{
-					object: map[string]interface{}{
+				paved: fieldpath.Pave(
+					map[string]interface{}{
 						"key": "val",
 					},
-				},
+				),
 			},
 		},
 		"NoUnstructuredContent": {
 			reason: "If object does not provide UnstructuredContent, unstructured converter will be used to pave it, with its contents being copied",
 			args: args{
-				o: &v1.ConfigMap{},
+				o: &corev1.ConfigMap{},
 			},
 			want: want{
 				copied: true,
-				paved: &Paved{
-					object: map[string]interface{}{
+				paved: fieldpath.Pave(
+					map[string]interface{}{
 						"metadata": map[string]interface{}{"creationTimestamp": nil},
 					},
-				},
+				),
 			},
 		},
 	}
@@ -180,6 +117,16 @@ func TestToPaved(t *testing.T) {
 	}
 }
 
+type strObject string
+
+func (strObject) GetObjectKind() schema.ObjectKind {
+	return nil
+}
+
+func (strObject) DeepCopyObject() k8s.Object {
+	return nil
+}
+
 type object struct {
 	P1 *p1
 }
@@ -201,16 +148,6 @@ func (object) DeepCopyObject() k8s.Object {
 	return nil
 }
 
-type strObject string
-
-func (strObject) GetObjectKind() schema.ObjectKind {
-	return nil
-}
-
-func (strObject) DeepCopyObject() k8s.Object {
-	return nil
-}
-
 var (
 	valStringDst   = "value-from-dst"
 	valStringSrc   = "value-from-src"
@@ -219,6 +156,7 @@ var (
 	valArrDst      = []string{valStringDst}
 	valArrSrc      = []string{valStringSrc}
 	valArrAppended = []string{valStringDst, valStringSrc}
+	valTrue        = true
 )
 
 func dstObject() *object {
@@ -252,7 +190,7 @@ func TestMergePath(t *testing.T) {
 		fieldPath    string
 		dst          k8s.Object
 		src          k8s.Object
-		mergeOptions *MergeOptions
+		mergeOptions *v1.MergeOptions
 	}
 	type want struct {
 		err error
@@ -290,8 +228,8 @@ func TestMergePath(t *testing.T) {
 				fieldPath: "p1.p2",
 				dst:       dstObject(),
 				src:       srcObject(),
-				mergeOptions: &MergeOptions{
-					KeepMapValues: true,
+				mergeOptions: &v1.MergeOptions{
+					KeepMapValues: &valTrue,
 				},
 			},
 			want: want{
@@ -313,9 +251,9 @@ func TestMergePath(t *testing.T) {
 				fieldPath: "p1.p2",
 				dst:       dstObject(),
 				src:       srcObject(),
-				mergeOptions: &MergeOptions{
-					KeepMapValues: true,
-					AppendSlice:   true,
+				mergeOptions: &v1.MergeOptions{
+					KeepMapValues: &valTrue,
+					AppendSlice:   &valTrue,
 				},
 			},
 			want: want{
@@ -367,9 +305,9 @@ func TestMergePath(t *testing.T) {
 						S: &valStringDst,
 					},
 				},
-				mergeOptions: &MergeOptions{
-					KeepMapValues: true,
-					AppendSlice:   true,
+				mergeOptions: &v1.MergeOptions{
+					KeepMapValues: &valTrue,
+					AppendSlice:   &valTrue,
 				},
 			},
 			want: want{
@@ -392,7 +330,7 @@ func TestMergePath(t *testing.T) {
 				src: strObject("src"),
 			},
 			want: want{
-				err: fmt.Errorf("ToUnstructured requires a non-nil pointer to an object, got fieldpath.strObject"),
+				err: fmt.Errorf("ToUnstructured requires a non-nil pointer to an object, got object.strObject"),
 			},
 		},
 		"ErrDstNotPaved": {
@@ -403,7 +341,7 @@ func TestMergePath(t *testing.T) {
 				src:       srcObject(),
 			},
 			want: want{
-				err: fmt.Errorf("ToUnstructured requires a non-nil pointer to an object, got fieldpath.strObject"),
+				err: fmt.Errorf("ToUnstructured requires a non-nil pointer to an object, got object.strObject"),
 			},
 		},
 	}
@@ -429,7 +367,7 @@ func TestMergeReplace(t *testing.T) {
 		fieldPath    string
 		current      k8s.Object
 		desired      k8s.Object
-		mergeOptions *MergeOptions
+		mergeOptions *v1.MergeOptions
 	}
 	type want struct {
 		current k8s.Object
@@ -443,28 +381,28 @@ func TestMergeReplace(t *testing.T) {
 		"HappyPath": {
 			args: args{
 				fieldPath: "data",
-				current: &v1.ConfigMap{
+				current: &corev1.ConfigMap{
 					Data: map[string]string{
 						"key1": "value-from-current",
 					},
 				},
-				desired: &v1.ConfigMap{
+				desired: &corev1.ConfigMap{
 					Data: map[string]string{
 						"key1": "value-from-desired",
 						"key2": "value-from-desired",
 					},
 				},
-				mergeOptions: &MergeOptions{
-					KeepMapValues: true,
+				mergeOptions: &v1.MergeOptions{
+					KeepMapValues: &valTrue,
 				},
 			},
 			want: want{
-				current: &v1.ConfigMap{
+				current: &corev1.ConfigMap{
 					Data: map[string]string{
 						"key1": "value-from-current",
 					},
 				},
-				desired: &v1.ConfigMap{
+				desired: &corev1.ConfigMap{
 					Data: map[string]string{
 						"key1": "value-from-current",
 						"key2": "value-from-desired",
@@ -479,7 +417,7 @@ func TestMergeReplace(t *testing.T) {
 				desired:   strObject("desired"),
 			},
 			want: want{
-				err: fmt.Errorf("ToUnstructured requires a non-nil pointer to an object, got fieldpath.strObject"),
+				err: fmt.Errorf("ToUnstructured requires a non-nil pointer to an object, got object.strObject"),
 			},
 		},
 	}

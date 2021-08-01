@@ -17,9 +17,18 @@ limitations under the License.
 package fieldpath
 
 import (
+	"reflect"
+
+	"github.com/imdario/mergo"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/json"
+
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+)
+
+const (
+	errInvalidMerge = "failed to merge values"
 )
 
 type errNotFound struct {
@@ -391,4 +400,44 @@ func (p *Paved) SetBool(path string, value bool) error {
 // SetNumber value at the supplied field path.
 func (p *Paved) SetNumber(path string, value float64) error {
 	return p.SetValue(path, value)
+}
+
+// merges the given src onto the given dst.
+// dst and src must have the same map type.
+// If a nil merge options is supplied, the default behavior is MergeOptions'
+// default behavior. If dst or src is nil, src is returned
+// (i.e., dst replaced by src).
+func merge(dst, src interface{}, mergeOptions *xpv1.MergeOptions) (interface{}, error) {
+	if dst == nil || src == nil {
+		return src, nil // no merge, replace
+	}
+
+	m, ok := dst.(map[string]interface{})
+	if reflect.TypeOf(src).Kind() != reflect.Map || !ok {
+		return src, nil // not a map nor a struct, mergo cannot merge
+	}
+
+	// use merge semantics with the configured merge options to obtain the target dst value
+	if err := mergo.Merge(&m, src, mergeOptions.MergoConfiguration()...); err != nil {
+		return nil, errors.Wrap(err, errInvalidMerge)
+	}
+	return m, nil
+}
+
+// MergeValue of the receiver p at the specified field path with the supplied
+// value according to supplied merge options
+func (p *Paved) MergeValue(path string, value interface{}, mo *xpv1.MergeOptions) error {
+	dst, err := p.GetValue(path)
+	if IsNotFound(err) || mo == nil {
+		dst = nil
+	} else if err != nil {
+		return err
+	}
+
+	dst, err = merge(dst, value, mo)
+	if err != nil {
+		return err
+	}
+
+	return p.SetValue(path, dst)
 }

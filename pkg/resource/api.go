@@ -28,7 +28,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	fobj "github.com/crossplane/crossplane-runtime/pkg/fieldpath/object"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 )
 
@@ -156,9 +157,9 @@ func (a *APIPatchingApplicator) Apply(ctx context.Context, o client.Object, ao .
 // WithMergeOptions returns an ApplyOption for merging the value at the given
 // fieldPath of desired object onto the current object with
 // the given merge options.
-func WithMergeOptions(fieldPath string, mergeOptions *fieldpath.MergeOptions) ApplyOption {
+func WithMergeOptions(fieldPath string, mergeOptions *xpv1.MergeOptions) ApplyOption {
 	return func(_ context.Context, current, desired runtime.Object) error {
-		return fieldpath.MergeReplace(fieldPath, current, desired, mergeOptions)
+		return fobj.MergeReplace(fieldPath, current, desired, mergeOptions)
 	}
 }
 
