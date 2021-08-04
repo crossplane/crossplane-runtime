@@ -45,3 +45,8 @@ func (mo *MergeOptions) MergoConfiguration() []func(*mergo.Config) {
 	}
 	return config
 }
+
+// IsAppendSlice returns true if mo.AppendSlice is set to true
+func (mo *MergeOptions) IsAppendSlice() bool {
+	return mo != nil && mo.AppendSlice != nil && *mo.AppendSlice
+}
