@@ -48,11 +48,14 @@ func (p *Paved) MergeValue(path string, value interface{}, mo *xpv1.MergeOptions
 }
 
 // merges the given src onto the given dst.
-// dst and src must have the same map type.
+// dst and src must have the same type.
 // If a nil merge options is supplied, the default behavior is MergeOptions'
 // default behavior. If dst or src is nil, src is returned
 // (i.e., dst replaced by src).
 func merge(dst, src interface{}, mergeOptions *xpv1.MergeOptions) (interface{}, error) {
+	// because we are merging values of a field, which can be a slice, and
+	// because mergo currently supports merging only maps or structs,
+	// we wrap the argument to be passed to mergo.Merge in a map.
 	const keyArg = "arg"
 	argWrap := func(arg interface{}) map[string]interface{} {
 		return map[string]interface{}{
