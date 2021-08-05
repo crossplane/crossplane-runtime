@@ -47,7 +47,7 @@ type Paved struct {
 }
 
 // PaveObject paves a runtime.Object, making it possible to get and set values
-// by field path.
+// by field path. o must be a non-nil pointer to an object.
 func PaveObject(o runtime.Object) (*Paved, error) {
 	u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(o)
 	return Pave(u), errors.Wrap(err, "cannot convert object to unstructured data")
