@@ -93,6 +93,35 @@ func (c *Unstructured) SetCompositionReference(ref *corev1.ObjectReference) {
 	_ = fieldpath.Pave(c.Object).SetValue("spec.compositionRef", ref)
 }
 
+// GetCompositionRevisionReference of this Composite resource.
+func (c *Unstructured) GetCompositionRevisionReference() *corev1.ObjectReference {
+	out := &corev1.ObjectReference{}
+	if err := fieldpath.Pave(c.Object).GetValueInto("spec.compositionRevisionRef", out); err != nil {
+		return nil
+	}
+	return out
+}
+
+// SetCompositionRevisionReference of this Composite resource.
+func (c *Unstructured) SetCompositionRevisionReference(ref *corev1.ObjectReference) {
+	_ = fieldpath.Pave(c.Object).SetValue("spec.compositionRevisionRef", ref)
+}
+
+// SetCompositionUpdatePolicy of this Composite resource.
+func (c *Unstructured) SetCompositionUpdatePolicy(p *xpv1.UpdatePolicy) {
+	_ = fieldpath.Pave(c.Object).SetValue("spec.compositionUpdatePolicy", p)
+}
+
+// GetCompositionUpdatePolicy of this Composite resource.
+func (c *Unstructured) GetCompositionUpdatePolicy() *xpv1.UpdatePolicy {
+	p, err := fieldpath.Pave(c.Object).GetString("spec.compositionUpdatePolicy")
+	if err != nil {
+		return nil
+	}
+	out := xpv1.UpdatePolicy(p)
+	return &out
+}
+
 // GetClaimReference of this Composite resource.
 func (c *Unstructured) GetClaimReference() *corev1.ObjectReference {
 	out := &corev1.ObjectReference{}

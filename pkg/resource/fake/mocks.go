@@ -163,6 +163,32 @@ func (m *CompositionSelector) SetCompositionSelector(s *metav1.LabelSelector) { 
 // GetCompositionSelector gets the CompositionSelector.
 func (m *CompositionSelector) GetCompositionSelector() *metav1.LabelSelector { return m.Sel }
 
+// CompositionRevisionReferencer is a mock that implements CompositionRevisionReferencer interface.
+type CompositionRevisionReferencer struct{ Ref *corev1.ObjectReference }
+
+// SetCompositionRevisionReference sets the CompositionRevisionReference.
+func (m *CompositionRevisionReferencer) SetCompositionRevisionReference(r *corev1.ObjectReference) {
+	m.Ref = r
+}
+
+// GetCompositionRevisionReference gets the CompositionRevisionReference.
+func (m *CompositionRevisionReferencer) GetCompositionRevisionReference() *corev1.ObjectReference {
+	return m.Ref
+}
+
+// CompositionUpdater is a mock that implements CompositionUpdater interface.
+type CompositionUpdater struct{ Policy *xpv1.UpdatePolicy }
+
+// SetCompositionUpdatePolicy sets the CompositionUpdatePolicy.
+func (m *CompositionUpdater) SetCompositionUpdatePolicy(p *xpv1.UpdatePolicy) {
+	m.Policy = p
+}
+
+// GetCompositionUpdatePolicy gets the CompositionUpdatePolicy.
+func (m *CompositionUpdater) GetCompositionUpdatePolicy() *xpv1.UpdatePolicy {
+	return m.Policy
+}
+
 // CompositeResourceReferencer is a mock that implements CompositeResourceReferencer interface.
 type CompositeResourceReferencer struct{ Ref *corev1.ObjectReference }
 
@@ -262,6 +288,8 @@ type Composite struct {
 	metav1.ObjectMeta
 	CompositionSelector
 	CompositionReferencer
+	CompositionRevisionReferencer
+	CompositionUpdater
 	ComposedResourcesReferencer
 	ClaimReferencer
 	ConnectionSecretWriterTo
@@ -314,6 +342,8 @@ type CompositeClaim struct {
 	metav1.ObjectMeta
 	CompositionSelector
 	CompositionReferencer
+	CompositionRevisionReferencer
+	CompositionUpdater
 	CompositeResourceReferencer
 	LocalConnectionSecretWriterTo
 
