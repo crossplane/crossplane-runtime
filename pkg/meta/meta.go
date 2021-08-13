@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -31,9 +32,23 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
-// AnnotationKeyExternalName is the key in the annotations map of a resource for
-// the name of the resource as it appears on provider's systems.
-const AnnotationKeyExternalName = "crossplane.io/external-name"
+const (
+	// AnnotationKeyExternalName is the annotation key used to indicate the
+	// 'external' name, or unique identifier, of a managed resource. The
+	// external name may differ from the managed resource name - i.e. the
+	// resource's metadata.name.
+	AnnotationKeyExternalName = "crossplane.io/external-name"
+
+	// AnnotationKeyExternalNamePending is the annotation key used to
+	// indicate that a resource's external name is pending assignment.
+	// Crossplane prefers to use deterministic external names where it can,
+	// but in some cases this is not possible - for example when an API
+	// generates and returns the name at create time. In such cases this
+	// annotation should be set before an external resource is created.
+	// Crossplane uses this annotation to ensure it creates at most one
+	// external resource.
+	AnnotationKeyExternalNamePending = "crossplane.io/external-name-pending"
+)
 
 // Supported resources with all of these annotations will be fully or partially
 // propagated to the named resource of the same kind, assuming it exists and
@@ -236,13 +251,42 @@ func WasCreated(o metav1.Object) bool {
 }
 
 // GetExternalName returns the external name annotation value on the resource.
+// See AnnotationKeyExternalName for details.
 func GetExternalName(o metav1.Object) string {
 	return o.GetAnnotations()[AnnotationKeyExternalName]
 }
 
-// SetExternalName sets the external name annotation of the resource.
+// SetExternalName sets the external name annotation of the resource. It also
+// clears the "external name pending" annotation, if set. See
+// AnnotationKeyExternalName and AnnotationKeyExternalNamePending for details.
 func SetExternalName(o metav1.Object, name string) {
 	AddAnnotations(o, map[string]string{AnnotationKeyExternalName: name})
+	UnsetExternalNamePending(o)
+}
+
+// GetExternalNamePending indicates whether the supplied object is pending
+// assignment of a name by an external system. See
+// AnnotationKeyExternalNamePending for more detail.
+func GetExternalNamePending(o metav1.Object) bool {
+	// We consider any value to indicate the external name is pending.
+	_, ok := o.GetAnnotations()[AnnotationKeyExternalNamePending]
+	return ok
+}
+
+// SetExternalNamePending indicates that the external name of of the supplied
+// object is (about to be) pending assignment by an external system. See
+// AnnotationKeyExternalNamePending for more detail.
+func SetExternalNamePending(o metav1.Object) {
+	// We consider any value to indicate the external name is pending, but
+	// we write a timestamp by convention to aid in human debugging.
+	AddAnnotations(o, map[string]string{AnnotationKeyExternalNamePending: metav1.Now().Format(time.RFC3339)})
+}
+
+// UnsetExternalNamePending indicates that the external name of the supplied
+// object is not currently pending assignment by an external system. See
+// AnnotationKeyExternalNamePending for more detail.
+func UnsetExternalNamePending(o metav1.Object) {
+	RemoveAnnotations(o, AnnotationKeyExternalNamePending)
 }
 
 // AllowPropagation from one object to another by adding consenting annotations

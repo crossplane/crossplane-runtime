@@ -47,13 +47,16 @@ const (
 
 // Error strings.
 const (
-	errGetManaged               = "cannot get managed resource"
-	errUpdateManagedAfterCreate = "cannot update managed resource. this may have resulted in a leaked external resource"
-	errReconcileConnect         = "connect failed"
-	errReconcileObserve         = "observe failed"
-	errReconcileCreate          = "create failed"
-	errReconcileUpdate          = "update failed"
-	errReconcileDelete          = "delete failed"
+	errGetManaged                = "cannot get managed resource"
+	errUpdateExternalName        = "cannot persist " + meta.AnnotationKeyExternalName + " annotation - this may indicate a leaked external resource"
+	errUpdateExternalNamePending = "cannot persist " + meta.AnnotationKeyExternalNamePending + " annotation"
+	errExternalNamePending       = "refusing to (re)create managed resource with " + meta.AnnotationKeyExternalNamePending + " annotation - this may indicate a leaked external resource"
+
+	errReconcileConnect = "connect failed"
+	errReconcileObserve = "observe failed"
+	errReconcileCreate  = "create failed"
+	errReconcileUpdate  = "update failed"
+	errReconcileDelete  = "delete failed"
 )
 
 // Event reasons.
@@ -711,38 +714,105 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 	}
 
 	if !observation.ResourceExists {
+
+		// Some Crossplane resources have non-deterministic external
+		// names that are returned at Create time. We must record those
+		// names and rely on them to determine whether the external
+		// resources exist during subsequent Observe calls.
+		//
+		// The absence of an external name does not guarantee that we
+		// didn't create an external resource. It's possible that we
+		// created the resource but failed to update its name. It's
+		// also possible that we did update the name but have since
+		// read a stale, unnamed, version of the resource from cache.
+		//
+		// To deal with this we set a 'pending external name' annotation
+		// immediately before creating our external resource. If we get
+		// here because we have a stale view of our managed resource the
+		// Update call that persists the annotation will fail. If we are
+		// already pending external name assignment when we get here we
+		// know it's possible that we created an external resource but
+		// did not persist its name, so we refuse to proceed rather than
+		// creating a duplicate.
+
+		if pending := meta.GetExternalNamePending(managed); pending {
+			err := errors.New(errExternalNamePending)
+			log.Debug("Cannot create external resource", "error", err)
+			record.Event(managed, event.Warning(reasonCannotCreate, err))
+			managed.SetConditions(xpv1.ReconcileError(err))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		}
+
+		if meta.GetExternalName(managed) == "" {
+			meta.SetExternalNamePending(managed)
+			if err := r.client.Update(ctx, managed); err != nil {
+				err := errors.Wrap(err, errUpdateExternalNamePending)
+				log.Debug(errUpdateManaged, "error", err)
+				record.Event(managed, event.Warning(reasonCannotCreate, err))
+				managed.SetConditions(xpv1.ReconcileError(err))
+				return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+			}
+		}
+
+		// TODO(negz): Should we support the edge case in which Create
+		// returns a non-nil error, _and_ ExternalNameAssigned? I could
+		// imagine this being a valid state, e.g. due to a failure in a
+		// multi-step create flow.
+
 		managed.SetConditions(xpv1.Creating())
 		creation, err := external.Create(externalCtx, managed)
 		if err != nil {
-			// We'll hit this condition if we can't create our external
-			// resource, for example if our provider credentials don't have
-			// access to create it. If this is the first time we encounter this
-			// issue we'll be requeued implicitly when we update our status with
-			// the new error condition. If not, we requeue explicitly, which will trigger backoff.
+			// We'll hit this condition if we can't create our
+			// external resource, for example if our provider
+			// credentials don't have access to create it.
 			log.Debug("Cannot create external resource", "error", err)
 			record.Event(managed, event.Warning(reasonCannotCreate, err))
+
+			// We want to remove the external name pending
+			// annotation so that we know it's safe to try creation
+			// again on the next reconcile.
+			if err := retry.OnError(retry.DefaultRetry, resource.IsAPIError, func() error {
+				nn := types.NamespacedName{Name: managed.GetName()}
+				if err := r.client.Get(ctx, nn, managed); err != nil {
+					return err
+				}
+				meta.UnsetExternalNamePending(managed)
+				return r.client.Update(ctx, managed)
+			}); err != nil {
+				// Note that we don't persist this particular error as a
+				// status condition, because we want to persist the more
+				// important information about why our create failed.
+				err := errors.Wrap(err, errUpdateExternalNamePending)
+				log.Debug(errUpdateManaged, "error", err)
+				record.Event(managed, event.Warning(reasonCannotUpdateManaged, err))
+			}
+
+			// If this is the first time we encounter this issue
+			// we'll be requeued implicitly when we update our
+			// status with the new error condition. If not, we
+			// requeue explicitly, which will trigger backoff.
 			managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, errReconcileCreate)))
 			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 		}
 
 		if creation.ExternalNameAssigned {
+			// It's crucial that we persist any non-deterministic
+			// external name returned during create, or we'll leak
+			// our newly created external resource. This will also
+			// unset the external name pending annotation.
 			en := meta.GetExternalName(managed)
-			// We will retry in all cases where the error comes from the api-server.
-			// At one point, context deadline will be exceeded and we'll get out
-			// of the loop. In that case, we warn the user that the external resource
-			// might be leaked.
-			err := retry.OnError(retry.DefaultRetry, resource.IsAPIError, func() error {
+			if err := retry.OnError(retry.DefaultRetry, resource.IsAPIError, func() error {
 				nn := types.NamespacedName{Name: managed.GetName()}
 				if err := r.client.Get(ctx, nn, managed); err != nil {
 					return err
 				}
 				meta.SetExternalName(managed, en)
 				return r.client.Update(ctx, managed)
-			})
-			if err != nil {
-				log.Debug("Cannot update managed resource", "error", err)
-				record.Event(managed, event.Warning(reasonCannotUpdateManaged, errors.Wrap(err, errUpdateManagedAfterCreate)))
-				managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, errUpdateManagedAfterCreate)))
+			}); err != nil {
+				err := errors.Wrap(err, errUpdateExternalName)
+				log.Debug(errUpdateManaged, "error", err)
+				record.Event(managed, event.Warning(reasonCannotUpdateManaged, err))
+				managed.SetConditions(xpv1.ReconcileError(err))
 				return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 			}
 		}

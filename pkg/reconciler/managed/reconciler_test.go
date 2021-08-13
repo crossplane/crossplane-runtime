@@ -19,12 +19,14 @@ package managed
 import (
 	"context"
 	"testing"
+	"time"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -53,6 +55,7 @@ func TestReconciler(t *testing.T) {
 
 	errBoom := errors.New("boom")
 	now := metav1.Now()
+	externalName := "Dr. Lucien Sanchez"
 
 	cases := map[string]struct {
 		reason string
@@ -559,17 +562,113 @@ func TestReconciler(t *testing.T) {
 			want: want{result: reconcile.Result{Requeue: true}},
 		},
 		"CreateExternalError": {
-			reason: "Errors while creating an external resource should trigger a requeue after a short wait.",
+			reason: "Errors while creating an external resource should trigger a requeue after a short wait, and remove the external name pending annotation",
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil),
+						// We don't have an external name set so we expect it
+						// was added before Create was called.
+						MockGet:    test.NewMockGetFn(nil),
+						MockUpdate: test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileCreate)))
 							want.SetConditions(xpv1.Creating())
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateEmpty()); diff != "" {
 								reason := "Errors while creating an external resource should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+								return ExternalObservation{ResourceExists: false}, nil
+							},
+							CreateFn: func(_ context.Context, _ resource.Managed) (ExternalCreation, error) {
+								return ExternalCreation{}, errBoom
+							},
+						}
+						return c, nil
+					})),
+					WithConnectionPublishers(),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
+			},
+			want: want{result: reconcile.Result{Requeue: true}},
+		},
+		"UnsetExternalNamePendingGetError": {
+			reason: "Errors while getting a fresh copy of the managed resource to unset its external name pending annotation should only be emitted as a log and an event",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							if pending := meta.GetExternalNamePending(obj); pending {
+								return errBoom
+							}
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+							want := &fake.Managed{}
+							meta.SetExternalNamePending(want)
+							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileCreate)))
+							want.SetConditions(xpv1.Creating())
+							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateEmpty()); diff != "" {
+								reason := "(Only) errors while creating an external resource should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+								return ExternalObservation{ResourceExists: false}, nil
+							},
+							CreateFn: func(_ context.Context, _ resource.Managed) (ExternalCreation, error) {
+								return ExternalCreation{}, errBoom
+							},
+						}
+						return c, nil
+					})),
+					WithConnectionPublishers(),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
+			},
+			want: want{result: reconcile.Result{Requeue: true}},
+		},
+		"UnsetExternalNamePendingUpdateError": {
+			reason: "Errors while updating the managed resource to unset its external name pending annotation should only be emitted as a log and an event",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+						MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
+							if pending := meta.GetExternalNamePending(obj); pending {
+								return nil
+							}
+							return errBoom
+						}),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+							want := &fake.Managed{}
+							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileCreate)))
+							want.SetConditions(xpv1.Creating())
+							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateEmpty()); diff != "" {
+								reason := "(Only) errors while creating an external resource should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
 							return nil
@@ -603,9 +702,13 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil),
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							meta.SetExternalName(obj, externalName)
+							return nil
+						}),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
+							meta.SetExternalName(want, externalName)
 							want.SetConditions(xpv1.ReconcileError(errBoom))
 							want.SetConditions(xpv1.Creating())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -649,14 +752,96 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{Requeue: true}},
 		},
+		"CreateWithExternalNamePending": {
+			reason: "If the 'external name pending' annotation is set at create time we should return an error.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							meta.SetExternalNamePending(obj)
+							return nil
+						}),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+							want := &fake.Managed{}
+							meta.SetExternalNamePending(want)
+							want.SetConditions(xpv1.ReconcileError(errors.New(errExternalNamePending)))
+							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Minute)); diff != "" {
+								reason := "Failed managed resource creation should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+								return ExternalObservation{ResourceExists: false}, nil
+							},
+						}
+						return c, nil
+					})),
+					WithConnectionPublishers(),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
+			},
+			want: want{result: reconcile.Result{Requeue: true}},
+		},
+		"SetExternalNamePendingError": {
+			reason: "If we can't set the 'external name pending' annotation we should return an error.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet:    test.NewMockGetFn(nil),
+						MockUpdate: test.NewMockUpdateFn(errBoom),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+							want := &fake.Managed{}
+							meta.SetExternalNamePending(want)
+							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateExternalNamePending)))
+							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Minute)); diff != "" {
+								reason := "Failed managed resource creation should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+								return ExternalObservation{ResourceExists: false}, nil
+							},
+						}
+						return c, nil
+					})),
+					WithConnectionPublishers(),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
+			},
+			want: want{result: reconcile.Result{Requeue: true}},
+		},
 		"CreateSuccessful": {
 			reason: "Successful managed resource creation should trigger a requeue after a short wait.",
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil),
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							meta.SetExternalName(obj, externalName)
+							return nil
+						}),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
+							meta.SetExternalName(want, externalName)
 							want.SetConditions(xpv1.ReconcileSuccess())
 							want.SetConditions(xpv1.Creating())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -688,7 +873,7 @@ func TestReconciler(t *testing.T) {
 						MockUpdate: test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
-							meta.SetExternalName(want, "test")
+							meta.SetExternalName(want, externalName)
 							want.SetConditions(xpv1.ReconcileSuccess())
 							want.SetConditions(xpv1.Creating())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -707,7 +892,7 @@ func TestReconciler(t *testing.T) {
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
 							CreateFn: func(_ context.Context, mg resource.Managed) (ExternalCreation, error) {
-								meta.SetExternalName(mg, "test")
+								meta.SetExternalName(mg, externalName)
 								return ExternalCreation{ExternalNameAssigned: true}, nil
 							},
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
@@ -728,18 +913,19 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
-							if meta.GetExternalName(obj.(metav1.Object)) == "test" {
+							if meta.GetExternalName(obj) == externalName {
 								return errBoom
 							}
 							return nil
 						},
+						MockUpdate: test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
-							meta.SetExternalName(want, "test")
-							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateManagedAfterCreate)))
+							meta.SetExternalName(want, externalName)
+							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateExternalName)))
 							want.SetConditions(xpv1.Creating())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
-								reason := "Successful managed resource creation should be reported as a conditioned status."
+								reason := "A failed get should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
 							return nil
@@ -754,7 +940,7 @@ func TestReconciler(t *testing.T) {
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
 							CreateFn: func(_ context.Context, mg resource.Managed) (ExternalCreation, error) {
-								meta.SetExternalName(mg, "test")
+								meta.SetExternalName(mg, externalName)
 								return ExternalCreation{ExternalNameAssigned: true}, nil
 							},
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
@@ -774,15 +960,21 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet:    test.NewMockGetFn(nil),
-						MockUpdate: test.NewMockUpdateFn(errBoom),
+						MockGet: test.NewMockGetFn(nil),
+						MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
+							// Don't return an error until after the external name has been set.
+							if meta.GetExternalName(obj) == externalName {
+								return errBoom
+							}
+							return nil
+						}),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
-							meta.SetExternalName(want, "test")
-							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateManagedAfterCreate)))
+							meta.SetExternalName(want, externalName)
+							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateExternalName)))
 							want.SetConditions(xpv1.Creating())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
-								reason := "Successful managed resource creation should be reported as a conditioned status."
+								reason := "A failed update should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
 							return nil
@@ -797,7 +989,7 @@ func TestReconciler(t *testing.T) {
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
 							CreateFn: func(_ context.Context, mg resource.Managed) (ExternalCreation, error) {
-								meta.SetExternalName(mg, "test")
+								meta.SetExternalName(mg, externalName)
 								return ExternalCreation{ExternalNameAssigned: true}, nil
 							},
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
