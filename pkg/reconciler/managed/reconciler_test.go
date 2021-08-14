@@ -999,7 +999,7 @@ func TestReconciler(t *testing.T) {
 					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false}, nil
+								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false, Diff: "I'm different!"}, nil
 							},
 							UpdateFn: func(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
 								return ExternalUpdate{}, nil
