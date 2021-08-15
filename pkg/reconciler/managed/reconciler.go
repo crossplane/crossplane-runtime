@@ -50,7 +50,9 @@ const (
 	errGetManaged                = "cannot get managed resource"
 	errUpdateExternalName        = "cannot persist " + meta.AnnotationKeyExternalName + " annotation - this may indicate a leaked external resource"
 	errUpdateExternalNamePending = "cannot persist " + meta.AnnotationKeyExternalNamePending + " annotation"
-	errExternalNamePending       = "refusing to (re)create managed resource with " + meta.AnnotationKeyExternalNamePending + " annotation - this may indicate a leaked external resource"
+
+	errCreateWhileExternalNamePending = "refusing to (re)create managed resource with " + meta.AnnotationKeyExternalNamePending + " annotation - this may indicate a leaked external resource"
+	errDeleteWhileExternalNamePending = "refusing to delete managed resource with " + meta.AnnotationKeyExternalNamePending + " annotation - this may indicate a leaked external resource"
 
 	errReconcileConnect = "connect failed"
 	errReconcileObserve = "observe failed"
@@ -676,6 +678,18 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 			managed.SetConditions(xpv1.ReconcileError(err))
 			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 		}
+		if pending := meta.GetExternalNamePending(managed); pending {
+			// There's a good chance we reached this state because we created
+			// an external resource but never managed to record its external
+			// name, and now can't tell whether there's anything to clean up.
+			// We block so that a human can manually assess the situation,
+			// rather than potentially silently leaking an external resource.
+			err := errors.New(errDeleteWhileExternalNamePending)
+			log.Debug("Cannot delete external resource", "error", err)
+			record.Event(managed, event.Warning(reasonCannotDelete, err))
+			managed.SetConditions(xpv1.ReconcileError(err))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		}
 		if err := r.managed.RemoveFinalizer(ctx, managed); err != nil {
 			// If this is the first time we encounter this issue we'll be
 			// requeued implicitly when we update our status with the new error
@@ -736,7 +750,7 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 		// creating a duplicate.
 
 		if pending := meta.GetExternalNamePending(managed); pending {
-			err := errors.New(errExternalNamePending)
+			err := errors.New(errCreateWhileExternalNamePending)
 			log.Debug("Cannot create external resource", "error", err)
 			record.Event(managed, event.Warning(reasonCannotCreate, err))
 			managed.SetConditions(xpv1.ReconcileError(err))
@@ -796,6 +810,9 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 		}
 
 		if creation.ExternalNameAssigned {
+			record = r.record.WithAnnotations("external-name", meta.GetExternalName(managed))
+			log = log.WithValues("external-name", meta.GetExternalName(managed))
+
 			// It's crucial that we persist any non-deterministic
 			// external name returned during create, or we'll leak
 			// our newly created external resource. This will also

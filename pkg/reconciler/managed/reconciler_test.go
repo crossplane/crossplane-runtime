@@ -426,6 +426,51 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{Requeue: true}},
 		},
+		"DeleteWhileExternalNamePending": {
+			reason: "We should block deletion if our external name appears to be pending.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							mg := obj.(*fake.Managed)
+							mg.SetDeletionTimestamp(&now)
+							mg.SetDeletionPolicy(xpv1.DeletionDelete)
+							meta.SetExternalNamePending(obj)
+							return nil
+						}),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+							want := &fake.Managed{}
+							want.SetDeletionTimestamp(&now)
+							want.SetDeletionPolicy(xpv1.DeletionDelete)
+							meta.SetExternalNamePending(want)
+							want.SetConditions(xpv1.Deleting())
+							want.SetConditions(xpv1.ReconcileError(errors.New(errDeleteWhileExternalNamePending)))
+							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Minute)); diff != "" {
+								reason := "We should block deletion if our external name appears to be pending."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+								return ExternalObservation{ResourceExists: false}, nil
+							},
+						}
+						return c, nil
+					})),
+					WithConnectionPublishers(),
+				},
+			},
+			want: want{result: reconcile.Result{Requeue: true}},
+		},
 		"RemoveFinalizerErrorDeletionPolicyDelete": {
 			reason: "Errors removing the managed resource finalizer should trigger a requeue after a short wait.",
 			args: args{
@@ -764,7 +809,7 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							meta.SetExternalNamePending(want)
-							want.SetConditions(xpv1.ReconcileError(errors.New(errExternalNamePending)))
+							want.SetConditions(xpv1.ReconcileError(errors.New(errCreateWhileExternalNamePending)))
 							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Minute)); diff != "" {
 								reason := "Failed managed resource creation should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
