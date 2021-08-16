@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
@@ -896,6 +897,225 @@ func TestSetExternalName(t *testing.T) {
 			SetExternalName(tc.o, tc.name)
 			if diff := cmp.Diff(tc.want, tc.o); diff != "" {
 				t.Errorf("SetExternalName(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestGetExternalCreatePending(t *testing.T) {
+	now := &metav1.Time{Time: time.Now().Round(time.Second)}
+
+	cases := map[string]struct {
+		o    metav1.Object
+		want *metav1.Time
+	}{
+		"ExternalCreatePendingExists": {
+			o:    &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalCreatePending: now.Format(time.RFC3339)}}},
+			want: now,
+		},
+		"NoExternalCreatePending": {
+			o:    &corev1.Pod{},
+			want: nil,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := GetExternalCreatePending(tc.o)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("GetExternalCreatePending(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestSetExternalCreatePending(t *testing.T) {
+	now := metav1.Now()
+
+	cases := map[string]struct {
+		o    metav1.Object
+		t    metav1.Time
+		want metav1.Object
+	}{
+		"SetsTheCorrectKey": {
+			o:    &corev1.Pod{},
+			t:    now,
+			want: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalCreatePending: now.Format(time.RFC3339)}}},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			SetExternalCreatePending(tc.o, tc.t)
+			if diff := cmp.Diff(tc.want, tc.o); diff != "" {
+				t.Errorf("SetExternalCreatePending(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestGetExternalCreateSucceeded(t *testing.T) {
+	now := &metav1.Time{Time: time.Now().Round(time.Second)}
+
+	cases := map[string]struct {
+		o    metav1.Object
+		want *metav1.Time
+	}{
+		"ExternalCreateTimeExists": {
+			o:    &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalCreateSucceeded: now.Format(time.RFC3339)}}},
+			want: now,
+		},
+		"NoExternalCreateTime": {
+			o:    &corev1.Pod{},
+			want: nil,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := GetExternalCreateSucceeded(tc.o)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("GetExternalCreateSucceeded(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestSetExternalCreateSucceeded(t *testing.T) {
+	now := metav1.Now()
+
+	cases := map[string]struct {
+		o    metav1.Object
+		t    metav1.Time
+		want metav1.Object
+	}{
+		"SetsTheCorrectKey": {
+			o:    &corev1.Pod{},
+			t:    now,
+			want: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalCreateSucceeded: now.Format(time.RFC3339)}}},
+		},
+		"RemovesCreatePendingKey": {
+			o:    &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalCreatePending: now.Format(time.RFC3339)}}},
+			t:    now,
+			want: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalCreateSucceeded: now.Format(time.RFC3339)}}},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			SetExternalCreateSucceeded(tc.o, tc.t)
+			if diff := cmp.Diff(tc.want, tc.o); diff != "" {
+				t.Errorf("SetExternalCreateSucceeded(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestGetExternalCreateFailed(t *testing.T) {
+	now := &metav1.Time{Time: time.Now().Round(time.Second)}
+
+	cases := map[string]struct {
+		o    metav1.Object
+		want *metav1.Time
+	}{
+		"ExternalCreateFailedExists": {
+			o:    &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalCreateFailed: now.Format(time.RFC3339)}}},
+			want: now,
+		},
+		"NoExternalCreateFailed": {
+			o:    &corev1.Pod{},
+			want: nil,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := GetExternalCreateFailed(tc.o)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("GetExternalCreateFailed(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestSetExternalCreateFailed(t *testing.T) {
+	now := metav1.Now()
+
+	cases := map[string]struct {
+		o    metav1.Object
+		t    metav1.Time
+		want metav1.Object
+	}{
+		"SetsTheCorrectKey": {
+			o:    &corev1.Pod{},
+			t:    now,
+			want: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalCreateFailed: now.Format(time.RFC3339)}}},
+		},
+		"RemovesCreatePendingKey": {
+			o:    &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalCreatePending: now.Format(time.RFC3339)}}},
+			t:    now,
+			want: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalCreateFailed: now.Format(time.RFC3339)}}},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			SetExternalCreateFailed(tc.o, tc.t)
+			if diff := cmp.Diff(tc.want, tc.o); diff != "" {
+				t.Errorf("SetExternalCreateFailed(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestExternalCreateSucceededDuring(t *testing.T) {
+	type args struct {
+		o metav1.Object
+		d time.Duration
+	}
+
+	cases := map[string]struct {
+		args args
+		want bool
+	}{
+		"NotYetSuccessfullyCreated": {
+			args: args{
+				o: &corev1.Pod{},
+				d: 1 * time.Minute,
+			},
+			want: false,
+		},
+		"SuccessfullyCreatedTooLongAgo": {
+			args: args{
+				o: func() metav1.Object {
+					o := &corev1.Pod{}
+					t := time.Now().Add(-2 * time.Minute)
+					SetExternalCreateSucceeded(o, metav1.NewTime(t))
+					return o
+				}(),
+				d: 1 * time.Minute,
+			},
+			want: false,
+		},
+		"SuccessfullyCreatedWithinDuration": {
+			args: args{
+				o: func() metav1.Object {
+					o := &corev1.Pod{}
+					t := time.Now().Add(-30 * time.Second)
+					SetExternalCreateSucceeded(o, metav1.NewTime(t))
+					return o
+				}(),
+				d: 1 * time.Minute,
+			},
+			want: true,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := ExternalCreateSucceededDuring(tc.args.o, tc.args.d)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("ExternalCreateSucceededDuring(...): -want, +got:\n%s", diff)
 			}
 		})
 	}
