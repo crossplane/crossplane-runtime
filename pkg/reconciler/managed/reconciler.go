@@ -21,8 +21,7 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/util/retry"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -48,7 +47,8 @@ const (
 // Error strings.
 const (
 	errGetManaged               = "cannot get managed resource"
-	errUpdateManagedAfterCreate = "cannot update managed resource. this may have resulted in a leaked external resource"
+	errCreatePending            = "refusing to reconcile managed resource with " + meta.AnnotationKeyExternalCreatePending + " annotation - remove if it is safe to proceed"
+	errUpdateManagedAnnotations = "cannot update managed resource annotations"
 	errReconcileConnect         = "connect failed"
 	errReconcileObserve         = "observe failed"
 	errReconcileCreate          = "create failed"
@@ -72,12 +72,28 @@ const (
 	reasonDeleted event.Reason = "DeletedExternalResource"
 	reasonCreated event.Reason = "CreatedExternalResource"
 	reasonUpdated event.Reason = "UpdatedExternalResource"
+	reasonPending event.Reason = "PendingExternalResource"
 )
 
 // ControllerName returns the recommended name for controllers that use this
 // package to reconcile a particular kind of managed resource.
 func ControllerName(kind string) string {
 	return "managed/" + strings.ToLower(kind)
+}
+
+// A CriticalAnnotationUpdater is used when it is critical that annotations must
+// be updated before returning from the Reconcile loop.
+type CriticalAnnotationUpdater interface {
+	UpdateCriticalAnnotations(ctx context.Context, o client.Object) error
+}
+
+// A CriticalAnnotationUpdateFn may be used when it is critical that annotations
+// must be updated before returning from the Reconcile loop.
+type CriticalAnnotationUpdateFn func(ctx context.Context, o client.Object) error
+
+// UpdateCriticalAnnotations of the supplied object.
+func (fn CriticalAnnotationUpdateFn) UpdateCriticalAnnotations(ctx context.Context, o client.Object) error {
+	return fn(ctx, o)
 }
 
 // ConnectionDetails created or updated during an operation on an external
@@ -185,15 +201,19 @@ func (ec ExternalConnectorFn) Connect(ctx context.Context, mg resource.Managed) 
 // if it's called again with the same parameters or Delete call should not
 // return error if there is an ongoing deletion or resource does not exist.
 type ExternalClient interface {
-	// Observe the external resource the supplied Managed resource represents,
-	// if any. Observe implementations must not modify the external resource,
-	// but may update the supplied Managed resource to reflect the state of the
-	// external resource.
+	// Observe the external resource the supplied Managed resource
+	// represents, if any. Observe implementations must not modify the
+	// external resource, but may update the supplied Managed resource to
+	// reflect the state of the external resource. Status modifications are
+	// automatically persisted unless ResourceLateInitialized is true - see
+	// ResourceLateInitialized for more detail.
 	Observe(ctx context.Context, mg resource.Managed) (ExternalObservation, error)
 
 	// Create an external resource per the specifications of the supplied
 	// Managed resource. Called when Observe reports that the associated
-	// external resource does not exist.
+	// external resource does not exist. Create implementations may update
+	// managed resource annotations, and those updates will be persisted.
+	// All other updates will be discarded.
 	Create(ctx context.Context, mg resource.Managed) (ExternalCreation, error)
 
 	// Update the external resource represented by the supplied Managed
@@ -316,10 +336,14 @@ type ExternalObservation struct {
 
 // An ExternalCreation is the result of the creation of an external resource.
 type ExternalCreation struct {
-	// ExternalNameAssigned is true if the Create operation resulted in a change
-	// in the external name annotation. If that's the case, we need to issue a
-	// spec update and make sure it goes through so that we don't lose the identifier
-	// of the resource we just created.
+	// ExternalNameAssigned should be true if the Create operation resulted
+	// in a change in the resource's external name. This is typically only
+	// needed for external resource's with unpredictable external names that
+	// are returned from the API at create time.
+	//
+	// Deprecated: The managed.Reconciler no longer needs to be informed
+	// when an external name is assigned by the Create operation. It will
+	// automatically detect and handle external name assignment.
 	ExternalNameAssigned bool
 
 	// ConnectionDetails required to connect to this resource. These details
@@ -348,8 +372,9 @@ type Reconciler struct {
 	client     client.Client
 	newManaged func() resource.Managed
 
-	pollInterval time.Duration
-	timeout      time.Duration
+	pollInterval        time.Duration
+	timeout             time.Duration
+	creationGracePeriod time.Duration
 
 	// The below structs embed the set of interfaces used to implement the
 	// managed resource reconciler. We do this primarily for readability, so
@@ -363,6 +388,7 @@ type Reconciler struct {
 }
 
 type mrManaged struct {
+	CriticalAnnotationUpdater
 	ConnectionPublisher
 	resource.Finalizer
 	Initializer
@@ -371,10 +397,11 @@ type mrManaged struct {
 
 func defaultMRManaged(m manager.Manager) mrManaged {
 	return mrManaged{
-		ConnectionPublisher: NewAPISecretPublisher(m.GetClient(), m.GetScheme()),
-		Finalizer:           resource.NewAPIFinalizer(m.GetClient(), managedFinalizerName),
-		Initializer:         NewNameAsExternalName(m.GetClient()),
-		ReferenceResolver:   NewAPISimpleReferenceResolver(m.GetClient()),
+		CriticalAnnotationUpdater: NewRetryingCriticalAnnotationUpdater(m.GetClient()),
+		ConnectionPublisher:       NewAPISecretPublisher(m.GetClient(), m.GetScheme()),
+		Finalizer:                 resource.NewAPIFinalizer(m.GetClient(), managedFinalizerName),
+		Initializer:               NewNameAsExternalName(m.GetClient()),
+		ReferenceResolver:         NewAPISimpleReferenceResolver(m.GetClient()),
 	}
 }
 
@@ -412,11 +439,31 @@ func WithPollInterval(after time.Duration) ReconcilerOption {
 	}
 }
 
+// WithCreationGracePeriod configures an optional period during which we will
+// wait for the external API to report that a newly created external resource
+// exists. This allows us to tolerate eventually consistent APIs that do not
+// immediately report that newly created resources exist when queried.
+func WithCreationGracePeriod(d time.Duration) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.creationGracePeriod = d
+	}
+}
+
 // WithExternalConnecter specifies how the Reconciler should connect to the API
 // used to sync and delete external resources.
 func WithExternalConnecter(c ExternalConnecter) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.external.ExternalConnecter = c
+	}
+}
+
+// WithCriticalAnnotationUpdater specifies how the Reconciler should update a
+// managed resource's critical annotations. Implementations typically contain
+// some kind of retry logic to increase the likelihood that critical annotations
+// (like non-deterministic external names) will be persisted.
+func WithCriticalAnnotationUpdater(u CriticalAnnotationUpdater) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.managed.CriticalAnnotationUpdater = u
 	}
 }
 
@@ -581,6 +628,18 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
+	// A resource would only be pending creation at this point if we failed
+	// to persist our annotations after the ExternalClient's Create method
+	// was called. If that is the case we may have lost a critical update to
+	// the external name and leaked a resource. The safest thing to do is to
+	// refuse to proceed.
+	if meta.GetExternalCreatePending(managed) != nil {
+		log.Debug(errCreatePending)
+		record.Event(managed, event.Warning(reasonCannotInitialize, errors.New(errCreatePending)))
+		managed.SetConditions(xpv1.ReconcileError(errors.New(errCreatePending)))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+	}
+
 	// We resolve any references before observing our external resource because
 	// in some rare examples we need a spec field to make the observe call, and
 	// that spec field could be set by a reference.
@@ -629,6 +688,17 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 		record.Event(managed, event.Warning(reasonCannotObserve, err))
 		managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, errReconcileObserve)))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+	}
+
+	// If this resource has a non-zero creation grace period we want to wait
+	// for that period to expire before we trust that the resource really
+	// doesn't exist. This is because some external APIs are eventually
+	// consistent and may report that a recently created resource does not
+	// exist.
+	if !observation.ResourceExists && meta.ExternalCreateSucceededDuring(managed, r.creationGracePeriod) {
+		log.Debug("Waiting for external resource existence to be confirmed")
+		record.Event(managed, event.Normal(reasonPending, "Waiting for external resource existence to be confirmed"))
+		return reconcile.Result{Requeue: true}, nil
 	}
 
 	if meta.WasDeleted(managed) {
@@ -711,6 +781,22 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 	}
 
 	if !observation.ResourceExists {
+
+		// We write this annotation for two reasons. Firstly, it helps
+		// us to detect the case in which we fail to persist critical
+		// information (like the external name) that may be set by the
+		// subsequent external.Create call. Secondly, it guarantees that
+		// we're operating on the latest version of our resource. We
+		// don't use the CriticalAnnotationUpdater because we _want_ the
+		// update to fail if we get a 409 due to a stale version.
+		meta.SetExternalCreatePending(managed, metav1.Now())
+		if err := r.client.Update(ctx, managed); err != nil {
+			log.Debug(errUpdateManaged, "error", err)
+			record.Event(managed, event.Warning(reasonCannotUpdateManaged, errors.Wrap(err, errUpdateManaged)))
+			managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, errUpdateManaged)))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		}
+
 		managed.SetConditions(xpv1.Creating())
 		creation, err := external.Create(externalCtx, managed)
 		if err != nil {
@@ -721,30 +807,49 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 			// the new error condition. If not, we requeue explicitly, which will trigger backoff.
 			log.Debug("Cannot create external resource", "error", err)
 			record.Event(managed, event.Warning(reasonCannotCreate, err))
+
+			// We handle annotations specially here because it's
+			// critical that they are persisted to the API server.
+			// If we don't remove the external-create-pending
+			// annotation the reconciler will refuse to proceed,
+			// because it won't know whether or not it created an
+			// external resource.
+			meta.SetExternalCreateFailed(managed, metav1.Now())
+			if err := r.managed.UpdateCriticalAnnotations(ctx, managed); err != nil {
+				log.Debug(errUpdateManagedAnnotations, "error", err)
+				record.Event(managed, event.Warning(reasonCannotUpdateManaged, errors.Wrap(err, errUpdateManagedAnnotations)))
+
+				// We only log and emit an event here rather
+				// than setting a status condition and returning
+				// early because presumably it's more useful to
+				// set our status condition to the reason the
+				// create failed.
+			}
+
 			managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, errReconcileCreate)))
 			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 		}
 
-		if creation.ExternalNameAssigned {
-			en := meta.GetExternalName(managed)
-			// We will retry in all cases where the error comes from the api-server.
-			// At one point, context deadline will be exceeded and we'll get out
-			// of the loop. In that case, we warn the user that the external resource
-			// might be leaked.
-			err := retry.OnError(retry.DefaultRetry, resource.IsAPIError, func() error {
-				nn := types.NamespacedName{Name: managed.GetName()}
-				if err := r.client.Get(ctx, nn, managed); err != nil {
-					return err
-				}
-				meta.SetExternalName(managed, en)
-				return r.client.Update(ctx, managed)
-			})
-			if err != nil {
-				log.Debug("Cannot update managed resource", "error", err)
-				record.Event(managed, event.Warning(reasonCannotUpdateManaged, errors.Wrap(err, errUpdateManagedAfterCreate)))
-				managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, errUpdateManagedAfterCreate)))
-				return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
-			}
+		// In some cases our external-name may be set by Create above.
+		log = log.WithValues("external-name", meta.GetExternalName(managed))
+		record = r.record.WithAnnotations("external-name", meta.GetExternalName(managed))
+
+		// We handle annotations specially here because it's critical
+		// that they are persisted to the API server. If we don't remove
+		// the external-create-pending annotation the reconciler will
+		// refuse to proceed, because it won't know whether or not it
+		// created an external resource. This is important in cases
+		// where we must record an external-name annotation set by the
+		// Create call. Any other changes made during Create will be
+		// reverted when annotations are updated; at the time of writing
+		// Create implementations are advised not to alter status, but
+		// we may revisit this in future.
+		meta.SetExternalCreateSucceeded(managed, metav1.Now())
+		if err := r.managed.UpdateCriticalAnnotations(ctx, managed); err != nil {
+			log.Debug(errUpdateManagedAnnotations, "error", err)
+			record.Event(managed, event.Warning(reasonCannotUpdateManaged, errors.Wrap(err, errUpdateManagedAnnotations)))
+			managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, errUpdateManagedAnnotations)))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 		}
 
 		if err := r.managed.PublishConnection(ctx, managed, creation.ConnectionDetails); err != nil {
