@@ -377,7 +377,67 @@ func TestResolveReferences(t *testing.T) {
 			r := NewAPISimpleReferenceResolver(tc.c)
 			got := r.ResolveReferences(tc.args.ctx, tc.args.mg)
 			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
-				t.Errorf("\nReason: %s\r.ResolveReferences(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nr.ResolveReferences(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
+
+	errBoom := errors.New("boom")
+
+	type args struct {
+		ctx context.Context
+		o   client.Object
+	}
+
+	cases := map[string]struct {
+		reason string
+		c      client.Client
+		args   args
+		want   error
+	}{
+		"GetError": {
+			reason: "We should return any error we encounter getting the supplied object",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(errBoom),
+			},
+			args: args{
+				o: &fake.Managed{},
+			},
+			want: errors.Wrap(errBoom, errUpdateCriticalAnnotations),
+		},
+		"UpdateError": {
+			reason: "We should return any error we encounter updating the supplied object",
+			c: &test.MockClient{
+				MockGet:    test.NewMockGetFn(nil),
+				MockUpdate: test.NewMockUpdateFn(errBoom),
+			},
+			args: args{
+				o: &fake.Managed{},
+			},
+			want: errors.Wrap(errBoom, errUpdateCriticalAnnotations),
+		},
+		"Success": {
+			reason: "We should return without error if we successfully update our annotations",
+			c: &test.MockClient{
+				MockGet:    test.NewMockGetFn(nil),
+				MockUpdate: test.NewMockUpdateFn(errBoom),
+			},
+			args: args{
+				o: &fake.Managed{},
+			},
+			want: errors.Wrap(errBoom, errUpdateCriticalAnnotations),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			u := NewRetryingCriticalAnnotationUpdater(tc.c)
+			got := u.UpdateCriticalAnnotations(tc.args.ctx, tc.args.o)
+			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nu.UpdateCriticalAnnotations(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
