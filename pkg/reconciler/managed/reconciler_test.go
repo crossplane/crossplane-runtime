@@ -288,6 +288,30 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{Requeue: true}},
 		},
+		"ExternalResourcePending": {
+			reason: "If our external resource is pending (i.e. created but not yet expected to appear in the external API) we should requeue.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+								return ExternalObservation{ResourcePending: true}, nil
+							},
+						}
+						return c, nil
+					})),
+				},
+			},
+			want: want{result: reconcile.Result{Requeue: true}},
+		},
 		"ExternalDeleteError": {
 			reason: "Errors deleting the external resource should trigger a requeue after a short wait.",
 			args: args{
@@ -736,7 +760,7 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							meta.SetExternalName(want, "test")
-							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateManagedAfterCreate)))
+							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateManagedAnnotations)))
 							want.SetConditions(xpv1.Creating())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Successful managed resource creation should be reported as a conditioned status."
@@ -779,7 +803,7 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							meta.SetExternalName(want, "test")
-							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateManagedAfterCreate)))
+							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateManagedAnnotations)))
 							want.SetConditions(xpv1.Creating())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Successful managed resource creation should be reported as a conditioned status."

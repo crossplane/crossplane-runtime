@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -31,9 +32,21 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
-// AnnotationKeyExternalName is the key in the annotations map of a resource for
-// the name of the resource as it appears on provider's systems.
-const AnnotationKeyExternalName = "crossplane.io/external-name"
+const (
+	// AnnotationKeyExternalName is the key in the annotations map of a
+	// resource for the name of the resource as it appears on provider's
+	// systems.
+	AnnotationKeyExternalName = "crossplane.io/external-name"
+
+	// AnnotationKeyExternalCreateTime is the key in the annotations map of
+	// a resource that represents the last time the external resource was
+	// created successfully. Its value must be an RFC3339 timestamp, which
+	// can be used to determine how long ago a resource was created. This is
+	// useful for eventually consistent APIs that may take some time before
+	// the API called by Observe will report that a recently created
+	// external resource exists.
+	AnnotationKeyExternalCreateTime = "crossplane.io/external-create-time"
+)
 
 // Supported resources with all of these annotations will be fully or partially
 // propagated to the named resource of the same kind, assuming it exists and
@@ -243,6 +256,23 @@ func GetExternalName(o metav1.Object) string {
 // SetExternalName sets the external name annotation of the resource.
 func SetExternalName(o metav1.Object, name string) {
 	AddAnnotations(o, map[string]string{AnnotationKeyExternalName: name})
+}
+
+// GetExternalCreateTime returns the time at which the external resource was
+// most recently created.
+func GetExternalCreateTime(o metav1.Object) *metav1.Time {
+	a := o.GetAnnotations()[AnnotationKeyExternalCreateTime]
+	t, err := time.Parse(time.RFC3339, a)
+	if err != nil {
+		return nil
+	}
+	return &metav1.Time{Time: t}
+}
+
+// SetExternalCreateTime sets the time at which the external resource was most
+// recently created to the current time.
+func SetExternalCreateTime(o metav1.Object) {
+	AddAnnotations(o, map[string]string{AnnotationKeyExternalCreateTime: metav1.Now().Format(time.RFC3339)})
 }
 
 // AllowPropagation from one object to another by adding consenting annotations

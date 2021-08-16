@@ -48,7 +48,7 @@ const (
 // Error strings.
 const (
 	errGetManaged               = "cannot get managed resource"
-	errUpdateManagedAfterCreate = "cannot update managed resource. this may have resulted in a leaked external resource"
+	errUpdateManagedAnnotations = "cannot update managed resource. this may have resulted in a leaked external resource"
 	errReconcileConnect         = "connect failed"
 	errReconcileObserve         = "observe failed"
 	errReconcileCreate          = "create failed"
@@ -72,6 +72,7 @@ const (
 	reasonDeleted event.Reason = "DeletedExternalResource"
 	reasonCreated event.Reason = "CreatedExternalResource"
 	reasonUpdated event.Reason = "UpdatedExternalResource"
+	reasonPending event.Reason = "PendingExternalResource"
 )
 
 // ControllerName returns the recommended name for controllers that use this
@@ -278,6 +279,15 @@ type ExternalObservation struct {
 	// determine whether it needs to create or delete the external resource.
 	ResourceExists bool
 
+	// ResourcePending must be true if the corresponding external resource
+	// is suspected to exist, but cannot yet be confirmed to exist.
+	// Typically this is due to an eventually consistent external API with
+	// some amount of delay between when a resource is created and when it
+	// is reported to exist. Returning ResourcePending will cause Crossplane
+	// to wait a while before calling Observe again to determine whether the
+	// resource exists. Supercedes ResourceExists when set.
+	ResourcePending bool
+
 	// ResourceUpToDate should be true if the corresponding external resource
 	// appears to be up-to-date - i.e. updating the external resource to match
 	// the desired state of the managed resource would be a no-op. Keep in mind
@@ -316,11 +326,18 @@ type ExternalObservation struct {
 
 // An ExternalCreation is the result of the creation of an external resource.
 type ExternalCreation struct {
-	// ExternalNameAssigned is true if the Create operation resulted in a change
-	// in the external name annotation. If that's the case, we need to issue a
-	// spec update and make sure it goes through so that we don't lose the identifier
-	// of the resource we just created.
+	// ExternalNameAssigned should be true if the Create operation resulted
+	// in a change in the resource's external name. This is typically only
+	// needed for external resource's with unpredictable external names that
+	// are returned from the API at create time.
 	ExternalNameAssigned bool
+
+	// ExternalCreateTimeSet should be true if the Create operation resulted
+	// in the resource's external create time being set. This is typically
+	// only needed to accommodate APIs that have some delay between when an
+	// external resource is created and when the external resource is
+	// reported to exist.
+	ExternalCreateTimeSet bool
 
 	// ConnectionDetails required to connect to this resource. These details
 	// are a set that is collated throughout the managed resource's lifecycle -
@@ -328,6 +345,12 @@ type ExternalCreation struct {
 	// unless an existing key is overwritten. Crossplane may publish these
 	// credentials to a store (e.g. a Secret).
 	ConnectionDetails ConnectionDetails
+}
+
+// AnnotationsChanged returns true if the creation of the external resource
+// resulted in the managed resource's annotations changing.
+func (c ExternalCreation) AnnotationsChanged() bool {
+	return c.ExternalNameAssigned || c.ExternalCreateTimeSet
 }
 
 // An ExternalUpdate is the result of an update to an external resource.
@@ -631,6 +654,12 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
+	if observation.ResourcePending {
+		log.Debug("Waiting for external resource existence to be confirmed")
+		record.Event(managed, event.Normal(reasonPending, "Waiting for external resource existence to be confirmed"))
+		return reconcile.Result{Requeue: true}, nil
+	}
+
 	if meta.WasDeleted(managed) {
 		log = log.WithValues("deletion-timestamp", managed.GetDeletionTimestamp())
 		managed.SetConditions(xpv1.Deleting())
@@ -725,24 +754,23 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 		}
 
-		if creation.ExternalNameAssigned {
-			en := meta.GetExternalName(managed)
-			// We will retry in all cases where the error comes from the api-server.
-			// At one point, context deadline will be exceeded and we'll get out
-			// of the loop. In that case, we warn the user that the external resource
-			// might be leaked.
+		// We try to persist annotation several times because if we fail
+		// to persist the external name annotation (if necessary) we'll
+		// leak our newly created external resource.
+		if creation.AnnotationsChanged() {
+			a := managed.GetAnnotations()
 			err := retry.OnError(retry.DefaultRetry, resource.IsAPIError, func() error {
 				nn := types.NamespacedName{Name: managed.GetName()}
 				if err := r.client.Get(ctx, nn, managed); err != nil {
 					return err
 				}
-				meta.SetExternalName(managed, en)
+				meta.AddAnnotations(managed, a)
 				return r.client.Update(ctx, managed)
 			})
 			if err != nil {
 				log.Debug("Cannot update managed resource", "error", err)
-				record.Event(managed, event.Warning(reasonCannotUpdateManaged, errors.Wrap(err, errUpdateManagedAfterCreate)))
-				managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, errUpdateManagedAfterCreate)))
+				record.Event(managed, event.Warning(reasonCannotUpdateManaged, errors.Wrap(err, errUpdateManagedAnnotations)))
+				managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, errUpdateManagedAnnotations)))
 				return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 			}
 		}

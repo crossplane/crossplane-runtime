@@ -20,8 +20,10 @@ import (
 	"fmt"
 	"hash/fnv"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -896,6 +898,54 @@ func TestSetExternalName(t *testing.T) {
 			SetExternalName(tc.o, tc.name)
 			if diff := cmp.Diff(tc.want, tc.o); diff != "" {
 				t.Errorf("SetExternalName(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestGetExternalCreateTime(t *testing.T) {
+	now := &metav1.Time{Time: time.Now().Round(time.Second)}
+
+	cases := map[string]struct {
+		o    metav1.Object
+		want *metav1.Time
+	}{
+		"ExternalCreateTimeExists": {
+			o:    &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalCreateTime: now.Format(time.RFC3339)}}},
+			want: now,
+		},
+		"NoExternalCreateTime": {
+			o:    &corev1.Pod{},
+			want: nil,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := GetExternalCreateTime(tc.o)
+			if diff := cmp.Diff(tc.want, got, cmpopts.EquateApproxTime(1*time.Minute)); diff != "" {
+				t.Errorf("GetExternalCreateTime(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestSetExternalCreateTime(t *testing.T) {
+	cases := map[string]struct {
+		o    metav1.Object
+		want metav1.Object
+	}{
+		"SetsTheCorrectKey": {
+			o:    &corev1.Pod{},
+			want: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalCreateTime: time.Now().Format(time.RFC3339)}}},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			SetExternalCreateTime(tc.o)
+			if diff := cmp.Diff(tc.want, tc.o, cmpopts.EquateApproxTime(1*time.Minute)); diff != "" {
+				t.Errorf("SetExternalCreateTime(...): -want, +got:\n%s", diff)
 			}
 		})
 	}
