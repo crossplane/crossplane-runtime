@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 
@@ -186,15 +187,19 @@ func (ec ExternalConnectorFn) Connect(ctx context.Context, mg resource.Managed) 
 // if it's called again with the same parameters or Delete call should not
 // return error if there is an ongoing deletion or resource does not exist.
 type ExternalClient interface {
-	// Observe the external resource the supplied Managed resource represents,
-	// if any. Observe implementations must not modify the external resource,
-	// but may update the supplied Managed resource to reflect the state of the
-	// external resource.
+	// Observe the external resource the supplied Managed resource
+	// represents, if any. Observe implementations must not modify the
+	// external resource, but may update the supplied Managed resource to
+	// reflect the state of the external resource. Status modifications are
+	// automatically persisted unless ResourceLateInitialized is true - see
+	// ResourceLateInitialized for more detail.
 	Observe(ctx context.Context, mg resource.Managed) (ExternalObservation, error)
 
 	// Create an external resource per the specifications of the supplied
 	// Managed resource. Called when Observe reports that the associated
-	// external resource does not exist.
+	// external resource does not exist. Create implementations may update
+	// managed resource annotations, and those updates will be persisted.
+	// All other updates will be discarded.
 	Create(ctx context.Context, mg resource.Managed) (ExternalCreation, error)
 
 	// Update the external resource represented by the supplied Managed
@@ -330,14 +335,11 @@ type ExternalCreation struct {
 	// in a change in the resource's external name. This is typically only
 	// needed for external resource's with unpredictable external names that
 	// are returned from the API at create time.
+	//
+	// Deprecated: The managed.Reconciler no longer needs to be informed
+	// when an external name is assigned by the Create operation. It will
+	// automatically detect and handle external name assignment.
 	ExternalNameAssigned bool
-
-	// ExternalCreateTimeSet should be true if the Create operation resulted
-	// in the resource's external create time being set. This is typically
-	// only needed to accommodate APIs that have some delay between when an
-	// external resource is created and when the external resource is
-	// reported to exist.
-	ExternalCreateTimeSet bool
 
 	// ConnectionDetails required to connect to this resource. These details
 	// are a set that is collated throughout the managed resource's lifecycle -
@@ -345,12 +347,6 @@ type ExternalCreation struct {
 	// unless an existing key is overwritten. Crossplane may publish these
 	// credentials to a store (e.g. a Secret).
 	ConnectionDetails ConnectionDetails
-}
-
-// AnnotationsChanged returns true if the creation of the external resource
-// resulted in the managed resource's annotations changing.
-func (c ExternalCreation) AnnotationsChanged() bool {
-	return c.ExternalNameAssigned || c.ExternalCreateTimeSet
 }
 
 // An ExternalUpdate is the result of an update to an external resource.
@@ -754,25 +750,27 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 		}
 
+		meta.SetExternalCreateTime(managed, metav1.Now())
+
 		// We try to persist annotation several times because if we fail
 		// to persist the external name annotation (if necessary) we'll
-		// leak our newly created external resource.
-		if creation.AnnotationsChanged() {
-			a := managed.GetAnnotations()
-			err := retry.OnError(retry.DefaultRetry, resource.IsAPIError, func() error {
-				nn := types.NamespacedName{Name: managed.GetName()}
-				if err := r.client.Get(ctx, nn, managed); err != nil {
-					return err
-				}
-				meta.AddAnnotations(managed, a)
-				return r.client.Update(ctx, managed)
-			})
-			if err != nil {
-				log.Debug("Cannot update managed resource", "error", err)
-				record.Event(managed, event.Warning(reasonCannotUpdateManaged, errors.Wrap(err, errUpdateManagedAnnotations)))
-				managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, errUpdateManagedAnnotations)))
-				return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		// leak our newly created external resource. Any other changes
+		// made during Create will be reverted; at the time of writing
+		// Create implementations are advised not to alter status, but
+		// we may revisit this in future.
+		a := managed.GetAnnotations()
+		if err := retry.OnError(retry.DefaultRetry, resource.IsAPIError, func() error {
+			nn := types.NamespacedName{Name: managed.GetName()}
+			if err := r.client.Get(ctx, nn, managed); err != nil {
+				return err
 			}
+			meta.AddAnnotations(managed, a)
+			return r.client.Update(ctx, managed)
+		}); err != nil {
+			log.Debug("Cannot update managed resource", "error", err)
+			record.Event(managed, event.Warning(reasonCannotUpdateManaged, errors.Wrap(err, errUpdateManagedAnnotations)))
+			managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, errUpdateManagedAnnotations)))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 		}
 
 		if err := r.managed.PublishConnection(ctx, managed, creation.ConnectionDetails); err != nil {

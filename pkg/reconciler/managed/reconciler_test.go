@@ -19,12 +19,14 @@ package managed
 import (
 	"context"
 	"testing"
+	"time"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -627,12 +629,14 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil),
+						MockGet:    test.NewMockGetFn(nil),
+						MockUpdate: test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
+							meta.SetExternalCreateTime(want, metav1.Now())
 							want.SetConditions(xpv1.ReconcileError(errBoom))
 							want.SetConditions(xpv1.Creating())
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
 								reason := "Errors publishing connection details after creation should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
@@ -678,12 +682,14 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil),
+						MockGet:    test.NewMockGetFn(nil),
+						MockUpdate: test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
+							meta.SetExternalCreateTime(want, metav1.Now())
 							want.SetConditions(xpv1.ReconcileSuccess())
 							want.SetConditions(xpv1.Creating())
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
 								reason := "Successful managed resource creation should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
@@ -703,50 +709,7 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{Requeue: true}},
 		},
-		"CreateWithExternalNameAssignmentSuccessful": {
-			reason: "Successful managed resource creation with external name assignment should trigger an update.",
-			args: args{
-				m: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet:    test.NewMockGetFn(nil),
-						MockUpdate: test.NewMockUpdateFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
-							want := &fake.Managed{}
-							meta.SetExternalName(want, "test")
-							want.SetConditions(xpv1.ReconcileSuccess())
-							want.SetConditions(xpv1.Creating())
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
-								reason := "Successful managed resource creation should be reported as a conditioned status."
-								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
-							}
-							return nil
-						}),
-					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
-				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
-				o: []ReconcilerOption{
-					WithInitializers(),
-					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							CreateFn: func(_ context.Context, mg resource.Managed) (ExternalCreation, error) {
-								meta.SetExternalName(mg, "test")
-								return ExternalCreation{ExternalNameAssigned: true}, nil
-							},
-							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{}, nil
-							},
-						}
-						return c, nil
-					})),
-					WithConnectionPublishers(),
-					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
-				},
-			},
-			want: want{result: reconcile.Result{Requeue: true}},
-		},
-		"CreateWithExternalNameAssignmentGetError": {
+		"PersistAnnotationsGetError": {
 			reason: "If the Get call during the update after Create does not go through, we need to inform the user and requeue shortly.",
 			args: args{
 				m: &fake.Manager{
@@ -759,10 +722,11 @@ func TestReconciler(t *testing.T) {
 						},
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
+							meta.SetExternalCreateTime(want, metav1.Now())
 							meta.SetExternalName(want, "test")
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateManagedAnnotations)))
 							want.SetConditions(xpv1.Creating())
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
 								reason := "Successful managed resource creation should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
@@ -793,7 +757,7 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{Requeue: true}},
 		},
-		"CreateWithExternalNameAssignmentUpdateError": {
+		"PersistAnnotationsUpdateError": {
 			reason: "If the update after Create does not go through, we need to inform the user and requeue shortly.",
 			args: args{
 				m: &fake.Manager{
@@ -803,9 +767,10 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
 							meta.SetExternalName(want, "test")
+							meta.SetExternalCreateTime(want, metav1.Now())
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateManagedAnnotations)))
 							want.SetConditions(xpv1.Creating())
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
 								reason := "Successful managed resource creation should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}

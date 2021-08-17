@@ -270,9 +270,9 @@ func GetExternalCreateTime(o metav1.Object) *metav1.Time {
 }
 
 // SetExternalCreateTime sets the time at which the external resource was most
-// recently created to the current time.
-func SetExternalCreateTime(o metav1.Object) {
-	AddAnnotations(o, map[string]string{AnnotationKeyExternalCreateTime: metav1.Now().Format(time.RFC3339)})
+// recently created to the supplied time.
+func SetExternalCreateTime(o metav1.Object, t metav1.Time) {
+	AddAnnotations(o, map[string]string{AnnotationKeyExternalCreateTime: t.Format(time.RFC3339)})
 }
 
 // AllowPropagation from one object to another by adding consenting annotations

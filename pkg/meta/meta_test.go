@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -923,7 +922,7 @@ func TestGetExternalCreateTime(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			got := GetExternalCreateTime(tc.o)
-			if diff := cmp.Diff(tc.want, got, cmpopts.EquateApproxTime(1*time.Minute)); diff != "" {
+			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("GetExternalCreateTime(...): -want, +got:\n%s", diff)
 			}
 		})
@@ -931,20 +930,24 @@ func TestGetExternalCreateTime(t *testing.T) {
 }
 
 func TestSetExternalCreateTime(t *testing.T) {
+	now := metav1.Now()
+
 	cases := map[string]struct {
 		o    metav1.Object
+		t    metav1.Time
 		want metav1.Object
 	}{
 		"SetsTheCorrectKey": {
 			o:    &corev1.Pod{},
-			want: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalCreateTime: time.Now().Format(time.RFC3339)}}},
+			t:    now,
+			want: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalCreateTime: now.Format(time.RFC3339)}}},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			SetExternalCreateTime(tc.o)
-			if diff := cmp.Diff(tc.want, tc.o, cmpopts.EquateApproxTime(1*time.Minute)); diff != "" {
+			SetExternalCreateTime(tc.o, tc.t)
+			if diff := cmp.Diff(tc.want, tc.o); diff != "" {
 				t.Errorf("SetExternalCreateTime(...): -want, +got:\n%s", diff)
 			}
 		})
