@@ -207,13 +207,13 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							meta.SetExternalCreatePending(obj, now)
+							meta.SetExternalCreatePending(obj, now.Time)
 							return nil
 						}),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
-							meta.SetExternalCreatePending(want, now)
-							want.SetConditions(xpv1.ReconcileError(errors.New(errCreatePending)))
+							meta.SetExternalCreatePending(want, now.Time)
+							want.SetConditions(xpv1.ReconcileError(errors.New(errCreateIncomplete)))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "We should update our status when we're asked to reconcile a managed resource that is pending creation."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
@@ -228,7 +228,7 @@ func TestReconciler(t *testing.T) {
 					WithInitializers(InitializerFn(func(_ context.Context, mg resource.Managed) error { return nil })),
 				},
 			},
-			want: want{result: reconcile.Result{Requeue: true}},
+			want: want{result: reconcile.Result{Requeue: false}},
 		},
 		"ResolveReferencesError": {
 			reason: "Errors during reference resolution references should trigger a requeue after a short wait.",
@@ -325,7 +325,7 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							meta.SetExternalCreateSucceeded(obj, metav1.Now())
+							meta.SetExternalCreateSucceeded(obj, time.Now())
 							return nil
 						}),
 					},
@@ -626,7 +626,7 @@ func TestReconciler(t *testing.T) {
 						MockUpdate: test.NewMockUpdateFn(errBoom),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
-							meta.SetExternalCreatePending(want, metav1.Now())
+							meta.SetExternalCreatePending(want, time.Now())
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateManaged)))
 							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
 								reason := "Errors while creating an external resource should be reported as a conditioned status."
@@ -667,7 +667,8 @@ func TestReconciler(t *testing.T) {
 						MockUpdate: test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
-							meta.SetExternalCreateFailed(want, metav1.Now())
+							meta.SetExternalCreatePending(want, time.Now())
+							meta.SetExternalCreateFailed(want, time.Now())
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileCreate)))
 							want.SetConditions(xpv1.Creating())
 							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
@@ -712,7 +713,8 @@ func TestReconciler(t *testing.T) {
 						MockUpdate: test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
-							meta.SetExternalCreateSucceeded(want, metav1.Now())
+							meta.SetExternalCreatePending(want, time.Now())
+							meta.SetExternalCreateSucceeded(want, time.Now())
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateManagedAnnotations)))
 							want.SetConditions(xpv1.Creating())
 							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
@@ -754,7 +756,8 @@ func TestReconciler(t *testing.T) {
 						MockUpdate: test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
-							meta.SetExternalCreateSucceeded(want, metav1.Now())
+							meta.SetExternalCreatePending(want, time.Now())
+							meta.SetExternalCreateSucceeded(want, time.Now())
 							want.SetConditions(xpv1.ReconcileError(errBoom))
 							want.SetConditions(xpv1.Creating())
 							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
@@ -808,7 +811,8 @@ func TestReconciler(t *testing.T) {
 						MockUpdate: test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							want := &fake.Managed{}
-							meta.SetExternalCreateSucceeded(want, metav1.Now())
+							meta.SetExternalCreatePending(want, time.Now())
+							meta.SetExternalCreateSucceeded(want, time.Now())
 							want.SetConditions(xpv1.ReconcileSuccess())
 							want.SetConditions(xpv1.Creating())
 							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {

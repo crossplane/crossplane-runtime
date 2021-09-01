@@ -40,9 +40,8 @@ const (
 
 	// AnnotationKeyExternalCreatePending is the key in the annotations map
 	// of a resource that indicates the last time creation of the external
-	// resource was pending. Its value must be an RFC3999 timestamp. This
-	// annotation is removed once we record the result of external resource
-	// creation.
+	// resource was pending (i.e. about to happen). Its value must be an
+	// RFC3999 timestamp.
 	AnnotationKeyExternalCreatePending = "crossplane.io/external-create-pending"
 
 	// AnnotationKeyExternalCreateSucceeded is the key in the annotations
@@ -272,55 +271,75 @@ func SetExternalName(o metav1.Object, name string) {
 
 // GetExternalCreatePending returns the time at which the external resource
 // was most recently pending creation.
-func GetExternalCreatePending(o metav1.Object) *metav1.Time {
+func GetExternalCreatePending(o metav1.Object) time.Time {
 	a := o.GetAnnotations()[AnnotationKeyExternalCreatePending]
 	t, err := time.Parse(time.RFC3339, a)
 	if err != nil {
-		return nil
+		return time.Time{}
 	}
-	return &metav1.Time{Time: t}
+	return t
 }
 
 // SetExternalCreatePending sets the time at which the external resource was
 // most recently pending creation to the supplied time.
-func SetExternalCreatePending(o metav1.Object, t metav1.Time) {
+func SetExternalCreatePending(o metav1.Object, t time.Time) {
 	AddAnnotations(o, map[string]string{AnnotationKeyExternalCreatePending: t.Format(time.RFC3339)})
 }
 
 // GetExternalCreateSucceeded returns the time at which the external resource
 // was most recently created.
-func GetExternalCreateSucceeded(o metav1.Object) *metav1.Time {
+func GetExternalCreateSucceeded(o metav1.Object) time.Time {
 	a := o.GetAnnotations()[AnnotationKeyExternalCreateSucceeded]
 	t, err := time.Parse(time.RFC3339, a)
 	if err != nil {
-		return nil
+		return time.Time{}
 	}
-	return &metav1.Time{Time: t}
+	return t
 }
 
 // SetExternalCreateSucceeded sets the time at which the external resource was
 // most recently created to the supplied time.
-func SetExternalCreateSucceeded(o metav1.Object, t metav1.Time) {
+func SetExternalCreateSucceeded(o metav1.Object, t time.Time) {
 	AddAnnotations(o, map[string]string{AnnotationKeyExternalCreateSucceeded: t.Format(time.RFC3339)})
-	RemoveAnnotations(o, AnnotationKeyExternalCreatePending)
 }
 
 // GetExternalCreateFailed returns the time at which the external resource
 // recently failed to create.
-func GetExternalCreateFailed(o metav1.Object) *metav1.Time {
+func GetExternalCreateFailed(o metav1.Object) time.Time {
 	a := o.GetAnnotations()[AnnotationKeyExternalCreateFailed]
 	t, err := time.Parse(time.RFC3339, a)
 	if err != nil {
-		return nil
+		return time.Time{}
 	}
-	return &metav1.Time{Time: t}
+	return t
 }
 
 // SetExternalCreateFailed sets the time at which the external resource most
 // recently failed to create.
-func SetExternalCreateFailed(o metav1.Object, t metav1.Time) {
+func SetExternalCreateFailed(o metav1.Object, t time.Time) {
 	AddAnnotations(o, map[string]string{AnnotationKeyExternalCreateFailed: t.Format(time.RFC3339)})
-	RemoveAnnotations(o, AnnotationKeyExternalCreatePending)
+}
+
+// ExternalCreateIncomplete returns true if creation of the external resource
+// appears to be incomplete. We deem creation to be incomplete if the 'external
+// create pending' annotation is the newest of all tracking annotations that are
+// set (i.e. pending, succeeded, and failed).
+func ExternalCreateIncomplete(o metav1.Object) bool {
+	pending := GetExternalCreatePending(o)
+	succeeded := GetExternalCreateSucceeded(o)
+	failed := GetExternalCreateFailed(o)
+
+	// If creation never started it can't be incomplete.
+	if pending.IsZero() {
+		return false
+	}
+
+	latest := succeeded
+	if failed.After(succeeded) {
+		latest = failed
+	}
+
+	return pending.After(latest)
 }
 
 // ExternalCreateSucceededDuring returns true if creation of the external
@@ -328,10 +347,10 @@ func SetExternalCreateFailed(o metav1.Object, t metav1.Time) {
 // the supplied duration.
 func ExternalCreateSucceededDuring(o metav1.Object, d time.Duration) bool {
 	t := GetExternalCreateSucceeded(o)
-	if t == nil {
+	if t.IsZero() {
 		return false
 	}
-	return time.Since(t.Time) < d
+	return time.Since(t) < d
 }
 
 // AllowPropagation from one object to another by adding consenting annotations
