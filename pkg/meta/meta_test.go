@@ -903,11 +903,11 @@ func TestSetExternalName(t *testing.T) {
 }
 
 func TestGetExternalCreatePending(t *testing.T) {
-	now := &metav1.Time{Time: time.Now().Round(time.Second)}
+	now := time.Now().Round(time.Second)
 
 	cases := map[string]struct {
 		o    metav1.Object
-		want *metav1.Time
+		want time.Time
 	}{
 		"ExternalCreatePendingExists": {
 			o:    &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalCreatePending: now.Format(time.RFC3339)}}},
@@ -915,7 +915,7 @@ func TestGetExternalCreatePending(t *testing.T) {
 		},
 		"NoExternalCreatePending": {
 			o:    &corev1.Pod{},
-			want: nil,
+			want: time.Time{},
 		},
 	}
 
@@ -930,11 +930,11 @@ func TestGetExternalCreatePending(t *testing.T) {
 }
 
 func TestSetExternalCreatePending(t *testing.T) {
-	now := metav1.Now()
+	now := time.Now()
 
 	cases := map[string]struct {
 		o    metav1.Object
-		t    metav1.Time
+		t    time.Time
 		want metav1.Object
 	}{
 		"SetsTheCorrectKey": {
@@ -955,11 +955,11 @@ func TestSetExternalCreatePending(t *testing.T) {
 }
 
 func TestGetExternalCreateSucceeded(t *testing.T) {
-	now := &metav1.Time{Time: time.Now().Round(time.Second)}
+	now := time.Now().Round(time.Second)
 
 	cases := map[string]struct {
 		o    metav1.Object
-		want *metav1.Time
+		want time.Time
 	}{
 		"ExternalCreateTimeExists": {
 			o:    &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalCreateSucceeded: now.Format(time.RFC3339)}}},
@@ -967,7 +967,7 @@ func TestGetExternalCreateSucceeded(t *testing.T) {
 		},
 		"NoExternalCreateTime": {
 			o:    &corev1.Pod{},
-			want: nil,
+			want: time.Time{},
 		},
 	}
 
@@ -982,20 +982,15 @@ func TestGetExternalCreateSucceeded(t *testing.T) {
 }
 
 func TestSetExternalCreateSucceeded(t *testing.T) {
-	now := metav1.Now()
+	now := time.Now()
 
 	cases := map[string]struct {
 		o    metav1.Object
-		t    metav1.Time
+		t    time.Time
 		want metav1.Object
 	}{
 		"SetsTheCorrectKey": {
 			o:    &corev1.Pod{},
-			t:    now,
-			want: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalCreateSucceeded: now.Format(time.RFC3339)}}},
-		},
-		"RemovesCreatePendingKey": {
-			o:    &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalCreatePending: now.Format(time.RFC3339)}}},
 			t:    now,
 			want: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalCreateSucceeded: now.Format(time.RFC3339)}}},
 		},
@@ -1012,11 +1007,11 @@ func TestSetExternalCreateSucceeded(t *testing.T) {
 }
 
 func TestGetExternalCreateFailed(t *testing.T) {
-	now := &metav1.Time{Time: time.Now().Round(time.Second)}
+	now := time.Now().Round(time.Second)
 
 	cases := map[string]struct {
 		o    metav1.Object
-		want *metav1.Time
+		want time.Time
 	}{
 		"ExternalCreateFailedExists": {
 			o:    &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalCreateFailed: now.Format(time.RFC3339)}}},
@@ -1024,7 +1019,7 @@ func TestGetExternalCreateFailed(t *testing.T) {
 		},
 		"NoExternalCreateFailed": {
 			o:    &corev1.Pod{},
-			want: nil,
+			want: time.Time{},
 		},
 	}
 
@@ -1039,20 +1034,15 @@ func TestGetExternalCreateFailed(t *testing.T) {
 }
 
 func TestSetExternalCreateFailed(t *testing.T) {
-	now := metav1.Now()
+	now := time.Now()
 
 	cases := map[string]struct {
 		o    metav1.Object
-		t    metav1.Time
+		t    time.Time
 		want metav1.Object
 	}{
 		"SetsTheCorrectKey": {
 			o:    &corev1.Pod{},
-			t:    now,
-			want: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalCreateFailed: now.Format(time.RFC3339)}}},
-		},
-		"RemovesCreatePendingKey": {
-			o:    &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalCreatePending: now.Format(time.RFC3339)}}},
 			t:    now,
 			want: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalCreateFailed: now.Format(time.RFC3339)}}},
 		},
@@ -1090,7 +1080,7 @@ func TestExternalCreateSucceededDuring(t *testing.T) {
 				o: func() metav1.Object {
 					o := &corev1.Pod{}
 					t := time.Now().Add(-2 * time.Minute)
-					SetExternalCreateSucceeded(o, metav1.NewTime(t))
+					SetExternalCreateSucceeded(o, t)
 					return o
 				}(),
 				d: 1 * time.Minute,
@@ -1102,7 +1092,7 @@ func TestExternalCreateSucceededDuring(t *testing.T) {
 				o: func() metav1.Object {
 					o := &corev1.Pod{}
 					t := time.Now().Add(-30 * time.Second)
-					SetExternalCreateSucceeded(o, metav1.NewTime(t))
+					SetExternalCreateSucceeded(o, t)
 					return o
 				}(),
 				d: 1 * time.Minute,
@@ -1116,6 +1106,75 @@ func TestExternalCreateSucceededDuring(t *testing.T) {
 			got := ExternalCreateSucceededDuring(tc.args.o, tc.args.d)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("ExternalCreateSucceededDuring(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestExternalCreateIncomplete(t *testing.T) {
+
+	now := time.Now().Format(time.RFC3339)
+	earlier := time.Now().Add(-1 * time.Second).Format(time.RFC3339)
+	evenEarlier := time.Now().Add(-1 * time.Minute).Format(time.RFC3339)
+
+	cases := map[string]struct {
+		reason string
+		o      metav1.Object
+		want   bool
+	}{
+		"CreateNeverPending": {
+			reason: "If we've never called Create it can't be incomplete.",
+			o:      &corev1.Pod{},
+			want:   false,
+		},
+		"CreateSucceeded": {
+			reason: "If Create succeeded since it was pending, it's complete.",
+			o: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+				AnnotationKeyExternalCreateFailed:    evenEarlier,
+				AnnotationKeyExternalCreatePending:   earlier,
+				AnnotationKeyExternalCreateSucceeded: now,
+			}}},
+			want: false,
+		},
+		"CreateFailed": {
+			reason: "If Create failed since it was pending, it's complete.",
+			o: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+				AnnotationKeyExternalCreateSucceeded: evenEarlier,
+				AnnotationKeyExternalCreatePending:   earlier,
+				AnnotationKeyExternalCreateFailed:    now,
+			}}},
+			want: false,
+		},
+		"CreateNeverCompleted": {
+			reason: "If Create was pending but never succeeded or failed, it's incomplete.",
+			o: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+				AnnotationKeyExternalCreatePending: earlier,
+			}}},
+			want: true,
+		},
+		"RecreateNeverCompleted": {
+			reason: "If Create is pending and there's an older success we're probably trying to recreate a deleted external resource, and it's incomplete.",
+			o: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+				AnnotationKeyExternalCreateSucceeded: earlier,
+				AnnotationKeyExternalCreatePending:   now,
+			}}},
+			want: true,
+		},
+		"RetryNeverCompleted": {
+			reason: "If Create is pending and there's an older failure we're probably trying to recreate a deleted external resource, and it's incomplete.",
+			o: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+				AnnotationKeyExternalCreateFailed:  earlier,
+				AnnotationKeyExternalCreatePending: now,
+			}}},
+			want: true,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := ExternalCreateIncomplete(tc.o)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("ExternalCreateIncomplete(...): -want, +got:\n%s", diff)
 			}
 		})
 	}

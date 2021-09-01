@@ -21,8 +21,6 @@ import (
 	"strings"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -42,13 +40,14 @@ const (
 	reconcileTimeout     = 1 * time.Minute
 
 	defaultpollInterval = 1 * time.Minute
+	defaultGracePeriod  = 30 * time.Second
 )
 
 // Error strings.
 const (
 	errGetManaged               = "cannot get managed resource"
-	errCreatePending            = "refusing to reconcile managed resource with " + meta.AnnotationKeyExternalCreatePending + " annotation - remove if it is safe to proceed"
 	errUpdateManagedAnnotations = "cannot update managed resource annotations"
+	errCreateIncomplete         = "cannot determine creation result - remove the " + meta.AnnotationKeyExternalCreatePending + " annotation if it is safe to proceed"
 	errReconcileConnect         = "connect failed"
 	errReconcileObserve         = "observe failed"
 	errReconcileCreate          = "create failed"
@@ -439,7 +438,8 @@ func WithPollInterval(after time.Duration) ReconcilerOption {
 // WithCreationGracePeriod configures an optional period during which we will
 // wait for the external API to report that a newly created external resource
 // exists. This allows us to tolerate eventually consistent APIs that do not
-// immediately report that newly created resources exist when queried.
+// immediately report that newly created resources exist when queried. All
+// resources have a 30 second grace period by default.
 func WithCreationGracePeriod(d time.Duration) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.creationGracePeriod = d
@@ -527,14 +527,15 @@ func NewReconciler(m manager.Manager, of resource.ManagedKind, o ...ReconcilerOp
 	_ = nm()
 
 	r := &Reconciler{
-		client:       m.GetClient(),
-		newManaged:   nm,
-		pollInterval: defaultpollInterval,
-		timeout:      reconcileTimeout,
-		managed:      defaultMRManaged(m),
-		external:     defaultMRExternal(),
-		log:          logging.NewNopLogger(),
-		record:       event.NewNopRecorder(),
+		client:              m.GetClient(),
+		newManaged:          nm,
+		pollInterval:        defaultpollInterval,
+		creationGracePeriod: defaultGracePeriod,
+		timeout:             reconcileTimeout,
+		managed:             defaultMRManaged(m),
+		external:            defaultMRExternal(),
+		log:                 logging.NewNopLogger(),
+		record:              event.NewNopRecorder(),
 	}
 
 	for _, ro := range o {
@@ -585,16 +586,15 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
-	// A resource would only be pending creation at this point if we failed
-	// to persist our annotations after the ExternalClient's Create method
-	// was called. If that is the case we may have lost a critical update to
-	// the external name and leaked a resource. The safest thing to do is to
-	// refuse to proceed.
-	if meta.GetExternalCreatePending(managed) != nil {
-		log.Debug(errCreatePending)
-		record.Event(managed, event.Warning(reasonCannotInitialize, errors.New(errCreatePending)))
-		managed.SetConditions(xpv1.ReconcileError(errors.New(errCreatePending)))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+	// If we started but never completed creation of an external resource we
+	// may have lost critical information. For example if we didn't persist
+	// an updated external name we've leaked a resource. The safest thing to
+	// do is to refuse to proceed.
+	if meta.ExternalCreateIncomplete(managed) {
+		log.Debug(errCreateIncomplete)
+		record.Event(managed, event.Warning(reasonCannotInitialize, errors.New(errCreateIncomplete)))
+		managed.SetConditions(xpv1.ReconcileError(errors.New(errCreateIncomplete)))
+		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
 	// We resolve any references before observing our external resource because
@@ -736,7 +736,6 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 	}
 
 	if !observation.ResourceExists {
-
 		// We write this annotation for two reasons. Firstly, it helps
 		// us to detect the case in which we fail to persist critical
 		// information (like the external name) that may be set by the
@@ -744,7 +743,7 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 		// we're operating on the latest version of our resource. We
 		// don't use the CriticalAnnotationUpdater because we _want_ the
 		// update to fail if we get a 409 due to a stale version.
-		meta.SetExternalCreatePending(managed, metav1.Now())
+		meta.SetExternalCreatePending(managed, time.Now())
 		if err := r.client.Update(ctx, managed); err != nil {
 			log.Debug(errUpdateManaged, "error", err)
 			record.Event(managed, event.Warning(reasonCannotUpdateManaged, errors.Wrap(err, errUpdateManaged)))
@@ -765,11 +764,11 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 
 			// We handle annotations specially here because it's
 			// critical that they are persisted to the API server.
-			// If we don't remove the external-create-pending
-			// annotation the reconciler will refuse to proceed,
-			// because it won't know whether or not it created an
-			// external resource.
-			meta.SetExternalCreateFailed(managed, metav1.Now())
+			// If we don't add the external-create-failed annotation
+			// the reconciler will refuse to proceed, because it
+			// won't know whether or not it created an external
+			// resource.
+			meta.SetExternalCreateFailed(managed, time.Now())
 			if err := r.managed.UpdateCriticalAnnotations(ctx, managed); err != nil {
 				log.Debug(errUpdateManagedAnnotations, "error", err)
 				record.Event(managed, event.Warning(reasonCannotUpdateManaged, errors.Wrap(err, errUpdateManagedAnnotations)))
@@ -791,15 +790,15 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconc
 
 		// We handle annotations specially here because it's critical
 		// that they are persisted to the API server. If we don't remove
-		// the external-create-pending annotation the reconciler will
-		// refuse to proceed, because it won't know whether or not it
-		// created an external resource. This is important in cases
-		// where we must record an external-name annotation set by the
-		// Create call. Any other changes made during Create will be
+		// add the external-create-succeeded annotation the reconciler
+		// will refuse to proceed, because it won't know whether or not
+		// it created an external resource. This is also important in
+		// cases where we must record an external-name annotation set by
+		// the Create call. Any other changes made during Create will be
 		// reverted when annotations are updated; at the time of writing
 		// Create implementations are advised not to alter status, but
 		// we may revisit this in future.
-		meta.SetExternalCreateSucceeded(managed, metav1.Now())
+		meta.SetExternalCreateSucceeded(managed, time.Now())
 		if err := r.managed.UpdateCriticalAnnotations(ctx, managed); err != nil {
 			log.Debug(errUpdateManagedAnnotations, "error", err)
 			record.Event(managed, event.Warning(reasonCannotUpdateManaged, errors.Wrap(err, errUpdateManagedAnnotations)))
