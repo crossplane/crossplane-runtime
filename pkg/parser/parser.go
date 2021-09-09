@@ -25,13 +25,14 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
 // AnnotatedReadCloser is a wrapper around io.ReadCloser that allows

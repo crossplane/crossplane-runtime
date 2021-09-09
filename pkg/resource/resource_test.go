@@ -22,8 +22,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
@@ -822,7 +821,7 @@ func TestApplicatorWithRetry_Apply(t *testing.T) {
 				backoff:     tc.fields.backoff,
 			}
 
-			if diff := cmp.Diff(tc.wantErr, awr.Apply(tc.args.ctx, tc.args.c, tc.args.opts...), cmpopts.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.wantErr, awr.Apply(tc.args.ctx, tc.args.c, tc.args.opts...), test.EquateErrors()); diff != "" {
 				t.Fatalf("ApplicatorWithRetry.Apply(...): -want, +got:\n%s", diff)
 			}
 
