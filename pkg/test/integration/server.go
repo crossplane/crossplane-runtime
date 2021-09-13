@@ -22,7 +22,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/pkg/errors"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
@@ -33,6 +32,7 @@ import (
 	// Allow auth to cloud providers
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 

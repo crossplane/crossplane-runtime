@@ -17,8 +17,9 @@ limitations under the License.
 package parser
 
 import (
-	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
 const (

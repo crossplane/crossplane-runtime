@@ -17,9 +17,10 @@ limitations under the License.
 package fieldpath
 
 import (
-	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/json"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
 type errNotFound struct {

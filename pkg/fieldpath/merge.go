@@ -20,9 +20,9 @@ import (
 	"reflect"
 
 	"github.com/imdario/mergo"
-	"github.com/pkg/errors"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
 const (
