@@ -239,6 +239,8 @@ type ProviderConfigUsage struct {
 
 // A TargetSpec defines the common fields of objects used for exposing
 // infrastructure to workloads that can be scheduled to.
+//
+// Deprecated.
 type TargetSpec struct {
 	// WriteConnectionSecretToReference specifies the name of a Secret, in the
 	// same namespace as this target, to which any connection details for this
@@ -256,6 +258,8 @@ type TargetSpec struct {
 }
 
 // A TargetStatus defines the observed status a target.
+//
+// Deprecated.
 type TargetStatus struct {
 	ConditionedStatus `json:",inline"`
 }
