@@ -27,6 +27,18 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 )
 
+// DefaultOptions returns a functional set of options with conservative
+// defaults.
+func DefaultOptions() Options {
+	return Options{
+		Logger:                  logging.NewNopLogger(),
+		GlobalRateLimiter:       ratelimiter.NewGlobal(ratelimiter.DefaultGlobalRPS),
+		PollInterval:            1 * time.Minute,
+		MaxConcurrentReconciles: 1,
+		Features:                &feature.Flags{},
+	}
+}
+
 // Options frequently used by most Crossplane controllers.
 type Options struct {
 	// The Logger controllers should use.
