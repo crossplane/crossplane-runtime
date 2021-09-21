@@ -42,6 +42,9 @@ func (fs *Flags) Enable(f Flag) {
 
 // Enabled returns true if the supplied feature flag is enabled.
 func (fs *Flags) Enabled(f Flag) bool {
+	if fs == nil {
+		return false
+	}
 	fs.m.RLock()
 	defer fs.m.RUnlock()
 	return fs.enabled[f]

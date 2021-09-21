@@ -37,8 +37,19 @@ func TestEnable(t *testing.T) {
 		}
 	})
 
-	t.Run("EnabledOnZeroValueReturnsFalse", func(t *testing.T) {
+	t.Run("EnabledOnEmptyFlagsReturnsFalse", func(t *testing.T) {
 		f := &Flags{}
+
+		want := false
+		got := f.Enabled(cool)
+
+		if diff := cmp.Diff(want, got); diff != "" {
+			t.Errorf("f.Enabled(...): -want, +got:\n%s", diff)
+		}
+	})
+
+	t.Run("EnabledOnNilReturnsFalse", func(t *testing.T) {
+		var f *Flags
 
 		want := false
 		got := f.Enabled(cool)
