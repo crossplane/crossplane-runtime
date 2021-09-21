@@ -20,9 +20,11 @@ import (
 	"time"
 
 	"k8s.io/client-go/util/workqueue"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 
 	"github.com/crossplane/crossplane-runtime/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 )
 
 // Options frequently used by most Crossplane controllers.
@@ -43,4 +45,12 @@ type Options struct {
 
 	// Features that should be enabled.
 	Features *feature.Flags
+}
+
+// ForControllerRuntime extracts options for controller-runtime.
+func (o Options) ForControllerRuntime() controller.Options {
+	return controller.Options{
+		MaxConcurrentReconciles: o.MaxConcurrentReconciles,
+		RateLimiter:             ratelimiter.NewController(o.GlobalRateLimiter),
+	}
 }
