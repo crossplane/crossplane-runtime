@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package ratelimiter contains suggested default ratelimiters for Crossplane.
 package ratelimiter
 
 import (
@@ -24,24 +25,51 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/ratelimiter"
 )
 
-// DefaultProviderRPS is the recommended default average requeues per second
-// tolerated by a provider's controller manager.
-const DefaultProviderRPS = 1
+const (
+	// DefaultGlobalRPS is the recommended default average requeues per
+	// second tolerated by Crossplane controller managers.
+	DefaultGlobalRPS = 1
+
+	// DefaultProviderRPS is the recommended default average requeues per
+	// second tolerated by a Crossplane provider.
+	//
+	// Deprecated: Use DefaultGlobalRPS
+	DefaultProviderRPS = DefaultGlobalRPS
+)
+
+// NewGlobal returns a token bucket rate limiter meant for limiting the number
+// of average total requeues per second for all controllers registered with a
+// controller manager. The bucket size is a linear function of the requeues per
+// second.
+func NewGlobal(rps int) *workqueue.BucketRateLimiter {
+	return &workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(rps), rps*10)}
+}
+
+// NewController returns a rate limiter that takes the maximum delay between the
+// passed rate limiter and a per-item exponential backoff limiter. The
+// exponential backoff limiter has a base delay of 1s and a maximum of 60s.
+func NewController(global ratelimiter.RateLimiter) ratelimiter.RateLimiter {
+	return workqueue.NewMaxOfRateLimiter(
+		workqueue.NewItemExponentialFailureRateLimiter(1*time.Second, 60*time.Second),
+		global,
+	)
+}
 
 // NewDefaultProviderRateLimiter returns a token bucket rate limiter meant for
 // limiting the number of average total requeues per second for all controllers
 // registered with a controller manager. The bucket size is a linear function of
 // the requeues per second.
+//
+// Deprecated: Use NewGlobal.
 func NewDefaultProviderRateLimiter(rps int) *workqueue.BucketRateLimiter {
-	return &workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(rps), rps*10)}
+	return NewGlobal(rps)
 }
 
 // NewDefaultManagedRateLimiter returns a rate limiter that takes the maximum
 // delay between the passed provider and a per-item exponential backoff limiter.
 // The exponential backoff limiter has a base delay of 1s and a maximum of 60s.
+//
+// Deprecated: Use NewController.
 func NewDefaultManagedRateLimiter(provider ratelimiter.RateLimiter) ratelimiter.RateLimiter {
-	return workqueue.NewMaxOfRateLimiter(
-		workqueue.NewItemExponentialFailureRateLimiter(1*time.Second, 60*time.Second),
-		provider,
-	)
+	return NewController(provider)
 }
