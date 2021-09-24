@@ -32,7 +32,7 @@ import (
 func DefaultOptions() Options {
 	return Options{
 		Logger:                  logging.NewNopLogger(),
-		GlobalRateLimiter:       ratelimiter.NewGlobal(ratelimiter.DefaultGlobalRPS),
+		GlobalRateLimiter:       ratelimiter.NewController(),
 		PollInterval:            1 * time.Minute,
 		MaxConcurrentReconciles: 1,
 		Features:                &feature.Flags{},
@@ -63,6 +63,6 @@ type Options struct {
 func (o Options) ForControllerRuntime() controller.Options {
 	return controller.Options{
 		MaxConcurrentReconciles: o.MaxConcurrentReconciles,
-		RateLimiter:             ratelimiter.NewController(o.GlobalRateLimiter),
+		RateLimiter:             ratelimiter.NewController(),
 	}
 }
