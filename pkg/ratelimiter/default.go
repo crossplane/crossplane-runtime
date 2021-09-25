@@ -70,12 +70,14 @@ func NewDefaultManagedRateLimiter(provider ratelimiter.RateLimiter) ratelimiter.
 	)
 }
 
-// LimitRESTConfig configures the supplied REST config with rate limits derived
-// from the supplied rate of reconciles per second.
-func LimitRESTConfig(cfg *rest.Config, rps int) {
+// LimitRESTConfig returns a copy of the supplied REST config with rate limits
+// derived from the supplied rate of reconciles per second.
+func LimitRESTConfig(cfg *rest.Config, rps int) *rest.Config {
 	// The Kubernetes controller manager and controller-runtime controller
 	// managers use 20qps with 30 burst. We default to 10 reconciles per
 	// second so our defaults are designed to accommodate that.
-	cfg.QPS = float32(rps * 2)
-	cfg.Burst = 3
+	out := rest.CopyConfig(cfg)
+	out.QPS = float32(rps * 2)
+	out.Burst = 3
+	return out
 }
