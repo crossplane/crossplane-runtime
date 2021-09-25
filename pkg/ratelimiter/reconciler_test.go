@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/ratelimiter"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -69,6 +70,28 @@ func TestReconcile(t *testing.T) {
 			r:      NewReconciler("test", nil, &predictableRateLimiter{d: 8 * time.Second}),
 			want: want{
 				res: reconcile.Result{RequeueAfter: 8 * time.Second},
+				err: nil,
+			},
+		},
+		"Returning": {
+			reason: "Returning requests that were previously rate limited should be allowed through without further rate limiting.",
+			r: func() reconcile.Reconciler {
+				inner := reconcile.Func(func(c context.Context, r reconcile.Request) (reconcile.Result, error) {
+					return reconcile.Result{Requeue: true}, nil
+				})
+
+				// Rate limit the request once.
+				r := NewReconciler("test", inner, &predictableRateLimiter{d: 8 * time.Second})
+				r.Reconcile(context.Background(), reconcile.Request{NamespacedName: types.NamespacedName{Name: "limited"}})
+				return r
+
+			}(),
+			args: args{
+				ctx: context.Background(),
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "limited"}},
+			},
+			want: want{
+				res: reconcile.Result{Requeue: true},
 				err: nil,
 			},
 		},

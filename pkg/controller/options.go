@@ -32,7 +32,7 @@ import (
 func DefaultOptions() Options {
 	return Options{
 		Logger:                  logging.NewNopLogger(),
-		GlobalRateLimiter:       ratelimiter.NewController(),
+		GlobalRateLimiter:       ratelimiter.NewGlobal(1),
 		PollInterval:            1 * time.Minute,
 		MaxConcurrentReconciles: 1,
 		Features:                &feature.Flags{},
