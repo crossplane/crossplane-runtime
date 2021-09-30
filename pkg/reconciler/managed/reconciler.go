@@ -35,7 +35,10 @@ import (
 )
 
 const (
-	managedFinalizerName = "finalizer.managedresource.crossplane.io"
+	// FinalizerName is the string that is used as finalizer on managed resource
+	// objects.
+	FinalizerName = "finalizer.managedresource.crossplane.io"
+
 	reconcileGracePeriod = 30 * time.Second
 	reconcileTimeout     = 1 * time.Minute
 
@@ -398,7 +401,7 @@ func defaultMRManaged(m manager.Manager) mrManaged {
 	return mrManaged{
 		CriticalAnnotationUpdater: NewRetryingCriticalAnnotationUpdater(m.GetClient()),
 		ConnectionPublisher:       NewAPISecretPublisher(m.GetClient(), m.GetScheme()),
-		Finalizer:                 resource.NewAPIFinalizer(m.GetClient(), managedFinalizerName),
+		Finalizer:                 resource.NewAPIFinalizer(m.GetClient(), FinalizerName),
 		Initializer:               NewNameAsExternalName(m.GetClient()),
 		ReferenceResolver:         NewAPISimpleReferenceResolver(m.GetClient()),
 	}
