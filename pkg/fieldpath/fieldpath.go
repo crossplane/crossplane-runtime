@@ -78,7 +78,7 @@ func (sg Segments) String() string {
 	for _, s := range sg {
 		switch s.Type {
 		case SegmentField:
-			if strings.ContainsRune(s.Field, period) {
+			if s.Field == wildcard || strings.ContainsRune(s.Field, period) {
 				b.WriteString(fmt.Sprintf("[%s]", s.Field))
 				continue
 			}
@@ -138,6 +138,8 @@ const (
 	period       = '.'
 	leftBracket  = '['
 	rightBracket = ']'
+
+	wildcard = "*"
 )
 
 type itemType int

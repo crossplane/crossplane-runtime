@@ -56,6 +56,15 @@ func TestSegments(t *testing.T) {
 			},
 			want: "data[.config.yml]",
 		},
+		"Wildcard": {
+			s: Segments{
+				Field("spec"),
+				Field("containers"),
+				FieldOrIndex("*"),
+				Field("name"),
+			},
+			want: "spec.containers[*].name",
+		},
 	}
 
 	for name, tc := range cases {

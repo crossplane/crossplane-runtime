@@ -157,7 +157,7 @@ func expandWildcards(data interface{}, segments Segments) ([]Segments, error) { 
 	it := data
 	for i, current := range segments {
 		// wildcards are regular fields with "*" as string
-		if current.Type == SegmentField && current.Field == "*" {
+		if current.Type == SegmentField && current.Field == wildcard {
 			switch mapOrArray := it.(type) {
 			case []interface{}:
 				for ix := range mapOrArray {

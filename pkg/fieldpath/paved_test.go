@@ -942,7 +942,7 @@ func TestExpandWildcards(t *testing.T) {
 			path:   "spec.containers[0].name[*]",
 			data:   []byte(`{"spec":{"containers":[{"name":"cool"}]}}`),
 			want: want{
-				err: errors.Wrapf(errors.Errorf("%q: unexpected wildcard usage", "spec.containers[0].name"), "cannot expand wildcards for segments: %q", "spec.containers[0].name.*"),
+				err: errors.Wrapf(errors.Errorf("%q: unexpected wildcard usage", "spec.containers[0].name"), "cannot expand wildcards for segments: %q", "spec.containers[0].name[*]"),
 			},
 		},
 		"NotAnArray": {
