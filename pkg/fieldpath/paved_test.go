@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
@@ -824,6 +825,165 @@ func TestSetValue(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.object, p.object); diff != "" {
 				t.Fatalf("\np.SetValue(%s, %v): %s: -want, +got:\n%s", tc.args.path, tc.args.value, tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestExpandWildcards(t *testing.T) {
+	type want struct {
+		expanded []string
+		err      error
+	}
+	cases := map[string]struct {
+		reason string
+		path   string
+		data   []byte
+		want   want
+	}{
+		"NoWildcardExisting": {
+			reason: "It should return same path if no wildcard in an existing path",
+			path:   "password",
+			data:   []byte(`{"password":"top-secret"}`),
+			want: want{
+				expanded: []string{"password"},
+			},
+		},
+		"NoWildcardNonExisting": {
+			reason: "It should return no results if no wildcard in a non-existing path",
+			path:   "username",
+			data:   []byte(`{"password":"top-secret"}`),
+			want: want{
+				expanded: []string{},
+			},
+		},
+		"NestedNoWildcardExisting": {
+			reason: "It should return same path if no wildcard in an existing path",
+			path:   "items[0][1]",
+			data:   []byte(`{"items":[["a", "b"]]}`),
+			want: want{
+				expanded: []string{"items[0][1]"},
+			},
+		},
+		"NestedNoWildcardNonExisting": {
+			reason: "It should return no results if no wildcard in a non-existing path",
+			path:   "items[0][5]",
+			data:   []byte(`{"items":[["a", "b"]]}`),
+			want: want{
+				expanded: []string{},
+			},
+		},
+		"NestedArray": {
+			reason: "It should return all possible paths for an array",
+			path:   "items[*][*]",
+			data:   []byte(`{"items":[["a", "b", "c"], ["d"]]}`),
+			want: want{
+				expanded: []string{"items[0][0]", "items[0][1]", "items[0][2]", "items[1][0]"},
+			},
+		},
+		"KeysOfMap": {
+			reason: "It should return all possible paths for a map in proper syntax",
+			path:   "items[*]",
+			data:   []byte(`{"items":{ "key1": "val1", "key2.as.annotation": "val2"}}`),
+			want: want{
+				expanded: []string{"items.key1", "items[key2.as.annotation]"},
+			},
+		},
+		"ArrayOfObjects": {
+			reason: "It should return all possible paths for an array of objects",
+			path:   "spec.containers[*][*]",
+			data:   []byte(`{"spec":{"containers":[{"name":"cool", "image": "latest", "args": ["start", "now"]}]}}`),
+			want: want{
+				expanded: []string{"spec.containers[0].name", "spec.containers[0].image", "spec.containers[0].args"},
+			},
+		},
+		"MultiLayer": {
+			reason: "It should return all possible paths for a multilayer input",
+			path:   "spec.containers[*].args[*]",
+			data:   []byte(`{"spec":{"containers":[{"name":"cool", "image": "latest", "args": ["start", "now", "debug"]}]}}`),
+			want: want{
+				expanded: []string{"spec.containers[0].args[0]", "spec.containers[0].args[1]", "spec.containers[0].args[2]"},
+			},
+		},
+		"WildcardInTheBeginning": {
+			reason: "It should return all possible paths for a multilayer input with wildcard in the beginning",
+			path:   "spec.containers[*].args[1]",
+			data:   []byte(`{"spec":{"containers":[{"name":"cool", "image": "latest", "args": ["start", "now", "debug"]}]}}`),
+			want: want{
+				expanded: []string{"spec.containers[0].args[1]"},
+			},
+		},
+		"WildcardAtTheEnd": {
+			reason: "It should return all possible paths for a multilayer input with wildcard at the end",
+			path:   "spec.containers[0].args[*]",
+			data:   []byte(`{"spec":{"containers":[{"name":"cool", "image": "latest", "args": ["start", "now", "debug"]}]}}`),
+			want: want{
+				expanded: []string{"spec.containers[0].args[0]", "spec.containers[0].args[1]", "spec.containers[0].args[2]"},
+			},
+		},
+		"NoData": {
+			reason: "If there is no input data, no expanded fields could be found",
+			path:   "metadata[*]",
+			data:   nil,
+			want: want{
+				expanded: []string{},
+			},
+		},
+		"InsufficientContainers": {
+			reason: "Requesting a non-existent array element should return nothing",
+			path:   "spec.containers[1].args[*]",
+			data:   []byte(`{"spec":{"containers":[{"name":"cool"}]}}`),
+			want: want{
+				expanded: []string{},
+			},
+		},
+		"UnexpectedWildcard": {
+			reason: "Requesting a wildcard for an object should fail",
+			path:   "spec.containers[0].name[*]",
+			data:   []byte(`{"spec":{"containers":[{"name":"cool"}]}}`),
+			want: want{
+				err: errors.Wrapf(errors.Errorf("%q: unexpected wildcard usage", "spec.containers[0].name"), "cannot expand wildcards for segments: %q", "spec.containers[0].name[*]"),
+			},
+		},
+		"NotAnArray": {
+			reason: "Indexing an object should fail",
+			path:   "metadata[1]",
+			data:   []byte(`{"metadata":{"nope":"cool"}}`),
+			want: want{
+				err: errors.Wrapf(errors.New("metadata: not an array"), "cannot expand wildcards for segments: %q", "metadata[1]"),
+			},
+		},
+		"NotAnObject": {
+			reason: "Requesting a field in an array should fail",
+			path:   "spec.containers[nope].name",
+			data:   []byte(`{"spec":{"containers":[{"name":"cool"}]}}`),
+			want: want{
+				err: errors.Wrapf(errors.New("spec.containers: not an object"), "cannot expand wildcards for segments: %q", "spec.containers.nope.name"),
+			},
+		},
+		"MalformedPath": {
+			reason: "Requesting an invalid field path should fail",
+			path:   "spec[]",
+			want: want{
+				err: errors.Wrap(errors.New("unexpected ']' at position 5"), "cannot parse path \"spec[]\""),
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			in := make(map[string]interface{})
+			_ = json.Unmarshal(tc.data, &in)
+			p := Pave(in)
+
+			got, err := p.ExpandWildcards(tc.path)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Fatalf("\np.ExpandWildcards(%s): %s: -want error, +got error:\n%s", tc.path, tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.expanded, got, cmpopts.SortSlices(func(x, y string) bool {
+				return x < y
+			})); diff != "" {
+				t.Errorf("\np.ExpandWildcards(%s): %s: -want, +got:\n%s", tc.path, tc.reason, diff)
 			}
 		})
 	}

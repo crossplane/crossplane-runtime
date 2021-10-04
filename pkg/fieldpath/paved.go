@@ -17,6 +17,8 @@ limitations under the License.
 package fieldpath
 
 import (
+	"strconv"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/json"
 
@@ -83,7 +85,10 @@ func (p *Paved) SetUnstructuredContent(content map[string]interface{}) {
 }
 
 func (p *Paved) getValue(s Segments) (interface{}, error) {
-	var it interface{} = p.object
+	return getValueFromInterface(p.object, s)
+}
+
+func getValueFromInterface(it interface{}, s Segments) (interface{}, error) {
 	for i, current := range s {
 		final := i == len(s)-1
 		switch current.Type {
@@ -99,7 +104,6 @@ func (p *Paved) getValue(s Segments) (interface{}, error) {
 				return array[current.Index], nil
 			}
 			it = array[current.Index]
-
 		case SegmentField:
 			object, ok := it.(map[string]interface{})
 			if !ok {
@@ -118,6 +122,80 @@ func (p *Paved) getValue(s Segments) (interface{}, error) {
 
 	// This should be unreachable.
 	return nil, nil
+}
+
+// ExpandWildcards expands wildcards for a given field path. It returns an
+// array of field paths with expanded values. Please note that expanded paths
+// depend on the input data which is paved.object.
+//
+// Example:
+//
+// For a Paved object with the following data: []byte(`{"spec":{"containers":[{"name":"cool", "image": "latest", "args": ["start", "now", "debug"]}]}}`),
+// ExpandWildcards("spec.containers[*].args[*]") returns:
+// []string{"spec.containers[0].args[0]", "spec.containers[0].args[1]", "spec.containers[0].args[2]"},
+func (p *Paved) ExpandWildcards(path string) ([]string, error) {
+	segments, err := Parse(path)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot parse path %q", path)
+	}
+	segmentsArray, err := expandWildcards(p.object, segments)
+	if err != nil {
+		return nil, errors.Wrapf(err, "cannot expand wildcards for segments: %q", segments)
+	}
+	paths := make([]string, len(segmentsArray))
+	for i, s := range segmentsArray {
+		paths[i] = s.String()
+	}
+	return paths, nil
+}
+
+// Note(turkenh): Explanation for nolint:gocyclo
+// Even complexity turns out to be high, it is mostly because we have duplicate
+// logic for arrays and maps and a couple of error handling.
+func expandWildcards(data interface{}, segments Segments) ([]Segments, error) { //nolint:gocyclo
+	var res []Segments
+	it := data
+	for i, current := range segments {
+		// wildcards are regular fields with "*" as string
+		if current.Type == SegmentField && current.Field == wildcard {
+			switch mapOrArray := it.(type) {
+			case []interface{}:
+				for ix := range mapOrArray {
+					expanded := make(Segments, len(segments))
+					copy(expanded, segments)
+					expanded = append(append(expanded[:i], FieldOrIndex(strconv.Itoa(ix))), expanded[i+1:]...)
+					r, err := expandWildcards(data, expanded)
+					if err != nil {
+						return nil, errors.Wrapf(err, "%q: cannot expand wildcards", expanded)
+					}
+					res = append(res, r...)
+				}
+			case map[string]interface{}:
+				for k := range mapOrArray {
+					expanded := make(Segments, len(segments))
+					copy(expanded, segments)
+					expanded = append(append(expanded[:i], Field(k)), expanded[i+1:]...)
+					r, err := expandWildcards(data, expanded)
+					if err != nil {
+						return nil, errors.Wrapf(err, "%q: cannot expand wildcards", expanded)
+					}
+					res = append(res, r...)
+				}
+			default:
+				return nil, errors.Errorf("%q: unexpected wildcard usage", segments[:i])
+			}
+			return res, nil
+		}
+		var err error
+		it, err = getValueFromInterface(data, segments[:i+1])
+		if IsNotFound(err) {
+			return nil, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	return append(res, segments), nil
 }
 
 // GetValue of the supplied field path.
