@@ -124,6 +124,15 @@ func getValueFromInterface(it interface{}, s Segments) (interface{}, error) {
 	return nil, nil
 }
 
+// ExpandWildcards expands wildcards for a given field path. It returns an
+// array of field paths with expanded values. Please note that expanded paths
+// depend on the input data which is paved.object.
+//
+// Example:
+//
+// For a Paved object with the following data: []byte(`{"spec":{"containers":[{"name":"cool", "image": "latest", "args": ["start", "now", "debug"]}]}}`),
+// ExpandWildcards("spec.containers[*].args[*]") returns:
+// []string{"spec.containers[0].args[0]", "spec.containers[0].args[1]", "spec.containers[0].args[2]"},
 func (p *Paved) ExpandWildcards(path string) ([]string, error) {
 	segments, err := Parse(path)
 	if err != nil {
@@ -140,14 +149,16 @@ func (p *Paved) ExpandWildcards(path string) ([]string, error) {
 	return paths, nil
 }
 
-func expandWildcards(data interface{}, segments Segments) ([]Segments, error) {
+// Note(turkenh): Explanation for nolint:gocyclo
+// Even complexity turns out to be high, it is mostly because we have duplicate
+// logic for arrays and maps and a couple of error handling.
+func expandWildcards(data interface{}, segments Segments) ([]Segments, error) { //nolint:gocyclo
 	var res []Segments
 	it := data
 	for i, current := range segments {
+		// wildcards are regular fields with "*" as string
 		if current.Type == SegmentField && current.Field == "*" {
 			switch mapOrArray := it.(type) {
-			case nil:
-				return nil, nil
 			case []interface{}:
 				for ix := range mapOrArray {
 					expanded := make(Segments, len(segments))
