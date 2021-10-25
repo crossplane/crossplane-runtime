@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-func TestDefaultMangedRateLimiter(t *testing.T) {
+func TestDefaultManagedRateLimiter(t *testing.T) {
 	limiter := NewDefaultManagedRateLimiter(NewDefaultProviderRateLimiter(DefaultProviderRPS))
 	backoffSchedule := []int{1, 2, 4, 8, 16, 32, 60}
 	for _, d := range backoffSchedule {

@@ -21,26 +21,22 @@ import (
 	"time"
 
 	"golang.org/x/time/rate"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/ratelimiter"
 )
 
 const (
-	// DefaultGlobalRPS is the recommended default average requeues per
-	// second tolerated by Crossplane controller managers.
-	DefaultGlobalRPS = 1
-
 	// DefaultProviderRPS is the recommended default average requeues per
 	// second tolerated by a Crossplane provider.
 	//
-	// Deprecated: Use DefaultGlobalRPS
-	DefaultProviderRPS = DefaultGlobalRPS
+	// Deprecated. Use a flag.
+	DefaultProviderRPS = 1
 )
 
 // NewGlobal returns a token bucket rate limiter meant for limiting the number
 // of average total requeues per second for all controllers registered with a
-// controller manager. The bucket size is a linear function of the requeues per
-// second.
+// controller manager. The bucket size (i.e. allowed burst) is rps * 10.
 func NewGlobal(rps int) *workqueue.BucketRateLimiter {
 	return &workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(rps), rps*10)}
 }
@@ -48,11 +44,8 @@ func NewGlobal(rps int) *workqueue.BucketRateLimiter {
 // NewController returns a rate limiter that takes the maximum delay between the
 // passed rate limiter and a per-item exponential backoff limiter. The
 // exponential backoff limiter has a base delay of 1s and a maximum of 60s.
-func NewController(global ratelimiter.RateLimiter) ratelimiter.RateLimiter {
-	return workqueue.NewMaxOfRateLimiter(
-		workqueue.NewItemExponentialFailureRateLimiter(1*time.Second, 60*time.Second),
-		global,
-	)
+func NewController() ratelimiter.RateLimiter {
+	return workqueue.NewItemExponentialFailureRateLimiter(1*time.Second, 60*time.Second)
 }
 
 // NewDefaultProviderRateLimiter returns a token bucket rate limiter meant for
@@ -71,5 +64,20 @@ func NewDefaultProviderRateLimiter(rps int) *workqueue.BucketRateLimiter {
 //
 // Deprecated: Use NewController.
 func NewDefaultManagedRateLimiter(provider ratelimiter.RateLimiter) ratelimiter.RateLimiter {
-	return NewController(provider)
+	return workqueue.NewMaxOfRateLimiter(
+		workqueue.NewItemExponentialFailureRateLimiter(1*time.Second, 60*time.Second),
+		provider,
+	)
+}
+
+// LimitRESTConfig returns a copy of the supplied REST config with rate limits
+// derived from the supplied rate of reconciles per second.
+func LimitRESTConfig(cfg *rest.Config, rps int) *rest.Config {
+	// The Kubernetes controller manager and controller-runtime controller
+	// managers use 20qps with 30 burst. We default to 10 reconciles per
+	// second so our defaults are designed to accommodate that.
+	out := rest.CopyConfig(cfg)
+	out.QPS = float32(rps * 2)
+	out.Burst = 3
+	return out
 }
