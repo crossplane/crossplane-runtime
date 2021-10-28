@@ -616,7 +616,7 @@ func NewReconciler(m manager.Manager, of resource.ManagedKind, o ...ReconcilerOp
 }
 
 // Reconcile a managed resource with an external resource.
-func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (result reconcile.Result, err error) { // nolint:gocyclo
+func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
 	// NOTE(negz): This method is a well over our cyclomatic complexity goal.
 	// Be wary of adding additional complexity.
 
@@ -745,13 +745,7 @@ func (r *Reconciler) Reconcile(_ context.Context, req reconcile.Request) (result
 		if disconnectErr := r.external.Disconnect(ctx); disconnectErr != nil {
 			log.Debug("Cannot disconnect from provider", "error", disconnectErr)
 			record.Event(managed, event.Warning(reasonCannotDisconnect, disconnectErr))
-			disconnectErr = errors.Wrap(disconnectErr, errReconcileDisconnect)
-			managed.SetConditions(xpv1.ReconcileError(disconnectErr))
-			if err != nil {
-				err = errors.Wrap(err, disconnectErr.Error())
-			} else {
-				err = disconnectErr
-			}
+			managed.SetConditions(xpv1.ReconcileError(errors.Wrap(disconnectErr, errReconcileDisconnect)))
 		}
 	}()
 

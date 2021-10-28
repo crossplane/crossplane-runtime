@@ -287,7 +287,7 @@ func TestReconciler(t *testing.T) {
 			want: want{result: reconcile.Result{Requeue: true}},
 		},
 		"ExternalDisconnectError": {
-			reason: "Errors disconnecting from the provider should return error.",
+			reason: "Error disconnecting from the provider should not trigger requeue.",
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
@@ -324,10 +324,7 @@ func TestReconciler(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
-			want: want{
-				result: reconcile.Result{RequeueAfter: defaultpollInterval},
-				err:    errors.Wrap(errors.New("boom"), "disconnect failed"),
-			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultpollInterval}},
 		},
 		"ExternalObserveErrorDisconnectError": {
 			reason: "Errors disconnecting from the provider after error observing the external resource should trigger a requeue after a short wait and return error.",
@@ -364,10 +361,7 @@ func TestReconciler(t *testing.T) {
 					),
 				},
 			},
-			want: want{
-				result: reconcile.Result{Requeue: true},
-				err:    errors.Wrap(errors.New("boom"), "disconnect failed"),
-			},
+			want: want{result: reconcile.Result{Requeue: true}},
 		},
 		"ExternalObserveError": {
 			reason: "Errors observing the external resource should trigger a requeue after a short wait.",
