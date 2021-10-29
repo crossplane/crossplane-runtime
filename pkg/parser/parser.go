@@ -19,7 +19,6 @@ package parser
 import (
 	"bufio"
 	"context"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"strings"
@@ -150,7 +149,7 @@ func isWhiteSpace(bytes []byte) bool {
 // annotateErr annotates an error if the reader is an AnnotatedReadCloser.
 func annotateErr(err error, reader io.ReadCloser) error {
 	if anno, ok := reader.(AnnotatedReadCloser); ok {
-		return errors.Wrap(err, fmt.Sprintf("%+v", anno.Annotate()))
+		return errors.Wrapf(err, "%+v", anno.Annotate())
 	}
 	return err
 }
