@@ -19,7 +19,6 @@ package parser
 import (
 	"bufio"
 	"context"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"strings"
@@ -112,26 +111,19 @@ func (p *PackageParser) Parse(ctx context.Context, reader io.ReadCloser) (*Packa
 		if len(bytes) == 0 {
 			continue
 		}
+		if isWhiteSpace(bytes) {
+			continue
+		}
 		m, _, err := dm.Decode(bytes, nil, nil)
 		if err != nil {
+			// NOTE(hasheddan): we only try to decode with object scheme if the
+			// error is due the object not being registered in the meta scheme.
+			if !runtime.IsNotRegisteredError(err) {
+				return pkg, annotateErr(err, reader)
+			}
 			o, _, err := do.Decode(bytes, nil, nil)
 			if err != nil {
-				empty := true
-				for _, b := range bytes {
-					if !unicode.IsSpace(rune(b)) {
-						empty = false
-						break
-					}
-				}
-				// If the YAML document only contains Unicode White Space we
-				// ignore and do not return an error.
-				if empty {
-					continue
-				}
-				if anno, ok := reader.(AnnotatedReadCloser); ok {
-					return pkg, errors.Wrap(err, fmt.Sprintf("%+v", anno.Annotate()))
-				}
-				return pkg, err
+				return pkg, annotateErr(err, reader)
 			}
 			pkg.objects = append(pkg.objects, o)
 			continue
@@ -139,6 +131,27 @@ func (p *PackageParser) Parse(ctx context.Context, reader io.ReadCloser) (*Packa
 		pkg.meta = append(pkg.meta, m)
 	}
 	return pkg, nil
+}
+
+// isWhiteSpace determines whether the passed in bytes are all unicode white
+// space.
+func isWhiteSpace(bytes []byte) bool {
+	empty := true
+	for _, b := range bytes {
+		if !unicode.IsSpace(rune(b)) {
+			empty = false
+			break
+		}
+	}
+	return empty
+}
+
+// annotateErr annotates an error if the reader is an AnnotatedReadCloser.
+func annotateErr(err error, reader io.ReadCloser) error {
+	if anno, ok := reader.(AnnotatedReadCloser); ok {
+		return errors.Wrapf(err, "%+v", anno.Annotate())
+	}
+	return err
 }
 
 // BackendOption modifies the parser backend. Backends may accept options at
