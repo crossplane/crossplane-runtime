@@ -311,8 +311,9 @@ type ExternalObservation struct {
 	// ResourceLateInitialized should be true if the managed resource's spec was
 	// updated during its observation. A Crossplane provider may update a
 	// managed resource's spec fields after it is created or updated, as long as
-	// the updates are limited to setting previously unset fields, and adding
-	// keys to maps. Crossplane uses this information to determine whether
+	// the updates are limited to setting previously unset fields, adding
+	// keys to maps and adding data to slices.
+	// Crossplane uses this information to determine whether
 	// changes to the spec were made during observation that must be persisted.
 	// Note that changes to the spec will be persisted before changes to the
 	// status, and that pending changes to the status may be lost when the spec
