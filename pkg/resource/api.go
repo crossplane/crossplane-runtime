@@ -210,6 +210,18 @@ type APIFinalizer struct {
 	finalizer string
 }
 
+// NewNopFinalizer returns a Finalizer that does nothing.
+func NewNopFinalizer() Finalizer { return nopFinalizer{} }
+
+type nopFinalizer struct{}
+
+func (f nopFinalizer) AddFinalizer(ctx context.Context, obj Object) error {
+	return nil
+}
+func (f nopFinalizer) RemoveFinalizer(ctx context.Context, obj Object) error {
+	return nil
+}
+
 // NewAPIFinalizer returns a new APIFinalizer.
 func NewAPIFinalizer(c client.Client, finalizer string) *APIFinalizer {
 	return &APIFinalizer{client: c, finalizer: finalizer}
