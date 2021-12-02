@@ -286,6 +286,83 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{Requeue: true}},
 		},
+		"ExternalDisconnectError": {
+			reason: "Error disconnecting from the provider should not trigger requeue.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+							want := &fake.Managed{}
+							want.SetConditions(xpv1.ReconcileSuccess())
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := "A successful no-op reconcile should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+					WithExternalConnectDisconnecter(NewExternalConnectDisconnecter(
+						ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
+							c := &ExternalClientFns{
+								ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+									return ExternalObservation{ResourceExists: true, ResourceUpToDate: true}, nil
+								},
+							}
+							return c, nil
+						}), ExternalDisconnectorFn(func(_ context.Context) error {
+							return errBoom
+						})),
+					),
+					WithConnectionPublishers(),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultpollInterval}},
+		},
+		"ExternalObserveErrorDisconnectError": {
+			reason: "Errors disconnecting from the provider after error observing the external resource should trigger a requeue after a short wait and return error.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+							want := &fake.Managed{}
+							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileObserve)))
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := "Errors observing the managed resource should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithExternalConnectDisconnecter(NewExternalConnectDisconnecter(
+						ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
+							c := &ExternalClientFns{
+								ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+									return ExternalObservation{}, errBoom
+								},
+							}
+							return c, nil
+						}), ExternalDisconnectorFn(func(_ context.Context) error {
+							return errBoom
+						})),
+					),
+				},
+			},
+			want: want{result: reconcile.Result{Requeue: true}},
+		},
 		"ExternalObserveError": {
 			reason: "Errors observing the external resource should trigger a requeue after a short wait.",
 			args: args{
