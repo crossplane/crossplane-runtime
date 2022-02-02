@@ -215,7 +215,7 @@ func (r *APIResolver) Resolve(ctx context.Context, req ResolutionRequest) (Resol
 
 	// The reference is already set - resolve it.
 	if req.Reference != nil {
-		if err := r.client.Get(ctx, types.NamespacedName{Name: req.Reference.Name}, req.To.Managed); err != nil {
+		if err := r.client.Get(ctx, types.NamespacedName{Name: req.Reference.Name, Namespace: r.from.GetNamespace()}, req.To.Managed); err != nil {
 			return ResolutionResponse{}, errors.Wrap(err, errGetManaged)
 		}
 
@@ -224,7 +224,7 @@ func (r *APIResolver) Resolve(ctx context.Context, req ResolutionRequest) (Resol
 	}
 
 	// The reference was not set, but a selector was. Select a reference.
-	if err := r.client.List(ctx, req.To.List, client.MatchingLabels(req.Selector.MatchLabels)); err != nil {
+	if err := r.client.List(ctx, req.To.List, client.MatchingLabels(req.Selector.MatchLabels), client.InNamespace(r.from.GetNamespace())); err != nil {
 		return ResolutionResponse{}, errors.Wrap(err, errListManaged)
 	}
 
@@ -254,7 +254,7 @@ func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRe
 	if len(req.References) > 0 {
 		vals := make([]string, len(req.References))
 		for i := range req.References {
-			if err := r.client.Get(ctx, types.NamespacedName{Name: req.References[i].Name}, req.To.Managed); err != nil {
+			if err := r.client.Get(ctx, types.NamespacedName{Name: req.References[i].Name, Namespace: r.from.GetNamespace()}, req.To.Managed); err != nil {
 				return MultiResolutionResponse{}, errors.Wrap(err, errGetManaged)
 			}
 			vals[i] = req.Extract(req.To.Managed)
@@ -265,7 +265,7 @@ func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRe
 	}
 
 	// No references were set, but a selector was. Select and resolve references.
-	if err := r.client.List(ctx, req.To.List, client.MatchingLabels(req.Selector.MatchLabels)); err != nil {
+	if err := r.client.List(ctx, req.To.List, client.MatchingLabels(req.Selector.MatchLabels), client.InNamespace(r.from.GetNamespace())); err != nil {
 		return MultiResolutionResponse{}, errors.Wrap(err, errListManaged)
 	}
 

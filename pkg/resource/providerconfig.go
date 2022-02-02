@@ -149,6 +149,7 @@ func (u *ProviderConfigUsageTracker) Track(ctx context.Context, mg Managed) erro
 		Kind:       gvk.Kind,
 		Name:       mg.GetName(),
 	})
+	pcu.SetNamespace(mg.GetNamespace())
 
 	err := u.c.Apply(ctx, pcu,
 		MustBeControllableBy(mg.GetUID()),
