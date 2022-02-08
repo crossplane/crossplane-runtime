@@ -60,6 +60,13 @@ type ConnectionSecretWriterTo interface {
 	GetWriteConnectionSecretToReference() *xpv1.SecretReference
 }
 
+// A ConnectionDetailsPublisherTo may write a connection details secret to an
+// arbitrary scope.
+type ConnectionDetailsPublisherTo interface {
+	SetPublishConnectionDetailsTo(r *xpv1.PublishConnectionDetailsTo)
+	GetPublishConnectionDetailsTo() *xpv1.PublishConnectionDetailsTo
+}
+
 // An Orphanable resource may specify a DeletionPolicy.
 type Orphanable interface {
 	SetDeletionPolicy(p xpv1.DeletionPolicy)
@@ -162,6 +169,7 @@ type Managed interface {
 	ProviderReferencer
 	ProviderConfigReferencer
 	ConnectionSecretWriterTo
+	ConnectionDetailsPublisherTo
 	Orphanable
 
 	Conditioned
