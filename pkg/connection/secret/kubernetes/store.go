@@ -10,7 +10,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/connection/secret"
+	"github.com/crossplane/crossplane-runtime/pkg/connection/secret/store"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
@@ -30,22 +30,24 @@ type SecretStore struct {
 	applicator resource.Applicator
 
 	// remoteCluster will be used to decide whether to use owner references
-	remoteCluster bool
+	remoteCluster    bool
+	defaultNamespace string
 }
 
 // NewSecretStore returns a new KubernetesSecretStore.
-func NewSecretStore(ctx context.Context, local client.Client, cfg *v1.KubernetesSecretStoreConfig) (*SecretStore, error) {
-	if cfg == nil {
+func NewSecretStore(ctx context.Context, local client.Client, cfg v1.SecretStoreConfig) (store.Store, error) {
+	if cfg.Kubernetes == nil {
 		// No KubernetesSecretStoreConfig provided, local API Server
 		// will be used as Secret Store.
 		return &SecretStore{
 			client: local,
 			applicator: resource.NewApplicatorWithRetry(resource.NewAPIPatchingApplicator(local),
 				resource.IsAPIErrorWrapped, nil),
+			defaultNamespace: cfg.DefaultScope,
 		}, nil
 	}
 
-	kfg, err := resource.CommonCredentialExtractor(ctx, cfg.Auth.Source, local, cfg.Auth.CommonCredentialSelectors)
+	kfg, err := resource.CommonCredentialExtractor(ctx, cfg.Kubernetes.Auth.Source, local, cfg.Kubernetes.Auth.CommonCredentialSelectors)
 	if err != nil {
 		return nil, errors.Wrap(err, errExtractKubernetesAuthCreds)
 	}
@@ -58,16 +60,17 @@ func NewSecretStore(ctx context.Context, local client.Client, cfg *v1.Kubernetes
 		client: remote,
 		applicator: resource.NewApplicatorWithRetry(resource.NewAPIPatchingApplicator(remote),
 			resource.IsAPIErrorWrapped, nil),
-		remoteCluster: true,
+		defaultNamespace: cfg.DefaultScope,
+		remoteCluster:    true,
 	}, nil
 }
 
-func (ss *SecretStore) ReadKeyValues(ctx context.Context, i secret.Instance) (secret.KeyValues, error) {
+func (ss *SecretStore) ReadKeyValues(ctx context.Context, i store.SecretInstance) (store.KeyValues, error) {
 	s := &corev1.Secret{}
 	return s.Data, errors.Wrapf(ss.client.Get(ctx, types.NamespacedName{Name: i.Name, Namespace: i.Scope}, s), errGetSecret)
 }
 
-func (ss *SecretStore) WriteKeyValues(ctx context.Context, i secret.Instance, kv secret.KeyValues) error {
+func (ss *SecretStore) WriteKeyValues(ctx context.Context, i store.SecretInstance, kv store.KeyValues) error {
 	s := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            i.Name,
@@ -86,7 +89,7 @@ func (ss *SecretStore) WriteKeyValues(ctx context.Context, i secret.Instance, kv
 	return errors.Wrap(ss.applicator.Apply(ctx, s), errCreateOrUpdateSecret)
 }
 
-func (ss *SecretStore) DeleteKeyValues(ctx context.Context, i secret.Instance, kv secret.KeyValues) error {
+func (ss *SecretStore) DeleteKeyValues(ctx context.Context, i store.SecretInstance, kv store.KeyValues) error {
 	s := &corev1.Secret{}
 	err := ss.client.Get(ctx, types.NamespacedName{Name: i.Name, Namespace: i.Scope}, s)
 	if kerrors.IsNotFound(err) {

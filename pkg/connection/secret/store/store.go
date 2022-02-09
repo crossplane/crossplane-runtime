@@ -1,4 +1,4 @@
-package secret
+package store
 
 import (
 	"context"
@@ -9,7 +9,8 @@ import (
 )
 
 type KeyValues map[string][]byte
-type Instance struct {
+
+type SecretInstance struct {
 	Name     string
 	Scope    string
 	Owner    metav1.OwnerReference
@@ -17,15 +18,15 @@ type Instance struct {
 }
 
 type KeyValuesReader interface {
-	ReadKeyValues(ctx context.Context, i Instance) (KeyValues, error)
+	ReadKeyValues(ctx context.Context, i SecretInstance) (KeyValues, error)
 }
 
 type KeyValuesWriter interface {
-	WriteKeyValues(ctx context.Context, i Instance, kv KeyValues) error
+	WriteKeyValues(ctx context.Context, i SecretInstance, kv KeyValues) error
 }
 
 type KeyValuesDeleter interface {
-	DeleteKeyValues(ctx context.Context, i Instance, kv KeyValues) error
+	DeleteKeyValues(ctx context.Context, i SecretInstance, kv KeyValues) error
 }
 
 type Store interface {

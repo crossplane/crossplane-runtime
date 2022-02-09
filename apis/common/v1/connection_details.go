@@ -18,7 +18,7 @@ type PublishConnectionDetailsTo struct {
 	// SecretStoreConfigRef specifies which secret store config should be used
 	// for this ConnectionSecret.
 	// +kubebuilder:default={"name": "default"}
-	SecretStoreConfigRef *Reference `json:"configRef,omitempty"`
+	SecretStoreConfigRef Reference `json:"configRef,omitempty"`
 }
 
 // SecretStoreType represents a secret store type.
@@ -45,8 +45,8 @@ type SecretStoreConfig struct {
 	// If store type is "Kubernetes", this would mean the default namespace to
 	// store connection secrets for cluster scoped resources.
 	// In case of "Vault", this would be used as the default parent path.
-	// If not provided, Crossplane installation namespace will be used instead.
-	DefaultScope *string `json:"defaultScope,omitempty"`
+	// Typically, should be set as Crossplane installation namespace.
+	DefaultScope string `json:"defaultScope,omitempty"`
 
 	// Kubernetes configures a Kubernetes secret store.
 	// If the "type" is "Kubernetes" but no config provided, in cluster config
