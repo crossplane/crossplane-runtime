@@ -136,21 +136,6 @@ func (m *ConnectionSecretWriterTo) GetWriteConnectionSecretToReference() *xpv1.S
 	return m.Ref
 }
 
-// ConnectionDetailsPublisherTo is a mock that implements ConnectionDetailsPublisherTo interface.
-type ConnectionDetailsPublisherTo struct {
-	To *xpv1.PublishConnectionDetailsTo
-}
-
-// SetPublishConnectionDetailsTo sets the PublishConnectionDetailsTo.
-func (m *ConnectionDetailsPublisherTo) SetPublishConnectionDetailsTo(t *xpv1.PublishConnectionDetailsTo) {
-	m.To = t
-}
-
-// GetPublishConnectionDetailsTo gets the PublishConnectionDetailsTo.
-func (m *ConnectionDetailsPublisherTo) GetPublishConnectionDetailsTo() *xpv1.PublishConnectionDetailsTo {
-	return m.To
-}
-
 // Orphanable implements the Orphanable interface.
 type Orphanable struct{ Policy xpv1.DeletionPolicy }
 
@@ -278,7 +263,6 @@ type Managed struct {
 	ProviderReferencer
 	ProviderConfigReferencer
 	ConnectionSecretWriterTo
-	ConnectionDetailsPublisherTo
 	Orphanable
 	xpv1.ConditionedStatus
 }

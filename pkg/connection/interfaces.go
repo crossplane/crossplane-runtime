@@ -14,39 +14,36 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package store
+package connection
 
 import (
-	"context"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
-type KeyValues map[string][]byte
-
-type SecretInstance struct {
-	Name     string
-	Scope    string
-	Owner    metav1.OwnerReference
-	Metadata v1.ConnectionSecretMetadata
+// A DetailsPublisherTo may write a connection details secret to a secret store
+type DetailsPublisherTo interface {
+	SetPublishConnectionDetailsTo(r *v1.PublishConnectionDetailsTo)
+	GetPublishConnectionDetailsTo() *v1.PublishConnectionDetailsTo
 }
 
-type KeyValuesReader interface {
-	ReadKeyValues(ctx context.Context, i SecretInstance) (KeyValues, error)
+type SecretOwner interface {
+	runtime.Object
+	metav1.Object
+
+	DetailsPublisherTo
 }
 
-type KeyValuesWriter interface {
-	WriteKeyValues(ctx context.Context, i SecretInstance, kv KeyValues) error
+type StoreConfigProvider interface {
+	GetStoreConfig() v1.SecretStoreConfig
 }
 
-type KeyValuesDeleter interface {
-	DeleteKeyValues(ctx context.Context, i SecretInstance, kv KeyValues) error
-}
+type StoreConfig interface {
+	resource.Object
 
-type Store interface {
-	KeyValuesReader
-	KeyValuesWriter
-	KeyValuesDeleter
+	resource.Conditioned
+	StoreConfigProvider
 }

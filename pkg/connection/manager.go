@@ -1,3 +1,19 @@
+/*
+Copyright 2022 The Crossplane Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package connection
 
 import (
@@ -28,17 +44,6 @@ const (
 
 	errFmtUnknownSecretStore = "unknown secret store type: %q"
 )
-
-type StoreConfigProvider interface {
-	GetStoreConfig() v1.SecretStoreConfig
-}
-
-type StoreConfig interface {
-	resource.Object
-
-	resource.Conditioned
-	StoreConfigProvider
-}
 
 // A StoreConfigKind contains the type metadata for a kind of StoreConfig
 // resource.
@@ -87,6 +92,14 @@ func NewManager(c client.Client, ot runtime.ObjectTyper, of StoreConfigKind, o .
 	return m
 }
 
+func (m *Manager) PublishConnection(ctx context.Context, mg resource.Managed, c managed.ConnectionDetails) error {
+	return m.publishConnection(ctx, mg.(SecretOwner), store.KeyValues(c))
+}
+
+func (m *Manager) UnpublishConnection(ctx context.Context, mg resource.Managed, c managed.ConnectionDetails) error {
+	return m.unpublishConnection(ctx, mg.(SecretOwner), store.KeyValues(c))
+}
+
 func (m *Manager) connectStore(ctx context.Context, p *v1.PublishConnectionDetailsTo) (store.Store, error) {
 	sc := m.newStoreConfig()
 	if err := m.client.Get(ctx, types.NamespacedName{Name: p.SecretStoreConfigRef.Name}, sc); err != nil {
@@ -102,9 +115,9 @@ func (m *Manager) connectStore(ctx context.Context, p *v1.PublishConnectionDetai
 	return sb(ctx, m.client, cfg)
 }
 
-func (m *Manager) PublishConnection(ctx context.Context, mg resource.Managed, c managed.ConnectionDetails) error {
+func (m *Manager) publishConnection(ctx context.Context, so SecretOwner, kv store.KeyValues) error {
 	// This resource does not want to expose a connection secret.
-	p := mg.GetPublishConnectionDetailsTo()
+	p := so.GetPublishConnectionDetailsTo()
 	if p == nil {
 		return nil
 	}
@@ -116,15 +129,15 @@ func (m *Manager) PublishConnection(ctx context.Context, mg resource.Managed, c 
 
 	return errors.Wrap(ss.WriteKeyValues(ctx, store.SecretInstance{
 		Name:     p.Name,
-		Scope:    mg.GetNamespace(),
-		Owner:    meta.AsController(meta.TypedReferenceTo(mg, resource.MustGetKind(mg, m.typer))),
+		Scope:    so.GetNamespace(),
+		Owner:    meta.AsController(meta.TypedReferenceTo(so, resource.MustGetKind(so, m.typer))),
 		Metadata: p.Metadata,
-	}, store.KeyValues(c)), errWriteStore)
+	}, kv), errWriteStore)
 }
 
-func (m *Manager) UnpublishConnection(ctx context.Context, mg resource.Managed, c managed.ConnectionDetails) error {
+func (m *Manager) unpublishConnection(ctx context.Context, so SecretOwner, kv store.KeyValues) error {
 	// This resource didn't expose a connection secret.
-	p := mg.GetPublishConnectionDetailsTo()
+	p := so.GetPublishConnectionDetailsTo()
 	if p == nil {
 		return nil
 	}
@@ -136,8 +149,8 @@ func (m *Manager) UnpublishConnection(ctx context.Context, mg resource.Managed, 
 
 	return errors.Wrap(ss.DeleteKeyValues(ctx, store.SecretInstance{
 		Name:     p.Name,
-		Scope:    mg.GetNamespace(),
-		Owner:    meta.AsController(meta.TypedReferenceTo(mg, resource.MustGetKind(mg, m.typer))),
+		Scope:    so.GetNamespace(),
+		Owner:    meta.AsController(meta.TypedReferenceTo(so, resource.MustGetKind(so, m.typer))),
 		Metadata: p.Metadata,
-	}, store.KeyValues(c)), errDeleteFromStore)
+	}, kv), errDeleteFromStore)
 }
