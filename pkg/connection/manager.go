@@ -33,6 +33,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 )
 
 // Error strings.
@@ -102,7 +103,8 @@ func (m *Manager) UnpublishConnection(ctx context.Context, mg resource.Managed, 
 
 func (m *Manager) connectStore(ctx context.Context, p *v1.PublishConnectionDetailsTo) (store.Store, error) {
 	sc := m.newStoreConfig()
-	if err := m.client.Get(ctx, types.NamespacedName{Name: p.SecretStoreConfigRef.Name}, sc); err != nil {
+	if err := unstructured.NewClient(m.client).
+		Get(ctx, types.NamespacedName{Name: p.SecretStoreConfigRef.Name}, sc); err != nil {
 		return nil, errors.Wrap(resource.IgnoreNotFound(err), errGetStoreConfig)
 	}
 

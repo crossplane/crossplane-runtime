@@ -57,6 +57,11 @@ type UnstructuredConfig struct {
 	unstructured.Unstructured
 }
 
+// GetUnstructured returns the underlying *unstructured.Unstructured.
+func (cr *UnstructuredConfig) GetUnstructured() *unstructured.Unstructured {
+	return &cr.Unstructured
+}
+
 // GetCondition of this UnstructuredConfig resource.
 func (c *UnstructuredConfig) GetCondition(ct v1.ConditionType) v1.Condition {
 	conditioned := v1.ConditionedStatus{}

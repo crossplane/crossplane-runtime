@@ -83,14 +83,14 @@ func NewSecretStore(ctx context.Context, local client.Client, cfg v1.SecretStore
 
 func (ss *SecretStore) ReadKeyValues(ctx context.Context, i store.SecretInstance) (store.KeyValues, error) {
 	s := &corev1.Secret{}
-	return s.Data, errors.Wrapf(ss.client.Get(ctx, types.NamespacedName{Name: i.Name, Namespace: i.Scope}, s), errGetSecret)
+	return s.Data, errors.Wrapf(ss.client.Get(ctx, types.NamespacedName{Name: i.Name, Namespace: ss.namespaceForSecret(i)}, s), errGetSecret)
 }
 
 func (ss *SecretStore) WriteKeyValues(ctx context.Context, i store.SecretInstance, kv store.KeyValues) error {
 	s := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            i.Name,
-			Namespace:       i.Scope,
+			Namespace:       ss.namespaceForSecret(i),
 			OwnerReferences: []metav1.OwnerReference{i.Owner},
 		},
 		Type: resource.SecretTypeConnection,
@@ -107,7 +107,7 @@ func (ss *SecretStore) WriteKeyValues(ctx context.Context, i store.SecretInstanc
 
 func (ss *SecretStore) DeleteKeyValues(ctx context.Context, i store.SecretInstance, kv store.KeyValues) error {
 	s := &corev1.Secret{}
-	err := ss.client.Get(ctx, types.NamespacedName{Name: i.Name, Namespace: i.Scope}, s)
+	err := ss.client.Get(ctx, types.NamespacedName{Name: i.Name, Namespace: ss.namespaceForSecret(i)}, s)
 	if kerrors.IsNotFound(err) {
 		return nil
 	}
@@ -124,4 +124,11 @@ func (ss *SecretStore) DeleteKeyValues(ctx context.Context, i store.SecretInstan
 	}
 	// If there are no keys left, delete the secret.
 	return errors.Wrapf(ss.client.Delete(ctx, s), errDeleteSecret)
+}
+
+func (ss *SecretStore) namespaceForSecret(i store.SecretInstance) string {
+	if i.Scope == "" {
+		return ss.defaultNamespace
+	}
+	return i.Scope
 }
