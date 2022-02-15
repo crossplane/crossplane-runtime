@@ -17,6 +17,10 @@ limitations under the License.
 package connection
 
 import (
+	"context"
+
+	"github.com/crossplane/crossplane-runtime/pkg/connection/store"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
@@ -30,6 +34,7 @@ type DetailsPublisherTo interface {
 	GetPublishConnectionDetailsTo() *v1.PublishConnectionDetailsTo
 }
 
+// A SecretOwner is a Kubernetes object that owns a connection secret.
 type SecretOwner interface {
 	runtime.Object
 	metav1.Object
@@ -37,13 +42,17 @@ type SecretOwner interface {
 	DetailsPublisherTo
 }
 
-type StoreConfigProvider interface {
-	GetStoreConfig() v1.SecretStoreConfig
-}
-
+// A StoreConfig configures a connection store.
 type StoreConfig interface {
 	resource.Object
 
 	resource.Conditioned
-	StoreConfigProvider
+	GetStoreConfig() v1.SecretStoreConfig
+}
+
+// A Store stores sensitive key values in Secret.
+type Store interface {
+	ReadKeyValues(ctx context.Context, i store.Secret) (store.KeyValues, error)
+	WriteKeyValues(ctx context.Context, i store.Secret, kv store.KeyValues) error
+	DeleteKeyValues(ctx context.Context, i store.Secret, kv store.KeyValues) error
 }

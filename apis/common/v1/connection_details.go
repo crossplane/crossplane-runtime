@@ -1,19 +1,18 @@
 package v1
 
-// ConnectionSecretMetadata is secret store specific key/value pairs to be used
-// as metadata by the secret store. Please note, expected keys will differ for
-// each store type. For example, it could be "labels" and "annotations"
-// in case of "Kubernetes", but it would be "tags" for "AWS Secret Manager".
-// TODO(hasan): define a strongly typed struct instead?
-type ConnectionSecretMetadata map[string]map[string]string
+import "k8s.io/apimachinery/pkg/runtime"
 
 // PublishConnectionDetailsTo represents configuration of a connection secret.
 type PublishConnectionDetailsTo struct {
 	// Name is the name of the connection secret
 	Name string `json:"name"`
 
-	// Metadata is store specific key/value pairs to be used as secret metadata.
-	Metadata ConnectionSecretMetadata `json:"metadata,omitempty"`
+	// Metadata is secret store specific key/value pairs to be used as metadata
+	// Please note, expected keys will differ for each store type. For example,
+	// it could be "labels" and "annotations" in case of "Kubernetes", but it
+	// would be "tags" for "AWS Secret Manager".
+	// +kubebuilder:pruning:PreserveUnknownFields
+	Metadata runtime.RawExtension `json:"metadata,omitempty"`
 
 	// SecretStoreConfigRef specifies which secret store config should be used
 	// for this ConnectionSecret.

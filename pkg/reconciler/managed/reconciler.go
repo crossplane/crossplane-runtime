@@ -261,7 +261,7 @@ func (fns ExternalConnectDisconnecterFns) Disconnect(ctx context.Context) error 
 }
 
 // An ExternalClient manages the lifecycle of an external resource.
-// None of the calls here should be blocking. All of the calls should be
+// None of the calls here should be blocking. All the calls should be
 // idempotent. For example, Create call should not return AlreadyExists error
 // if it's called again with the same parameters or Delete call should not
 // return error if there is an ongoing deletion or resource does not exist.

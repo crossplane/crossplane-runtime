@@ -25,12 +25,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/connection/secret/kubernetes"
-	"github.com/crossplane/crossplane-runtime/pkg/connection/secret/store"
-	"github.com/crossplane/crossplane-runtime/pkg/connection/secret/vault"
+	"github.com/crossplane/crossplane-runtime/pkg/connection/store"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
@@ -42,33 +39,46 @@ const (
 	errWriteStore      = "cannot write to secret store"
 	errDeleteFromStore = "cannot delete from secret store"
 	errGetStoreConfig  = "cannot get store config"
-
-	errFmtUnknownSecretStore = "unknown secret store type: %q"
 )
 
 // A StoreConfigKind contains the type metadata for a kind of StoreConfig
 // resource.
 type StoreConfigKind schema.GroupVersionKind
 
-type StoreBuilderFn func(ctx context.Context, local client.Client, cfg v1.SecretStoreConfig) (store.Store, error)
+// StoreBuilderFn is a function that builds and returns a Store with a given
+// store config.
+type StoreBuilderFn func(ctx context.Context, local client.Client, cfg v1.SecretStoreConfig) (Store, error)
 
-type Manager struct {
-	client         client.Client
-	typer          runtime.ObjectTyper
-	newStoreConfig func() StoreConfig
-	storeBuilders  map[v1.SecretStoreType]StoreBuilderFn
-
-	log logging.Logger
-}
-
+// A ManagerOption configures a Manager.
 type ManagerOption func(*Manager)
 
+// WithLogger specifies how the Manager should log messages.
 func WithLogger(l logging.Logger) ManagerOption {
 	return func(m *Manager) {
 		m.log = l
 	}
 }
 
+// WithStoreBuilder configures the StoreBuilder to use.
+func WithStoreBuilder(sb StoreBuilderFn) ManagerOption {
+	return func(m *Manager) {
+		m.storeBuilder = sb
+	}
+}
+
+// Manager is a connection details manager that satisfies the required
+// interfaces to work with connection details by managing interaction with
+// different store implementations.
+type Manager struct {
+	client         client.Client
+	typer          runtime.ObjectTyper
+	newStoreConfig func() StoreConfig
+	storeBuilder   StoreBuilderFn
+
+	log logging.Logger
+}
+
+// NewManager returns a new connection Manager.
 func NewManager(c client.Client, ot runtime.ObjectTyper, of StoreConfigKind, o ...ManagerOption) *Manager {
 	nsc := func() StoreConfig {
 		return store.NewConfig(store.ConfigWithGroupVersionKind(schema.GroupVersionKind(of)))
@@ -78,10 +88,7 @@ func NewManager(c client.Client, ot runtime.ObjectTyper, of StoreConfigKind, o .
 		client:         c,
 		typer:          ot,
 		newStoreConfig: nsc,
-		storeBuilders: map[v1.SecretStoreType]StoreBuilderFn{
-			v1.SecretStoreKubernetes: kubernetes.NewSecretStore,
-			v1.SecretStoreVault:      vault.NewSecretStore,
-		},
+		storeBuilder:   RuntimeStoreBuilder,
 
 		log: logging.NewNopLogger(),
 	}
@@ -93,28 +100,26 @@ func NewManager(c client.Client, ot runtime.ObjectTyper, of StoreConfigKind, o .
 	return m
 }
 
+// PublishConnection publishes the supplied ConnectionDetails to a secret on
+// the configured connection Store.
 func (m *Manager) PublishConnection(ctx context.Context, mg resource.Managed, c managed.ConnectionDetails) error {
 	return m.publishConnection(ctx, mg.(SecretOwner), store.KeyValues(c))
 }
 
+// UnpublishConnection deletes connection details secret from the configured
+// connection Store.
 func (m *Manager) UnpublishConnection(ctx context.Context, mg resource.Managed, c managed.ConnectionDetails) error {
 	return m.unpublishConnection(ctx, mg.(SecretOwner), store.KeyValues(c))
 }
 
-func (m *Manager) connectStore(ctx context.Context, p *v1.PublishConnectionDetailsTo) (store.Store, error) {
+func (m *Manager) connectStore(ctx context.Context, p *v1.PublishConnectionDetailsTo) (Store, error) {
 	sc := m.newStoreConfig()
 	if err := unstructured.NewClient(m.client).
 		Get(ctx, types.NamespacedName{Name: p.SecretStoreConfigRef.Name}, sc); err != nil {
 		return nil, errors.Wrap(resource.IgnoreNotFound(err), errGetStoreConfig)
 	}
 
-	cfg := sc.GetStoreConfig()
-	sb, ok := m.storeBuilders[cfg.Type]
-	if !ok {
-		return nil, errors.Errorf(errFmtUnknownSecretStore, cfg.Type)
-	}
-
-	return sb(ctx, m.client, cfg)
+	return m.storeBuilder(ctx, m.client, sc.GetStoreConfig())
 }
 
 func (m *Manager) publishConnection(ctx context.Context, so SecretOwner, kv store.KeyValues) error {
@@ -129,11 +134,10 @@ func (m *Manager) publishConnection(ctx context.Context, so SecretOwner, kv stor
 		return errors.Wrap(err, errConnectStore)
 	}
 
-	return errors.Wrap(ss.WriteKeyValues(ctx, store.SecretInstance{
+	return errors.Wrap(ss.WriteKeyValues(ctx, store.Secret{
 		Name:     p.Name,
 		Scope:    so.GetNamespace(),
-		Owner:    meta.AsController(meta.TypedReferenceTo(so, resource.MustGetKind(so, m.typer))),
-		Metadata: p.Metadata,
+		Metadata: p.Metadata.Raw,
 	}, kv), errWriteStore)
 }
 
@@ -149,10 +153,9 @@ func (m *Manager) unpublishConnection(ctx context.Context, so SecretOwner, kv st
 		return errors.Wrap(err, errConnectStore)
 	}
 
-	return errors.Wrap(ss.DeleteKeyValues(ctx, store.SecretInstance{
+	return errors.Wrap(ss.DeleteKeyValues(ctx, store.Secret{
 		Name:     p.Name,
 		Scope:    so.GetNamespace(),
-		Owner:    meta.AsController(meta.TypedReferenceTo(so, resource.MustGetKind(so, m.typer))),
-		Metadata: p.Metadata,
+		Metadata: p.Metadata.Raw,
 	}, kv), errDeleteFromStore)
 }

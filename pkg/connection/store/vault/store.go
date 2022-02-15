@@ -22,23 +22,28 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/connection/secret/store"
+	"github.com/crossplane/crossplane-runtime/pkg/connection/store"
 )
 
+// SecretStore is a Vault Secret Store.
 type SecretStore struct{}
 
-func NewSecretStore(ctx context.Context, local client.Client, cfg v1.SecretStoreConfig) (store.Store, error) {
+// NewSecretStore returns a new Vault SecretStore.
+func NewSecretStore(ctx context.Context, local client.Client, cfg v1.SecretStoreConfig) (*SecretStore, error) {
 	return &SecretStore{}, nil
 }
 
-func (ss *SecretStore) ReadKeyValues(ctx context.Context, i store.SecretInstance) (store.KeyValues, error) {
+// ReadKeyValues reads and returns key value pairs for a given Vault Secret.
+func (ss *SecretStore) ReadKeyValues(ctx context.Context, i store.Secret) (store.KeyValues, error) {
 	panic("implement me")
 }
 
-func (ss *SecretStore) WriteKeyValues(ctx context.Context, i store.SecretInstance, kv store.KeyValues) error {
+// WriteKeyValues writes key value pairs to a given Vault Secret.
+func (ss *SecretStore) WriteKeyValues(ctx context.Context, i store.Secret, kv store.KeyValues) error {
 	panic("implement me")
 }
 
-func (ss *SecretStore) DeleteKeyValues(ctx context.Context, i store.SecretInstance, kv store.KeyValues) error {
+// DeleteKeyValues deletes key values from a Vault Secret.
+func (ss *SecretStore) DeleteKeyValues(ctx context.Context, i store.Secret, kv store.KeyValues) error {
 	panic("implement me")
 }
