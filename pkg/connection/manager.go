@@ -19,7 +19,6 @@ package connection
 import (
 	"context"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -71,7 +70,6 @@ func WithStoreBuilder(sb StoreBuilderFn) ManagerOption {
 // different store implementations.
 type Manager struct {
 	client         client.Client
-	typer          runtime.ObjectTyper
 	newStoreConfig func() StoreConfig
 	storeBuilder   StoreBuilderFn
 
@@ -79,14 +77,13 @@ type Manager struct {
 }
 
 // NewManager returns a new connection Manager.
-func NewManager(c client.Client, ot runtime.ObjectTyper, of StoreConfigKind, o ...ManagerOption) *Manager {
+func NewManager(c client.Client, of StoreConfigKind, o ...ManagerOption) *Manager {
 	nsc := func() StoreConfig {
 		return store.NewConfig(store.ConfigWithGroupVersionKind(schema.GroupVersionKind(of)))
 	}
 
 	m := &Manager{
 		client:         c,
-		typer:          ot,
 		newStoreConfig: nsc,
 		storeBuilder:   RuntimeStoreBuilder,
 
@@ -116,7 +113,7 @@ func (m *Manager) connectStore(ctx context.Context, p *v1.PublishConnectionDetai
 	sc := m.newStoreConfig()
 	if err := unstructured.NewClient(m.client).
 		Get(ctx, types.NamespacedName{Name: p.SecretStoreConfigRef.Name}, sc); err != nil {
-		return nil, errors.Wrap(resource.IgnoreNotFound(err), errGetStoreConfig)
+		return nil, errors.Wrap(err, errGetStoreConfig)
 	}
 
 	return m.storeBuilder(ctx, m.client, sc.GetStoreConfig())
