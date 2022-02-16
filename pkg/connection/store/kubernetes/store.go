@@ -99,8 +99,10 @@ func (ss *SecretStore) ReadKeyValues(ctx context.Context, i store.Secret) (store
 // WriteKeyValues writes key value pairs to a given Kubernetes Secret.
 func (ss *SecretStore) WriteKeyValues(ctx context.Context, i store.Secret, kv store.KeyValues) error {
 	meta := secretMetadata{}
-	if err := json.Unmarshal(i.Metadata, &meta); err != nil {
-		return errors.Wrap(err, errParseMetadata)
+	if len(i.Metadata) > 0 {
+		if err := json.Unmarshal(i.Metadata, &meta); err != nil {
+			return errors.Wrap(err, errParseMetadata)
+		}
 	}
 
 	t := resource.SecretTypeConnection
