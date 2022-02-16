@@ -136,14 +136,6 @@ type ResourceSpec struct {
 	// +optional
 	WriteConnectionSecretToReference *SecretReference `json:"writeConnectionSecretToRef,omitempty"`
 
-	// PublishConnectionDetailsTo specifies the connection secret config which
-	// contains a name, metadata and a reference to secret store config to
-	// which any connection details for this managed resource should be written.
-	// Connection details frequently include the endpoint, username,
-	// and password required to connect to the managed resource.
-	// +optional
-	PublishConnectionDetailsTo *PublishConnectionDetailsTo `json:"publishConnectionDetailsTo,omitempty"`
-
 	// ProviderConfigReference specifies how the provider that will be used to
 	// create, observe, update, and delete this managed resource should be
 	// configured.
