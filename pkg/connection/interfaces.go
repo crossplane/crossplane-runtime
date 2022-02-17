@@ -19,12 +19,8 @@ package connection
 import (
 	"context"
 
-	"github.com/crossplane/crossplane-runtime/pkg/connection/store"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/connection/store"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
@@ -36,8 +32,7 @@ type DetailsPublisherTo interface {
 
 // A SecretOwner is a Kubernetes object that owns a connection secret.
 type SecretOwner interface {
-	runtime.Object
-	metav1.Object
+	resource.Object
 
 	DetailsPublisherTo
 }

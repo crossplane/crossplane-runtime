@@ -84,3 +84,32 @@ func (ss *SecretStore) WriteKeyValues(ctx context.Context, i store.Secret, kv st
 func (ss *SecretStore) DeleteKeyValues(ctx context.Context, i store.Secret, kv store.KeyValues) error {
 	return ss.DeleteKeyValuesFn(ctx, i, kv)
 }
+
+// StoreConfig is a mock implementation of the StoreConfig interface.
+type StoreConfig struct {
+	metav1.ObjectMeta
+
+	Config v1.SecretStoreConfig
+	v1.ConditionedStatus
+}
+
+// GetStoreConfig returns SecretStoreConfig
+func (s *StoreConfig) GetStoreConfig() v1.SecretStoreConfig {
+	return s.Config
+}
+
+// GetObjectKind returns schema.ObjectKind.
+func (s *StoreConfig) GetObjectKind() schema.ObjectKind {
+	return schema.EmptyObjectKind
+}
+
+// DeepCopyObject returns a copy of the object as runtime.Object
+func (s *StoreConfig) DeepCopyObject() runtime.Object {
+	out := &StoreConfig{}
+	j, err := json.Marshal(s)
+	if err != nil {
+		panic(err)
+	}
+	_ = json.Unmarshal(j, out)
+	return out
+}

@@ -29,7 +29,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 )
 
 // Error strings.
@@ -39,10 +38,6 @@ const (
 	errDeleteFromStore = "cannot delete from secret store"
 	errGetStoreConfig  = "cannot get store config"
 )
-
-// A StoreConfigKind contains the type metadata for a kind of StoreConfig
-// resource.
-type StoreConfigKind schema.GroupVersionKind
 
 // StoreBuilderFn is a function that builds and returns a Store with a given
 // store config.
@@ -69,23 +64,23 @@ func WithStoreBuilder(sb StoreBuilderFn) DetailsManagerOption {
 // interfaces to work with connection details by managing interaction with
 // different store implementations.
 type DetailsManager struct {
-	client         client.Client
-	newStoreConfig func() StoreConfig
-	storeBuilder   StoreBuilderFn
+	client       client.Client
+	newConfig    func() StoreConfig
+	storeBuilder StoreBuilderFn
 
 	log logging.Logger
 }
 
-// NewManager returns a new connection DetailsManager.
-func NewManager(c client.Client, of StoreConfigKind, o ...DetailsManagerOption) *DetailsManager {
-	nsc := func() StoreConfig {
-		return store.NewConfig(store.ConfigWithGroupVersionKind(schema.GroupVersionKind(of)))
+// NewDetailsManager returns a new connection DetailsManager.
+func NewDetailsManager(c client.Client, of schema.GroupVersionKind, o ...DetailsManagerOption) *DetailsManager {
+	nc := func() StoreConfig {
+		return resource.MustCreateObject(of, c.Scheme()).(StoreConfig)
 	}
 
 	m := &DetailsManager{
-		client:         c,
-		newStoreConfig: nsc,
-		storeBuilder:   RuntimeStoreBuilder,
+		client:       c,
+		newConfig:    nc,
+		storeBuilder: RuntimeStoreBuilder,
 
 		log: logging.NewNopLogger(),
 	}
@@ -112,8 +107,8 @@ func (m *DetailsManager) UnpublishConnection(ctx context.Context, mg resource.Ma
 }
 
 func (m *DetailsManager) connectStore(ctx context.Context, p *v1.PublishConnectionDetailsTo) (Store, error) {
-	sc := m.newStoreConfig()
-	if err := unstructured.NewClient(m.client).Get(ctx, types.NamespacedName{Name: p.SecretStoreConfigRef.Name}, sc); err != nil {
+	sc := m.newConfig()
+	if err := m.client.Get(ctx, types.NamespacedName{Name: p.SecretStoreConfigRef.Name}, sc); err != nil {
 		return nil, errors.Wrap(err, errGetStoreConfig)
 	}
 

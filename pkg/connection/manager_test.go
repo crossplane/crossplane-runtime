@@ -22,7 +22,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -30,6 +30,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/connection/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	resourcefake "github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
@@ -41,14 +42,6 @@ const (
 
 const (
 	errBuildStore = "cannot build store"
-)
-
-var (
-	storeConfigGVK = schema.GroupVersionKind{
-		Group:   "testprovider.secrets.crossplane.io",
-		Version: "v1alpha1",
-		Kind:    "StoreConfig",
-	}
 )
 
 func TestManagerConnectStore(t *testing.T) {
@@ -75,6 +68,7 @@ func TestManagerConnectStore(t *testing.T) {
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
 					},
+					MockSchema: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{}),
 				p: &v1.PublishConnectionDetailsTo{
@@ -92,12 +86,10 @@ func TestManagerConnectStore(t *testing.T) {
 			args: args{
 				c: &test.MockClient{
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
-						if obj.GetObjectKind().GroupVersionKind() == storeConfigGVK && key.Name == fakeConfig {
-							*obj.(*unstructured.Unstructured) = fakeStoreConfig()
-							return nil
-						}
-						return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
+						*obj.(*fake.StoreConfig) = fake.StoreConfig{}
+						return nil
 					},
+					MockSchema: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: func(ctx context.Context, local client.Client, cfg v1.SecretStoreConfig) (Store, error) {
 					return nil, errors.New(errBuildStore)
@@ -117,17 +109,22 @@ func TestManagerConnectStore(t *testing.T) {
 			args: args{
 				c: &test.MockClient{
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
-						if obj.GetObjectKind().GroupVersionKind() == storeConfigGVK && key.Name == fakeConfig {
-							*obj.(*unstructured.Unstructured) = fakeStoreConfig()
-							return nil
+						*obj.(*fake.StoreConfig) = fake.StoreConfig{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: fakeConfig,
+							},
+							Config: v1.SecretStoreConfig{
+								Type: SecretStoreFake,
+							},
 						}
-						return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
+						return nil
 					},
+					MockSchema: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{}),
 				p: &v1.PublishConnectionDetailsTo{
 					SecretStoreConfigRef: &v1.Reference{
-						Name: "fake",
+						Name: fakeConfig,
 					},
 				},
 			},
@@ -138,7 +135,7 @@ func TestManagerConnectStore(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			m := NewManager(tc.args.c, StoreConfigKind(storeConfigGVK), WithStoreBuilder(tc.args.sb))
+			m := NewDetailsManager(tc.args.c, resourcefake.GVK(&fake.StoreConfig{}), WithStoreBuilder(tc.args.sb))
 
 			_, err := m.connectStore(context.Background(), tc.args.p)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -180,12 +177,9 @@ func TestManagerPublishConnection(t *testing.T) {
 			args: args{
 				c: &test.MockClient{
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
-						if obj.GetObjectKind().GroupVersionKind() == storeConfigGVK && key.Name == fakeConfig {
-							*obj.(*unstructured.Unstructured) = fakeStoreConfig()
-							return nil
-						}
 						return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
 					},
+					MockSchema: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
 					WriteKeyValuesFn: func(ctx context.Context, i store.Secret, kv store.KeyValues) error {
@@ -209,12 +203,17 @@ func TestManagerPublishConnection(t *testing.T) {
 			args: args{
 				c: &test.MockClient{
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
-						if obj.GetObjectKind().GroupVersionKind() == storeConfigGVK && key.Name == fakeConfig {
-							*obj.(*unstructured.Unstructured) = fakeStoreConfig()
-							return nil
+						*obj.(*fake.StoreConfig) = fake.StoreConfig{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: fakeConfig,
+							},
+							Config: v1.SecretStoreConfig{
+								Type: SecretStoreFake,
+							},
 						}
-						return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
+						return nil
 					},
+					MockSchema: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
 					WriteKeyValuesFn: func(ctx context.Context, i store.Secret, kv store.KeyValues) error {
@@ -236,7 +235,7 @@ func TestManagerPublishConnection(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			m := NewManager(tc.args.c, StoreConfigKind(storeConfigGVK), WithStoreBuilder(tc.args.sb))
+			m := NewDetailsManager(tc.args.c, resourcefake.GVK(&fake.StoreConfig{}), WithStoreBuilder(tc.args.sb))
 
 			err := m.publishConnection(context.Background(), tc.args.so, tc.args.kv)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -278,12 +277,9 @@ func TestManagerUnpublishConnection(t *testing.T) {
 			args: args{
 				c: &test.MockClient{
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
-						if obj.GetObjectKind().GroupVersionKind() == storeConfigGVK && key.Name == fakeConfig {
-							*obj.(*unstructured.Unstructured) = fakeStoreConfig()
-							return nil
-						}
 						return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
 					},
+					MockSchema: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
 					WriteKeyValuesFn: func(ctx context.Context, i store.Secret, kv store.KeyValues) error {
@@ -307,12 +303,17 @@ func TestManagerUnpublishConnection(t *testing.T) {
 			args: args{
 				c: &test.MockClient{
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
-						if obj.GetObjectKind().GroupVersionKind() == storeConfigGVK && key.Name == fakeConfig {
-							*obj.(*unstructured.Unstructured) = fakeStoreConfig()
-							return nil
+						*obj.(*fake.StoreConfig) = fake.StoreConfig{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: fakeConfig,
+							},
+							Config: v1.SecretStoreConfig{
+								Type: SecretStoreFake,
+							},
 						}
-						return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
+						return nil
 					},
+					MockSchema: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
 					DeleteKeyValuesFn: func(ctx context.Context, i store.Secret, kv store.KeyValues) error {
@@ -334,28 +335,13 @@ func TestManagerUnpublishConnection(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			m := NewManager(tc.args.c, StoreConfigKind(storeConfigGVK), WithStoreBuilder(tc.args.sb))
+			m := NewDetailsManager(tc.args.c, resourcefake.GVK(&fake.StoreConfig{}), WithStoreBuilder(tc.args.sb))
 
 			err := m.unpublishConnection(context.Background(), tc.args.so, tc.args.kv)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\nReason: %s\nm.unpublishConnection(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
-	}
-}
-
-func fakeStoreConfig() unstructured.Unstructured {
-	return unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": storeConfigGVK.GroupVersion(),
-			"kind":       storeConfigGVK.Kind,
-			"metadata": map[string]interface{}{
-				"name": fakeConfig,
-			},
-			"spec": map[string]interface{}{
-				"type": SecretStoreFake,
-			},
-		},
 	}
 }
 
