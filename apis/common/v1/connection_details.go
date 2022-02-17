@@ -33,7 +33,7 @@ type PublishConnectionDetailsTo struct {
 	// SecretStoreConfigRef specifies which secret store config should be used
 	// for this ConnectionSecret.
 	// +kubebuilder:default={"name": "default"}
-	SecretStoreConfigRef Reference `json:"configRef,omitempty"`
+	SecretStoreConfigRef *Reference `json:"configRef,omitempty"`
 }
 
 // SecretStoreType represents a secret store type.

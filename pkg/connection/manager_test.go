@@ -51,7 +51,7 @@ var (
 	}
 )
 
-func TestManager_connectStore(t *testing.T) {
+func TestManagerConnectStore(t *testing.T) {
 	type args struct {
 		c  client.Client
 		sb StoreBuilderFn
@@ -78,7 +78,7 @@ func TestManager_connectStore(t *testing.T) {
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{}),
 				p: &v1.PublishConnectionDetailsTo{
-					SecretStoreConfigRef: v1.Reference{
+					SecretStoreConfigRef: &v1.Reference{
 						Name: fakeConfig,
 					},
 				},
@@ -103,7 +103,7 @@ func TestManager_connectStore(t *testing.T) {
 					return nil, errors.New(errBuildStore)
 				},
 				p: &v1.PublishConnectionDetailsTo{
-					SecretStoreConfigRef: v1.Reference{
+					SecretStoreConfigRef: &v1.Reference{
 						Name: fakeConfig,
 					},
 				},
@@ -126,7 +126,7 @@ func TestManager_connectStore(t *testing.T) {
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{}),
 				p: &v1.PublishConnectionDetailsTo{
-					SecretStoreConfigRef: v1.Reference{
+					SecretStoreConfigRef: &v1.Reference{
 						Name: "fake",
 					},
 				},
@@ -148,7 +148,7 @@ func TestManager_connectStore(t *testing.T) {
 	}
 }
 
-func TestManager_publishConnection(t *testing.T) {
+func TestManagerPublishConnection(t *testing.T) {
 	type args struct {
 		c  client.Client
 		sb StoreBuilderFn
@@ -194,7 +194,7 @@ func TestManager_publishConnection(t *testing.T) {
 				}),
 				so: &fake.MockSecretOwner{
 					To: &v1.PublishConnectionDetailsTo{
-						SecretStoreConfigRef: v1.Reference{
+						SecretStoreConfigRef: &v1.Reference{
 							Name: "non-existing",
 						},
 					},
@@ -223,7 +223,7 @@ func TestManager_publishConnection(t *testing.T) {
 				}),
 				so: &fake.MockSecretOwner{
 					To: &v1.PublishConnectionDetailsTo{
-						SecretStoreConfigRef: v1.Reference{
+						SecretStoreConfigRef: &v1.Reference{
 							Name: "fake",
 						},
 					},
@@ -246,7 +246,7 @@ func TestManager_publishConnection(t *testing.T) {
 	}
 }
 
-func TestManager_unpublishConnection(t *testing.T) {
+func TestManagerUnpublishConnection(t *testing.T) {
 	type args struct {
 		c  client.Client
 		sb StoreBuilderFn
@@ -292,7 +292,7 @@ func TestManager_unpublishConnection(t *testing.T) {
 				}),
 				so: &fake.MockSecretOwner{
 					To: &v1.PublishConnectionDetailsTo{
-						SecretStoreConfigRef: v1.Reference{
+						SecretStoreConfigRef: &v1.Reference{
 							Name: "non-existing",
 						},
 					},
@@ -321,7 +321,7 @@ func TestManager_unpublishConnection(t *testing.T) {
 				}),
 				so: &fake.MockSecretOwner{
 					To: &v1.PublishConnectionDetailsTo{
-						SecretStoreConfigRef: v1.Reference{
+						SecretStoreConfigRef: &v1.Reference{
 							Name: "fake",
 						},
 					},

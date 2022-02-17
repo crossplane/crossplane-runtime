@@ -65,9 +65,8 @@ func NewSecretStore(ctx context.Context, local client.Client, cfg v1.SecretStore
 		// No KubernetesSecretStoreConfig provided, local API Server will be
 		// used as Secret Store.
 		return &SecretStore{
-			client: local,
-			applicator: resource.NewApplicatorWithRetry(resource.NewAPIPatchingApplicator(local),
-				resource.IsAPIErrorWrapped, nil),
+			client:           local,
+			applicator:       resource.NewApplicatorWithRetry(resource.NewAPIPatchingApplicator(local), resource.IsAPIErrorWrapped, nil),
 			defaultNamespace: cfg.DefaultScope,
 		}, nil
 	}
@@ -83,9 +82,8 @@ func NewSecretStore(ctx context.Context, local client.Client, cfg v1.SecretStore
 	}
 
 	return &SecretStore{
-		client: remote,
-		applicator: resource.NewApplicatorWithRetry(resource.NewAPIPatchingApplicator(remote),
-			resource.IsAPIErrorWrapped, nil),
+		client:           remote,
+		applicator:       resource.NewApplicatorWithRetry(resource.NewAPIPatchingApplicator(remote), resource.IsAPIErrorWrapped, nil),
 		defaultNamespace: cfg.DefaultScope,
 	}, nil
 }
@@ -93,7 +91,7 @@ func NewSecretStore(ctx context.Context, local client.Client, cfg v1.SecretStore
 // ReadKeyValues reads and returns key value pairs for a given Kubernetes Secret.
 func (ss *SecretStore) ReadKeyValues(ctx context.Context, i store.Secret) (store.KeyValues, error) {
 	s := &corev1.Secret{}
-	return s.Data, errors.Wrapf(ss.client.Get(ctx, types.NamespacedName{Name: i.Name, Namespace: ss.namespaceForSecret(i)}, s), errGetSecret)
+	return s.Data, errors.Wrap(ss.client.Get(ctx, types.NamespacedName{Name: i.Name, Namespace: ss.namespaceForSecret(i)}, s), errGetSecret)
 }
 
 // WriteKeyValues writes key value pairs to a given Kubernetes Secret.
@@ -146,7 +144,7 @@ func (ss *SecretStore) DeleteKeyValues(ctx context.Context, i store.Secret, kv s
 	if err != nil {
 		return errors.Wrap(err, errGetSecret)
 	}
-	// Delete all keys from secret data
+	// Delete all supplied keys from secret data
 	for k := range kv {
 		delete(s.Data, k)
 	}

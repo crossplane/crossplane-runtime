@@ -48,27 +48,27 @@ type StoreConfigKind schema.GroupVersionKind
 // store config.
 type StoreBuilderFn func(ctx context.Context, local client.Client, cfg v1.SecretStoreConfig) (Store, error)
 
-// A ManagerOption configures a Manager.
-type ManagerOption func(*Manager)
+// A DetailsManagerOption configures a DetailsManager.
+type DetailsManagerOption func(*DetailsManager)
 
-// WithLogger specifies how the Manager should log messages.
-func WithLogger(l logging.Logger) ManagerOption {
-	return func(m *Manager) {
+// WithLogger specifies how the DetailsManager should log messages.
+func WithLogger(l logging.Logger) DetailsManagerOption {
+	return func(m *DetailsManager) {
 		m.log = l
 	}
 }
 
 // WithStoreBuilder configures the StoreBuilder to use.
-func WithStoreBuilder(sb StoreBuilderFn) ManagerOption {
-	return func(m *Manager) {
+func WithStoreBuilder(sb StoreBuilderFn) DetailsManagerOption {
+	return func(m *DetailsManager) {
 		m.storeBuilder = sb
 	}
 }
 
-// Manager is a connection details manager that satisfies the required
+// DetailsManager is a connection details manager that satisfies the required
 // interfaces to work with connection details by managing interaction with
 // different store implementations.
-type Manager struct {
+type DetailsManager struct {
 	client         client.Client
 	newStoreConfig func() StoreConfig
 	storeBuilder   StoreBuilderFn
@@ -76,13 +76,13 @@ type Manager struct {
 	log logging.Logger
 }
 
-// NewManager returns a new connection Manager.
-func NewManager(c client.Client, of StoreConfigKind, o ...ManagerOption) *Manager {
+// NewManager returns a new connection DetailsManager.
+func NewManager(c client.Client, of StoreConfigKind, o ...DetailsManagerOption) *DetailsManager {
 	nsc := func() StoreConfig {
 		return store.NewConfig(store.ConfigWithGroupVersionKind(schema.GroupVersionKind(of)))
 	}
 
-	m := &Manager{
+	m := &DetailsManager{
 		client:         c,
 		newStoreConfig: nsc,
 		storeBuilder:   RuntimeStoreBuilder,
@@ -99,27 +99,28 @@ func NewManager(c client.Client, of StoreConfigKind, o ...ManagerOption) *Manage
 
 // PublishConnection publishes the supplied ConnectionDetails to a secret on
 // the configured connection Store.
-func (m *Manager) PublishConnection(ctx context.Context, mg resource.Managed, c managed.ConnectionDetails) error {
+// TODO(turkenh): Refactor this method once existing interface methods refactored.
+func (m *DetailsManager) PublishConnection(ctx context.Context, mg resource.Managed, c managed.ConnectionDetails) error {
 	return m.publishConnection(ctx, mg.(SecretOwner), store.KeyValues(c))
 }
 
 // UnpublishConnection deletes connection details secret from the configured
 // connection Store.
-func (m *Manager) UnpublishConnection(ctx context.Context, mg resource.Managed, c managed.ConnectionDetails) error {
+// TODO(turkenh): Refactor this method once existing interface methods refactored.
+func (m *DetailsManager) UnpublishConnection(ctx context.Context, mg resource.Managed, c managed.ConnectionDetails) error {
 	return m.unpublishConnection(ctx, mg.(SecretOwner), store.KeyValues(c))
 }
 
-func (m *Manager) connectStore(ctx context.Context, p *v1.PublishConnectionDetailsTo) (Store, error) {
+func (m *DetailsManager) connectStore(ctx context.Context, p *v1.PublishConnectionDetailsTo) (Store, error) {
 	sc := m.newStoreConfig()
-	if err := unstructured.NewClient(m.client).
-		Get(ctx, types.NamespacedName{Name: p.SecretStoreConfigRef.Name}, sc); err != nil {
+	if err := unstructured.NewClient(m.client).Get(ctx, types.NamespacedName{Name: p.SecretStoreConfigRef.Name}, sc); err != nil {
 		return nil, errors.Wrap(err, errGetStoreConfig)
 	}
 
 	return m.storeBuilder(ctx, m.client, sc.GetStoreConfig())
 }
 
-func (m *Manager) publishConnection(ctx context.Context, so SecretOwner, kv store.KeyValues) error {
+func (m *DetailsManager) publishConnection(ctx context.Context, so SecretOwner, kv store.KeyValues) error {
 	// This resource does not want to expose a connection secret.
 	p := so.GetPublishConnectionDetailsTo()
 	if p == nil {
@@ -138,7 +139,7 @@ func (m *Manager) publishConnection(ctx context.Context, so SecretOwner, kv stor
 	}, kv), errWriteStore)
 }
 
-func (m *Manager) unpublishConnection(ctx context.Context, so SecretOwner, kv store.KeyValues) error {
+func (m *DetailsManager) unpublishConnection(ctx context.Context, so SecretOwner, kv store.KeyValues) error {
 	// This resource didn't expose a connection secret.
 	p := so.GetPublishConnectionDetailsTo()
 	if p == nil {
