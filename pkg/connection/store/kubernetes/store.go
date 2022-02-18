@@ -34,11 +34,11 @@ import (
 
 // Error strings.
 const (
-	errGetSecret            = "cannot get secret"
-	errDeleteSecret         = "cannot delete secret"
-	errUpdateSecret         = "cannot update secret"
-	errCreateOrUpdateSecret = "cannot create or update connection applicator"
-	errParseMetadata        = "cannot parse metadata"
+	errGetSecret     = "cannot get secret"
+	errDeleteSecret  = "cannot delete secret"
+	errUpdateSecret  = "cannot update secret"
+	errApplySecret   = "cannot apply secret"
+	errParseMetadata = "cannot parse metadata"
 
 	errExtractKubernetesAuthCreds = "cannot extract kubernetes auth credentials"
 )
@@ -51,8 +51,7 @@ type secretMetadata struct {
 
 // SecretStore is a Kubernetes Secret Store.
 type SecretStore struct {
-	client     client.Client
-	applicator resource.Applicator
+	client resource.ClientApplicator
 
 	defaultNamespace string
 }
@@ -63,8 +62,10 @@ func NewSecretStore(ctx context.Context, local client.Client, cfg v1.SecretStore
 		// No KubernetesSecretStoreConfig provided, local API Server will be
 		// used as Secret Store.
 		return &SecretStore{
-			client:           local,
-			applicator:       resource.NewApplicatorWithRetry(resource.NewAPIPatchingApplicator(local), resource.IsAPIErrorWrapped, nil),
+			client: resource.ClientApplicator{
+				Client:     local,
+				Applicator: resource.NewApplicatorWithRetry(resource.NewAPIPatchingApplicator(local), resource.IsAPIErrorWrapped, nil),
+			},
 			defaultNamespace: cfg.DefaultScope,
 		}, nil
 	}
@@ -80,8 +81,10 @@ func NewSecretStore(ctx context.Context, local client.Client, cfg v1.SecretStore
 	}
 
 	return &SecretStore{
-		client:           remote,
-		applicator:       resource.NewApplicatorWithRetry(resource.NewAPIPatchingApplicator(remote), resource.IsAPIErrorWrapped, nil),
+		client: resource.ClientApplicator{
+			Client:     remote,
+			Applicator: resource.NewApplicatorWithRetry(resource.NewAPIPatchingApplicator(remote), resource.IsAPIErrorWrapped, nil),
+		},
 		defaultNamespace: cfg.DefaultScope,
 	}, nil
 }
@@ -117,7 +120,7 @@ func (ss *SecretStore) WriteKeyValues(ctx context.Context, i store.Secret, kv st
 		Data: kv,
 	}
 
-	return errors.Wrap(ss.applicator.Apply(ctx, s), errCreateOrUpdateSecret)
+	return errors.Wrap(ss.client.Apply(ctx, s), errApplySecret)
 }
 
 // DeleteKeyValues delete key value pairs from a given Kubernetes Secret.
