@@ -167,20 +167,36 @@ type VaultAuthConfig struct {
 	Kubernetes *VaultAuthKubernetesConfig `json:"kubernetes,omitempty"`
 }
 
+// VaultKVVersion represent API version of the Vault KV engine
+// https://www.vaultproject.io/docs/secrets/kv
+type VaultKVVersion string
+
+const (
+	// VaultKVVersionV1 indicates that "Kubernetes Auth" will be used to
+	// authenticate to Vault.
+	// https://www.vaultproject.io/docs/auth/kubernetes
+	VaultKVVersionV1 VaultKVVersion = "v1"
+
+	// VaultKVVersionV2 indicates that "Token Auth" will be used to
+	// authenticate to Vault.
+	// https://www.vaultproject.io/docs/auth/token
+	VaultKVVersionV2 VaultKVVersion = "v2"
+)
+
 // VaultSecretStoreConfig represents the required configuration for a Vault
 // secret store.
 type VaultSecretStoreConfig struct {
 	// Server is the url of the Vault server, e.g. "https://vault.acme.org"
 	Server string `json:"server"`
 
-	// ParentPath is the path to be prepended to all secrets.
-	ParentPath string `json:"parentPath"`
+	// MountPath is the mount path of the KV secrets engine.
+	MountPath string `json:"mountPath"`
 
 	// Version of the KV Secrets engine of Vault.
 	// https://www.vaultproject.io/docs/secrets/kv
 	// +optional
 	// +kubebuilder:default=v2
-	Version *string `json:"version,omitempty"`
+	Version *VaultKVVersion `json:"version,omitempty"`
 
 	// CABundle is base64 encoded string of Vaults CA certificate.
 	// +optional
