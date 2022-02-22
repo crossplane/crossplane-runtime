@@ -21,12 +21,14 @@ import (
 	"path/filepath"
 
 	"github.com/hashicorp/vault/api"
+
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
+
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
 // Error strings.
@@ -35,17 +37,22 @@ const (
 	errNewClient    = "cannot create new client"
 	errExtractToken = "cannot extract token"
 
-	errRead         = "cannot read secret"
-	errReadToAppend = "cannot read secret to append keys"
-	errWrite        = "cannot write secret"
-	errDelete       = "cannot delete secret"
+	errGet    = "cannot get secret"
+	errApply  = "cannot apply secret"
+	errDelete = "cannot delete secret"
 )
+
+// KVClient is a Vault KV Secrets engine client that supports both v1 and v2.
+type KVClient interface {
+	Get(path string, secret *KVSecret) error
+	Apply(path string, secret *KVSecret) error
+	Delete(path string) error
+}
 
 // SecretStore is a Vault Secret Store.
 type SecretStore struct {
-	client Client
+	client KVClient
 
-	pathPrefix        string
 	defaultParentPath string
 }
 
@@ -53,12 +60,6 @@ type SecretStore struct {
 func NewSecretStore(ctx context.Context, kube client.Client, cfg v1.SecretStoreConfig) (*SecretStore, error) {
 	if cfg.Vault == nil {
 		return nil, errors.New(errNoConfig)
-	}
-	if cfg.Vault.Auth.Method != v1.VaultAuthToken {
-		return nil, errors.Errorf("%q auth not supported yet, please use Token auth", cfg.Vault.Auth.Method)
-	}
-	if cfg.Vault.Auth.Token == nil {
-		return nil, errors.New("token auth configured but no token provided")
 	}
 	vCfg := api.DefaultConfig()
 	vCfg.Address = cfg.Vault.Server
@@ -68,34 +69,35 @@ func NewSecretStore(ctx context.Context, kube client.Client, cfg v1.SecretStoreC
 		return nil, errors.Wrap(err, errNewClient)
 	}
 
-	t, err := resource.CommonCredentialExtractor(ctx, cfg.Vault.Auth.Token.Source, kube, cfg.Vault.Auth.Token.CommonCredentialSelectors)
-	if err != nil {
-		return nil, errors.Wrap(err, errExtractToken)
+	switch cfg.Vault.Auth.Method {
+	case v1.VaultAuthToken:
+		if cfg.Vault.Auth.Token == nil {
+			return nil, errors.New("token auth configured but no token provided")
+		}
+		t, err := resource.CommonCredentialExtractor(ctx, cfg.Vault.Auth.Token.Source, kube, cfg.Vault.Auth.Token.CommonCredentialSelectors)
+		if err != nil {
+			return nil, errors.Wrap(err, errExtractToken)
+		}
+		c.SetToken(string(t))
+	case v1.VaultAuthKubernetes:
+		return nil, errors.Errorf("%q is not supported as an auth method yet", v1.VaultAuthKubernetes)
+	default:
+		return nil, errors.Errorf("%q is not supported as an auth method", cfg.Vault.Auth.Method)
 	}
 
-	c.SetToken(string(t))
-
 	return &SecretStore{
-		client: c.Logical(),
-
-		pathPrefix:        cfg.Vault.MountPath,
+		client:            NewKV(c.Logical(), cfg.Vault.MountPath, WithVersion(KVVersion(cfg.Vault.Version))),
 		defaultParentPath: cfg.DefaultScope,
 	}, nil
 }
 
 // ReadKeyValues reads and returns key value pairs for a given Vault Secret.
 func (ss *SecretStore) ReadKeyValues(_ context.Context, i store.Secret) (store.KeyValues, error) {
-	// TODO(turkenh): Handle not found
-	s, err := ss.client.Read(ss.pathForSecretInstance(i))
-	if err != nil {
-		return nil, errors.Wrap(err, errRead)
+	s := &KVSecret{}
+	if err := ss.client.Get(ss.pathForSecretInstance(i), s); resource.Ignore(isNotFound, err) != nil {
+		return nil, errors.Wrap(err, errGet)
 	}
-	// TODO(turkenh): debug log s.Warnings ?
-	kv := make(map[string][]byte, len(s.Data))
-	for k, v := range s.Data {
-		kv[k] = []byte(v.(string))
-	}
-	return kv, nil
+	return s.data, nil
 }
 
 // WriteKeyValues writes key value pairs to a given Vault Secret.
@@ -104,29 +106,20 @@ func (ss *SecretStore) WriteKeyValues(_ context.Context, i store.Secret, kv stor
 		// Nothing to write
 		return nil
 	}
-	s, err := ss.client.Read(ss.pathForSecretInstance(i))
-	if err != nil {
-		return errors.Wrap(err, errReadToAppend)
+	existing := &KVSecret{}
+	if err := ss.client.Get(ss.pathForSecretInstance(i), existing); resource.Ignore(isNotFound, err) != nil {
+		return errors.Wrap(err, errGet)
 	}
 
-	var existing map[string]interface{}
-	if s != nil {
-		existing = s.Data
+	data := make(map[string][]byte, len(kv)+len(existing.data))
+	for k, v := range existing.data {
+		data[k] = v
 	}
-	data := make(map[string]interface{}, len(kv)+len(existing))
 	for k, v := range kv {
-		// Note(turkenh): value here is or type []byte, it is stored as base64
-		// encoded in Vault if we don't cast it to string. This could be a
-		// configuration option if needed.
-		data[k] = string(v)
-	}
-	for k, v := range existing {
 		data[k] = v
 	}
 
-	_, err = ss.client.Write(ss.pathForSecretInstance(i), data)
-	// TODO(turkenh): debug log s.Warnings ?
-	return errors.Wrap(err, errWrite)
+	return errors.Wrap(ss.client.Apply(ss.pathForSecretInstance(i), &KVSecret{data: data}), errApply)
 }
 
 // DeleteKeyValues delete key value pairs from a given Vault Secret.
@@ -134,13 +127,12 @@ func (ss *SecretStore) WriteKeyValues(_ context.Context, i store.Secret, kv stor
 // If kv specified, those would be deleted and secret instance will be deleted
 // only if there is no data left.
 func (ss *SecretStore) DeleteKeyValues(_ context.Context, i store.Secret, kv store.KeyValues) error {
-	_, err := ss.client.Delete(ss.pathForSecretInstance(i))
-	return errors.Wrap(err, errDelete)
+	return errors.Wrap(ss.client.Delete(ss.pathForSecretInstance(i)), errDelete)
 }
 
 func (ss *SecretStore) pathForSecretInstance(i store.Secret) string {
 	if i.Scope != "" {
-		return filepath.Clean(filepath.Join(ss.pathPrefix, i.Scope, i.Name))
+		return filepath.Clean(filepath.Join(i.Scope, i.Name))
 	}
-	return filepath.Clean(filepath.Join(ss.pathPrefix, ss.defaultParentPath, i.Name))
+	return filepath.Clean(filepath.Join(ss.defaultParentPath, i.Name))
 }
