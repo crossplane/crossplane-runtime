@@ -18,6 +18,7 @@ package vault
 
 import (
 	"context"
+	"encoding/json"
 	"path/filepath"
 
 	"github.com/hashicorp/vault/api"
@@ -33,9 +34,10 @@ import (
 
 // Error strings.
 const (
-	errNoConfig     = "no Vault config provided"
-	errNewClient    = "cannot create new client"
-	errExtractToken = "cannot extract token"
+	errNoConfig      = "no Vault config provided"
+	errNewClient     = "cannot create new client"
+	errExtractToken  = "cannot extract token"
+	errParseMetadata = "cannot parse metadata"
 
 	errGet    = "cannot get secret"
 	errApply  = "cannot apply secret"
@@ -97,29 +99,31 @@ func (ss *SecretStore) ReadKeyValues(_ context.Context, i store.Secret) (store.K
 	if err := ss.client.Get(ss.pathForSecretInstance(i), s); resource.Ignore(isNotFound, err) != nil {
 		return nil, errors.Wrap(err, errGet)
 	}
-	return s.data, nil
+	kv := make(store.KeyValues, len(s.data))
+	for k, v := range s.data {
+		kv[k] = []byte(v.(string))
+	}
+	return kv, nil
 }
 
 // WriteKeyValues writes key value pairs to a given Vault Secret.
 func (ss *SecretStore) WriteKeyValues(_ context.Context, i store.Secret, kv store.KeyValues) error {
-	if len(kv) == 0 {
-		// Nothing to write
-		return nil
-	}
-	existing := &KVSecret{}
-	if err := ss.client.Get(ss.pathForSecretInstance(i), existing); resource.Ignore(isNotFound, err) != nil {
-		return errors.Wrap(err, errGet)
-	}
-
-	data := make(map[string][]byte, len(kv)+len(existing.data))
-	for k, v := range existing.data {
-		data[k] = v
-	}
+	data := make(map[string]interface{}, len(kv))
 	for k, v := range kv {
-		data[k] = v
+		data[k] = string(v)
 	}
 
-	return errors.Wrap(ss.client.Apply(ss.pathForSecretInstance(i), &KVSecret{data: data}), errApply)
+	kvSecret := &KVSecret{data: data}
+
+	meta := map[string]interface{}{}
+	if err := json.Unmarshal(i.Metadata, &meta); err != nil {
+		return errors.Wrap(err, errParseMetadata)
+	}
+	if labels, ok := meta["labels"].(map[string]interface{}); ok {
+		kvSecret.customMeta = labels
+	}
+
+	return errors.Wrap(ss.client.Apply(ss.pathForSecretInstance(i), kvSecret), errApply)
 }
 
 // DeleteKeyValues delete key value pairs from a given Vault Secret.
@@ -127,6 +131,8 @@ func (ss *SecretStore) WriteKeyValues(_ context.Context, i store.Secret, kv stor
 // If kv specified, those would be deleted and secret instance will be deleted
 // only if there is no data left.
 func (ss *SecretStore) DeleteKeyValues(_ context.Context, i store.Secret, kv store.KeyValues) error {
+	// TODO(turkenh): Handle deletion of partial kv, currently we delete
+	//  whole secret.
 	return errors.Wrap(ss.client.Delete(ss.pathForSecretInstance(i)), errDelete)
 }
 

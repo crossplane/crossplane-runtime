@@ -17,20 +17,20 @@
 package vault
 
 import (
+	"encoding/json"
 	"path/filepath"
-	"reflect"
-
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
 	"github.com/hashicorp/vault/api"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
 const (
-	errRead     = "cannot read vault secret"
-	errWrite    = "cannot write vault secret"
-	errNotFound = "secret not found"
-
-	errFmtUnexpectedValue = "expecting a string as a value for key %q, but it is %q"
+	errRead          = "cannot read secret"
+	errWriteData     = "cannot write secret data"
+	errWriteMetadata = "cannot write secret metadata data"
+	errNotFound      = "secret not found"
 )
 
 // KVVersion represent API version of the Vault KV engine
@@ -51,24 +51,29 @@ const (
 
 // KVSecret is a KV Engine secret
 type KVSecret struct {
-	metadata map[string]string
-	data     map[string][]byte
+	customMeta map[string]interface{}
+	data       map[string]interface{}
+	version    json.Number
 }
 
+// KVOption configures a KV.
 type KVOption func(*KV)
 
+// WithVersion specifies which version of KV Secrets engine to be used.
 func WithVersion(v KVVersion) KVOption {
 	return func(kv *KV) {
 		kv.version = v
 	}
 }
 
+// KV is a Vault KV Secrets Engine client.
 type KV struct {
 	client    *api.Logical
 	mountPath string
 	version   KVVersion
 }
 
+// NewKV returns a KV.
 func NewKV(logical *api.Logical, mountPath string, opts ...KVOption) *KV {
 	kv := &KV{
 		client:    logical,
@@ -83,8 +88,13 @@ func NewKV(logical *api.Logical, mountPath string, opts ...KVOption) *KV {
 	return kv
 }
 
+// Get returns KVSecret at a given path.
 func (k *KV) Get(path string, secret *KVSecret) error {
-	s, err := k.client.Read(k.pathForData(path))
+	dataPath := filepath.Join(k.mountPath, path)
+	if k.version == KVVersionV2 {
+		dataPath = filepath.Join(k.mountPath, "data", path)
+	}
+	s, err := k.client.Read(dataPath)
 	if err != nil {
 		return errors.Wrap(err, errRead)
 	}
@@ -94,11 +104,44 @@ func (k *KV) Get(path string, secret *KVSecret) error {
 	return k.parseAsKVSecret(s, secret)
 }
 
+// Apply applies given KVSecret at path by patching its data and setting
+// provided custom metadata.
 func (k *KV) Apply(path string, secret *KVSecret) error {
-	_, err := k.client.Write(k.pathForData(path), k.secretDataFor(secret))
-	return errors.Wrap(err, errWrite)
+	existing := &KVSecret{}
+	if err := k.Get(path, existing); resource.Ignore(isNotFound, err) != nil {
+		return errors.Wrap(err, errGet)
+	}
+
+	if k.version == KVVersionV1 {
+		dp, changed := dataPayloadV1(existing, secret)
+		if !changed {
+			// No metadata in v1 secrets.
+			// Hence, already up to date.
+			return nil
+		}
+		_, err := k.client.Write(filepath.Join(k.mountPath, path), dp)
+		return errors.Wrap(err, errWriteData)
+	}
+
+	dp, changed := dataPayloadV2(existing, secret)
+	if changed {
+		if _, err := k.client.Write(filepath.Join(k.mountPath, "data", path), dp); err != nil {
+			return errors.Wrap(err, errWriteData)
+		}
+	}
+
+	mp, changed := metadataPayload(existing.customMeta, secret.customMeta)
+	// Update metadata only if there is some data in secret.
+	if len(existing.data) > 0 && changed {
+		if _, err := k.client.Write(filepath.Join(k.mountPath, "metadata", path), mp); err != nil {
+			return errors.Wrap(err, errWriteMetadata)
+		}
+	}
+
+	return nil
 }
 
+// Delete deletes KVSecret at the given path.
 func (k *KV) Delete(path string) error {
 	if k.version == KVVersionV1 {
 		_, err := k.client.Delete(filepath.Join(k.mountPath, path))
@@ -111,22 +154,56 @@ func (k *KV) Delete(path string) error {
 	return errors.Wrap(err, errDelete)
 }
 
-func isNotFound(err error) bool {
-	return err.Error() == errNotFound
+func dataPayloadV2(existing, new *KVSecret) (map[string]interface{}, bool) {
+	data := make(map[string]interface{}, len(existing.data)+len(new.data))
+	for k, v := range existing.data {
+		data[k] = v
+	}
+	changed := false
+	for k, v := range new.data {
+		if ev, ok := existing.data[k]; !ok || ev != v {
+			changed = true
+			data[k] = v
+		}
+	}
+	return map[string]interface{}{
+		"options": map[string]interface{}{
+			"cas": existing.version,
+		},
+		"data": data,
+	}, changed
 }
 
-func (k *KV) pathForData(path string) string {
-	if k.version == KVVersionV1 {
-		return filepath.Join(k.mountPath, path)
+func metadataPayload(existing, new map[string]interface{}) (map[string]interface{}, bool) {
+	changed := false
+	for k, v := range new {
+		if ev, ok := existing[k]; !ok || ev != v {
+			changed = true
+		}
 	}
-	return filepath.Join(k.mountPath, "data", path)
+	return map[string]interface{}{
+		"custom_metadata": new,
+	}, changed
+}
+
+func dataPayloadV1(existing, new *KVSecret) (map[string]interface{}, bool) {
+	data := make(map[string]interface{}, len(existing.data)+len(new.data))
+	for k, v := range existing.data {
+		data[k] = v
+	}
+	changed := false
+	for k, v := range new.data {
+		if ev, ok := existing.data[k]; !ok || ev != v {
+			changed = true
+			data[k] = v
+		}
+	}
+	return data, changed
 }
 
 func (k *KV) parseAsKVSecret(s *api.Secret, kv *KVSecret) error {
-	var err error
 	if k.version == KVVersionV1 {
-		kv.data, err = valuesAsByteArray(s.Data)
-		return err
+		kv.data = s.Data
 	}
 
 	// kv version is v2
@@ -135,86 +212,20 @@ func (k *KV) parseAsKVSecret(s *api.Secret, kv *KVSecret) error {
 	// block inside the top level generic "data" field.
 	// https://www.vaultproject.io/api/secret/kv/kv-v2#sample-response-1
 	if sData, ok := s.Data["data"].(map[string]interface{}); ok && sData != nil {
-		if kv.data, err = valuesAsByteArray(sData); err != nil {
-			return err
-		}
+		kv.data = sData
 	}
 	if sMeta, ok := s.Data["metadata"].(map[string]interface{}); ok && sMeta != nil {
-		if kv.metadata, err = valuesAsString(sMeta); err != nil {
-			return err
+		kv.version, _ = sMeta["version"].(json.Number)
+		if cMeta, ok := sMeta["custom_metadata"].(map[string]interface{}); ok && cMeta != nil {
+			kv.customMeta = cMeta
 		}
 	}
 	return nil
 }
 
-func (k *KV) secretDataFor(kv *KVSecret) map[string]interface{} {
-	if k.version == KVVersionV1 {
-		// There is no metadata for a v1 kv secret
-		return valuesAsInterface(kv.data)
+func isNotFound(err error) bool {
+	if err == nil {
+		return false
 	}
-
-	// kv version is v2
-
-	// Note(turkenh): kv v2 secrets contains another "data" and a "metadata"
-	// block inside the top level generic "data" field.
-	// https://www.vaultproject.io/api/secret/kv/kv-v2#sample-response-1
-
-	out := make(map[string]interface{}, 2)
-	out["data"] = byteArrayValuesAsString(kv.data)
-	out["metadata"] = kv.metadata
-
-	return out
-}
-
-func valuesAsByteArray(in map[string]interface{}) (map[string][]byte, error) {
-	if len(in) == 0 {
-		return nil, nil
-	}
-	out := make(map[string][]byte, len(in))
-	for key, val := range in {
-		sVal, ok := val.(string)
-		if !ok {
-			return nil, errors.Errorf(errFmtUnexpectedValue, key, reflect.TypeOf(val))
-		}
-		out[key] = []byte(sVal)
-	}
-	return out, nil
-}
-
-func valuesAsString(in map[string]interface{}) (map[string]string, error) {
-	if len(in) == 0 {
-		return nil, nil
-	}
-	out := make(map[string]string, len(in))
-	for key, val := range in {
-		sVal, ok := val.(string)
-		if !ok {
-			return nil, errors.Errorf(errFmtUnexpectedValue, key, reflect.TypeOf(val))
-		}
-		out[key] = sVal
-	}
-	return out, nil
-}
-
-func byteArrayValuesAsString(in map[string][]byte) map[string]string {
-	if len(in) == 0 {
-		return nil
-	}
-	out := make(map[string]string, len(in))
-
-	for key, val := range in {
-		out[key] = string(val)
-	}
-	return out
-}
-
-func valuesAsInterface(in map[string][]byte) map[string]interface{} {
-	if len(in) == 0 {
-		return nil
-	}
-	out := make(map[string]interface{}, len(in))
-	for key, val := range in {
-		out[key] = val
-	}
-	return out
+	return err.Error() == errNotFound
 }
