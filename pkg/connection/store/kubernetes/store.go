@@ -24,6 +24,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -41,6 +42,8 @@ const (
 	errParseMetadata = "cannot parse metadata"
 
 	errExtractKubernetesAuthCreds = "cannot extract kubernetes auth credentials"
+	errBuildRestConfig            = "cannot build rest config kubeconfig"
+	errBuildClient                = "cannot build Kubernetes client"
 )
 
 type secretMetadata struct {
@@ -58,35 +61,36 @@ type SecretStore struct {
 
 // NewSecretStore returns a new Kubernetes SecretStore.
 func NewSecretStore(ctx context.Context, local client.Client, cfg v1.SecretStoreConfig) (*SecretStore, error) {
+	kube, err := buildClient(ctx, local, cfg)
+	if err != nil {
+		return nil, errors.Wrap(err, errBuildClient)
+	}
+
+	return &SecretStore{
+		client: resource.ClientApplicator{
+			Client:     kube,
+			Applicator: resource.NewApplicatorWithRetry(resource.NewAPIPatchingApplicator(kube), resource.IsAPIErrorWrapped, nil),
+		},
+		defaultNamespace: cfg.DefaultScope,
+	}, nil
+}
+
+func buildClient(ctx context.Context, local client.Client, cfg v1.SecretStoreConfig) (client.Client, error) {
 	if cfg.Kubernetes == nil {
 		// No KubernetesSecretStoreConfig provided, local API Server will be
 		// used as Secret Store.
-		return &SecretStore{
-			client: resource.ClientApplicator{
-				Client:     local,
-				Applicator: resource.NewApplicatorWithRetry(resource.NewAPIPatchingApplicator(local), resource.IsAPIErrorWrapped, nil),
-			},
-			defaultNamespace: cfg.DefaultScope,
-		}, nil
+		return local, nil
 	}
-
 	// Configure client for an external API server with a given Kubeconfig.
 	kfg, err := resource.CommonCredentialExtractor(ctx, cfg.Kubernetes.Auth.Source, local, cfg.Kubernetes.Auth.CommonCredentialSelectors)
 	if err != nil {
 		return nil, errors.Wrap(err, errExtractKubernetesAuthCreds)
 	}
-	remote, err := clientForKubeconfig(kfg)
+	config, err := clientcmd.RESTConfigFromKubeConfig(kfg)
 	if err != nil {
-		return nil, errors.Wrap(err, errExtractKubernetesAuthCreds)
+		return nil, errors.Wrap(err, errBuildRestConfig)
 	}
-
-	return &SecretStore{
-		client: resource.ClientApplicator{
-			Client:     remote,
-			Applicator: resource.NewApplicatorWithRetry(resource.NewAPIPatchingApplicator(remote), resource.IsAPIErrorWrapped, nil),
-		},
-		defaultNamespace: cfg.DefaultScope,
-	}, nil
+	return client.New(config, client.Options{})
 }
 
 // ReadKeyValues reads and returns key value pairs for a given Kubernetes Secret.

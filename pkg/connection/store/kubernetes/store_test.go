@@ -20,6 +20,8 @@ import (
 	"context"
 	"testing"
 
+	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -53,6 +55,8 @@ var (
 	fakeAnnotations = map[string]string{
 		"some-annotation-key": "some-annotation-value",
 	}
+
+	storeTypeKubernetes = v1.SecretStoreKubernetes
 )
 
 func TestSecretStoreReadKeyValues(t *testing.T) {
@@ -111,10 +115,14 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			ss := &SecretStore{
-				client:           tc.args.client,
-				defaultNamespace: tc.args.defaultNamespace,
+			ss, err := NewSecretStore(context.Background(), tc.args.client, v1.SecretStoreConfig{
+				Type:         &storeTypeKubernetes,
+				DefaultScope: tc.args.defaultNamespace,
+			})
+			if err != nil {
+				t.Fatalf("\nUnexpected error during secret store initialization: %v\n", err)
 			}
+
 			got, err := ss.ReadKeyValues(context.Background(), tc.args.secret)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nss.ReadKeyValues(...): -want error, +got error:\n%s", tc.reason, diff)
