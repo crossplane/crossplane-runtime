@@ -44,6 +44,10 @@ const (
 	errBuildStore = "cannot build store"
 )
 
+var (
+	fakeStore = SecretStoreFake
+)
+
 func TestManagerConnectStore(t *testing.T) {
 	type args struct {
 		c  client.Client
@@ -68,7 +72,7 @@ func TestManagerConnectStore(t *testing.T) {
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
 					},
-					MockSchema: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
+					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{}),
 				p: &v1.PublishConnectionDetailsTo{
@@ -89,7 +93,7 @@ func TestManagerConnectStore(t *testing.T) {
 						*obj.(*fake.StoreConfig) = fake.StoreConfig{}
 						return nil
 					},
-					MockSchema: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
+					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: func(ctx context.Context, local client.Client, cfg v1.SecretStoreConfig) (Store, error) {
 					return nil, errors.New(errBuildStore)
@@ -114,12 +118,12 @@ func TestManagerConnectStore(t *testing.T) {
 								Name: fakeConfig,
 							},
 							Config: v1.SecretStoreConfig{
-								Type: SecretStoreFake,
+								Type: &fakeStore,
 							},
 						}
 						return nil
 					},
-					MockSchema: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
+					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{}),
 				p: &v1.PublishConnectionDetailsTo{
@@ -166,6 +170,9 @@ func TestManagerPublishConnection(t *testing.T) {
 		"NoConnectionDetails": {
 			reason: "We should return no error if resource does not want to expose a connection secret.",
 			args: args{
+				c: &test.MockClient{
+					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
+				},
 				so: &fake.MockSecretOwner{To: nil},
 			},
 			want: want{
@@ -179,7 +186,7 @@ func TestManagerPublishConnection(t *testing.T) {
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
 					},
-					MockSchema: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
+					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
 					WriteKeyValuesFn: func(ctx context.Context, i store.Secret, kv store.KeyValues) error {
@@ -208,12 +215,12 @@ func TestManagerPublishConnection(t *testing.T) {
 								Name: fakeConfig,
 							},
 							Config: v1.SecretStoreConfig{
-								Type: SecretStoreFake,
+								Type: &fakeStore,
 							},
 						}
 						return nil
 					},
-					MockSchema: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
+					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
 					WriteKeyValuesFn: func(ctx context.Context, i store.Secret, kv store.KeyValues) error {
@@ -266,6 +273,9 @@ func TestManagerUnpublishConnection(t *testing.T) {
 		"NoConnectionDetails": {
 			reason: "We should return no error if resource does not want to expose a connection secret.",
 			args: args{
+				c: &test.MockClient{
+					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
+				},
 				so: &fake.MockSecretOwner{To: nil},
 			},
 			want: want{
@@ -279,7 +289,7 @@ func TestManagerUnpublishConnection(t *testing.T) {
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
 					},
-					MockSchema: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
+					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
 					WriteKeyValuesFn: func(ctx context.Context, i store.Secret, kv store.KeyValues) error {
@@ -308,12 +318,12 @@ func TestManagerUnpublishConnection(t *testing.T) {
 								Name: fakeConfig,
 							},
 							Config: v1.SecretStoreConfig{
-								Type: SecretStoreFake,
+								Type: &fakeStore,
 							},
 						}
 						return nil
 					},
-					MockSchema: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
+					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
 					DeleteKeyValuesFn: func(ctx context.Context, i store.Secret, kv store.KeyValues) error {
@@ -347,9 +357,9 @@ func TestManagerUnpublishConnection(t *testing.T) {
 
 func fakeStoreBuilderFn(ss fake.SecretStore) StoreBuilderFn {
 	return func(_ context.Context, _ client.Client, cfg v1.SecretStoreConfig) (Store, error) {
-		if cfg.Type == SecretStoreFake {
+		if *cfg.Type == fakeStore {
 			return &ss, nil
 		}
-		return nil, errors.Errorf(errFmtUnknownSecretStore, cfg.Type)
+		return nil, errors.Errorf(errFmtUnknownSecretStore, *cfg.Type)
 	}
 }

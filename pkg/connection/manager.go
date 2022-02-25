@@ -77,6 +77,10 @@ func NewDetailsManager(c client.Client, of schema.GroupVersionKind, o ...Details
 		return resource.MustCreateObject(of, c.Scheme()).(StoreConfig)
 	}
 
+	// Panic early if we've been asked to reconcile a resource kind that has not
+	// been registered with our controller manager's scheme.
+	_ = nc()
+
 	m := &DetailsManager{
 		client:       c,
 		newConfig:    nc,
@@ -94,7 +98,8 @@ func NewDetailsManager(c client.Client, of schema.GroupVersionKind, o ...Details
 
 // PublishConnection publishes the supplied ConnectionDetails to a secret on
 // the configured connection Store.
-// TODO(turkenh): Refactor this method once existing interface methods refactored.
+// TODO(turkenh): Refactor this method once the `managed.ConnectionPublisher`
+//  interface methods refactored per new types: SecretOwner and KeyValues
 func (m *DetailsManager) PublishConnection(ctx context.Context, mg resource.Managed, c managed.ConnectionDetails) error {
 	return m.publishConnection(ctx, mg.(SecretOwner), store.KeyValues(c))
 }

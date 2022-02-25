@@ -35,12 +35,11 @@ const (
 //
 // All in-tree connection Store implementations needs to be registered here.
 func RuntimeStoreBuilder(ctx context.Context, local client.Client, cfg v1.SecretStoreConfig) (Store, error) {
-	// TODO(turkenh): pass logger to secret stores.
-	switch cfg.Type {
+	switch *cfg.Type {
 	case v1.SecretStoreKubernetes:
 		return kubernetes.NewSecretStore(ctx, local, cfg)
 	case v1.SecretStoreVault:
 		return nil, errors.New("Vault is not supported as a secret store yet")
 	}
-	return nil, errors.Errorf(errFmtUnknownSecretStore, cfg.Type)
+	return nil, errors.Errorf(errFmtUnknownSecretStore, *cfg.Type)
 }

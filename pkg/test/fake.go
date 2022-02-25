@@ -194,7 +194,7 @@ type MockClient struct {
 	MockStatusUpdate MockStatusUpdateFn
 	MockStatusPatch  MockStatusPatchFn
 
-	MockSchema MockSchemeFn
+	MockScheme MockSchemeFn
 }
 
 // NewMockClient returns a MockClient that does nothing when its methods are
@@ -211,7 +211,7 @@ func NewMockClient() *MockClient {
 		MockStatusUpdate: NewMockStatusUpdateFn(nil),
 		MockStatusPatch:  NewMockStatusPatchFn(nil),
 
-		MockSchema: NewMockSchemeFn(nil),
+		MockScheme: NewMockSchemeFn(nil),
 	}
 }
 
@@ -265,7 +265,7 @@ func (c *MockClient) RESTMapper() meta.RESTMapper {
 
 // Scheme calls MockClient's MockScheme function
 func (c *MockClient) Scheme() *runtime.Scheme {
-	return c.MockSchema()
+	return c.MockScheme()
 }
 
 // MockStatusWriter provides mock functionality for status sub-resource

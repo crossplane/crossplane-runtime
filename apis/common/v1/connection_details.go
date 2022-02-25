@@ -32,6 +32,7 @@ type PublishConnectionDetailsTo struct {
 
 	// SecretStoreConfigRef specifies which secret store config should be used
 	// for this ConnectionSecret.
+	// +optional
 	// +kubebuilder:default={"name": "default"}
 	SecretStoreConfigRef *Reference `json:"configRef,omitempty"`
 }
@@ -53,22 +54,26 @@ const (
 type SecretStoreConfig struct {
 	// Type configures which secret store to be used. Only the configuration
 	// block for this store will be used and others will be ignored if provided.
+	// Default is Kubernetes.
+	// +optional
 	// +kubebuilder:default=Kubernetes
-	Type SecretStoreType `json:"type,omitempty"`
+	Type *SecretStoreType `json:"type,omitempty"`
 
 	// DefaultScope used for scoping secrets for "cluster-scoped" resources.
 	// If store type is "Kubernetes", this would mean the default namespace to
 	// store connection secrets for cluster scoped resources.
 	// In case of "Vault", this would be used as the default parent path.
 	// Typically, should be set as Crossplane installation namespace.
-	DefaultScope string `json:"defaultScope,omitempty"`
+	DefaultScope string `json:"defaultScope"`
 
 	// Kubernetes configures a Kubernetes secret store.
 	// If the "type" is "Kubernetes" but no config provided, in cluster config
 	// will be used.
+	// +optional
 	Kubernetes *KubernetesSecretStoreConfig `json:"kubernetes,omitempty"`
 
 	// Vault configures a Vault secret store.
+	// +optional
 	Vault *VaultSecretStoreConfig `json:"vault,omitempty"`
 }
 
@@ -127,6 +132,7 @@ type VaultAuthConfig struct {
 	// Method configures which auth method will be used.
 	Method VaultAuthMethod `json:"method"`
 	// Kubernetes configures Kubernetes Auth for Vault.
+	// +optional
 	Kubernetes *VaultAuthKubernetesConfig `json:"kubernetes,omitempty"`
 }
 
@@ -137,19 +143,21 @@ type VaultSecretStoreConfig struct {
 	Server string `json:"server"`
 
 	// ParentPath is the path to be prepended to all secrets.
-	// +kubebuilder:default="secret/crossplane/"
 	ParentPath string `json:"parentPath"`
 
 	// Version of the KV Secrets engine of Vault.
 	// https://www.vaultproject.io/docs/secrets/kv
+	// +optional
 	// +kubebuilder:default=v2
-	Version string `json:"version"`
+	Version *string `json:"version,omitempty"`
 
 	// CABundle is base64 encoded string of Vaults CA certificate.
-	CABundle string `json:"caBundle,omitempty"`
+	// +optional
+	CABundle *string `json:"caBundle,omitempty"`
 
 	// CABundleSecretRef is a reference to a K8s secret key with Vaults CA
 	// certificate.
+	// +optional
 	CABundleSecretRef *SecretKeySelector `json:"caBundleSecretRef,omitempty"`
 
 	// Auth configures an authentication method for Vault.
