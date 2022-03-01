@@ -16,25 +16,38 @@ limitations under the License.
 
 package v1
 
-import "k8s.io/apimachinery/pkg/runtime"
+import (
+	corev1 "k8s.io/api/core/v1"
+)
 
 // PublishConnectionDetailsTo represents configuration of a connection secret.
 type PublishConnectionDetailsTo struct {
-	// Name is the name of the connection secret
+	// Name is the name of the connection secret.
 	Name string `json:"name"`
 
-	// Metadata is secret store specific key/value pairs to be used as metadata
-	// Please note, expected keys will differ for each store type. For example,
-	// it could be "labels" and "annotations" in case of "Kubernetes", but it
-	// would be "tags" for "AWS Secret Manager".
-	// +kubebuilder:pruning:PreserveUnknownFields
-	Metadata runtime.RawExtension `json:"metadata,omitempty"`
+	// Metadata is the metadata for connection secret.
+	Metadata ConnectionSecretMetadata `json:"metadata,omitempty"`
 
 	// SecretStoreConfigRef specifies which secret store config should be used
 	// for this ConnectionSecret.
 	// +optional
 	// +kubebuilder:default={"name": "default"}
 	SecretStoreConfigRef *Reference `json:"configRef,omitempty"`
+}
+
+// ConnectionSecretMetadata represents metadata of a connection secret.
+type ConnectionSecretMetadata struct {
+	// Labels are the labels/tags to be added to connection secret.
+	// - For Kubernetes secrets, this will be used as "metadata.labels".
+	// - It is up to Secret Store implementation for others store types.
+	Labels map[string]string `json:"labels"`
+	// Annotations are the annotations to be added to connection secret.
+	// - For Kubernetes secrets, this will be used as "metadata.annotations".
+	// - It is up to Secret Store implementation for others store types.
+	Annotations map[string]string `json:"annotations"`
+	// Type is the SecretType for the connection secret.
+	// - Only valid for Kubernetes Secret Stores.
+	Type corev1.SecretType `json:"type"`
 }
 
 // SecretStoreType represents a secret store type.

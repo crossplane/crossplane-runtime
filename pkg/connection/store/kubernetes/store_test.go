@@ -151,17 +151,6 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 		args
 		want
 	}{
-		"CannotParseMetadata": {
-			reason: "Should return a proper error when metadata cannot be parsed.",
-			args: args{
-				secret: store.Secret{
-					Metadata: []byte("malformed-json"),
-				},
-			},
-			want: want{
-				err: errors.Wrap(errors.New("invalid character 'm' looking for beginning of value"), errParseMetadata),
-			},
-		},
 		"ApplyFailed": {
 			reason: "Should return a proper error when cannot apply.",
 			args: args{
@@ -288,9 +277,18 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 					}),
 				},
 				secret: store.Secret{
-					Name:     fakeSecretName,
-					Scope:    fakeSecretNamespace,
-					Metadata: []byte(`{ "labels":{ "environment": "unit-test","reason": "testing"},"annotations":{"some-annotation-key": "some-annotation-value"},"type": "Opaque"}`),
+					Name:  fakeSecretName,
+					Scope: fakeSecretNamespace,
+					Metadata: v1.ConnectionSecretMetadata{
+						Labels: map[string]string{
+							"environment": "unit-test",
+							"reason":      "testing",
+						},
+						Annotations: map[string]string{
+							"some-annotation-key": "some-annotation-value",
+						},
+						Type: "Opaque",
+					},
 				},
 				kv: store.KeyValues(fakeKV),
 			},

@@ -16,6 +16,10 @@
 
 package store
 
+import (
+	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+)
+
 // KeyValues is a map with sensitive values.
 type KeyValues map[string][]byte
 
@@ -23,5 +27,5 @@ type KeyValues map[string][]byte
 type Secret struct {
 	Name     string
 	Scope    string
-	Metadata []byte
+	Metadata v1.ConnectionSecretMetadata
 }

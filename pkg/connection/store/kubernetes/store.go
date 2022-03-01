@@ -18,7 +18,6 @@ package kubernetes
 
 import (
 	"context"
-	"encoding/json"
 
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -35,22 +34,15 @@ import (
 
 // Error strings.
 const (
-	errGetSecret     = "cannot get secret"
-	errDeleteSecret  = "cannot delete secret"
-	errUpdateSecret  = "cannot update secret"
-	errApplySecret   = "cannot apply secret"
-	errParseMetadata = "cannot parse metadata"
+	errGetSecret    = "cannot get secret"
+	errDeleteSecret = "cannot delete secret"
+	errUpdateSecret = "cannot update secret"
+	errApplySecret  = "cannot apply secret"
 
 	errExtractKubernetesAuthCreds = "cannot extract kubernetes auth credentials"
 	errBuildRestConfig            = "cannot build rest config kubeconfig"
 	errBuildClient                = "cannot build Kubernetes client"
 )
-
-type secretMetadata struct {
-	Labels      map[string]string `json:"labels"`
-	Annotations map[string]string `json:"annotations"`
-	Type        corev1.SecretType `json:"type"`
-}
 
 // SecretStore is a Kubernetes Secret Store.
 type SecretStore struct {
@@ -101,24 +93,17 @@ func (ss *SecretStore) ReadKeyValues(ctx context.Context, i store.Secret) (store
 
 // WriteKeyValues writes key value pairs to a given Kubernetes Secret.
 func (ss *SecretStore) WriteKeyValues(ctx context.Context, i store.Secret, kv store.KeyValues) error {
-	meta := secretMetadata{}
-	if len(i.Metadata) > 0 {
-		if err := json.Unmarshal(i.Metadata, &meta); err != nil {
-			return errors.Wrap(err, errParseMetadata)
-		}
-	}
-
 	t := resource.SecretTypeConnection
-	if meta.Type != "" {
-		t = meta.Type
+	if i.Metadata.Type != "" {
+		t = i.Metadata.Type
 	}
 
 	s := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        i.Name,
 			Namespace:   ss.namespaceForSecret(i),
-			Labels:      meta.Labels,
-			Annotations: meta.Annotations,
+			Labels:      i.Metadata.Labels,
+			Annotations: i.Metadata.Annotations,
 		},
 		Type: t,
 		Data: kv,

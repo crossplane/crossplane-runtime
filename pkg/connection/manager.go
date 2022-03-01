@@ -106,7 +106,8 @@ func (m *DetailsManager) PublishConnection(ctx context.Context, mg resource.Mana
 
 // UnpublishConnection deletes connection details secret from the configured
 // connection Store.
-// TODO(turkenh): Refactor this method once existing interface methods refactored.
+// TODO(turkenh): Refactor this method once the `managed.ConnectionPublisher`
+//  interface methods refactored per new types: SecretOwner and KeyValues
 func (m *DetailsManager) UnpublishConnection(ctx context.Context, mg resource.Managed, c managed.ConnectionDetails) error {
 	return m.unpublishConnection(ctx, mg.(SecretOwner), store.KeyValues(c))
 }
@@ -135,7 +136,7 @@ func (m *DetailsManager) publishConnection(ctx context.Context, so SecretOwner, 
 	return errors.Wrap(ss.WriteKeyValues(ctx, store.Secret{
 		Name:     p.Name,
 		Scope:    so.GetNamespace(),
-		Metadata: p.Metadata.Raw,
+		Metadata: p.Metadata,
 	}, kv), errWriteStore)
 }
 
@@ -154,6 +155,6 @@ func (m *DetailsManager) unpublishConnection(ctx context.Context, so SecretOwner
 	return errors.Wrap(ss.DeleteKeyValues(ctx, store.Secret{
 		Name:     p.Name,
 		Scope:    so.GetNamespace(),
-		Metadata: p.Metadata.Raw,
+		Metadata: p.Metadata,
 	}, kv), errDeleteFromStore)
 }
