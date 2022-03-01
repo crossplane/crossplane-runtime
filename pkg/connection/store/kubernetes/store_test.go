@@ -20,8 +20,6 @@ import (
 	"context"
 	"testing"
 
-	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -29,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -61,9 +60,8 @@ var (
 
 func TestSecretStoreReadKeyValues(t *testing.T) {
 	type args struct {
-		client           resource.ClientApplicator
-		defaultNamespace string
-		secret           store.Secret
+		client resource.ClientApplicator
+		secret store.Secret
 	}
 	type want struct {
 		result store.KeyValues
@@ -115,12 +113,8 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			ss, err := NewSecretStore(context.Background(), tc.args.client, v1.SecretStoreConfig{
-				Type:         &storeTypeKubernetes,
-				DefaultScope: tc.args.defaultNamespace,
-			})
-			if err != nil {
-				t.Fatalf("\nUnexpected error during secret store initialization: %v\n", err)
+			ss := &SecretStore{
+				client: tc.args.client,
 			}
 
 			got, err := ss.ReadKeyValues(context.Background(), tc.args.secret)
@@ -447,6 +441,184 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 			err := ss.DeleteKeyValues(context.Background(), tc.args.secret, tc.args.kv)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nss.DeleteKeyValues(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestNewSecretStore(t *testing.T) {
+	type args struct {
+		client resource.ClientApplicator
+		cfg    v1.SecretStoreConfig
+	}
+	type want struct {
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args
+		want
+	}{
+		"SuccessfulLocal": {
+			reason: "Should return no error after successfully building local Kubernetes secret store",
+			args: args{
+				client: resource.ClientApplicator{},
+				cfg: v1.SecretStoreConfig{
+					Type:         &storeTypeKubernetes,
+					DefaultScope: "test-ns",
+				},
+			},
+			want: want{
+				err: nil,
+			},
+		},
+		"NoSecretWithRemoteKubeconfig": {
+			reason: "Should fail properly if configured kubeconfig secret does not exist",
+			args: args{
+				client: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							return kerrors.NewNotFound(schema.GroupResource{}, "kube-conn")
+						}),
+					},
+				},
+				cfg: v1.SecretStoreConfig{
+					Type:         &storeTypeKubernetes,
+					DefaultScope: "test-ns",
+					Kubernetes: &v1.KubernetesSecretStoreConfig{
+						Auth: v1.KubernetesAuthConfig{
+							Source: v1.CredentialsSourceSecret,
+							CommonCredentialSelectors: v1.CommonCredentialSelectors{
+								SecretRef: &v1.SecretKeySelector{
+									SecretReference: v1.SecretReference{
+										Name:      "kube-conn",
+										Namespace: "test-ns",
+									},
+									Key: "kubeconfig",
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errors.Wrap(errors.Wrap(kerrors.NewNotFound(schema.GroupResource{}, "kube-conn"), "cannot get credentials secret"), errExtractKubernetesAuthCreds), errBuildClient),
+			},
+		},
+		"InvalidRestConfigForRemote": {
+			reason: "Should fetch the configured kubeconfig and fail if it is not valid",
+			args: args{
+				client: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							*obj.(*corev1.Secret) = corev1.Secret{
+								ObjectMeta: metav1.ObjectMeta{
+									Name:      "kube-conn",
+									Namespace: "test-ns",
+								},
+								Data: map[string][]byte{
+									"kubeconfig": []byte(`
+apiVersion: v1
+kind: Config
+malformed
+`),
+								},
+							}
+							return nil
+						}),
+					},
+				},
+				cfg: v1.SecretStoreConfig{
+					Type:         &storeTypeKubernetes,
+					DefaultScope: "test-ns",
+					Kubernetes: &v1.KubernetesSecretStoreConfig{
+						Auth: v1.KubernetesAuthConfig{
+							Source: v1.CredentialsSourceSecret,
+							CommonCredentialSelectors: v1.CommonCredentialSelectors{
+								SecretRef: &v1.SecretKeySelector{
+									SecretReference: v1.SecretReference{
+										Name:      "kube-conn",
+										Namespace: "test-ns",
+									},
+									Key: "kubeconfig",
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errors.Wrap(errors.New("yaml: line 5: could not find expected ':'"), errBuildRestConfig), errBuildClient),
+			},
+		},
+		"InvalidKubeconfigForRemote": {
+			reason: "Should fetch the configured kubeconfig and fail if it is not valid",
+			args: args{
+				client: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							*obj.(*corev1.Secret) = corev1.Secret{
+								ObjectMeta: metav1.ObjectMeta{
+									Name:      "kube-conn",
+									Namespace: "test-ns",
+								},
+								Data: map[string][]byte{
+									"kubeconfig": []byte(`
+apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority-data: TEST
+    server: https://127.0.0.1:64695
+  name: kind-kind
+contexts:
+- context:
+    cluster: kind-kind
+    namespace: crossplane-system
+    user: kind-kind
+  name: kind-kind
+current-context: kind-kind
+kind: Config
+users:
+- name: kind-kind
+  user: {}
+`),
+								},
+							}
+							return nil
+						}),
+					},
+				},
+				cfg: v1.SecretStoreConfig{
+					Type:         &storeTypeKubernetes,
+					DefaultScope: "test-ns",
+					Kubernetes: &v1.KubernetesSecretStoreConfig{
+						Auth: v1.KubernetesAuthConfig{
+							Source: v1.CredentialsSourceSecret,
+							CommonCredentialSelectors: v1.CommonCredentialSelectors{
+								SecretRef: &v1.SecretKeySelector{
+									SecretReference: v1.SecretReference{
+										Name:      "kube-conn",
+										Namespace: "test-ns",
+									},
+									Key: "kubeconfig",
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errors.New("unable to load root certificates: unable to parse bytes as PEM block"), errBuildClient),
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			_, err := NewSecretStore(context.Background(), tc.args.client, tc.args.cfg)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nNewSecretStore(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
 	}
