@@ -27,5 +27,5 @@ type KeyValues map[string][]byte
 type Secret struct {
 	Name     string
 	Scope    string
-	Metadata v1.ConnectionSecretMetadata
+	Metadata *v1.ConnectionSecretMetadata
 }

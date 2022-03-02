@@ -26,7 +26,8 @@ type PublishConnectionDetailsTo struct {
 	Name string `json:"name"`
 
 	// Metadata is the metadata for connection secret.
-	Metadata ConnectionSecretMetadata `json:"metadata,omitempty"`
+	// +optional
+	Metadata *ConnectionSecretMetadata `json:"metadata,omitempty"`
 
 	// SecretStoreConfigRef specifies which secret store config should be used
 	// for this ConnectionSecret.
@@ -40,14 +41,17 @@ type ConnectionSecretMetadata struct {
 	// Labels are the labels/tags to be added to connection secret.
 	// - For Kubernetes secrets, this will be used as "metadata.labels".
 	// - It is up to Secret Store implementation for others store types.
-	Labels map[string]string `json:"labels"`
+	// +optional
+	Labels map[string]string `json:"labels,omitempty"`
 	// Annotations are the annotations to be added to connection secret.
 	// - For Kubernetes secrets, this will be used as "metadata.annotations".
 	// - It is up to Secret Store implementation for others store types.
-	Annotations map[string]string `json:"annotations"`
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty"`
 	// Type is the SecretType for the connection secret.
 	// - Only valid for Kubernetes Secret Stores.
-	Type corev1.SecretType `json:"type"`
+	// +optional
+	Type *corev1.SecretType `json:"type,omitempty"`
 }
 
 // SecretStoreType represents a secret store type.

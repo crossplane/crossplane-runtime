@@ -93,20 +93,21 @@ func (ss *SecretStore) ReadKeyValues(ctx context.Context, i store.Secret) (store
 
 // WriteKeyValues writes key value pairs to a given Kubernetes Secret.
 func (ss *SecretStore) WriteKeyValues(ctx context.Context, i store.Secret, kv store.KeyValues) error {
-	t := resource.SecretTypeConnection
-	if i.Metadata.Type != "" {
-		t = i.Metadata.Type
-	}
-
 	s := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        i.Name,
-			Namespace:   ss.namespaceForSecret(i),
-			Labels:      i.Metadata.Labels,
-			Annotations: i.Metadata.Annotations,
+			Name:      i.Name,
+			Namespace: ss.namespaceForSecret(i),
 		},
-		Type: t,
+		Type: resource.SecretTypeConnection,
 		Data: kv,
+	}
+
+	if i.Metadata != nil {
+		s.Labels = i.Metadata.Labels
+		s.Annotations = i.Metadata.Annotations
+		if i.Metadata.Type != nil {
+			s.Type = *i.Metadata.Type
+		}
 	}
 
 	return errors.Wrap(ss.client.Apply(ctx, s), errApplySecret)

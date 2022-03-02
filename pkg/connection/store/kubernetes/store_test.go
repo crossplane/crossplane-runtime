@@ -130,6 +130,7 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 }
 
 func TestSecretStoreWriteKeyValues(t *testing.T) {
+	secretTypeOpaque := corev1.SecretTypeOpaque
 	type args struct {
 		client           resource.ClientApplicator
 		defaultNamespace string
@@ -273,7 +274,7 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 				secret: store.Secret{
 					Name:  fakeSecretName,
 					Scope: fakeSecretNamespace,
-					Metadata: v1.ConnectionSecretMetadata{
+					Metadata: &v1.ConnectionSecretMetadata{
 						Labels: map[string]string{
 							"environment": "unit-test",
 							"reason":      "testing",
@@ -281,7 +282,7 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 						Annotations: map[string]string{
 							"some-annotation-key": "some-annotation-value",
 						},
-						Type: "Opaque",
+						Type: &secretTypeOpaque,
 					},
 				},
 				kv: store.KeyValues(fakeKV),
