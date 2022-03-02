@@ -161,6 +161,7 @@ type VaultAuthConfig struct {
 	// Method configures which auth method will be used.
 	Method VaultAuthMethod `json:"method"`
 	// Token configures Token Auth for Vault.
+	// +optional
 	Token *VaultAuthTokenConfig `json:"token,omitempty"`
 	// Kubernetes configures Kubernetes Auth for Vault.
 	// +optional

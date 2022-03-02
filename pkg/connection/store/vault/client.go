@@ -20,50 +20,57 @@ import (
 	"encoding/json"
 	"path/filepath"
 
-	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-
 	"github.com/hashicorp/vault/api"
 
+	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
 const (
 	errRead          = "cannot read secret"
-	errWriteData     = "cannot write secret data"
-	errWriteMetadata = "cannot write secret metadata data"
+	errWriteData     = "cannot write secret Data"
+	errWriteMetadata = "cannot write secret metadata Data"
 	errNotFound      = "secret not found"
 )
 
-// KVSecret is a KV Engine secret
+// KVSecret is a AdditiveKVClient Engine secret
 type KVSecret struct {
-	customMeta map[string]interface{}
-	data       map[string]interface{}
+	CustomMeta map[string]interface{}
+	Data       map[string]interface{}
 	version    json.Number
 }
 
-// KVOption configures a KV.
-type KVOption func(*KV)
+// LogicalClient is a client to perform logical backend operations on Vault.
+type LogicalClient interface {
+	Read(path string) (*api.Secret, error)
+	Write(path string, data map[string]interface{}) (*api.Secret, error)
+	Delete(path string) (*api.Secret, error)
+}
 
-// WithVersion specifies which version of KV Secrets engine to be used.
+// KVOption configures a AdditiveKVClient.
+type KVOption func(*AdditiveKVClient)
+
+// WithVersion specifies which version of AdditiveKVClient Secrets engine to be used.
 func WithVersion(v *v1.VaultKVVersion) KVOption {
-	return func(kv *KV) {
+	return func(kv *AdditiveKVClient) {
 		if v != nil {
 			kv.version = *v
 		}
 	}
 }
 
-// KV is a Vault KV Secrets Engine client.
-type KV struct {
-	client    *api.Logical
+// AdditiveKVClient is a Vault KV Secrets Engine client that adds new data
+// to existing ones while applying secrets.
+type AdditiveKVClient struct {
+	client    LogicalClient
 	mountPath string
 	version   v1.VaultKVVersion
 }
 
-// NewKV returns a KV.
-func NewKV(logical *api.Logical, mountPath string, opts ...KVOption) *KV {
-	kv := &KV{
+// NewAdditiveKVClient returns a AdditiveKVClient.
+func NewAdditiveKVClient(logical LogicalClient, mountPath string, opts ...KVOption) *AdditiveKVClient {
+	kv := &AdditiveKVClient{
 		client:    logical,
 		mountPath: mountPath,
 		version:   v1.VaultKVVersionV2,
@@ -76,8 +83,8 @@ func NewKV(logical *api.Logical, mountPath string, opts ...KVOption) *KV {
 	return kv
 }
 
-// Get returns KVSecret at a given path.
-func (k *KV) Get(path string, secret *KVSecret) error {
+// Get returns a KVSecret at a given path.
+func (k *AdditiveKVClient) Get(path string, secret *KVSecret) error {
 	dataPath := filepath.Join(k.mountPath, path)
 	if k.version == v1.VaultKVVersionV2 {
 		dataPath = filepath.Join(k.mountPath, "data", path)
@@ -92,9 +99,9 @@ func (k *KV) Get(path string, secret *KVSecret) error {
 	return k.parseAsKVSecret(s, secret)
 }
 
-// Apply applies given KVSecret at path by patching its data and setting
+// Apply applies given KVSecret at path by patching its Data and setting
 // provided custom metadata.
-func (k *KV) Apply(path string, secret *KVSecret) error {
+func (k *AdditiveKVClient) Apply(path string, secret *KVSecret) error {
 	existing := &KVSecret{}
 	if err := k.Get(path, existing); resource.Ignore(isNotFound, err) != nil {
 		return errors.Wrap(err, errGet)
@@ -118,9 +125,9 @@ func (k *KV) Apply(path string, secret *KVSecret) error {
 		}
 	}
 
-	mp, changed := metadataPayload(existing.customMeta, secret.customMeta)
-	// Update metadata only if there is some data in secret.
-	if len(existing.data) > 0 && changed {
+	mp, changed := metadataPayload(existing.CustomMeta, secret.CustomMeta)
+	// Update metadata only if there is some Data in secret.
+	if len(existing.Data) > 0 && changed {
 		if _, err := k.client.Write(filepath.Join(k.mountPath, "metadata", path), mp); err != nil {
 			return errors.Wrap(err, errWriteMetadata)
 		}
@@ -130,58 +137,65 @@ func (k *KV) Apply(path string, secret *KVSecret) error {
 }
 
 // Delete deletes KVSecret at the given path.
-func (k *KV) Delete(path string) error {
+func (k *AdditiveKVClient) Delete(path string) error {
 	if k.version == v1.VaultKVVersionV1 {
 		_, err := k.client.Delete(filepath.Join(k.mountPath, path))
 		return errors.Wrap(err, errDelete)
 	}
 
-	// Note(turkenh): With KV v2, we need to delete metadata and all versions:
+	// Note(turkenh): With AdditiveKVClient v2, we need to delete metadata and all versions:
 	// https://www.vaultproject.io/api-docs/secret/kv/kv-v2#delete-metadata-and-all-versions
 	_, err := k.client.Delete(filepath.Join(k.mountPath, "metadata", path))
 	return errors.Wrap(err, errDelete)
 }
 
 func dataPayloadV2(existing, new *KVSecret) (map[string]interface{}, bool) {
-	data := make(map[string]interface{}, len(existing.data)+len(new.data))
-	for k, v := range existing.data {
+	data := make(map[string]interface{}, len(existing.Data)+len(new.Data))
+	for k, v := range existing.Data {
 		data[k] = v
 	}
 	changed := false
-	for k, v := range new.data {
-		if ev, ok := existing.data[k]; !ok || ev != v {
+	for k, v := range new.Data {
+		if ev, ok := existing.Data[k]; !ok || ev != v {
 			changed = true
 			data[k] = v
 		}
 	}
+	ver := json.Number("0")
+	if existing.version != "" {
+		ver = existing.version
+	}
 	return map[string]interface{}{
 		"options": map[string]interface{}{
-			"cas": existing.version,
+			"cas": ver,
 		},
 		"data": data,
 	}, changed
 }
 
 func metadataPayload(existing, new map[string]interface{}) (map[string]interface{}, bool) {
-	changed := false
+	payload := map[string]interface{}{
+		"custom_metadata": new,
+	}
+	if len(existing) != len(new) {
+		return payload, true
+	}
 	for k, v := range new {
 		if ev, ok := existing[k]; !ok || ev != v {
-			changed = true
+			return payload, true
 		}
 	}
-	return map[string]interface{}{
-		"custom_metadata": new,
-	}, changed
+	return payload, false
 }
 
 func dataPayloadV1(existing, new *KVSecret) (map[string]interface{}, bool) {
-	data := make(map[string]interface{}, len(existing.data)+len(new.data))
-	for k, v := range existing.data {
+	data := make(map[string]interface{}, len(existing.Data)+len(new.Data))
+	for k, v := range existing.Data {
 		data[k] = v
 	}
 	changed := false
-	for k, v := range new.data {
-		if ev, ok := existing.data[k]; !ok || ev != v {
+	for k, v := range new.Data {
+		if ev, ok := existing.Data[k]; !ok || ev != v {
 			changed = true
 			data[k] = v
 		}
@@ -189,23 +203,23 @@ func dataPayloadV1(existing, new *KVSecret) (map[string]interface{}, bool) {
 	return data, changed
 }
 
-func (k *KV) parseAsKVSecret(s *api.Secret, kv *KVSecret) error {
+func (k *AdditiveKVClient) parseAsKVSecret(s *api.Secret, kv *KVSecret) error {
 	if k.version == v1.VaultKVVersionV1 {
-		kv.data = s.Data
+		kv.Data = s.Data
 	}
 
 	// kv version is v2
 
-	// Note(turkenh): kv v2 secrets contains another "data" and a "metadata"
-	// block inside the top level generic "data" field.
+	// Note(turkenh): kv v2 secrets contains another "Data" and a "metadata"
+	// block inside the top level generic "Data" field.
 	// https://www.vaultproject.io/api/secret/kv/kv-v2#sample-response-1
 	if sData, ok := s.Data["data"].(map[string]interface{}); ok && sData != nil {
-		kv.data = sData
+		kv.Data = sData
 	}
 	if sMeta, ok := s.Data["metadata"].(map[string]interface{}); ok && sMeta != nil {
 		kv.version, _ = sMeta["version"].(json.Number)
 		if cMeta, ok := sMeta["custom_metadata"].(map[string]interface{}); ok && cMeta != nil {
-			kv.customMeta = cMeta
+			kv.CustomMeta = cMeta
 		}
 	}
 	return nil

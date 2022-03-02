@@ -42,7 +42,7 @@ const (
 	errDelete = "cannot delete secret"
 )
 
-// KVClient is a Vault KV Secrets engine client that supports both v1 and v2.
+// KVClient is a Vault AdditiveKVClient Secrets engine client that supports both v1 and v2.
 type KVClient interface {
 	Get(path string, secret *KVSecret) error
 	Apply(path string, secret *KVSecret) error
@@ -86,7 +86,7 @@ func NewSecretStore(ctx context.Context, kube client.Client, cfg v1.SecretStoreC
 	}
 
 	return &SecretStore{
-		client:            NewKV(c.Logical(), cfg.Vault.MountPath, WithVersion(cfg.Vault.Version)),
+		client:            NewAdditiveKVClient(c.Logical(), cfg.Vault.MountPath, WithVersion(cfg.Vault.Version)),
 		defaultParentPath: cfg.DefaultScope,
 	}, nil
 }
@@ -97,8 +97,8 @@ func (ss *SecretStore) ReadKeyValues(_ context.Context, i store.Secret) (store.K
 	if err := ss.client.Get(ss.pathForSecretInstance(i), s); resource.Ignore(isNotFound, err) != nil {
 		return nil, errors.Wrap(err, errGet)
 	}
-	kv := make(store.KeyValues, len(s.data))
-	for k, v := range s.data {
+	kv := make(store.KeyValues, len(s.Data))
+	for k, v := range s.Data {
 		kv[k] = []byte(v.(string))
 	}
 	return kv, nil
@@ -111,11 +111,11 @@ func (ss *SecretStore) WriteKeyValues(_ context.Context, i store.Secret, kv stor
 		data[k] = string(v)
 	}
 
-	kvSecret := &KVSecret{data: data}
+	kvSecret := &KVSecret{Data: data}
 	if i.Metadata != nil && len(i.Metadata.Labels) > 0 {
-		kvSecret.customMeta = make(map[string]interface{}, len(i.Metadata.Labels))
+		kvSecret.CustomMeta = make(map[string]interface{}, len(i.Metadata.Labels))
 		for k, v := range i.Metadata.Labels {
-			kvSecret.customMeta[k] = v
+			kvSecret.CustomMeta[k] = v
 		}
 	}
 
@@ -125,9 +125,9 @@ func (ss *SecretStore) WriteKeyValues(_ context.Context, i store.Secret, kv stor
 // DeleteKeyValues delete key value pairs from a given Vault Secret.
 // If no kv specified, the whole secret instance is deleted.
 // If kv specified, those would be deleted and secret instance will be deleted
-// only if there is no data left.
-func (ss *SecretStore) DeleteKeyValues(_ context.Context, i store.Secret, kv store.KeyValues) error {
-	// TODO(turkenh): Handle deletion of partial kv, currently we delete
+// only if there is no Data left.
+func (ss *SecretStore) DeleteKeyValues(_ context.Context, i store.Secret, _ store.KeyValues) error {
+	// TODO(turkenh): Handle deletion of partial kv, currently we delete the
 	//  whole secret.
 	return errors.Wrap(ss.client.Delete(ss.pathForSecretInstance(i)), errDelete)
 }
