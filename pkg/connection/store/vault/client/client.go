@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-package vault
+package client
 
 import (
 	"encoding/json"
@@ -28,13 +28,17 @@ import (
 )
 
 const (
+	errGet           = "cannot get secret"
+	errDelete        = "cannot delete secret"
 	errRead          = "cannot read secret"
 	errWriteData     = "cannot write secret Data"
 	errWriteMetadata = "cannot write secret metadata Data"
-	errNotFound      = "secret not found"
+
+	// ErrNotFound is the error returned when secret does not exist.
+	ErrNotFound = "secret not found"
 )
 
-// KVSecret is a AdditiveKVClient Engine secret
+// KVSecret is a KVAdditiveClient Engine secret
 type KVSecret struct {
 	CustomMeta map[string]interface{}
 	Data       map[string]interface{}
@@ -48,29 +52,29 @@ type LogicalClient interface {
 	Delete(path string) (*api.Secret, error)
 }
 
-// KVOption configures a AdditiveKVClient.
-type KVOption func(*AdditiveKVClient)
+// KVAdditiveOption configures a KVAdditiveClient.
+type KVAdditiveOption func(*KVAdditiveClient)
 
-// WithVersion specifies which version of AdditiveKVClient Secrets engine to be used.
-func WithVersion(v *v1.VaultKVVersion) KVOption {
-	return func(kv *AdditiveKVClient) {
+// WithVersion specifies which version of KVAdditiveClient Secrets engine to be used.
+func WithVersion(v *v1.VaultKVVersion) KVAdditiveOption {
+	return func(kv *KVAdditiveClient) {
 		if v != nil {
 			kv.version = *v
 		}
 	}
 }
 
-// AdditiveKVClient is a Vault KV Secrets Engine client that adds new data
+// KVAdditiveClient is a Vault KV Secrets Engine client that adds new data
 // to existing ones while applying secrets.
-type AdditiveKVClient struct {
+type KVAdditiveClient struct {
 	client    LogicalClient
 	mountPath string
 	version   v1.VaultKVVersion
 }
 
-// NewAdditiveKVClient returns a AdditiveKVClient.
-func NewAdditiveKVClient(logical LogicalClient, mountPath string, opts ...KVOption) *AdditiveKVClient {
-	kv := &AdditiveKVClient{
+// NewAdditiveClient returns a KVAdditiveClient.
+func NewAdditiveClient(logical LogicalClient, mountPath string, opts ...KVAdditiveOption) *KVAdditiveClient {
+	kv := &KVAdditiveClient{
 		client:    logical,
 		mountPath: mountPath,
 		version:   v1.VaultKVVersionV2,
@@ -84,7 +88,7 @@ func NewAdditiveKVClient(logical LogicalClient, mountPath string, opts ...KVOpti
 }
 
 // Get returns a KVSecret at a given path.
-func (k *AdditiveKVClient) Get(path string, secret *KVSecret) error {
+func (k *KVAdditiveClient) Get(path string, secret *KVSecret) error {
 	dataPath := filepath.Join(k.mountPath, path)
 	if k.version == v1.VaultKVVersionV2 {
 		dataPath = filepath.Join(k.mountPath, "data", path)
@@ -94,16 +98,16 @@ func (k *AdditiveKVClient) Get(path string, secret *KVSecret) error {
 		return errors.Wrap(err, errRead)
 	}
 	if s == nil {
-		return errors.New(errNotFound)
+		return errors.New(ErrNotFound)
 	}
 	return k.parseAsKVSecret(s, secret)
 }
 
 // Apply applies given KVSecret at path by patching its Data and setting
 // provided custom metadata.
-func (k *AdditiveKVClient) Apply(path string, secret *KVSecret) error {
+func (k *KVAdditiveClient) Apply(path string, secret *KVSecret) error {
 	existing := &KVSecret{}
-	if err := k.Get(path, existing); resource.Ignore(isNotFound, err) != nil {
+	if err := k.Get(path, existing); resource.Ignore(IsNotFound, err) != nil {
 		return errors.Wrap(err, errGet)
 	}
 
@@ -137,13 +141,13 @@ func (k *AdditiveKVClient) Apply(path string, secret *KVSecret) error {
 }
 
 // Delete deletes KVSecret at the given path.
-func (k *AdditiveKVClient) Delete(path string) error {
+func (k *KVAdditiveClient) Delete(path string) error {
 	if k.version == v1.VaultKVVersionV1 {
 		_, err := k.client.Delete(filepath.Join(k.mountPath, path))
 		return errors.Wrap(err, errDelete)
 	}
 
-	// Note(turkenh): With AdditiveKVClient v2, we need to delete metadata and all versions:
+	// Note(turkenh): With KVAdditiveClient v2, we need to delete metadata and all versions:
 	// https://www.vaultproject.io/api-docs/secret/kv/kv-v2#delete-metadata-and-all-versions
 	_, err := k.client.Delete(filepath.Join(k.mountPath, "metadata", path))
 	return errors.Wrap(err, errDelete)
@@ -203,7 +207,7 @@ func dataPayloadV1(existing, new *KVSecret) (map[string]interface{}, bool) {
 	return data, changed
 }
 
-func (k *AdditiveKVClient) parseAsKVSecret(s *api.Secret, kv *KVSecret) error {
+func (k *KVAdditiveClient) parseAsKVSecret(s *api.Secret, kv *KVSecret) error {
 	if k.version == v1.VaultKVVersionV1 {
 		kv.Data = s.Data
 	}
@@ -225,9 +229,10 @@ func (k *AdditiveKVClient) parseAsKVSecret(s *api.Secret, kv *KVSecret) error {
 	return nil
 }
 
-func isNotFound(err error) bool {
+// IsNotFound returns whether given error is a "Not Found" error or not.
+func IsNotFound(err error) bool {
 	if err == nil {
 		return false
 	}
-	return err.Error() == errNotFound
+	return err.Error() == ErrNotFound
 }

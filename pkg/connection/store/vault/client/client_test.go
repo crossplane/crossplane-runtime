@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-package vault
+package client
 
 import (
 	"encoding/json"
@@ -26,7 +26,7 @@ import (
 	"github.com/hashicorp/vault/api"
 
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/connection/store/vault/fake"
+	"github.com/crossplane/crossplane-runtime/pkg/connection/store/vault/client/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
@@ -89,7 +89,7 @@ func TestKVClientGet(t *testing.T) {
 				path:    secretName,
 			},
 			want: want{
-				err: errors.New(errNotFound),
+				err: errors.New(ErrNotFound),
 				out: &KVSecret{},
 			},
 		},
@@ -166,7 +166,7 @@ func TestKVClientGet(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			k := NewAdditiveKVClient(tc.args.client, mountPath, WithVersion(tc.args.version))
+			k := NewAdditiveClient(tc.args.client, mountPath, WithVersion(tc.args.version))
 
 			s := KVSecret{}
 			err := k.Get(tc.args.path, &s)
@@ -669,7 +669,7 @@ func TestKVClientApply(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			k := NewAdditiveKVClient(tc.args.client, mountPath, WithVersion(tc.args.version))
+			k := NewAdditiveClient(tc.args.client, mountPath, WithVersion(tc.args.version))
 
 			err := k.Apply(tc.args.path, tc.args.in)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -764,7 +764,7 @@ func TestKVClientDelete(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			k := NewAdditiveKVClient(tc.args.client, mountPath, WithVersion(tc.args.version))
+			k := NewAdditiveClient(tc.args.client, mountPath, WithVersion(tc.args.version))
 
 			err := k.Delete(tc.args.path)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {

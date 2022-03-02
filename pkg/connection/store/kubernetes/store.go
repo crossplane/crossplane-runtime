@@ -44,7 +44,7 @@ const (
 	errBuildClient                = "cannot build Kubernetes client"
 )
 
-// SecretStore is a Kubernetes Secret Store.
+// SecretStore is a Kubernetes KVSecret Store.
 type SecretStore struct {
 	client resource.ClientApplicator
 
@@ -70,7 +70,7 @@ func NewSecretStore(ctx context.Context, local client.Client, cfg v1.SecretStore
 func buildClient(ctx context.Context, local client.Client, cfg v1.SecretStoreConfig) (client.Client, error) {
 	if cfg.Kubernetes == nil {
 		// No KubernetesSecretStoreConfig provided, local API Server will be
-		// used as Secret Store.
+		// used as KVSecret Store.
 		return local, nil
 	}
 	// Configure client for an external API server with a given Kubeconfig.
@@ -85,13 +85,13 @@ func buildClient(ctx context.Context, local client.Client, cfg v1.SecretStoreCon
 	return client.New(config, client.Options{})
 }
 
-// ReadKeyValues reads and returns key value pairs for a given Kubernetes Secret.
+// ReadKeyValues reads and returns key value pairs for a given Kubernetes KVSecret.
 func (ss *SecretStore) ReadKeyValues(ctx context.Context, i store.Secret) (store.KeyValues, error) {
 	s := &corev1.Secret{}
 	return s.Data, errors.Wrap(ss.client.Get(ctx, types.NamespacedName{Name: i.Name, Namespace: ss.namespaceForSecret(i)}, s), errGetSecret)
 }
 
-// WriteKeyValues writes key value pairs to a given Kubernetes Secret.
+// WriteKeyValues writes key value pairs to a given Kubernetes KVSecret.
 func (ss *SecretStore) WriteKeyValues(ctx context.Context, i store.Secret, kv store.KeyValues) error {
 	s := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -113,7 +113,7 @@ func (ss *SecretStore) WriteKeyValues(ctx context.Context, i store.Secret, kv st
 	return errors.Wrap(ss.client.Apply(ctx, s), errApplySecret)
 }
 
-// DeleteKeyValues delete key value pairs from a given Kubernetes Secret.
+// DeleteKeyValues delete key value pairs from a given Kubernetes KVSecret.
 // If no kv specified, the whole secret instance is deleted.
 // If kv specified, those would be deleted and secret instance will be deleted
 // only if there is no data left.
@@ -129,7 +129,7 @@ func (ss *SecretStore) DeleteKeyValues(ctx context.Context, i store.Secret, kv s
 	s := &corev1.Secret{}
 	err := ss.client.Get(ctx, types.NamespacedName{Name: i.Name, Namespace: ss.namespaceForSecret(i)}, s)
 	if kerrors.IsNotFound(err) {
-		// Secret already deleted, nothing to do.
+		// KVSecret already deleted, nothing to do.
 		return nil
 	}
 	if err != nil {
@@ -140,7 +140,7 @@ func (ss *SecretStore) DeleteKeyValues(ctx context.Context, i store.Secret, kv s
 		delete(s.Data, k)
 	}
 	if len(kv) == 0 || len(s.Data) == 0 {
-		// Secret is deleted only if:
+		// KVSecret is deleted only if:
 		// - No kv to delete specified as input
 		// - No data left in the secret
 		return errors.Wrapf(ss.client.Delete(ctx, s), errDeleteSecret)

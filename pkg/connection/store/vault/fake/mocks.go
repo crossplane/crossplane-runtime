@@ -16,26 +16,28 @@
 
 package fake
 
-import "github.com/hashicorp/vault/api"
+import (
+	"github.com/crossplane/crossplane-runtime/pkg/connection/store/vault/client"
+)
 
-// LogicalClient is a fake LogicalClient
-type LogicalClient struct {
-	ReadFn   func(path string) (*api.Secret, error)
-	WriteFn  func(path string, data map[string]interface{}) (*api.Secret, error)
-	DeleteFn func(path string) (*api.Secret, error)
+// KVClient is a fake KVClient.
+type KVClient struct {
+	GetFn    func(path string, secret *client.KVSecret) error
+	ApplyFn  func(path string, secret *client.KVSecret) error
+	DeleteFn func(path string) error
 }
 
-// Read reads secret at the given path.
-func (l *LogicalClient) Read(path string) (*api.Secret, error) {
-	return l.ReadFn(path)
+// Get fetches a secret at a given path.
+func (k *KVClient) Get(path string, secret *client.KVSecret) error {
+	return k.GetFn(path, secret)
 }
 
-// Write writes data to the given path.
-func (l *LogicalClient) Write(path string, data map[string]interface{}) (*api.Secret, error) {
-	return l.WriteFn(path, data)
+// Apply creates or updates a secret at a given path.
+func (k *KVClient) Apply(path string, secret *client.KVSecret) error {
+	return k.ApplyFn(path, secret)
 }
 
-// Delete deletes secret at the given path.
-func (l *LogicalClient) Delete(path string) (*api.Secret, error) {
-	return l.DeleteFn(path)
+// Delete deletes a secret at a given path.
+func (k *KVClient) Delete(path string) error {
+	return k.DeleteFn(path)
 }
