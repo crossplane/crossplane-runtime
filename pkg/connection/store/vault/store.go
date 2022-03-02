@@ -18,7 +18,6 @@ package vault
 
 import (
 	"context"
-	"encoding/json"
 	"path/filepath"
 
 	"github.com/hashicorp/vault/api"
@@ -34,10 +33,9 @@ import (
 
 // Error strings.
 const (
-	errNoConfig      = "no Vault config provided"
-	errNewClient     = "cannot create new client"
-	errExtractToken  = "cannot extract token"
-	errParseMetadata = "cannot parse metadata"
+	errNoConfig     = "no Vault config provided"
+	errNewClient    = "cannot create new client"
+	errExtractToken = "cannot extract token"
 
 	errGet    = "cannot get secret"
 	errApply  = "cannot apply secret"
@@ -88,7 +86,7 @@ func NewSecretStore(ctx context.Context, kube client.Client, cfg v1.SecretStoreC
 	}
 
 	return &SecretStore{
-		client:            NewKV(c.Logical(), cfg.Vault.MountPath, WithVersion(KVVersion(cfg.Vault.Version))),
+		client:            NewKV(c.Logical(), cfg.Vault.MountPath, WithVersion(cfg.Vault.Version)),
 		defaultParentPath: cfg.DefaultScope,
 	}, nil
 }
@@ -114,13 +112,11 @@ func (ss *SecretStore) WriteKeyValues(_ context.Context, i store.Secret, kv stor
 	}
 
 	kvSecret := &KVSecret{data: data}
-
-	meta := map[string]interface{}{}
-	if err := json.Unmarshal(i.Metadata, &meta); err != nil {
-		return errors.Wrap(err, errParseMetadata)
-	}
-	if labels, ok := meta["labels"].(map[string]interface{}); ok {
-		kvSecret.customMeta = labels
+	if i.Metadata != nil && len(i.Metadata.Labels) > 0 {
+		kvSecret.customMeta = make(map[string]interface{}, len(i.Metadata.Labels))
+		for k, v := range i.Metadata.Labels {
+			kvSecret.customMeta[k] = v
+		}
 	}
 
 	return errors.Wrap(ss.client.Apply(ss.pathForSecretInstance(i), kvSecret), errApply)

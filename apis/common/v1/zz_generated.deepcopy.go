@@ -553,7 +553,7 @@ func (in *VaultSecretStoreConfig) DeepCopyInto(out *VaultSecretStoreConfig) {
 	*out = *in
 	if in.Version != nil {
 		in, out := &in.Version, &out.Version
-		*out = new(string)
+		*out = new(VaultKVVersion)
 		**out = **in
 	}
 	if in.CABundle != nil {

@@ -20,6 +20,8 @@ import (
 	"encoding/json"
 	"path/filepath"
 
+	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+
 	"github.com/hashicorp/vault/api"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -33,22 +35,6 @@ const (
 	errNotFound      = "secret not found"
 )
 
-// KVVersion represent API version of the Vault KV engine
-// https://www.vaultproject.io/docs/secrets/kv
-type KVVersion string
-
-const (
-	// KVVersionV1 indicates that "Kubernetes Auth" will be used to
-	// authenticate to Vault.
-	// https://www.vaultproject.io/docs/auth/kubernetes
-	KVVersionV1 KVVersion = "v1"
-
-	// KVVersionV2 indicates that "Token Auth" will be used to
-	// authenticate to Vault.
-	// https://www.vaultproject.io/docs/auth/token
-	KVVersionV2 KVVersion = "v2"
-)
-
 // KVSecret is a KV Engine secret
 type KVSecret struct {
 	customMeta map[string]interface{}
@@ -60,9 +46,11 @@ type KVSecret struct {
 type KVOption func(*KV)
 
 // WithVersion specifies which version of KV Secrets engine to be used.
-func WithVersion(v KVVersion) KVOption {
+func WithVersion(v *v1.VaultKVVersion) KVOption {
 	return func(kv *KV) {
-		kv.version = v
+		if v != nil {
+			kv.version = *v
+		}
 	}
 }
 
@@ -70,7 +58,7 @@ func WithVersion(v KVVersion) KVOption {
 type KV struct {
 	client    *api.Logical
 	mountPath string
-	version   KVVersion
+	version   v1.VaultKVVersion
 }
 
 // NewKV returns a KV.
@@ -78,7 +66,7 @@ func NewKV(logical *api.Logical, mountPath string, opts ...KVOption) *KV {
 	kv := &KV{
 		client:    logical,
 		mountPath: mountPath,
-		version:   KVVersionV2,
+		version:   v1.VaultKVVersionV2,
 	}
 
 	for _, o := range opts {
@@ -91,7 +79,7 @@ func NewKV(logical *api.Logical, mountPath string, opts ...KVOption) *KV {
 // Get returns KVSecret at a given path.
 func (k *KV) Get(path string, secret *KVSecret) error {
 	dataPath := filepath.Join(k.mountPath, path)
-	if k.version == KVVersionV2 {
+	if k.version == v1.VaultKVVersionV2 {
 		dataPath = filepath.Join(k.mountPath, "data", path)
 	}
 	s, err := k.client.Read(dataPath)
@@ -112,7 +100,7 @@ func (k *KV) Apply(path string, secret *KVSecret) error {
 		return errors.Wrap(err, errGet)
 	}
 
-	if k.version == KVVersionV1 {
+	if k.version == v1.VaultKVVersionV1 {
 		dp, changed := dataPayloadV1(existing, secret)
 		if !changed {
 			// No metadata in v1 secrets.
@@ -143,7 +131,7 @@ func (k *KV) Apply(path string, secret *KVSecret) error {
 
 // Delete deletes KVSecret at the given path.
 func (k *KV) Delete(path string) error {
-	if k.version == KVVersionV1 {
+	if k.version == v1.VaultKVVersionV1 {
 		_, err := k.client.Delete(filepath.Join(k.mountPath, path))
 		return errors.Wrap(err, errDelete)
 	}
@@ -202,7 +190,7 @@ func dataPayloadV1(existing, new *KVSecret) (map[string]interface{}, bool) {
 }
 
 func (k *KV) parseAsKVSecret(s *api.Secret, kv *KVSecret) error {
-	if k.version == KVVersionV1 {
+	if k.version == v1.VaultKVVersionV1 {
 		kv.data = s.Data
 	}
 
