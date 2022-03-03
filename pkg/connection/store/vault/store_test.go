@@ -21,21 +21,18 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-
-	corev1 "k8s.io/api/core/v1"
-
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-
-	"github.com/google/go-cmp/cmp"
-
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store"
 	kvclient "github.com/crossplane/crossplane-runtime/pkg/connection/store/vault/client"
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store/vault/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
@@ -56,7 +53,7 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 		secret            store.Secret
 	}
 	type want struct {
-		out store.KeyValues
+		out managed.ConnectionDetails
 		err error
 	}
 	cases := map[string]struct {
@@ -104,7 +101,7 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 				},
 			},
 			want: want{
-				out: store.KeyValues{
+				out: managed.ConnectionDetails{
 					"key1": []byte("val1"),
 					"key2": []byte("val2"),
 				},
@@ -134,7 +131,7 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 				},
 			},
 			want: want{
-				out: store.KeyValues{
+				out: managed.ConnectionDetails{
 					"key1": []byte("val1"),
 					"key2": []byte("val2"),
 				},
@@ -165,7 +162,7 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 		client            KVClient
 		defaultParentPath string
 		secret            store.Secret
-		in                store.KeyValues
+		in                managed.ConnectionDetails
 	}
 	type want struct {
 		err error
@@ -187,7 +184,7 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 				secret: store.Secret{
 					Name: secretName,
 				},
-				in: store.KeyValues{
+				in: managed.ConnectionDetails{
 					"key1": []byte("val1"),
 					"key2": []byte("val2"),
 				},
@@ -217,7 +214,7 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 				secret: store.Secret{
 					Name: secretName,
 				},
-				in: store.KeyValues{
+				in: managed.ConnectionDetails{
 					"key1": []byte("val1"),
 					"key2": []byte("val2"),
 				},
@@ -257,7 +254,7 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 						},
 					},
 				},
-				in: store.KeyValues{
+				in: managed.ConnectionDetails{
 					"key1": []byte("val1"),
 					"key2": []byte("val2"),
 				},
@@ -286,7 +283,7 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 		client            KVClient
 		defaultParentPath string
 		secret            store.Secret
-		in                store.KeyValues
+		in                managed.ConnectionDetails
 	}
 	type want struct {
 		err error

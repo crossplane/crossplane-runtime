@@ -20,8 +20,6 @@ import (
 	"context"
 	"strings"
 
-	"github.com/crossplane/crossplane-runtime/pkg/connection"
-
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -65,6 +63,14 @@ type ProviderConfigKinds struct {
 	UsageList schema.GroupVersionKind
 }
 
+// A ConnectionSecretOwner is a Kubernetes object that owns a connection secret.
+type ConnectionSecretOwner interface {
+	Object
+
+	ConnectionSecretWriterTo
+	ConnectionDetailsPublisherTo
+}
+
 // A LocalConnectionSecretOwner may create and manage a connection secret in its
 // own namespace.
 type LocalConnectionSecretOwner interface {
@@ -78,12 +84,12 @@ type LocalConnectionSecretOwner interface {
 // connect to a resource.
 // Deprecated: This functionality will be removed soon.
 type ConnectionPropagator interface {
-	PropagateConnection(ctx context.Context, to LocalConnectionSecretOwner, from connection.SecretOwner) error
+	PropagateConnection(ctx context.Context, to LocalConnectionSecretOwner, from ConnectionSecretOwner) error
 }
 
 // A ConnectionPropagatorFn is a function that satisfies the
 //  ConnectionPropagator interface.
-type ConnectionPropagatorFn func(ctx context.Context, to LocalConnectionSecretOwner, from connection.SecretOwner) error
+type ConnectionPropagatorFn func(ctx context.Context, to LocalConnectionSecretOwner, from ConnectionSecretOwner) error
 
 // A ManagedConnectionPropagator is responsible for propagating information
 // required to connect to a managed resource (for example the connection secret)
@@ -121,7 +127,7 @@ func LocalConnectionSecretFor(o LocalConnectionSecretOwner, kind schema.GroupVer
 // ConnectionSecretOwner, assumed to be of the supplied kind. The secret is
 // written to 'default' namespace if the ConnectionSecretOwner does not specify
 // a namespace.
-func ConnectionSecretFor(o connection.SecretOwner, kind schema.GroupVersionKind) *corev1.Secret {
+func ConnectionSecretFor(o ConnectionSecretOwner, kind schema.GroupVersionKind) *corev1.Secret {
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       o.GetWriteConnectionSecretToReference().Namespace,

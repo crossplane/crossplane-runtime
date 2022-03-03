@@ -136,6 +136,21 @@ func (m *ConnectionSecretWriterTo) GetWriteConnectionSecretToReference() *xpv1.S
 	return m.Ref
 }
 
+// ConnectionDetailsPublisherTo is a mock that implements ConnectionDetailsPublisherTo interface.
+type ConnectionDetailsPublisherTo struct {
+	To *xpv1.PublishConnectionDetailsTo
+}
+
+// SetPublishConnectionDetailsTo sets the PublishConnectionDetailsTo.
+func (m *ConnectionDetailsPublisherTo) SetPublishConnectionDetailsTo(to *xpv1.PublishConnectionDetailsTo) {
+	m.To = to
+}
+
+// GetPublishConnectionDetailsTo gets the PublishConnectionDetailsTo.
+func (m *ConnectionDetailsPublisherTo) GetPublishConnectionDetailsTo() *xpv1.PublishConnectionDetailsTo {
+	return m.To
+}
+
 // Orphanable implements the Orphanable interface.
 type Orphanable struct{ Policy xpv1.DeletionPolicy }
 
@@ -263,6 +278,7 @@ type Managed struct {
 	ProviderReferencer
 	ProviderConfigReferencer
 	ConnectionSecretWriterTo
+	ConnectionDetailsPublisherTo
 	Orphanable
 	xpv1.ConditionedStatus
 }
@@ -293,6 +309,7 @@ type Composite struct {
 	ComposedResourcesReferencer
 	ClaimReferencer
 	ConnectionSecretWriterTo
+	ConnectionDetailsPublisherTo
 
 	xpv1.ConditionedStatus
 	ConnectionDetailsLastPublishedTimer
@@ -417,17 +434,28 @@ type MockConnectionSecretOwner struct {
 	runtime.Object
 	metav1.ObjectMeta
 
-	Ref *xpv1.SecretReference
+	To       *xpv1.PublishConnectionDetailsTo
+	WriterTo *xpv1.SecretReference
+}
+
+// GetPublishConnectionDetailsTo returns the publish connection details to reference.
+func (m *MockConnectionSecretOwner) GetPublishConnectionDetailsTo() *xpv1.PublishConnectionDetailsTo {
+	return m.To
+}
+
+// SetPublishConnectionDetailsTo sets the publish connection details to reference.
+func (m *MockConnectionSecretOwner) SetPublishConnectionDetailsTo(t *xpv1.PublishConnectionDetailsTo) {
+	m.To = t
 }
 
 // GetWriteConnectionSecretToReference returns the connection secret reference.
 func (m *MockConnectionSecretOwner) GetWriteConnectionSecretToReference() *xpv1.SecretReference {
-	return m.Ref
+	return m.WriterTo
 }
 
 // SetWriteConnectionSecretToReference sets the connection secret reference.
 func (m *MockConnectionSecretOwner) SetWriteConnectionSecretToReference(r *xpv1.SecretReference) {
-	m.Ref = r
+	m.WriterTo = r
 }
 
 // GetObjectKind returns schema.ObjectKind.

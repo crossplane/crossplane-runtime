@@ -21,32 +21,9 @@ import (
 
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store"
+	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
-
-// A DetailsPublisherTo may write a connection details secret to a secret store
-type DetailsPublisherTo interface {
-	SetPublishConnectionDetailsTo(r *v1.PublishConnectionDetailsTo)
-	GetPublishConnectionDetailsTo() *v1.PublishConnectionDetailsTo
-}
-
-type DetailsFetcher interface {
-	FetchConnection(ctx context.Context, so SecretOwner) (store.KeyValues, error)
-}
-
-type DetailsPublisher interface {
-	// TODO(turkenh): rename as PublishConnection once managed.ConnectionPublisher
-	//  interface removed.
-	PublishConnectionToStore(ctx context.Context, so SecretOwner, kv store.KeyValues) error
-}
-
-// A SecretOwner is a Kubernetes object that owns a connection secret.
-type SecretOwner interface {
-	resource.Object
-
-	DetailsPublisherTo
-	resource.ConnectionSecretWriterTo
-}
 
 // A StoreConfig configures a connection store.
 type StoreConfig interface {
@@ -58,7 +35,7 @@ type StoreConfig interface {
 
 // A Store stores sensitive key values in Secret.
 type Store interface {
-	ReadKeyValues(ctx context.Context, i store.Secret) (store.KeyValues, error)
-	WriteKeyValues(ctx context.Context, i store.Secret, kv store.KeyValues) error
-	DeleteKeyValues(ctx context.Context, i store.Secret, kv store.KeyValues) error
+	ReadKeyValues(ctx context.Context, i store.Secret) (managed.ConnectionDetails, error)
+	WriteKeyValues(ctx context.Context, i store.Secret, conn managed.ConnectionDetails) error
+	DeleteKeyValues(ctx context.Context, i store.Secret, conn managed.ConnectionDetails) error
 }

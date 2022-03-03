@@ -20,6 +20,10 @@ import (
 	"context"
 	"testing"
 
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
+
+	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
+
 	"github.com/google/go-cmp/cmp"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -154,8 +158,8 @@ func TestManagerPublishConnection(t *testing.T) {
 		c  client.Client
 		sb StoreBuilderFn
 
-		kv store.KeyValues
-		so SecretOwner
+		conn managed.ConnectionDetails
+		so   resource.ConnectionSecretOwner
 	}
 
 	type want struct {
@@ -173,7 +177,7 @@ func TestManagerPublishConnection(t *testing.T) {
 				c: &test.MockClient{
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
-				so: &fake.MockSecretOwner{To: nil},
+				so: &resourcefake.MockConnectionSecretOwner{To: nil},
 			},
 			want: want{
 				err: nil,
@@ -189,11 +193,11 @@ func TestManagerPublishConnection(t *testing.T) {
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
-					WriteKeyValuesFn: func(ctx context.Context, i store.Secret, kv store.KeyValues) error {
+					WriteKeyValuesFn: func(ctx context.Context, i store.Secret, c managed.ConnectionDetails) error {
 						return nil
 					},
 				}),
-				so: &fake.MockSecretOwner{
+				so: &resourcefake.MockConnectionSecretOwner{
 					To: &v1.PublishConnectionDetailsTo{
 						SecretStoreConfigRef: &v1.Reference{
 							Name: "non-existing",
@@ -223,11 +227,11 @@ func TestManagerPublishConnection(t *testing.T) {
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
-					WriteKeyValuesFn: func(ctx context.Context, i store.Secret, kv store.KeyValues) error {
+					WriteKeyValuesFn: func(ctx context.Context, i store.Secret, c managed.ConnectionDetails) error {
 						return nil
 					},
 				}),
-				so: &fake.MockSecretOwner{
+				so: &resourcefake.MockConnectionSecretOwner{
 					To: &v1.PublishConnectionDetailsTo{
 						SecretStoreConfigRef: &v1.Reference{
 							Name: "fake",
@@ -244,7 +248,7 @@ func TestManagerPublishConnection(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			m := NewDetailsManager(tc.args.c, resourcefake.GVK(&fake.StoreConfig{}), WithStoreBuilder(tc.args.sb))
 
-			err := m.publishConnection(context.Background(), tc.args.so, tc.args.kv)
+			err := m.PublishConnection(context.Background(), tc.args.so, tc.args.conn)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\nReason: %s\nm.publishConnection(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -257,8 +261,8 @@ func TestManagerUnpublishConnection(t *testing.T) {
 		c  client.Client
 		sb StoreBuilderFn
 
-		kv store.KeyValues
-		so SecretOwner
+		conn managed.ConnectionDetails
+		so   resource.ConnectionSecretOwner
 	}
 
 	type want struct {
@@ -276,7 +280,7 @@ func TestManagerUnpublishConnection(t *testing.T) {
 				c: &test.MockClient{
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
-				so: &fake.MockSecretOwner{To: nil},
+				so: &resourcefake.MockConnectionSecretOwner{To: nil},
 			},
 			want: want{
 				err: nil,
@@ -292,11 +296,11 @@ func TestManagerUnpublishConnection(t *testing.T) {
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
-					WriteKeyValuesFn: func(ctx context.Context, i store.Secret, kv store.KeyValues) error {
+					WriteKeyValuesFn: func(ctx context.Context, i store.Secret, c managed.ConnectionDetails) error {
 						return nil
 					},
 				}),
-				so: &fake.MockSecretOwner{
+				so: &resourcefake.MockConnectionSecretOwner{
 					To: &v1.PublishConnectionDetailsTo{
 						SecretStoreConfigRef: &v1.Reference{
 							Name: "non-existing",
@@ -326,11 +330,11 @@ func TestManagerUnpublishConnection(t *testing.T) {
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
-					DeleteKeyValuesFn: func(ctx context.Context, i store.Secret, kv store.KeyValues) error {
+					DeleteKeyValuesFn: func(ctx context.Context, i store.Secret, c managed.ConnectionDetails) error {
 						return nil
 					},
 				}),
-				so: &fake.MockSecretOwner{
+				so: &resourcefake.MockConnectionSecretOwner{
 					To: &v1.PublishConnectionDetailsTo{
 						SecretStoreConfigRef: &v1.Reference{
 							Name: "fake",
@@ -347,7 +351,7 @@ func TestManagerUnpublishConnection(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			m := NewDetailsManager(tc.args.c, resourcefake.GVK(&fake.StoreConfig{}), WithStoreBuilder(tc.args.sb))
 
-			err := m.unpublishConnection(context.Background(), tc.args.so, tc.args.kv)
+			err := m.UnpublishConnection(context.Background(), tc.args.so, tc.args.conn)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\nReason: %s\nm.unpublishConnection(...): -want error, +got error:\n%s", tc.reason, diff)
 			}

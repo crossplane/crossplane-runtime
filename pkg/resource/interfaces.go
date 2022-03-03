@@ -25,7 +25,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/connection"
 )
 
 // A Conditioned may have conditions set or retrieved. Conditions are typically
@@ -59,6 +58,13 @@ type LocalConnectionSecretWriterTo interface {
 type ConnectionSecretWriterTo interface {
 	SetWriteConnectionSecretToReference(r *xpv1.SecretReference)
 	GetWriteConnectionSecretToReference() *xpv1.SecretReference
+}
+
+// A ConnectionDetailsPublisherTo may write a connection details secret to a
+// secret store
+type ConnectionDetailsPublisherTo interface {
+	SetPublishConnectionDetailsTo(r *xpv1.PublishConnectionDetailsTo)
+	GetPublishConnectionDetailsTo() *xpv1.PublishConnectionDetailsTo
 }
 
 // An Orphanable resource may specify a DeletionPolicy.
@@ -163,6 +169,7 @@ type Managed interface {
 	ProviderReferencer
 	ProviderConfigReferencer
 	ConnectionSecretWriterTo
+	ConnectionDetailsPublisherTo
 	Orphanable
 
 	Conditioned
@@ -211,7 +218,7 @@ type Composite interface {
 	ComposedResourcesReferencer
 	ClaimReferencer
 	ConnectionSecretWriterTo
-	connection.DetailsPublisherTo
+	ConnectionDetailsPublisherTo
 
 	Conditioned
 	ConnectionDetailsPublishedTimer

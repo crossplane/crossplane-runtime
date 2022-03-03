@@ -20,9 +20,6 @@ import (
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
-// KeyValues is a map with sensitive values.
-type KeyValues map[string][]byte
-
 // A Secret is an entity representing a set of sensitive Key Values.
 type Secret struct {
 	Name     string

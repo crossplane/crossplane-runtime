@@ -131,7 +131,7 @@ func TestConnectionSecretFor(t *testing.T) {
 						Name:      name,
 						UID:       uid,
 					},
-					Ref: &xpv1.SecretReference{Namespace: namespace, Name: secretName},
+					WriterTo: &xpv1.SecretReference{Namespace: namespace, Name: secretName},
 				},
 				kind: MockOwnerGVK,
 			},

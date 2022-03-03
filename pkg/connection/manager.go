@@ -99,21 +99,48 @@ func NewDetailsManager(c client.Client, of schema.GroupVersionKind, o ...Details
 
 // PublishConnection publishes the supplied ConnectionDetails to a secret on
 // the configured connection Store.
-// TODO(turkenh): Refactor this method once the `managed.ConnectionPublisher`
-//  interface methods refactored per new types: SecretOwner and KeyValues
-func (m *DetailsManager) PublishConnection(ctx context.Context, mg resource.Managed, c managed.ConnectionDetails) error {
-	return m.PublishConnectionToStore(ctx, mg.(SecretOwner), store.KeyValues(c))
+func (m *DetailsManager) PublishConnection(ctx context.Context, so resource.ConnectionSecretOwner, conn managed.ConnectionDetails) error {
+	// This resource does not want to expose a connection secret.
+	p := so.GetPublishConnectionDetailsTo()
+	if p == nil {
+		return nil
+	}
+
+	ss, err := m.connectStore(ctx, p)
+	if err != nil {
+		return errors.Wrap(err, errConnectStore)
+	}
+
+	return errors.Wrap(ss.WriteKeyValues(ctx, store.Secret{
+		Name:     p.Name,
+		Scope:    so.GetNamespace(),
+		Metadata: p.Metadata,
+	}, conn), errWriteStore)
 }
 
 // UnpublishConnection deletes connection details secret from the configured
 // connection Store.
-// TODO(turkenh): Refactor this method once the `managed.ConnectionPublisher`
-//  interface methods refactored per new types: SecretOwner and KeyValues
-func (m *DetailsManager) UnpublishConnection(ctx context.Context, mg resource.Managed, c managed.ConnectionDetails) error {
-	return m.unpublishConnection(ctx, mg.(SecretOwner), store.KeyValues(c))
+func (m *DetailsManager) UnpublishConnection(ctx context.Context, so resource.ConnectionSecretOwner, conn managed.ConnectionDetails) error {
+	// This resource didn't expose a connection secret.
+	p := so.GetPublishConnectionDetailsTo()
+	if p == nil {
+		return nil
+	}
+
+	ss, err := m.connectStore(ctx, p)
+	if err != nil {
+		return errors.Wrap(err, errConnectStore)
+	}
+
+	return errors.Wrap(ss.DeleteKeyValues(ctx, store.Secret{
+		Name:     p.Name,
+		Scope:    so.GetNamespace(),
+		Metadata: p.Metadata,
+	}, conn), errDeleteFromStore)
 }
 
-func (m *DetailsManager) FetchConnection(ctx context.Context, so SecretOwner) (store.KeyValues, error) {
+// FetchConnection fetches connection details of a given ConnectionSecretOwner.
+func (m *DetailsManager) FetchConnection(ctx context.Context, so resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 	// This resource does not want to expose a connection secret.
 	p := so.GetPublishConnectionDetailsTo()
 	if p == nil {
@@ -140,42 +167,4 @@ func (m *DetailsManager) connectStore(ctx context.Context, p *v1.PublishConnecti
 	}
 
 	return m.storeBuilder(ctx, m.client, sc.GetStoreConfig())
-}
-
-func (m *DetailsManager) PublishConnectionToStore(ctx context.Context, so SecretOwner, kv store.KeyValues) error {
-	// This resource does not want to expose a connection secret.
-	p := so.GetPublishConnectionDetailsTo()
-	if p == nil {
-		return nil
-	}
-
-	ss, err := m.connectStore(ctx, p)
-	if err != nil {
-		return errors.Wrap(err, errConnectStore)
-	}
-
-	return errors.Wrap(ss.WriteKeyValues(ctx, store.Secret{
-		Name:     p.Name,
-		Scope:    so.GetNamespace(),
-		Metadata: p.Metadata,
-	}, kv), errWriteStore)
-}
-
-func (m *DetailsManager) unpublishConnection(ctx context.Context, so SecretOwner, kv store.KeyValues) error {
-	// This resource didn't expose a connection secret.
-	p := so.GetPublishConnectionDetailsTo()
-	if p == nil {
-		return nil
-	}
-
-	ss, err := m.connectStore(ctx, p)
-	if err != nil {
-		return errors.Wrap(err, errConnectStore)
-	}
-
-	return errors.Wrap(ss.DeleteKeyValues(ctx, store.Secret{
-		Name:     p.Name,
-		Scope:    so.GetNamespace(),
-		Metadata: p.Metadata,
-	}, kv), errDeleteFromStore)
 }

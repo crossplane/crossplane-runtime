@@ -110,26 +110,32 @@ type ConnectionPublisher interface {
 	// PublishConnection details for the supplied Managed resource. Publishing
 	// must be additive; i.e. if details (a, b, c) are published, subsequently
 	// publicing details (b, c, d) should update (b, c) but not remove a.
-	PublishConnection(ctx context.Context, mg resource.Managed, c ConnectionDetails) error
+	PublishConnection(ctx context.Context, so resource.ConnectionSecretOwner, c ConnectionDetails) error
 
 	// UnpublishConnection details for the supplied Managed resource.
-	UnpublishConnection(ctx context.Context, mg resource.Managed, c ConnectionDetails) error
+	UnpublishConnection(ctx context.Context, so resource.ConnectionSecretOwner, c ConnectionDetails) error
 }
 
 // ConnectionPublisherFns is the pluggable struct to produce objects with ConnectionPublisher interface.
 type ConnectionPublisherFns struct {
-	PublishConnectionFn   func(ctx context.Context, mg resource.Managed, c ConnectionDetails) error
-	UnpublishConnectionFn func(ctx context.Context, mg resource.Managed, c ConnectionDetails) error
+	PublishConnectionFn   func(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) error
+	UnpublishConnectionFn func(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) error
 }
 
 // PublishConnection details for the supplied Managed resource.
-func (fn ConnectionPublisherFns) PublishConnection(ctx context.Context, mg resource.Managed, c ConnectionDetails) error {
-	return fn.PublishConnectionFn(ctx, mg, c)
+func (fn ConnectionPublisherFns) PublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) error {
+	return fn.PublishConnectionFn(ctx, o, c)
 }
 
 // UnpublishConnection details for the supplied Managed resource.
-func (fn ConnectionPublisherFns) UnpublishConnection(ctx context.Context, mg resource.Managed, c ConnectionDetails) error {
-	return fn.UnpublishConnectionFn(ctx, mg, c)
+func (fn ConnectionPublisherFns) UnpublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) error {
+	return fn.UnpublishConnectionFn(ctx, o, c)
+}
+
+// A ConnectionDetailsFetcher fetches connection details for the supplied
+// Connection Secret owner.
+type ConnectionDetailsFetcher interface {
+	FetchConnection(ctx context.Context, so resource.ConnectionSecretOwner) (ConnectionDetails, error)
 }
 
 // A Initializer establishes ownership of the supplied Managed resource.

@@ -29,6 +29,7 @@ import (
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
@@ -86,20 +87,20 @@ func buildClient(ctx context.Context, local client.Client, cfg v1.SecretStoreCon
 }
 
 // ReadKeyValues reads and returns key value pairs for a given Kubernetes Secret.
-func (ss *SecretStore) ReadKeyValues(ctx context.Context, i store.Secret) (store.KeyValues, error) {
+func (ss *SecretStore) ReadKeyValues(ctx context.Context, i store.Secret) (managed.ConnectionDetails, error) {
 	s := &corev1.Secret{}
 	return s.Data, errors.Wrap(ss.client.Get(ctx, types.NamespacedName{Name: i.Name, Namespace: ss.namespaceForSecret(i)}, s), errGetSecret)
 }
 
 // WriteKeyValues writes key value pairs to a given Kubernetes Secret.
-func (ss *SecretStore) WriteKeyValues(ctx context.Context, i store.Secret, kv store.KeyValues) error {
+func (ss *SecretStore) WriteKeyValues(ctx context.Context, i store.Secret, conn managed.ConnectionDetails) error {
 	s := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      i.Name,
 			Namespace: ss.namespaceForSecret(i),
 		},
 		Type: resource.SecretTypeConnection,
-		Data: kv,
+		Data: conn,
 	}
 
 	if i.Metadata != nil {
@@ -117,10 +118,10 @@ func (ss *SecretStore) WriteKeyValues(ctx context.Context, i store.Secret, kv st
 // If no kv specified, the whole secret instance is deleted.
 // If kv specified, those would be deleted and secret instance will be deleted
 // only if there is no data left.
-func (ss *SecretStore) DeleteKeyValues(ctx context.Context, i store.Secret, kv store.KeyValues) error {
+func (ss *SecretStore) DeleteKeyValues(ctx context.Context, i store.Secret, conn managed.ConnectionDetails) error {
 	// NOTE(turkenh): DeleteKeyValues method wouldn't need to do anything if we
 	// have used owner references similar to existing implementation. However,
-	// this wouldn't work if the K8s API is not the same as where SecretOwner
+	// this wouldn't work if the K8s API is not the same as where ConnectionSecretOwner
 	// object lives, i.e. a remote cluster.
 	// Considering there is not much additional value with deletion via garbage
 	// collection in this specific case other than one less API call during
@@ -136,10 +137,10 @@ func (ss *SecretStore) DeleteKeyValues(ctx context.Context, i store.Secret, kv s
 		return errors.Wrap(err, errGetSecret)
 	}
 	// Delete all supplied keys from secret data
-	for k := range kv {
+	for k := range conn {
 		delete(s.Data, k)
 	}
-	if len(kv) == 0 || len(s.Data) == 0 {
+	if len(conn) == 0 || len(s.Data) == 0 {
 		// Secret is deleted only if:
 		// - No kv to delete specified as input
 		// - No data left in the secret
