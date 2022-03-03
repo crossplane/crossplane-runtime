@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/connection"
 )
 
 // A Conditioned may have conditions set or retrieved. Conditions are typically
@@ -210,6 +211,7 @@ type Composite interface {
 	ComposedResourcesReferencer
 	ClaimReferencer
 	ConnectionSecretWriterTo
+	connection.DetailsPublisherTo
 
 	Conditioned
 	ConnectionDetailsPublishedTimer

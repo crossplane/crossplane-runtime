@@ -35,6 +35,7 @@ import (
 const (
 	errConnectStore    = "cannot connect to secret store"
 	errWriteStore      = "cannot write to secret store"
+	errReadStore       = "cannot read from secret store"
 	errDeleteFromStore = "cannot delete from secret store"
 	errGetStoreConfig  = "cannot get store config"
 )
@@ -101,7 +102,7 @@ func NewDetailsManager(c client.Client, of schema.GroupVersionKind, o ...Details
 // TODO(turkenh): Refactor this method once the `managed.ConnectionPublisher`
 //  interface methods refactored per new types: SecretOwner and KeyValues
 func (m *DetailsManager) PublishConnection(ctx context.Context, mg resource.Managed, c managed.ConnectionDetails) error {
-	return m.publishConnection(ctx, mg.(SecretOwner), store.KeyValues(c))
+	return m.PublishConnectionToStore(ctx, mg.(SecretOwner), store.KeyValues(c))
 }
 
 // UnpublishConnection deletes connection details secret from the configured
@@ -110,6 +111,26 @@ func (m *DetailsManager) PublishConnection(ctx context.Context, mg resource.Mana
 //  interface methods refactored per new types: SecretOwner and KeyValues
 func (m *DetailsManager) UnpublishConnection(ctx context.Context, mg resource.Managed, c managed.ConnectionDetails) error {
 	return m.unpublishConnection(ctx, mg.(SecretOwner), store.KeyValues(c))
+}
+
+func (m *DetailsManager) FetchConnection(ctx context.Context, so SecretOwner) (store.KeyValues, error) {
+	// This resource does not want to expose a connection secret.
+	p := so.GetPublishConnectionDetailsTo()
+	if p == nil {
+		return nil, nil
+	}
+
+	ss, err := m.connectStore(ctx, p)
+	if err != nil {
+		return nil, errors.Wrap(err, errConnectStore)
+	}
+
+	kv, err := ss.ReadKeyValues(ctx, store.Secret{
+		Name:     p.Name,
+		Scope:    so.GetNamespace(),
+		Metadata: p.Metadata,
+	})
+	return kv, errors.Wrap(err, errReadStore)
 }
 
 func (m *DetailsManager) connectStore(ctx context.Context, p *v1.PublishConnectionDetailsTo) (Store, error) {
@@ -121,7 +142,7 @@ func (m *DetailsManager) connectStore(ctx context.Context, p *v1.PublishConnecti
 	return m.storeBuilder(ctx, m.client, sc.GetStoreConfig())
 }
 
-func (m *DetailsManager) publishConnection(ctx context.Context, so SecretOwner, kv store.KeyValues) error {
+func (m *DetailsManager) PublishConnectionToStore(ctx context.Context, so SecretOwner, kv store.KeyValues) error {
 	// This resource does not want to expose a connection secret.
 	p := so.GetPublishConnectionDetailsTo()
 	if p == nil {

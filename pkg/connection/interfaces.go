@@ -30,11 +30,22 @@ type DetailsPublisherTo interface {
 	GetPublishConnectionDetailsTo() *v1.PublishConnectionDetailsTo
 }
 
+type DetailsFetcher interface {
+	FetchConnection(ctx context.Context, so SecretOwner) (store.KeyValues, error)
+}
+
+type DetailsPublisher interface {
+	// TODO(turkenh): rename as PublishConnection once managed.ConnectionPublisher
+	//  interface removed.
+	PublishConnectionToStore(ctx context.Context, so SecretOwner, kv store.KeyValues) error
+}
+
 // A SecretOwner is a Kubernetes object that owns a connection secret.
 type SecretOwner interface {
 	resource.Object
 
 	DetailsPublisherTo
+	resource.ConnectionSecretWriterTo
 }
 
 // A StoreConfig configures a connection store.
