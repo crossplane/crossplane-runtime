@@ -160,6 +160,52 @@ func (m *DetailsManager) FetchConnection(ctx context.Context, so resource.Connec
 	return kv, errors.Wrap(err, errReadStore)
 }
 
+// PropagateConnection propagate connection details from one resource to the other.
+func (m *DetailsManager) PropagateConnection(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
+	// Either from does not expose a connection secret, or to does not want one.
+	if from.GetPublishConnectionDetailsTo() == nil || to.GetPublishConnectionDetailsTo() == nil {
+		return false, nil
+	}
+
+	ssFrom, err := m.connectStore(ctx, from.GetPublishConnectionDetailsTo())
+	if err != nil {
+		return false, errors.Wrap(err, errConnectStore)
+	}
+
+	// TODO(turkenh): Figure out how to check the following case with
+	//  SecretStore: errSecretConflict
+
+	kv, err := ssFrom.ReadKeyValues(ctx, store.Secret{
+		Name:     from.GetPublishConnectionDetailsTo().Name,
+		Scope:    from.GetNamespace(),
+		Metadata: from.GetPublishConnectionDetailsTo().Metadata,
+	})
+	if err != nil {
+		return false, errors.Wrap(err, "errGetSecret")
+	}
+
+	// TODO(turkenh): Implement an equivalent functionality to
+	//  "resource.ConnectionSecretMustBeControllableBy"
+
+	ssTo, err := m.connectStore(ctx, to.GetPublishConnectionDetailsTo())
+	if err != nil {
+		return false, errors.Wrap(err, errConnectStore)
+	}
+
+	if err = ssTo.WriteKeyValues(ctx, store.Secret{
+		Name:     to.GetPublishConnectionDetailsTo().Name,
+		Scope:    to.GetNamespace(),
+		Metadata: to.GetPublishConnectionDetailsTo().Metadata,
+	}, kv); err != nil {
+		return false, errors.Wrap(err, errWriteStore)
+	}
+
+	// TODO(turkenh): Figure out how can we set published to false
+	//  (and why do we need to?) in case of no-op.
+
+	return true, nil
+}
+
 func (m *DetailsManager) connectStore(ctx context.Context, p *v1.PublishConnectionDetailsTo) (Store, error) {
 	sc := m.newConfig()
 	if err := m.client.Get(ctx, types.NamespacedName{Name: p.SecretStoreConfigRef.Name}, sc); err != nil {

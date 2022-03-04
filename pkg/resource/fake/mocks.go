@@ -483,6 +483,7 @@ type MockLocalConnectionSecretOwner struct {
 	metav1.ObjectMeta
 
 	Ref *xpv1.LocalSecretReference
+	To  *xpv1.PublishConnectionDetailsTo
 }
 
 // GetWriteConnectionSecretToReference returns the connection secret reference.
@@ -493,6 +494,16 @@ func (m *MockLocalConnectionSecretOwner) GetWriteConnectionSecretToReference() *
 // SetWriteConnectionSecretToReference sets the connection secret reference.
 func (m *MockLocalConnectionSecretOwner) SetWriteConnectionSecretToReference(r *xpv1.LocalSecretReference) {
 	m.Ref = r
+}
+
+// SetPublishConnectionDetailsTo sets the publish connectionDetails to
+func (m *MockLocalConnectionSecretOwner) SetPublishConnectionDetailsTo(r *xpv1.PublishConnectionDetailsTo) {
+	m.To = r
+}
+
+// GetPublishConnectionDetailsTo returns the publish connectionDetails to.
+func (m *MockLocalConnectionSecretOwner) GetPublishConnectionDetailsTo() *xpv1.PublishConnectionDetailsTo {
+	return m.To
 }
 
 // GetObjectKind returns schema.ObjectKind.

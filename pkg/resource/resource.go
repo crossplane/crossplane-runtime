@@ -78,6 +78,7 @@ type LocalConnectionSecretOwner interface {
 	metav1.Object
 
 	LocalConnectionSecretWriterTo
+	ConnectionDetailsPublisherTo
 }
 
 // A ConnectionPropagator is responsible for propagating information required to
