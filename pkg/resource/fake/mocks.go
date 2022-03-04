@@ -335,6 +335,7 @@ func (m *Composite) DeepCopyObject() runtime.Object {
 type Composed struct {
 	metav1.ObjectMeta
 	ConnectionSecretWriterTo
+	ConnectionDetailsPublisherTo
 	xpv1.ConditionedStatus
 }
 
@@ -363,6 +364,7 @@ type CompositeClaim struct {
 	CompositionUpdater
 	CompositeResourceReferencer
 	LocalConnectionSecretWriterTo
+	ConnectionDetailsPublisherTo
 
 	xpv1.ConditionedStatus
 	ConnectionDetailsLastPublishedTimer

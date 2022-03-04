@@ -230,6 +230,7 @@ type Composed interface {
 
 	Conditioned
 	ConnectionSecretWriterTo
+	ConnectionDetailsPublisherTo
 }
 
 // A CompositeClaim for a Composite resource.
@@ -242,6 +243,8 @@ type CompositeClaim interface {
 	CompositionRevisionReferencer
 	CompositeResourceReferencer
 	LocalConnectionSecretWriterTo
+	// TODO(turkenh): LocalConnectionDetailsPublisherTo?
+	ConnectionDetailsPublisherTo
 
 	Conditioned
 	ConnectionDetailsPublishedTimer

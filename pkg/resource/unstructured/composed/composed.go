@@ -98,3 +98,17 @@ func (cr *Unstructured) GetWriteConnectionSecretToReference() *xpv1.SecretRefere
 func (cr *Unstructured) SetWriteConnectionSecretToReference(r *xpv1.SecretReference) {
 	_ = fieldpath.Pave(cr.Object).SetValue("spec.writeConnectionSecretToRef", r)
 }
+
+// GetPublishConnectionDetailsTo of this Composed resource.
+func (cr *Unstructured) GetPublishConnectionDetailsTo() *xpv1.PublishConnectionDetailsTo {
+	out := &xpv1.PublishConnectionDetailsTo{}
+	if err := fieldpath.Pave(cr.Object).GetValueInto("spec.publishConnectionDetailsTo", out); err != nil {
+		return nil
+	}
+	return out
+}
+
+// SetPublishConnectionDetailsTo of this Composed resource.
+func (cr *Unstructured) SetPublishConnectionDetailsTo(ref *xpv1.PublishConnectionDetailsTo) {
+	_ = fieldpath.Pave(cr.Object).SetValue("spec.publishConnectionDetailsTo", ref)
+}
