@@ -310,6 +310,11 @@ func (in *ResourceSpec) DeepCopyInto(out *ResourceSpec) {
 		*out = new(SecretReference)
 		**out = **in
 	}
+	if in.PublishConnectionDetailsTo != nil {
+		in, out := &in.PublishConnectionDetailsTo, &out.PublishConnectionDetailsTo
+		*out = new(PublishConnectionDetailsTo)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.ProviderConfigReference != nil {
 		in, out := &in.ProviderConfigReference, &out.ProviderConfigReference
 		*out = new(Reference)
