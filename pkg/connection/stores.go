@@ -19,12 +19,11 @@ package connection
 import (
 	"context"
 
-	"github.com/crossplane/crossplane-runtime/pkg/connection/store/vault"
-
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store/kubernetes"
+	"github.com/crossplane/crossplane-runtime/pkg/connection/store/vault"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 

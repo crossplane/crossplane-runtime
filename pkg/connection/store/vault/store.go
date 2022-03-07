@@ -18,6 +18,8 @@ package vault
 
 import (
 	"context"
+	"crypto/x509"
+	"net/http"
 	"path/filepath"
 
 	"github.com/hashicorp/vault/api"
@@ -34,6 +36,8 @@ import (
 const (
 	errNoConfig        = "no Vault config provided"
 	errNewClient       = "cannot create new client"
+	errExtractCABundle = "cannot extract ca bundle"
+	errAppendCABundle  = "cannot append ca bundle"
 	errExtractToken    = "cannot extract token"
 	errNoTokenProvided = "token auth configured but no token provided"
 
@@ -49,7 +53,7 @@ type KVClient interface {
 	Delete(path string) error
 }
 
-// SecretStore is a Vault KVSecret Store.
+// SecretStore is a Vault Secret Store.
 type SecretStore struct {
 	client KVClient
 
@@ -63,6 +67,18 @@ func NewSecretStore(ctx context.Context, kube client.Client, cfg v1.SecretStoreC
 	}
 	vCfg := api.DefaultConfig()
 	vCfg.Address = cfg.Vault.Server
+
+	if cfg.Vault.CABundle != nil {
+		ca, err := resource.CommonCredentialExtractor(ctx, cfg.Vault.CABundle.Source, kube, cfg.Vault.CABundle.CommonCredentialSelectors)
+		if err != nil {
+			return nil, errors.Wrap(err, errExtractCABundle)
+		}
+		pool := x509.NewCertPool()
+		if ok := pool.AppendCertsFromPEM(ca); !ok {
+			return nil, errors.Wrap(err, errAppendCABundle)
+		}
+		vCfg.HttpClient.Transport.(*http.Transport).TLSClientConfig.RootCAs = pool
+	}
 
 	c, err := api.NewClient(vCfg)
 	if err != nil {
@@ -79,8 +95,6 @@ func NewSecretStore(ctx context.Context, kube client.Client, cfg v1.SecretStoreC
 			return nil, errors.Wrap(err, errExtractToken)
 		}
 		c.SetToken(string(t))
-	case v1.VaultAuthKubernetes:
-		return nil, errors.Errorf("%q is not supported as an auth method yet", v1.VaultAuthKubernetes)
 	default:
 		return nil, errors.Errorf("%q is not supported as an auth method", cfg.Vault.Auth.Method)
 	}
@@ -91,7 +105,7 @@ func NewSecretStore(ctx context.Context, kube client.Client, cfg v1.SecretStoreC
 	}, nil
 }
 
-// ReadKeyValues reads and returns key value pairs for a given Vault KVSecret.
+// ReadKeyValues reads and returns key value pairs for a given Vault Secret.
 func (ss *SecretStore) ReadKeyValues(_ context.Context, i store.Secret) (store.KeyValues, error) {
 	s := &kvclient.KVSecret{}
 	if err := ss.client.Get(ss.pathForSecretInstance(i), s); resource.Ignore(kvclient.IsNotFound, err) != nil {
@@ -104,7 +118,7 @@ func (ss *SecretStore) ReadKeyValues(_ context.Context, i store.Secret) (store.K
 	return kv, nil
 }
 
-// WriteKeyValues writes key value pairs to a given Vault KVSecret.
+// WriteKeyValues writes key value pairs to a given Vault Secret.
 func (ss *SecretStore) WriteKeyValues(_ context.Context, i store.Secret, kv store.KeyValues) error {
 	data := make(map[string]interface{}, len(kv))
 	for k, v := range kv {
@@ -123,7 +137,7 @@ func (ss *SecretStore) WriteKeyValues(_ context.Context, i store.Secret, kv stor
 	return errors.Wrap(ss.client.Apply(ss.pathForSecretInstance(i), kvSecret), errApply)
 }
 
-// DeleteKeyValues delete key value pairs from a given Vault KVSecret.
+// DeleteKeyValues delete key value pairs from a given Vault Secret.
 // If no kv specified, the whole secret instance is deleted.
 // If kv specified, those would be deleted and secret instance will be deleted
 // only if there is no Data left.
@@ -131,7 +145,7 @@ func (ss *SecretStore) DeleteKeyValues(_ context.Context, i store.Secret, kv sto
 	s := &kvclient.KVSecret{}
 	err := ss.client.Get(ss.pathForSecretInstance(i), s)
 	if kvclient.IsNotFound(err) {
-		// KVSecret already deleted, nothing to do.
+		// Secret already deleted, nothing to do.
 		return nil
 	}
 	if err != nil {
@@ -141,7 +155,7 @@ func (ss *SecretStore) DeleteKeyValues(_ context.Context, i store.Secret, kv sto
 		delete(s.Data, k)
 	}
 	if len(kv) == 0 || len(s.Data) == 0 {
-		// KVSecret is deleted only if:
+		// Secret is deleted only if:
 		// - No kv to delete specified as input
 		// - No data left in the secret
 		return errors.Wrap(ss.client.Delete(ss.pathForSecretInstance(i)), errDelete)

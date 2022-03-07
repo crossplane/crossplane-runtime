@@ -210,6 +210,7 @@ func dataPayloadV1(existing, new *KVSecret) (map[string]interface{}, bool) {
 func (k *KVAdditiveClient) parseAsKVSecret(s *api.Secret, kv *KVSecret) error {
 	if k.version == v1.VaultKVVersionV1 {
 		kv.Data = s.Data
+		return nil
 	}
 
 	// kv version is v2
