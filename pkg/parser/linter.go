@@ -17,6 +17,8 @@ limitations under the License.
 package parser
 
 import (
+	"strings"
+
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -25,7 +27,7 @@ import (
 const (
 	errNilLinterFn = "linter function is nil"
 
-	errOrFmt = "object did not pass either check: (%v), (%v)"
+	errOrFmt = "object did not pass any of the linters with following errors: %s"
 )
 
 // A Linter lints packages.
@@ -95,16 +97,19 @@ func (l *PackageLinter) Lint(pkg *Package) error {
 
 // Or checks that at least one of the passed linter functions does not return an
 // error.
-func Or(a, b ObjectLinterFn) ObjectLinterFn {
+func Or(linters ...ObjectLinterFn) ObjectLinterFn {
 	return func(o runtime.Object) error {
-		if a == nil || b == nil {
-			return errors.New(errNilLinterFn)
+		var errSet string
+		for _, l := range linters {
+			if l == nil {
+				return errors.New(errNilLinterFn)
+			}
+			err := l(o)
+			if err == nil {
+				return nil
+			}
+			errSet += err.Error() + ", "
 		}
-		aErr := a(o)
-		bErr := b(o)
-		if aErr == nil || bErr == nil {
-			return nil
-		}
-		return errors.Errorf(errOrFmt, aErr, bErr)
+		return errors.Errorf(errOrFmt, strings.TrimSuffix(errSet, ", "))
 	}
 }
