@@ -121,37 +121,57 @@ type KubernetesSecretStoreConfig struct {
 type VaultAuthMethod string
 
 const (
-	// VaultAuthKubernetes indicates that "Kubernetes Auth" will be used to
-	// authenticate to Vault.
-	// https://www.vaultproject.io/docs/auth/kubernetes
-	VaultAuthKubernetes VaultAuthMethod = "Kubernetes"
-
 	// VaultAuthToken indicates that "Token Auth" will be used to
 	// authenticate to Vault.
 	// https://www.vaultproject.io/docs/auth/token
 	VaultAuthToken VaultAuthMethod = "Token"
 )
 
-// VaultAuthKubernetesConfig represents configuration for Vault Kubernetes Auth
-// Method.
-// https://www.vaultproject.io/docs/auth
-type VaultAuthKubernetesConfig struct {
-	// MountPath configures path where the Kubernetes authentication backend is
-	// mounted in Vault.
-	MountPath string `json:"mountPath"`
+// VaultAuthTokenConfig represents configuration for Vault Token Auth Method.
+// https://www.vaultproject.io/docs/auth/token
+type VaultAuthTokenConfig struct {
+	// Source of the credentials.
+	// +kubebuilder:validation:Enum=None;Secret;Environment;Filesystem
+	Source CredentialsSource `json:"source"`
 
-	// Role configures the Vault Role to assume.
-	Role string `json:"role"`
+	// CommonCredentialSelectors provides common selectors for extracting
+	// credentials.
+	CommonCredentialSelectors `json:",inline"`
 }
 
 // VaultAuthConfig required to authenticate to a Vault API.
 type VaultAuthConfig struct {
 	// Method configures which auth method will be used.
 	Method VaultAuthMethod `json:"method"`
-	// Kubernetes configures Kubernetes Auth for Vault.
+	// Token configures Token Auth for Vault.
 	// +optional
-	Kubernetes *VaultAuthKubernetesConfig `json:"kubernetes,omitempty"`
+	Token *VaultAuthTokenConfig `json:"token,omitempty"`
 }
+
+// VaultCABundleConfig represents configuration for configuring a CA bundle.
+type VaultCABundleConfig struct {
+	// Source of the credentials.
+	// +kubebuilder:validation:Enum=None;Secret;Environment;Filesystem
+	Source CredentialsSource `json:"source"`
+
+	// CommonCredentialSelectors provides common selectors for extracting
+	// credentials.
+	CommonCredentialSelectors `json:",inline"`
+}
+
+// VaultKVVersion represent API version of the Vault KV engine
+// https://www.vaultproject.io/docs/secrets/kv
+type VaultKVVersion string
+
+const (
+	// VaultKVVersionV1 indicates that Secret API is KV Secrets Engine Version 1
+	// https://www.vaultproject.io/docs/secrets/kv/kv-v1
+	VaultKVVersionV1 VaultKVVersion = "v1"
+
+	// VaultKVVersionV2 indicates that Secret API is KV Secrets Engine Version 2
+	// https://www.vaultproject.io/docs/secrets/kv/kv-v2
+	VaultKVVersionV2 VaultKVVersion = "v2"
+)
 
 // VaultSecretStoreConfig represents the required configuration for a Vault
 // secret store.
@@ -159,23 +179,18 @@ type VaultSecretStoreConfig struct {
 	// Server is the url of the Vault server, e.g. "https://vault.acme.org"
 	Server string `json:"server"`
 
-	// ParentPath is the path to be prepended to all secrets.
-	ParentPath string `json:"parentPath"`
+	// MountPath is the mount path of the KV secrets engine.
+	MountPath string `json:"mountPath"`
 
 	// Version of the KV Secrets engine of Vault.
 	// https://www.vaultproject.io/docs/secrets/kv
 	// +optional
 	// +kubebuilder:default=v2
-	Version *string `json:"version,omitempty"`
+	Version *VaultKVVersion `json:"version,omitempty"`
 
-	// CABundle is base64 encoded string of Vaults CA certificate.
+	// CABundle configures CA bundle for Vault Server.
 	// +optional
-	CABundle *string `json:"caBundle,omitempty"`
-
-	// CABundleSecretRef is a reference to a K8s secret key with Vaults CA
-	// certificate.
-	// +optional
-	CABundleSecretRef *SecretKeySelector `json:"caBundleSecretRef,omitempty"`
+	CABundle *VaultCABundleConfig `json:"caBundle,omitempty"`
 
 	// Auth configures an authentication method for Vault.
 	Auth VaultAuthConfig `json:"auth"`

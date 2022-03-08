@@ -23,6 +23,7 @@ import (
 
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store/kubernetes"
+	"github.com/crossplane/crossplane-runtime/pkg/connection/store/vault"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
@@ -39,7 +40,7 @@ func RuntimeStoreBuilder(ctx context.Context, local client.Client, cfg v1.Secret
 	case v1.SecretStoreKubernetes:
 		return kubernetes.NewSecretStore(ctx, local, cfg)
 	case v1.SecretStoreVault:
-		return nil, errors.New("Vault is not supported as a secret store yet")
+		return vault.NewSecretStore(ctx, local, cfg)
 	}
 	return nil, errors.Errorf(errFmtUnknownSecretStore, *cfg.Type)
 }
