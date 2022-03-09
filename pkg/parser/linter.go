@@ -99,7 +99,7 @@ func (l *PackageLinter) Lint(pkg *Package) error {
 // error.
 func Or(linters ...ObjectLinterFn) ObjectLinterFn {
 	return func(o runtime.Object) error {
-		var errSet string
+		var errs []string
 		for _, l := range linters {
 			if l == nil {
 				return errors.New(errNilLinterFn)
@@ -108,8 +108,8 @@ func Or(linters ...ObjectLinterFn) ObjectLinterFn {
 			if err == nil {
 				return nil
 			}
-			errSet += err.Error() + ", "
+			errs = append(errs, err.Error())
 		}
-		return errors.Errorf(errOrFmt, strings.TrimSuffix(errSet, ", "))
+		return errors.Errorf(errOrFmt, strings.Join(errs, ", "))
 	}
 }
