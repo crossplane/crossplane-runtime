@@ -20,8 +20,6 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -32,23 +30,23 @@ import (
 
 // SecretStore is a fake SecretStore
 type SecretStore struct {
-	ReadKeyValuesFn   func(ctx context.Context, i store.Secret) (managed.ConnectionDetails, error)
-	WriteKeyValuesFn  func(ctx context.Context, i store.Secret, conn managed.ConnectionDetails) error
-	DeleteKeyValuesFn func(ctx context.Context, i store.Secret, conn managed.ConnectionDetails) error
+	ReadKeyValuesFn   func(ctx context.Context, i store.Secret) (store.KeyValues, error)
+	WriteKeyValuesFn  func(ctx context.Context, i store.Secret, conn store.KeyValues) error
+	DeleteKeyValuesFn func(ctx context.Context, i store.Secret, conn store.KeyValues) error
 }
 
 // ReadKeyValues reads key values.
-func (ss *SecretStore) ReadKeyValues(ctx context.Context, i store.Secret) (managed.ConnectionDetails, error) {
+func (ss *SecretStore) ReadKeyValues(ctx context.Context, i store.Secret) (store.KeyValues, error) {
 	return ss.ReadKeyValuesFn(ctx, i)
 }
 
 // WriteKeyValues writes key values.
-func (ss *SecretStore) WriteKeyValues(ctx context.Context, i store.Secret, conn managed.ConnectionDetails) error {
+func (ss *SecretStore) WriteKeyValues(ctx context.Context, i store.Secret, conn store.KeyValues) error {
 	return ss.WriteKeyValuesFn(ctx, i, conn)
 }
 
 // DeleteKeyValues deletes key values.
-func (ss *SecretStore) DeleteKeyValues(ctx context.Context, i store.Secret, conn managed.ConnectionDetails) error {
+func (ss *SecretStore) DeleteKeyValues(ctx context.Context, i store.Secret, conn store.KeyValues) error {
 	return ss.DeleteKeyValuesFn(ctx, i, conn)
 }
 

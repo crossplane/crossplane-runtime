@@ -30,7 +30,6 @@ import (
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
@@ -65,7 +64,7 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 		secret store.Secret
 	}
 	type want struct {
-		result managed.ConnectionDetails
+		result store.KeyValues
 		err    error
 	}
 
@@ -108,7 +107,7 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 				},
 			},
 			want: want{
-				result: managed.ConnectionDetails(fakeKV),
+				result: store.KeyValues(fakeKV),
 			},
 		},
 	}
@@ -136,7 +135,7 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 		client           resource.ClientApplicator
 		defaultNamespace string
 		secret           store.Secret
-		kv               managed.ConnectionDetails
+		kv               store.KeyValues
 	}
 	type want struct {
 		err error
@@ -159,7 +158,7 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 					Name:  fakeSecretName,
 					Scope: fakeSecretNamespace,
 				},
-				kv: managed.ConnectionDetails(fakeKV),
+				kv: store.KeyValues(fakeKV),
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errApplySecret),
@@ -180,7 +179,7 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 					Name:  fakeSecretName,
 					Scope: fakeSecretNamespace,
 				},
-				kv: managed.ConnectionDetails(fakeKV),
+				kv: store.KeyValues(fakeKV),
 			},
 			want: want{
 				err: nil,
@@ -203,7 +202,7 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 					Name:  fakeSecretName,
 					Scope: fakeSecretNamespace,
 				},
-				kv: managed.ConnectionDetails(map[string][]byte{
+				kv: store.KeyValues(map[string][]byte{
 					"existing-key": []byte("new-value"),
 				}),
 			},
@@ -228,7 +227,7 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 					Name:  fakeSecretName,
 					Scope: fakeSecretNamespace,
 				},
-				kv: managed.ConnectionDetails(map[string][]byte{
+				kv: store.KeyValues(map[string][]byte{
 					"new-key": []byte("new-value"),
 				}),
 			},
@@ -251,7 +250,7 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 					Name:  fakeSecretName,
 					Scope: fakeSecretNamespace,
 				},
-				kv: managed.ConnectionDetails(fakeKV),
+				kv: store.KeyValues(fakeKV),
 			},
 			want: want{
 				err: nil,
@@ -286,7 +285,7 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 						Type: &secretTypeOpaque,
 					},
 				},
-				kv: managed.ConnectionDetails(fakeKV),
+				kv: store.KeyValues(fakeKV),
 			},
 			want: want{
 				err: nil,
@@ -312,7 +311,7 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 		client           resource.ClientApplicator
 		defaultNamespace string
 		secret           store.Secret
-		kv               managed.ConnectionDetails
+		kv               store.KeyValues
 	}
 	type want struct {
 		err error
@@ -361,7 +360,7 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 					Name:  fakeSecretName,
 					Scope: fakeSecretNamespace,
 				},
-				kv: managed.ConnectionDetails(map[string][]byte{
+				kv: store.KeyValues(map[string][]byte{
 					"key1": []byte("value1"),
 					"key2": []byte("value2"),
 				}),

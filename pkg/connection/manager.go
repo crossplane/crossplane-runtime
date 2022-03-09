@@ -115,7 +115,7 @@ func (m *DetailsManager) PublishConnection(ctx context.Context, so resource.Conn
 		Name:     p.Name,
 		Scope:    so.GetNamespace(),
 		Metadata: p.Metadata,
-	}, conn), errWriteStore)
+	}, store.KeyValues(conn)), errWriteStore)
 }
 
 // UnpublishConnection deletes connection details secret from the configured
@@ -136,7 +136,7 @@ func (m *DetailsManager) UnpublishConnection(ctx context.Context, so resource.Co
 		Name:     p.Name,
 		Scope:    so.GetNamespace(),
 		Metadata: p.Metadata,
-	}, conn), errDeleteFromStore)
+	}, store.KeyValues(conn)), errDeleteFromStore)
 }
 
 // FetchConnection fetches connection details of a given ConnectionSecretOwner.
@@ -157,7 +157,7 @@ func (m *DetailsManager) FetchConnection(ctx context.Context, so resource.Connec
 		Scope:    so.GetNamespace(),
 		Metadata: p.Metadata,
 	})
-	return kv, errors.Wrap(err, errReadStore)
+	return managed.ConnectionDetails(kv), errors.Wrap(err, errReadStore)
 }
 
 // PropagateConnection propagate connection details from one resource to the other.

@@ -243,7 +243,6 @@ type CompositeClaim interface {
 	CompositionRevisionReferencer
 	CompositeResourceReferencer
 	LocalConnectionSecretWriterTo
-	// TODO(turkenh): LocalConnectionDetailsPublisherTo?
 	ConnectionDetailsPublisherTo
 
 	Conditioned

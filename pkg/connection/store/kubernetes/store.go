@@ -29,7 +29,6 @@ import (
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
@@ -87,13 +86,13 @@ func buildClient(ctx context.Context, local client.Client, cfg v1.SecretStoreCon
 }
 
 // ReadKeyValues reads and returns key value pairs for a given Kubernetes Secret.
-func (ss *SecretStore) ReadKeyValues(ctx context.Context, i store.Secret) (managed.ConnectionDetails, error) {
+func (ss *SecretStore) ReadKeyValues(ctx context.Context, i store.Secret) (store.KeyValues, error) {
 	s := &corev1.Secret{}
 	return s.Data, errors.Wrap(ss.client.Get(ctx, types.NamespacedName{Name: i.Name, Namespace: ss.namespaceForSecret(i)}, s), errGetSecret)
 }
 
 // WriteKeyValues writes key value pairs to a given Kubernetes Secret.
-func (ss *SecretStore) WriteKeyValues(ctx context.Context, i store.Secret, conn managed.ConnectionDetails) error {
+func (ss *SecretStore) WriteKeyValues(ctx context.Context, i store.Secret, conn store.KeyValues) error {
 	s := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      i.Name,
@@ -118,7 +117,7 @@ func (ss *SecretStore) WriteKeyValues(ctx context.Context, i store.Secret, conn 
 // If no kv specified, the whole secret instance is deleted.
 // If kv specified, those would be deleted and secret instance will be deleted
 // only if there is no data left.
-func (ss *SecretStore) DeleteKeyValues(ctx context.Context, i store.Secret, conn managed.ConnectionDetails) error {
+func (ss *SecretStore) DeleteKeyValues(ctx context.Context, i store.Secret, conn store.KeyValues) error {
 	// NOTE(turkenh): DeleteKeyValues method wouldn't need to do anything if we
 	// have used owner references similar to existing implementation. However,
 	// this wouldn't work if the K8s API is not the same as where ConnectionSecretOwner

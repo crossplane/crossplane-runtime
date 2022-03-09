@@ -21,7 +21,6 @@ import (
 
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store"
-	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
@@ -35,7 +34,7 @@ type StoreConfig interface {
 
 // A Store stores sensitive key values in Secret.
 type Store interface {
-	ReadKeyValues(ctx context.Context, i store.Secret) (managed.ConnectionDetails, error)
-	WriteKeyValues(ctx context.Context, i store.Secret, conn managed.ConnectionDetails) error
-	DeleteKeyValues(ctx context.Context, i store.Secret, conn managed.ConnectionDetails) error
+	ReadKeyValues(ctx context.Context, i store.Secret) (store.KeyValues, error)
+	WriteKeyValues(ctx context.Context, i store.Secret, conn store.KeyValues) error
+	DeleteKeyValues(ctx context.Context, i store.Secret, conn store.KeyValues) error
 }

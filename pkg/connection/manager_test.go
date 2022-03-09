@@ -20,10 +20,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
-
-	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
-
 	"github.com/google/go-cmp/cmp"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -34,6 +30,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/connection/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	resourcefake "github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
@@ -193,7 +191,7 @@ func TestManagerPublishConnection(t *testing.T) {
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
-					WriteKeyValuesFn: func(ctx context.Context, i store.Secret, c managed.ConnectionDetails) error {
+					WriteKeyValuesFn: func(ctx context.Context, i store.Secret, c store.KeyValues) error {
 						return nil
 					},
 				}),
@@ -227,7 +225,7 @@ func TestManagerPublishConnection(t *testing.T) {
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
-					WriteKeyValuesFn: func(ctx context.Context, i store.Secret, c managed.ConnectionDetails) error {
+					WriteKeyValuesFn: func(ctx context.Context, i store.Secret, c store.KeyValues) error {
 						return nil
 					},
 				}),
@@ -296,7 +294,7 @@ func TestManagerUnpublishConnection(t *testing.T) {
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
-					WriteKeyValuesFn: func(ctx context.Context, i store.Secret, c managed.ConnectionDetails) error {
+					WriteKeyValuesFn: func(ctx context.Context, i store.Secret, c store.KeyValues) error {
 						return nil
 					},
 				}),
@@ -330,7 +328,7 @@ func TestManagerUnpublishConnection(t *testing.T) {
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
-					DeleteKeyValuesFn: func(ctx context.Context, i store.Secret, c managed.ConnectionDetails) error {
+					DeleteKeyValuesFn: func(ctx context.Context, i store.Secret, c store.KeyValues) error {
 						return nil
 					},
 				}),

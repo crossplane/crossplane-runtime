@@ -29,7 +29,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store"
 	kvclient "github.com/crossplane/crossplane-runtime/pkg/connection/store/vault/client"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
@@ -107,12 +106,12 @@ func NewSecretStore(ctx context.Context, kube client.Client, cfg v1.SecretStoreC
 }
 
 // ReadKeyValues reads and returns key value pairs for a given Vault Secret.
-func (ss *SecretStore) ReadKeyValues(_ context.Context, i store.Secret) (managed.ConnectionDetails, error) {
+func (ss *SecretStore) ReadKeyValues(_ context.Context, i store.Secret) (store.KeyValues, error) {
 	s := &kvclient.KVSecret{}
 	if err := ss.client.Get(ss.pathForSecretInstance(i), s); resource.Ignore(kvclient.IsNotFound, err) != nil {
 		return nil, errors.Wrap(err, errGet)
 	}
-	kv := make(managed.ConnectionDetails, len(s.Data))
+	kv := make(store.KeyValues, len(s.Data))
 	for k, v := range s.Data {
 		kv[k] = []byte(v.(string))
 	}
@@ -120,7 +119,7 @@ func (ss *SecretStore) ReadKeyValues(_ context.Context, i store.Secret) (managed
 }
 
 // WriteKeyValues writes key value pairs to a given Vault Secret.
-func (ss *SecretStore) WriteKeyValues(_ context.Context, i store.Secret, conn managed.ConnectionDetails) error {
+func (ss *SecretStore) WriteKeyValues(_ context.Context, i store.Secret, conn store.KeyValues) error {
 	data := make(map[string]interface{}, len(conn))
 	for k, v := range conn {
 		data[k] = string(v)
@@ -142,7 +141,7 @@ func (ss *SecretStore) WriteKeyValues(_ context.Context, i store.Secret, conn ma
 // If no kv specified, the whole secret instance is deleted.
 // If kv specified, those would be deleted and secret instance will be deleted
 // only if there is no Data left.
-func (ss *SecretStore) DeleteKeyValues(_ context.Context, i store.Secret, conn managed.ConnectionDetails) error {
+func (ss *SecretStore) DeleteKeyValues(_ context.Context, i store.Secret, conn store.KeyValues) error {
 	s := &kvclient.KVSecret{}
 	err := ss.client.Get(ss.pathForSecretInstance(i), s)
 	if kvclient.IsNotFound(err) {
