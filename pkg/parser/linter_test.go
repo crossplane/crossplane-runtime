@@ -112,7 +112,7 @@ func TestLinter(t *testing.T) {
 					objects: []runtime.Object{crd},
 				},
 			},
-			err: errors.Errorf(errOrFmt, errBoom, errBoom),
+			err: errors.Errorf(errOrFmt, errBoom.Error()+", "+errBoom.Error()),
 		},
 	}
 
@@ -160,7 +160,7 @@ func TestOr(t *testing.T) {
 				one: objFail,
 				two: objFail,
 			},
-			err: errors.Errorf(errOrFmt, errBoom, errBoom),
+			err: errors.Errorf(errOrFmt, errBoom.Error()+", "+errBoom.Error()),
 		},
 		"ErrNilLinter": {
 			reason: "Passing a nil linter will should always return error.",
