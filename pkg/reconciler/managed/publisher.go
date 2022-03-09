@@ -19,8 +19,11 @@ package managed
 import (
 	"context"
 
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
+
+const errSecretStoreDisabled = "cannot publish to secret store, feature is not enabled"
 
 // A PublisherChain chains multiple ManagedPublishers.
 type PublisherChain []ConnectionPublisher
@@ -43,6 +46,29 @@ func (pc PublisherChain) UnpublishConnection(ctx context.Context, o resource.Con
 		if err := p.UnpublishConnection(ctx, o, c); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+// DisabledSecretStoreManager is a connection details manager that returns a proper
+// error when API used but feature not enabled.
+type DisabledSecretStoreManager struct {
+}
+
+// PublishConnection returns a proper error when API used but the feature was
+// not enabled.
+func (m *DisabledSecretStoreManager) PublishConnection(_ context.Context, so resource.ConnectionSecretOwner, _ ConnectionDetails) error {
+	if so.GetPublishConnectionDetailsTo() != nil {
+		return errors.New(errSecretStoreDisabled)
+	}
+	return nil
+}
+
+// UnpublishConnection returns a proper error when API used but the feature was
+// not enabled.
+func (m *DisabledSecretStoreManager) UnpublishConnection(_ context.Context, so resource.ConnectionSecretOwner, _ ConnectionDetails) error {
+	if so.GetPublishConnectionDetailsTo() != nil {
+		return errors.New(errSecretStoreDisabled)
 	}
 	return nil
 }

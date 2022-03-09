@@ -469,10 +469,13 @@ type mrManaged struct {
 func defaultMRManaged(m manager.Manager) mrManaged {
 	return mrManaged{
 		CriticalAnnotationUpdater: NewRetryingCriticalAnnotationUpdater(m.GetClient()),
-		ConnectionPublisher:       NewAPISecretPublisher(m.GetClient(), m.GetScheme()),
 		Finalizer:                 resource.NewAPIFinalizer(m.GetClient(), FinalizerName),
 		Initializer:               NewNameAsExternalName(m.GetClient()),
 		ReferenceResolver:         NewAPISimpleReferenceResolver(m.GetClient()),
+		ConnectionPublisher: PublisherChain([]ConnectionPublisher{
+			NewAPISecretPublisher(m.GetClient(), m.GetScheme()),
+			&DisabledSecretStoreManager{},
+		}),
 	}
 }
 

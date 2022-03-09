@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
+	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
@@ -98,6 +99,90 @@ func TestPublisherChain(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			got := tc.p.PublishConnection(tc.args.ctx, tc.args.mg, tc.args.c)
 			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
+				t.Errorf("Publish(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestDisabledSecretStorePublish(t *testing.T) {
+	type args struct {
+		mg resource.Managed
+	}
+	type want struct {
+		err error
+	}
+
+	cases := map[string]struct {
+		args args
+		want want
+	}{
+		"APINotUsedNoError": {
+			args: args{
+				mg: &fake.Managed{},
+			},
+		},
+		"APIUsedProperError": {
+			args: args{
+				mg: &fake.Managed{
+					ConnectionDetailsPublisherTo: fake.ConnectionDetailsPublisherTo{
+						To: &v1.PublishConnectionDetailsTo{},
+					},
+				},
+			},
+			want: want{
+				err: errors.New(errSecretStoreDisabled),
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			ss := &DisabledSecretStoreManager{}
+			gotErr := ss.PublishConnection(context.Background(), tc.args.mg, nil)
+			if diff := cmp.Diff(tc.want.err, gotErr, test.EquateErrors()); diff != "" {
+				t.Errorf("Publish(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestDisabledSecretStoreUnpublish(t *testing.T) {
+	type args struct {
+		mg resource.Managed
+	}
+	type want struct {
+		err error
+	}
+
+	cases := map[string]struct {
+		args args
+		want want
+	}{
+		"APINotUsedNoError": {
+			args: args{
+				mg: &fake.Managed{},
+			},
+		},
+		"APIUsedProperError": {
+			args: args{
+				mg: &fake.Managed{
+					ConnectionDetailsPublisherTo: fake.ConnectionDetailsPublisherTo{
+						To: &v1.PublishConnectionDetailsTo{},
+					},
+				},
+			},
+			want: want{
+				err: errors.New(errSecretStoreDisabled),
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			ss := &DisabledSecretStoreManager{}
+			gotErr := ss.UnpublishConnection(context.Background(), tc.args.mg, nil)
+			if diff := cmp.Diff(tc.want.err, gotErr, test.EquateErrors()); diff != "" {
 				t.Errorf("Publish(...): -want, +got:\n%s", diff)
 			}
 		})

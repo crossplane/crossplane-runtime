@@ -28,7 +28,6 @@ import (
 type StoreConfig interface {
 	resource.Object
 
-	resource.Conditioned
 	GetStoreConfig() v1.SecretStoreConfig
 }
 
