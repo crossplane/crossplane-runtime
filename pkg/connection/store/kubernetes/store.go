@@ -92,14 +92,14 @@ func (ss *SecretStore) ReadKeyValues(ctx context.Context, i store.Secret) (store
 }
 
 // WriteKeyValues writes key value pairs to a given Kubernetes Secret.
-func (ss *SecretStore) WriteKeyValues(ctx context.Context, i store.Secret, conn store.KeyValues) error {
+func (ss *SecretStore) WriteKeyValues(ctx context.Context, i store.Secret, kv store.KeyValues) error {
 	s := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      i.Name,
 			Namespace: ss.namespaceForSecret(i),
 		},
 		Type: resource.SecretTypeConnection,
-		Data: conn,
+		Data: kv,
 	}
 
 	if i.Metadata != nil {
@@ -117,7 +117,7 @@ func (ss *SecretStore) WriteKeyValues(ctx context.Context, i store.Secret, conn 
 // If no kv specified, the whole secret instance is deleted.
 // If kv specified, those would be deleted and secret instance will be deleted
 // only if there is no data left.
-func (ss *SecretStore) DeleteKeyValues(ctx context.Context, i store.Secret, conn store.KeyValues) error {
+func (ss *SecretStore) DeleteKeyValues(ctx context.Context, i store.Secret, kv store.KeyValues) error {
 	// NOTE(turkenh): DeleteKeyValues method wouldn't need to do anything if we
 	// have used owner references similar to existing implementation. However,
 	// this wouldn't work if the K8s API is not the same as where ConnectionSecretOwner
@@ -136,10 +136,10 @@ func (ss *SecretStore) DeleteKeyValues(ctx context.Context, i store.Secret, conn
 		return errors.Wrap(err, errGetSecret)
 	}
 	// Delete all supplied keys from secret data
-	for k := range conn {
+	for k := range kv {
 		delete(s.Data, k)
 	}
-	if len(conn) == 0 || len(s.Data) == 0 {
+	if len(kv) == 0 || len(s.Data) == 0 {
 		// Secret is deleted only if:
 		// - No kv to delete specified as input
 		// - No data left in the secret

@@ -31,8 +31,8 @@ import (
 // SecretStore is a fake SecretStore
 type SecretStore struct {
 	ReadKeyValuesFn   func(ctx context.Context, i store.Secret) (store.KeyValues, error)
-	WriteKeyValuesFn  func(ctx context.Context, i store.Secret, conn store.KeyValues) error
-	DeleteKeyValuesFn func(ctx context.Context, i store.Secret, conn store.KeyValues) error
+	WriteKeyValuesFn  func(ctx context.Context, i store.Secret, kv store.KeyValues) error
+	DeleteKeyValuesFn func(ctx context.Context, i store.Secret, kv store.KeyValues) error
 }
 
 // ReadKeyValues reads key values.
@@ -41,13 +41,13 @@ func (ss *SecretStore) ReadKeyValues(ctx context.Context, i store.Secret) (store
 }
 
 // WriteKeyValues writes key values.
-func (ss *SecretStore) WriteKeyValues(ctx context.Context, i store.Secret, conn store.KeyValues) error {
-	return ss.WriteKeyValuesFn(ctx, i, conn)
+func (ss *SecretStore) WriteKeyValues(ctx context.Context, i store.Secret, kv store.KeyValues) error {
+	return ss.WriteKeyValuesFn(ctx, i, kv)
 }
 
 // DeleteKeyValues deletes key values.
-func (ss *SecretStore) DeleteKeyValues(ctx context.Context, i store.Secret, conn store.KeyValues) error {
-	return ss.DeleteKeyValuesFn(ctx, i, conn)
+func (ss *SecretStore) DeleteKeyValues(ctx context.Context, i store.Secret, kv store.KeyValues) error {
+	return ss.DeleteKeyValuesFn(ctx, i, kv)
 }
 
 // StoreConfig is a mock implementation of the StoreConfig interface.

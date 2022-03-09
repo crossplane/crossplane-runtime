@@ -26,7 +26,6 @@ import (
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
@@ -47,13 +46,6 @@ type StoreBuilderFn func(ctx context.Context, local client.Client, cfg v1.Secret
 // A DetailsManagerOption configures a DetailsManager.
 type DetailsManagerOption func(*DetailsManager)
 
-// WithLogger specifies how the DetailsManager should log messages.
-func WithLogger(l logging.Logger) DetailsManagerOption {
-	return func(m *DetailsManager) {
-		m.log = l
-	}
-}
-
 // WithStoreBuilder configures the StoreBuilder to use.
 func WithStoreBuilder(sb StoreBuilderFn) DetailsManagerOption {
 	return func(m *DetailsManager) {
@@ -68,8 +60,6 @@ type DetailsManager struct {
 	client       client.Client
 	newConfig    func() StoreConfig
 	storeBuilder StoreBuilderFn
-
-	log logging.Logger
 }
 
 // NewDetailsManager returns a new connection DetailsManager.
@@ -86,8 +76,6 @@ func NewDetailsManager(c client.Client, of schema.GroupVersionKind, o ...Details
 		client:       c,
 		newConfig:    nc,
 		storeBuilder: RuntimeStoreBuilder,
-
-		log: logging.NewNopLogger(),
 	}
 
 	for _, mo := range o {
@@ -118,7 +106,7 @@ func (m *DetailsManager) PublishConnection(ctx context.Context, so resource.Conn
 	}, store.KeyValues(conn)), errWriteStore)
 }
 
-// UnpublishConnection deletes connection details secret from the configured
+// UnpublishConnection deletes connection details secret to the configured
 // connection Store.
 func (m *DetailsManager) UnpublishConnection(ctx context.Context, so resource.ConnectionSecretOwner, conn managed.ConnectionDetails) error {
 	// This resource didn't expose a connection secret.
@@ -160,7 +148,7 @@ func (m *DetailsManager) FetchConnection(ctx context.Context, so resource.Connec
 	return managed.ConnectionDetails(kv), errors.Wrap(err, errReadStore)
 }
 
-// PropagateConnection propagate connection details from one resource to the other.
+// PropagateConnection propagate connection details from one resource to another.
 func (m *DetailsManager) PropagateConnection(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
 	// Either from does not expose a connection secret, or to does not want one.
 	if from.GetPublishConnectionDetailsTo() == nil || to.GetPublishConnectionDetailsTo() == nil {
@@ -181,7 +169,7 @@ func (m *DetailsManager) PropagateConnection(ctx context.Context, to resource.Lo
 		Metadata: from.GetPublishConnectionDetailsTo().Metadata,
 	})
 	if err != nil {
-		return false, errors.Wrap(err, "errGetSecret")
+		return false, errors.Wrap(err, errReadStore)
 	}
 
 	// TODO(turkenh): Implement an equivalent functionality to

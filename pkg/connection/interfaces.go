@@ -34,6 +34,6 @@ type StoreConfig interface {
 // A Store stores sensitive key values in Secret.
 type Store interface {
 	ReadKeyValues(ctx context.Context, i store.Secret) (store.KeyValues, error)
-	WriteKeyValues(ctx context.Context, i store.Secret, conn store.KeyValues) error
-	DeleteKeyValues(ctx context.Context, i store.Secret, conn store.KeyValues) error
+	WriteKeyValues(ctx context.Context, i store.Secret, kv store.KeyValues) error
+	DeleteKeyValues(ctx context.Context, i store.Secret, kv store.KeyValues) error
 }

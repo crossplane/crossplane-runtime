@@ -119,9 +119,9 @@ func (ss *SecretStore) ReadKeyValues(_ context.Context, i store.Secret) (store.K
 }
 
 // WriteKeyValues writes key value pairs to a given Vault Secret.
-func (ss *SecretStore) WriteKeyValues(_ context.Context, i store.Secret, conn store.KeyValues) error {
-	data := make(map[string]interface{}, len(conn))
-	for k, v := range conn {
+func (ss *SecretStore) WriteKeyValues(_ context.Context, i store.Secret, kv store.KeyValues) error {
+	data := make(map[string]interface{}, len(kv))
+	for k, v := range kv {
 		data[k] = string(v)
 	}
 
@@ -141,7 +141,7 @@ func (ss *SecretStore) WriteKeyValues(_ context.Context, i store.Secret, conn st
 // If no kv specified, the whole secret instance is deleted.
 // If kv specified, those would be deleted and secret instance will be deleted
 // only if there is no Data left.
-func (ss *SecretStore) DeleteKeyValues(_ context.Context, i store.Secret, conn store.KeyValues) error {
+func (ss *SecretStore) DeleteKeyValues(_ context.Context, i store.Secret, kv store.KeyValues) error {
 	s := &kvclient.KVSecret{}
 	err := ss.client.Get(ss.pathForSecretInstance(i), s)
 	if kvclient.IsNotFound(err) {
@@ -151,10 +151,10 @@ func (ss *SecretStore) DeleteKeyValues(_ context.Context, i store.Secret, conn s
 	if err != nil {
 		return errors.Wrap(err, errGet)
 	}
-	for k := range conn {
+	for k := range kv {
 		delete(s.Data, k)
 	}
-	if len(conn) == 0 || len(s.Data) == 0 {
+	if len(kv) == 0 || len(s.Data) == 0 {
 		// Secret is deleted only if:
 		// - No kv to delete specified as input
 		// - No data left in the secret
