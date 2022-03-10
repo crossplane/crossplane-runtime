@@ -146,6 +146,47 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 				err: nil,
 			},
 		},
+		"SuccessfulGetWithMetadata": {
+			reason: "Should return both data and metadata.",
+			args: args{
+				client: &fake.KVClient{
+					GetFn: func(path string, secret *kvclient.KVSecret) error {
+						if diff := cmp.Diff(filepath.Join(parentPathDefault, secretName), path); diff != "" {
+							t.Errorf("r: -want, +got:\n%s", diff)
+						}
+						secret.Data = map[string]interface{}{
+							"key1": "val1",
+							"key2": "val2",
+						}
+						secret.CustomMeta = map[string]interface{}{
+							"foo": "bar",
+						}
+						return nil
+					},
+				},
+				defaultParentPath: parentPathDefault,
+				name: store.ScopedName{
+					Name: secretName,
+				},
+			},
+			want: want{
+				out: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name: secretName,
+					},
+					Data: store.KeyValues{
+						"key1": []byte("val1"),
+						"key2": []byte("val2"),
+					},
+					Metadata: &v1.ConnectionSecretMetadata{
+						Labels: map[string]string{
+							"foo": "bar",
+						},
+					},
+				},
+				err: nil,
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -205,6 +246,87 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errApply),
+			},
+		},
+		"FailedWriteOption": {
+			reason: "Should return a proper error if supplied write option fails",
+			args: args{
+				client: &fake.KVClient{
+					ApplyFn: func(path string, secret *kvclient.KVSecret, ao ...kvclient.ApplyOption) error {
+						for _, o := range ao {
+							if err := o(&kvclient.KVSecret{}, secret); err != nil {
+								return err
+							}
+						}
+						return nil
+					},
+				},
+				defaultParentPath: parentPathDefault,
+				secret: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name: secretName,
+					},
+					Data: store.KeyValues{
+						"key1": []byte("val1"),
+						"key2": []byte("val2"),
+					},
+				},
+				wo: []store.WriteOption{
+					func(ctx context.Context, current, desired *store.Secret) error {
+						return errBoom
+					},
+				},
+			},
+			want: want{
+				changed: false,
+				err:     errors.Wrap(errBoom, errApply),
+			},
+		},
+		"SuccessfulWriteOption": {
+			reason: "Should return a no error if supplied write option succeeds",
+			args: args{
+				client: &fake.KVClient{
+					ApplyFn: func(path string, secret *kvclient.KVSecret, ao ...kvclient.ApplyOption) error {
+						for _, o := range ao {
+							if err := o(&kvclient.KVSecret{
+								Data: map[string]interface{}{
+									"key1": "val1",
+									"key2": "val2",
+								},
+								CustomMeta: map[string]interface{}{
+									"foo": "bar",
+								},
+							}, secret); err != nil {
+								return err
+							}
+						}
+						return nil
+					},
+				},
+				defaultParentPath: parentPathDefault,
+				secret: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name: secretName,
+					},
+					Data: store.KeyValues{
+						"key1": []byte("val1"),
+						"key2": []byte("val2"),
+					},
+				},
+				wo: []store.WriteOption{
+					func(ctx context.Context, current, desired *store.Secret) error {
+						desired.Data["customkey"] = []byte("customval")
+						desired.Metadata = &v1.ConnectionSecretMetadata{
+							Labels: map[string]string{
+								"foo": "baz",
+							},
+						}
+						return nil
+					},
+				},
+			},
+			want: want{
+				changed: true,
 			},
 		},
 		"AlreadyUpToDate": {

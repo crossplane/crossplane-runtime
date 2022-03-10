@@ -188,32 +188,46 @@ func applyOptions(wo ...store.WriteOption) []resource.ApplyOption {
 	for i := range wo {
 		o := wo[i]
 		ao[i] = func(ctx context.Context, current, desired runtime.Object) error {
-			cs := current.(*corev1.Secret)
-			ds := desired.(*corev1.Secret)
-			return o(ctx,
-				&store.Secret{
-					ScopedName: store.ScopedName{
-						Name:  cs.Name,
-						Scope: cs.Namespace,
-					},
-					Metadata: &v1.ConnectionSecretMetadata{
-						Labels:      cs.Labels,
-						Annotations: cs.Annotations,
-						Type:        &cs.Type,
-					},
-					Data: cs.Data,
-				}, &store.Secret{
-					ScopedName: store.ScopedName{
-						Name:  ds.Name,
-						Scope: ds.Namespace,
-					},
-					Metadata: &v1.ConnectionSecretMetadata{
-						Labels:      ds.Labels,
-						Annotations: ds.Annotations,
-						Type:        &ds.Type,
-					},
-					Data: ds.Data,
-				})
+			currentSecret := current.(*corev1.Secret)
+			desiredSecret := desired.(*corev1.Secret)
+
+			cs := &store.Secret{
+				ScopedName: store.ScopedName{
+					Name:  currentSecret.Name,
+					Scope: currentSecret.Namespace,
+				},
+				Metadata: &v1.ConnectionSecretMetadata{
+					Labels:      currentSecret.Labels,
+					Annotations: currentSecret.Annotations,
+					Type:        &currentSecret.Type,
+				},
+				Data: currentSecret.Data,
+			}
+			ds := &store.Secret{
+				ScopedName: store.ScopedName{
+					Name:  desiredSecret.Name,
+					Scope: desiredSecret.Namespace,
+				},
+				Metadata: &v1.ConnectionSecretMetadata{
+					Labels:      desiredSecret.Labels,
+					Annotations: desiredSecret.Annotations,
+					Type:        &desiredSecret.Type,
+				},
+				Data: desiredSecret.Data,
+			}
+
+			if err := o(ctx, cs, ds); err != nil {
+				return err
+			}
+
+			desiredSecret.Data = ds.Data
+			desiredSecret.Labels = ds.Metadata.Labels
+			desiredSecret.Annotations = ds.Metadata.Annotations
+			if ds.Metadata.Type != nil {
+				desiredSecret.Type = *ds.Metadata.Type
+			}
+
+			return nil
 		}
 	}
 	return ao

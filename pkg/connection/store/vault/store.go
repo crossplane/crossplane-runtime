@@ -204,17 +204,24 @@ func applyOptions(wo ...store.WriteOption) []kvclient.ApplyOption {
 	for i := range wo {
 		o := wo[i]
 		ao[i] = func(current, desired *kvclient.KVSecret) error {
-			return o(context.Background(), &store.Secret{
+			cs := &store.Secret{
 				Metadata: &v1.ConnectionSecretMetadata{
 					Labels: labelsFromCustomMetadata(current.CustomMeta),
 				},
 				Data: keyValuesFromData(current.Data),
-			}, &store.Secret{
+			}
+			ds := &store.Secret{
 				Metadata: &v1.ConnectionSecretMetadata{
 					Labels: labelsFromCustomMetadata(desired.CustomMeta),
 				},
 				Data: keyValuesFromData(desired.Data),
-			})
+			}
+			if err := o(context.Background(), cs, ds); err != nil {
+				return err
+			}
+			desired.CustomMeta = customMetaFromLabels(ds.Metadata.Labels)
+			desired.Data = dataFromKeyValues(ds.Data)
+			return nil
 		}
 	}
 	return ao
@@ -244,4 +251,26 @@ func keyValuesFromData(data map[string]interface{}) store.KeyValues {
 		}
 	}
 	return kv
+}
+
+func customMetaFromLabels(labels map[string]string) map[string]interface{} {
+	if len(labels) == 0 {
+		return nil
+	}
+	meta := make(map[string]interface{}, len(labels))
+	for k, v := range labels {
+		meta[k] = v
+	}
+	return meta
+}
+
+func dataFromKeyValues(kv store.KeyValues) map[string]interface{} {
+	if len(kv) == 0 {
+		return nil
+	}
+	data := make(map[string]interface{}, len(kv))
+	for k, v := range kv {
+		data[k] = v
+	}
+	return data
 }
