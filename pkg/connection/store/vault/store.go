@@ -22,6 +22,8 @@ import (
 	"net/http"
 	"path/filepath"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/vault/api"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -49,7 +51,7 @@ const (
 // KVClient is a Vault AdditiveKVClient Secrets engine client that supports both v1 and v2.
 type KVClient interface {
 	Get(path string, secret *kvclient.KVSecret) error
-	Apply(path string, secret *kvclient.KVSecret) error
+	Apply(path string, secret *kvclient.KVSecret, ao ...kvclient.ApplyOption) error
 	Delete(path string) error
 }
 
@@ -106,44 +108,70 @@ func NewSecretStore(ctx context.Context, kube client.Client, cfg v1.SecretStoreC
 }
 
 // ReadKeyValues reads and returns key value pairs for a given Vault Secret.
-func (ss *SecretStore) ReadKeyValues(_ context.Context, i store.Secret) (store.KeyValues, error) {
-	s := &kvclient.KVSecret{}
-	if err := ss.client.Get(ss.pathForSecretInstance(i), s); resource.Ignore(kvclient.IsNotFound, err) != nil {
-		return nil, errors.Wrap(err, errGet)
+func (ss *SecretStore) ReadKeyValues(_ context.Context, n store.ScopedName, s *store.Secret) error {
+	kvs := &kvclient.KVSecret{}
+	if err := ss.client.Get(ss.path(n), kvs); resource.Ignore(kvclient.IsNotFound, err) != nil {
+		return errors.Wrap(err, errGet)
 	}
-	kv := make(store.KeyValues, len(s.Data))
-	for k, v := range s.Data {
+
+	kv := make(store.KeyValues, len(kvs.Data))
+	for k, v := range kvs.Data {
 		kv[k] = []byte(v.(string))
 	}
-	return kv, nil
+	s.ScopedName = n
+	s.Data = kv
+	if len(kvs.CustomMeta) > 0 {
+		s.Metadata = &v1.ConnectionSecretMetadata{
+			Labels: make(map[string]string, len(kvs.CustomMeta)),
+		}
+	}
+	for k, v := range kvs.CustomMeta {
+		if val, ok := v.(string); ok {
+			s.Metadata.Labels[k] = val
+		}
+	}
+	return nil
 }
 
 // WriteKeyValues writes key value pairs to a given Vault Secret.
-func (ss *SecretStore) WriteKeyValues(_ context.Context, i store.Secret, kv store.KeyValues) error {
-	data := make(map[string]interface{}, len(kv))
-	for k, v := range kv {
+func (ss *SecretStore) WriteKeyValues(_ context.Context, s *store.Secret, wo ...store.WriteOption) (changed bool, err error) {
+	data := make(map[string]interface{}, len(s.Data))
+	for k, v := range s.Data {
 		data[k] = string(v)
 	}
 
 	kvSecret := &kvclient.KVSecret{}
 	kvSecret.Data = data
-	if i.Metadata != nil && len(i.Metadata.Labels) > 0 {
-		kvSecret.CustomMeta = make(map[string]interface{}, len(i.Metadata.Labels))
-		for k, v := range i.Metadata.Labels {
+	if s.Metadata != nil && len(s.Metadata.Labels) > 0 {
+		kvSecret.CustomMeta = make(map[string]interface{}, len(s.Metadata.Labels))
+		for k, v := range s.Metadata.Labels {
 			kvSecret.CustomMeta[k] = v
 		}
 	}
 
-	return errors.Wrap(ss.client.Apply(ss.pathForSecretInstance(i), kvSecret), errApply)
+	ao := applyOptions(wo...)
+	ao = append(ao, kvclient.AllowUpdateIf(func(current, desired *kvclient.KVSecret) bool {
+		return !cmp.Equal(current, desired, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(kvclient.KVSecret{}))
+	}))
+
+	err = ss.client.Apply(ss.path(s.ScopedName), kvSecret, ao...)
+	if resource.IsNotAllowed(err) {
+		// The update was not allowed because it was a no-op.
+		return false, nil
+	}
+	if err != nil {
+		return false, errors.Wrap(err, errApply)
+	}
+	return true, nil
 }
 
 // DeleteKeyValues delete key value pairs from a given Vault Secret.
 // If no kv specified, the whole secret instance is deleted.
 // If kv specified, those would be deleted and secret instance will be deleted
 // only if there is no Data left.
-func (ss *SecretStore) DeleteKeyValues(_ context.Context, i store.Secret, kv store.KeyValues) error {
-	s := &kvclient.KVSecret{}
-	err := ss.client.Get(ss.pathForSecretInstance(i), s)
+func (ss *SecretStore) DeleteKeyValues(_ context.Context, s *store.Secret) error {
+	kvSecret := &kvclient.KVSecret{}
+	err := ss.client.Get(ss.path(s.ScopedName), kvSecret)
 	if kvclient.IsNotFound(err) {
 		// Secret already deleted, nothing to do.
 		return nil
@@ -151,22 +179,69 @@ func (ss *SecretStore) DeleteKeyValues(_ context.Context, i store.Secret, kv sto
 	if err != nil {
 		return errors.Wrap(err, errGet)
 	}
-	for k := range kv {
-		delete(s.Data, k)
+	for k := range s.Data {
+		delete(kvSecret.Data, k)
 	}
-	if len(kv) == 0 || len(s.Data) == 0 {
+	if len(s.Data) == 0 || len(kvSecret.Data) == 0 {
 		// Secret is deleted only if:
 		// - No kv to delete specified as input
 		// - No data left in the secret
-		return errors.Wrap(ss.client.Delete(ss.pathForSecretInstance(i)), errDelete)
+		return errors.Wrap(ss.client.Delete(ss.path(s.ScopedName)), errDelete)
 	}
 	// If there are still keys left, update the secret with the remaining.
-	return errors.Wrap(ss.client.Apply(ss.pathForSecretInstance(i), s), errApply)
+	return errors.Wrap(ss.client.Apply(ss.path(s.ScopedName), kvSecret), errApply)
 }
 
-func (ss *SecretStore) pathForSecretInstance(i store.Secret) string {
-	if i.Scope != "" {
-		return filepath.Join(i.Scope, i.Name)
+func (ss *SecretStore) path(s store.ScopedName) string {
+	if s.Scope != "" {
+		return filepath.Join(s.Scope, s.Name)
 	}
-	return filepath.Join(ss.defaultParentPath, i.Name)
+	return filepath.Join(ss.defaultParentPath, s.Name)
+}
+
+func applyOptions(wo ...store.WriteOption) []kvclient.ApplyOption {
+	ao := make([]kvclient.ApplyOption, len(wo))
+	for i := range wo {
+		o := wo[i]
+		ao[i] = func(current, desired *kvclient.KVSecret) error {
+			return o(context.Background(), &store.Secret{
+				Metadata: &v1.ConnectionSecretMetadata{
+					Labels: labelsFromCustomMetadata(current.CustomMeta),
+				},
+				Data: keyValuesFromData(current.Data),
+			}, &store.Secret{
+				Metadata: &v1.ConnectionSecretMetadata{
+					Labels: labelsFromCustomMetadata(desired.CustomMeta),
+				},
+				Data: keyValuesFromData(desired.Data),
+			})
+		}
+	}
+	return ao
+}
+
+func labelsFromCustomMetadata(meta map[string]interface{}) map[string]string {
+	if len(meta) == 0 {
+		return nil
+	}
+	l := make(map[string]string, len(meta))
+	for k := range meta {
+		if val, ok := meta[k].(string); ok {
+			l[k] = val
+		}
+	}
+	return l
+}
+
+func keyValuesFromData(data map[string]interface{}) store.KeyValues {
+	if len(data) == 0 {
+		return nil
+	}
+	kv := make(store.KeyValues, len(data))
+	for k := range data {
+		if val, ok := data[k].(string); ok {
+			kv[k] = []byte(val)
+		}
+	}
+	return kv
 }

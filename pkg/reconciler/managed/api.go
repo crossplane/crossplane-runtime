@@ -20,6 +20,8 @@ import (
 	"context"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
@@ -100,15 +102,31 @@ func NewAPISecretPublisher(c client.Client, ot runtime.ObjectTyper) *APISecretPu
 // PublishConnection publishes the supplied ConnectionDetails to a Secret in the
 // same namespace as the supplied Managed resource. It is a no-op if the secret
 // already exists with the supplied ConnectionDetails.
-func (a *APISecretPublisher) PublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) error {
+func (a *APISecretPublisher) PublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) (bool, error) {
 	// This resource does not want to expose a connection secret.
 	if o.GetWriteConnectionSecretToReference() == nil {
-		return nil
+		return false, nil
 	}
 
 	s := resource.ConnectionSecretFor(o, resource.MustGetKind(o, a.typer))
 	s.Data = c
-	return errors.Wrap(a.secret.Apply(ctx, s, resource.ConnectionSecretMustBeControllableBy(o.GetUID())), errCreateOrUpdateSecret)
+	err := a.secret.Apply(ctx, s,
+		resource.ConnectionSecretMustBeControllableBy(o.GetUID()),
+		resource.AllowUpdateIf(func(current, desired runtime.Object) bool {
+			// We consider the update to be a no-op and don't allow it if the
+			// current and existing secret data are identical.
+			return !cmp.Equal(current.(*corev1.Secret).Data, desired.(*corev1.Secret).Data, cmpopts.EquateEmpty())
+		}),
+	)
+	if resource.IsNotAllowed(err) {
+		// The update was not allowed because it was a no-op.
+		return false, nil
+	}
+	if err != nil {
+		return false, errors.Wrap(err, errCreateOrUpdateSecret)
+	}
+
+	return true, nil
 }
 
 // UnpublishConnection is no-op since PublishConnection only creates resources

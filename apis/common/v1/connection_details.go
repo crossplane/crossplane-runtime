@@ -60,15 +60,17 @@ type ConnectionSecretMetadata struct {
 	Type *corev1.SecretType `json:"type,omitempty"`
 }
 
-func (m *ConnectionSecretMetadata) SetOwnerUID(so metav1.Object) {
-	if m.Labels == nil {
-		m.Labels = map[string]string{}
+// SetOwnerUID sets owner object uid label.
+func (in *ConnectionSecretMetadata) SetOwnerUID(so metav1.Object) {
+	if in.Labels == nil {
+		in.Labels = map[string]string{}
 	}
-	m.Labels[LabelKeyOwnerUID] = string(so.GetUID())
+	in.Labels[LabelKeyOwnerUID] = string(so.GetUID())
 }
 
-func (m *ConnectionSecretMetadata) GetOwnerUID() string {
-	if u, ok := m.Labels[LabelKeyOwnerUID]; ok {
+// GetOwnerUID gets owner object uid.
+func (in *ConnectionSecretMetadata) GetOwnerUID() string {
+	if u, ok := in.Labels[LabelKeyOwnerUID]; ok {
 		return u
 	}
 	return ""

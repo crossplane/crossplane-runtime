@@ -41,12 +41,17 @@ func TestPublisherChain(t *testing.T) {
 		c   ConnectionDetails
 	}
 
+	type want struct {
+		err       error
+		published bool
+	}
+
 	errBoom := errors.New("boom")
 
 	cases := map[string]struct {
 		p    ConnectionPublisher
 		args args
-		want error
+		want want
 	}{
 		"EmptyChain": {
 			p: PublisherChain{},
@@ -55,13 +60,12 @@ func TestPublisherChain(t *testing.T) {
 				mg:  &fake.Managed{},
 				c:   ConnectionDetails{},
 			},
-			want: nil,
 		},
 		"SuccessfulPublisher": {
 			p: PublisherChain{
 				ConnectionPublisherFns{
-					PublishConnectionFn: func(_ context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) error {
-						return nil
+					PublishConnectionFn: func(_ context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) (bool, error) {
+						return true, nil
 					},
 					UnpublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) error {
 						return nil
@@ -73,13 +77,15 @@ func TestPublisherChain(t *testing.T) {
 				mg:  &fake.Managed{},
 				c:   ConnectionDetails{},
 			},
-			want: nil,
+			want: want{
+				published: true,
+			},
 		},
 		"PublisherReturnsError": {
 			p: PublisherChain{
 				ConnectionPublisherFns{
-					PublishConnectionFn: func(_ context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) error {
-						return errBoom
+					PublishConnectionFn: func(_ context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) (bool, error) {
+						return false, errBoom
 					},
 					UnpublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) error {
 						return nil
@@ -91,15 +97,20 @@ func TestPublisherChain(t *testing.T) {
 				mg:  &fake.Managed{},
 				c:   ConnectionDetails{},
 			},
-			want: errBoom,
+			want: want{
+				err: errBoom,
+			},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := tc.p.PublishConnection(tc.args.ctx, tc.args.mg, tc.args.c)
-			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
+			got, gotErr := tc.p.PublishConnection(tc.args.ctx, tc.args.mg, tc.args.c)
+			if diff := cmp.Diff(tc.want.err, gotErr, test.EquateErrors()); diff != "" {
 				t.Errorf("Publish(...): -want, +got:\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.want.published, got); diff != "" {
+				t.Errorf("Publish(...): -wantPublished, +gotPublished:\n%s", diff)
 			}
 		})
 	}
@@ -110,7 +121,8 @@ func TestDisabledSecretStorePublish(t *testing.T) {
 		mg resource.Managed
 	}
 	type want struct {
-		err error
+		published bool
+		err       error
 	}
 
 	cases := map[string]struct {
@@ -139,9 +151,12 @@ func TestDisabledSecretStorePublish(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			ss := &DisabledSecretStoreManager{}
-			gotErr := ss.PublishConnection(context.Background(), tc.args.mg, nil)
+			got, gotErr := ss.PublishConnection(context.Background(), tc.args.mg, nil)
 			if diff := cmp.Diff(tc.want.err, gotErr, test.EquateErrors()); diff != "" {
 				t.Errorf("Publish(...): -want, +got:\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.want.published, got); diff != "" {
+				t.Errorf("Publish(...): -wantPublished, +gotPublished:\n%s", diff)
 			}
 		})
 	}

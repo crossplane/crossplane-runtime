@@ -23,7 +23,7 @@ import (
 // KVClient is a fake KVClient.
 type KVClient struct {
 	GetFn    func(path string, secret *client.KVSecret) error
-	ApplyFn  func(path string, secret *client.KVSecret) error
+	ApplyFn  func(path string, secret *client.KVSecret, ao ...client.ApplyOption) error
 	DeleteFn func(path string) error
 }
 
@@ -33,8 +33,8 @@ func (k *KVClient) Get(path string, secret *client.KVSecret) error {
 }
 
 // Apply creates or updates a secret at a given path.
-func (k *KVClient) Apply(path string, secret *client.KVSecret) error {
-	return k.ApplyFn(path, secret)
+func (k *KVClient) Apply(path string, secret *client.KVSecret, ao ...client.ApplyOption) error {
+	return k.ApplyFn(path, secret, ao...)
 }
 
 // Delete deletes a secret at a given path.

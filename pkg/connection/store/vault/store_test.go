@@ -49,10 +49,10 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 	type args struct {
 		client            KVClient
 		defaultParentPath string
-		secret            store.Secret
+		name              store.ScopedName
 	}
 	type want struct {
-		out store.KeyValues
+		out *store.Secret
 		err error
 	}
 	cases := map[string]struct {
@@ -69,12 +69,12 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 					},
 				},
 				defaultParentPath: parentPathDefault,
-				secret: store.Secret{
-					Name:     secretName,
-					Metadata: nil,
+				name: store.ScopedName{
+					Name: secretName,
 				},
 			},
 			want: want{
+				out: &store.Secret{},
 				err: errors.Wrap(errBoom, errGet),
 			},
 		},
@@ -94,15 +94,19 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 					},
 				},
 				defaultParentPath: parentPathDefault,
-				secret: store.Secret{
-					Name:     secretName,
-					Metadata: nil,
+				name: store.ScopedName{
+					Name: secretName,
 				},
 			},
 			want: want{
-				out: store.KeyValues{
-					"key1": []byte("val1"),
-					"key2": []byte("val2"),
+				out: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name: secretName,
+					},
+					Data: store.KeyValues{
+						"key1": []byte("val1"),
+						"key2": []byte("val2"),
+					},
 				},
 				err: nil,
 			},
@@ -123,16 +127,21 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 					},
 				},
 				defaultParentPath: parentPathDefault,
-				secret: store.Secret{
-					Name:     secretName,
-					Scope:    "another-scope",
-					Metadata: nil,
+				name: store.ScopedName{
+					Name:  secretName,
+					Scope: "another-scope",
 				},
 			},
 			want: want{
-				out: store.KeyValues{
-					"key1": []byte("val1"),
-					"key2": []byte("val2"),
+				out: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name:  secretName,
+						Scope: "another-scope",
+					},
+					Data: store.KeyValues{
+						"key1": []byte("val1"),
+						"key2": []byte("val2"),
+					},
 				},
 				err: nil,
 			},
@@ -144,12 +153,13 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 				client:            tc.args.client,
 				defaultParentPath: tc.args.defaultParentPath,
 			}
-			got, err := ss.ReadKeyValues(context.Background(), tc.secret)
+			s := &store.Secret{}
+			err := ss.ReadKeyValues(context.Background(), tc.args.name, s)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nss.ReadKeyValues(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
-			if diff := cmp.Diff(tc.want.out, got); diff != "" {
+			if diff := cmp.Diff(tc.want.out, s); diff != "" {
 				t.Errorf("\n%s\nss.ReadKeyValues(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
@@ -160,11 +170,13 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 	type args struct {
 		client            KVClient
 		defaultParentPath string
-		secret            store.Secret
-		in                store.KeyValues
+		secret            *store.Secret
+
+		wo []store.WriteOption
 	}
 	type want struct {
-		err error
+		changed bool
+		err     error
 	}
 	cases := map[string]struct {
 		reason string
@@ -175,28 +187,65 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 			reason: "Should successfully write key values",
 			args: args{
 				client: &fake.KVClient{
-					ApplyFn: func(path string, secret *kvclient.KVSecret) error {
+					ApplyFn: func(path string, secret *kvclient.KVSecret, ao ...kvclient.ApplyOption) error {
 						return errBoom
 					},
 				},
 				defaultParentPath: parentPathDefault,
-				secret: store.Secret{
-					Name: secretName,
-				},
-				in: store.KeyValues{
-					"key1": []byte("val1"),
-					"key2": []byte("val2"),
+
+				secret: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name: secretName,
+					},
+					Data: store.KeyValues{
+						"key1": []byte("val1"),
+						"key2": []byte("val2"),
+					},
 				},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errApply),
 			},
 		},
+		"AlreadyUpToDate": {
+			reason: "Should return no error and changed as false if secret is already up to date",
+			args: args{
+				client: &fake.KVClient{
+					ApplyFn: func(path string, secret *kvclient.KVSecret, ao ...kvclient.ApplyOption) error {
+						for _, o := range ao {
+							if err := o(&kvclient.KVSecret{
+								Data: map[string]interface{}{
+									"key1": "val1",
+									"key2": "val2",
+								},
+							}, secret); err != nil {
+								return err
+							}
+						}
+						return nil
+					},
+				},
+				defaultParentPath: parentPathDefault,
+				secret: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name: secretName,
+					},
+					Data: store.KeyValues{
+						"key1": []byte("val1"),
+						"key2": []byte("val2"),
+					},
+				},
+			},
+			want: want{
+				changed: false,
+				err:     nil,
+			},
+		},
 		"SuccessfulWrite": {
 			reason: "Should successfully write key values",
 			args: args{
 				client: &fake.KVClient{
-					ApplyFn: func(path string, secret *kvclient.KVSecret) error {
+					ApplyFn: func(path string, secret *kvclient.KVSecret, ao ...kvclient.ApplyOption) error {
 						if diff := cmp.Diff(filepath.Join(parentPathDefault, secretName), path); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
@@ -210,23 +259,25 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 					},
 				},
 				defaultParentPath: parentPathDefault,
-				secret: store.Secret{
-					Name: secretName,
-				},
-				in: store.KeyValues{
-					"key1": []byte("val1"),
-					"key2": []byte("val2"),
+				secret: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name: secretName,
+					},
+					Data: store.KeyValues{
+						"key1": []byte("val1"),
+						"key2": []byte("val2"),
+					},
 				},
 			},
 			want: want{
-				err: nil,
+				changed: true,
 			},
 		},
 		"SuccessfulWriteWithMetadata": {
 			reason: "Should successfully write key values",
 			args: args{
 				client: &fake.KVClient{
-					ApplyFn: func(path string, secret *kvclient.KVSecret) error {
+					ApplyFn: func(path string, secret *kvclient.KVSecret, ao ...kvclient.ApplyOption) error {
 						if diff := cmp.Diff(filepath.Join(parentPathDefault, secretName), path); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
@@ -245,21 +296,23 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 					},
 				},
 				defaultParentPath: parentPathDefault,
-				secret: store.Secret{
-					Name: secretName,
+				secret: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name: secretName,
+					},
 					Metadata: &v1.ConnectionSecretMetadata{
 						Labels: map[string]string{
 							"foo": "bar",
 						},
 					},
-				},
-				in: store.KeyValues{
-					"key1": []byte("val1"),
-					"key2": []byte("val2"),
+					Data: store.KeyValues{
+						"key1": []byte("val1"),
+						"key2": []byte("val2"),
+					},
 				},
 			},
 			want: want{
-				err: nil,
+				changed: true,
 			},
 		},
 	}
@@ -269,9 +322,12 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 				client:            tc.args.client,
 				defaultParentPath: tc.args.defaultParentPath,
 			}
-			err := ss.WriteKeyValues(context.Background(), tc.args.secret, tc.args.in)
+			changed, err := ss.WriteKeyValues(context.Background(), tc.args.secret, tc.args.wo...)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nss.ReadKeyValues(...): -want error, +got error:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nss.WriteKeyValues(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.changed, changed); diff != "" {
+				t.Errorf("\n%s\nss.WriteKeyValues(...): -want changed, +got changed:\n%s", tc.reason, diff)
 			}
 		})
 	}
@@ -281,8 +337,7 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 	type args struct {
 		client            KVClient
 		defaultParentPath string
-		secret            store.Secret
-		in                store.KeyValues
+		secret            *store.Secret
 	}
 	type want struct {
 		err error
@@ -300,8 +355,10 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 						return errBoom
 					},
 				},
-				secret: store.Secret{
-					Name: secretName,
+				secret: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name: secretName,
+					},
 				},
 			},
 			want: want{
@@ -316,8 +373,10 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 						return errors.New(kvclient.ErrNotFound)
 					},
 				},
-				secret: store.Secret{
-					Name: secretName,
+				secret: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name: secretName,
+					},
 				},
 			},
 			want: want{
@@ -340,8 +399,10 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 						return nil
 					},
 				},
-				secret: store.Secret{
-					Name: secretName,
+				secret: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name: secretName,
+					},
 				},
 			},
 			want: want{
@@ -360,19 +421,21 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 						}
 						return nil
 					},
-					ApplyFn: func(path string, secret *kvclient.KVSecret) error {
+					ApplyFn: func(path string, secret *kvclient.KVSecret, ao ...kvclient.ApplyOption) error {
 						return errBoom
 					},
 					DeleteFn: func(path string) error {
 						return errors.New("unexpected delete call")
 					},
 				},
-				secret: store.Secret{
-					Name: secretName,
-				},
-				in: map[string][]byte{
-					"key1": []byte("val1"),
-					"key2": []byte("val2"),
+				secret: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name: secretName,
+					},
+					Data: map[string][]byte{
+						"key1": []byte("val1"),
+						"key2": []byte("val2"),
+					},
 				},
 			},
 			want: want{
@@ -391,7 +454,7 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 						}
 						return nil
 					},
-					ApplyFn: func(path string, secret *kvclient.KVSecret) error {
+					ApplyFn: func(path string, secret *kvclient.KVSecret, ao ...kvclient.ApplyOption) error {
 						if diff := cmp.Diff(map[string]interface{}{
 							"key3": "val3",
 						}, secret.Data); diff != "" {
@@ -403,12 +466,14 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 						return errors.New("unexpected delete call")
 					},
 				},
-				secret: store.Secret{
-					Name: secretName,
-				},
-				in: map[string][]byte{
-					"key1": []byte("val1"),
-					"key2": []byte("val2"),
+				secret: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name: secretName,
+					},
+					Data: map[string][]byte{
+						"key1": []byte("val1"),
+						"key2": []byte("val2"),
+					},
 				},
 			},
 			want: want{
@@ -431,13 +496,15 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 						return errBoom
 					},
 				},
-				secret: store.Secret{
-					Name: secretName,
-				},
-				in: map[string][]byte{
-					"key1": []byte("val1"),
-					"key2": []byte("val2"),
-					"key3": []byte("val3"),
+				secret: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name: secretName,
+					},
+					Data: map[string][]byte{
+						"key1": []byte("val1"),
+						"key2": []byte("val2"),
+						"key3": []byte("val3"),
+					},
 				},
 			},
 			want: want{
@@ -460,13 +527,15 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 						return nil
 					},
 				},
-				secret: store.Secret{
-					Name: secretName,
-				},
-				in: map[string][]byte{
-					"key1": []byte("val1"),
-					"key2": []byte("val2"),
-					"key3": []byte("val3"),
+				secret: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name: secretName,
+					},
+					Data: map[string][]byte{
+						"key1": []byte("val1"),
+						"key2": []byte("val2"),
+						"key3": []byte("val3"),
+					},
 				},
 			},
 			want: want{
@@ -480,7 +549,7 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 				client:            tc.args.client,
 				defaultParentPath: tc.args.defaultParentPath,
 			}
-			err := ss.DeleteKeyValues(context.Background(), tc.args.secret, tc.args.in)
+			err := ss.DeleteKeyValues(context.Background(), tc.args.secret)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nss.ReadKeyValues(...): -want error, +got error:\n%s", tc.reason, diff)
 			}

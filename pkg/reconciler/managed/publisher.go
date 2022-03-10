@@ -30,13 +30,18 @@ type PublisherChain []ConnectionPublisher
 
 // PublishConnection calls each ConnectionPublisher.PublishConnection serially. It returns the first error it
 // encounters, if any.
-func (pc PublisherChain) PublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) error {
+func (pc PublisherChain) PublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) (bool, error) {
+	published := false
 	for _, p := range pc {
-		if err := p.PublishConnection(ctx, o, c); err != nil {
-			return err
+		pb, err := p.PublishConnection(ctx, o, c)
+		if err != nil {
+			return published, err
+		}
+		if pb {
+			published = true
 		}
 	}
-	return nil
+	return published, nil
 }
 
 // UnpublishConnection calls each ConnectionPublisher.UnpublishConnection serially. It returns the first error it
@@ -57,11 +62,11 @@ type DisabledSecretStoreManager struct {
 
 // PublishConnection returns a proper error when API used but the feature was
 // not enabled.
-func (m *DisabledSecretStoreManager) PublishConnection(_ context.Context, so resource.ConnectionSecretOwner, _ ConnectionDetails) error {
+func (m *DisabledSecretStoreManager) PublishConnection(_ context.Context, so resource.ConnectionSecretOwner, _ ConnectionDetails) (bool, error) {
 	if so.GetPublishConnectionDetailsTo() != nil {
-		return errors.New(errSecretStoreDisabled)
+		return false, errors.New(errSecretStoreDisabled)
 	}
-	return nil
+	return false, nil
 }
 
 // UnpublishConnection returns a proper error when API used but the feature was

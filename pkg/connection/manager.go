@@ -19,6 +19,7 @@ package connection
 import (
 	"context"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,6 +38,10 @@ const (
 	errReadStore       = "cannot read from secret store"
 	errDeleteFromStore = "cannot delete from secret store"
 	errGetStoreConfig  = "cannot get store config"
+	errSecretConflict  = "cannot establish control of existing connection secret"
+
+	errFmtNotOwnedBy      = "existing secret is not owned by UID %q"
+	errFmtRefusingUnowned = "refusing to modify unowned secret of type %q"
 )
 
 // StoreBuilderFn is a function that builds and returns a Store with a given
@@ -87,16 +92,16 @@ func NewDetailsManager(c client.Client, of schema.GroupVersionKind, o ...Details
 
 // PublishConnection publishes the supplied ConnectionDetails to a secret on
 // the configured connection Store.
-func (m *DetailsManager) PublishConnection(ctx context.Context, so resource.ConnectionSecretOwner, conn managed.ConnectionDetails) error {
+func (m *DetailsManager) PublishConnection(ctx context.Context, so resource.ConnectionSecretOwner, conn managed.ConnectionDetails) (bool, error) {
 	// This resource does not want to expose a connection secret.
 	p := so.GetPublishConnectionDetailsTo()
 	if p == nil {
-		return nil
+		return false, nil
 	}
 
 	ss, err := m.connectStore(ctx, p)
 	if err != nil {
-		return errors.Wrap(err, errConnectStore)
+		return false, errors.Wrap(err, errConnectStore)
 	}
 
 	if p.Metadata == nil {
@@ -104,11 +109,16 @@ func (m *DetailsManager) PublishConnection(ctx context.Context, so resource.Conn
 	}
 	p.Metadata.SetOwnerUID(so)
 
-	return errors.Wrap(ss.WriteKeyValues(ctx, store.Secret{
-		Name:     p.Name,
-		Scope:    so.GetNamespace(),
+	changed, err := ss.WriteKeyValues(ctx, &store.Secret{
+		ScopedName: store.ScopedName{
+			Name:  p.Name,
+			Scope: so.GetNamespace(),
+		},
 		Metadata: p.Metadata,
-	}, store.KeyValues(conn)), errWriteStore)
+		Data:     store.KeyValues(conn),
+	}, SecretMustBeOwnedBy(so))
+
+	return changed, errors.Wrap(err, errWriteStore)
 }
 
 // UnpublishConnection deletes connection details secret to the configured
@@ -125,11 +135,15 @@ func (m *DetailsManager) UnpublishConnection(ctx context.Context, so resource.Co
 		return errors.Wrap(err, errConnectStore)
 	}
 
-	return errors.Wrap(ss.DeleteKeyValues(ctx, store.Secret{
-		Name:     p.Name,
-		Scope:    so.GetNamespace(),
+	err = ss.DeleteKeyValues(ctx, &store.Secret{
+		ScopedName: store.ScopedName{
+			Name:  p.Name,
+			Scope: so.GetNamespace(),
+		},
 		Metadata: p.Metadata,
-	}, store.KeyValues(conn)), errDeleteFromStore)
+		Data:     store.KeyValues(conn),
+	})
+	return errors.Wrap(err, errDeleteFromStore)
 }
 
 // FetchConnection fetches connection details of a given ConnectionSecretOwner.
@@ -145,12 +159,8 @@ func (m *DetailsManager) FetchConnection(ctx context.Context, so resource.Connec
 		return nil, errors.Wrap(err, errConnectStore)
 	}
 
-	kv, err := ss.ReadKeyValues(ctx, store.Secret{
-		Name:     p.Name,
-		Scope:    so.GetNamespace(),
-		Metadata: p.Metadata,
-	})
-	return managed.ConnectionDetails(kv), errors.Wrap(err, errReadStore)
+	s := &store.Secret{}
+	return managed.ConnectionDetails(s.Data), errors.Wrap(ss.ReadKeyValues(ctx, store.ScopedName{Name: p.Name, Scope: so.GetNamespace()}, s), errReadStore)
 }
 
 // PropagateConnection propagate connection details from one resource to another.
@@ -165,38 +175,36 @@ func (m *DetailsManager) PropagateConnection(ctx context.Context, to resource.Lo
 		return false, errors.Wrap(err, errConnectStore)
 	}
 
-	// TODO(turkenh): Figure out how to check the following case with
-	//  SecretStore: errSecretConflict
-
-	kv, err := ssFrom.ReadKeyValues(ctx, store.Secret{
-		Name:     from.GetPublishConnectionDetailsTo().Name,
-		Scope:    from.GetNamespace(),
-		Metadata: from.GetPublishConnectionDetailsTo().Metadata,
-	})
-	if err != nil {
+	sFrom := &store.Secret{}
+	if err = ssFrom.ReadKeyValues(ctx, store.ScopedName{
+		Name:  from.GetPublishConnectionDetailsTo().Name,
+		Scope: from.GetNamespace(),
+	}, sFrom); err != nil {
 		return false, errors.Wrap(err, errReadStore)
 	}
 
-	// TODO(turkenh): Implement an equivalent functionality to
-	//  "resource.ConnectionSecretMustBeControllableBy"
+	// Make sure 'from' is the controller of the connection secret it references
+	// before we propagate it. This ensures a resource cannot use Crossplane to
+	// circumvent RBAC by propagating a secret it does not own.
+	if m := sFrom.Metadata; m == nil || m.GetOwnerUID() != string(from.GetUID()) {
+		return false, errors.New(errSecretConflict)
+	}
 
 	ssTo, err := m.connectStore(ctx, to.GetPublishConnectionDetailsTo())
 	if err != nil {
 		return false, errors.Wrap(err, errConnectStore)
 	}
 
-	if err = ssTo.WriteKeyValues(ctx, store.Secret{
-		Name:     to.GetPublishConnectionDetailsTo().Name,
-		Scope:    to.GetNamespace(),
+	changed, err := ssTo.WriteKeyValues(ctx, &store.Secret{
+		ScopedName: store.ScopedName{
+			Name:  to.GetPublishConnectionDetailsTo().Name,
+			Scope: to.GetNamespace(),
+		},
 		Metadata: to.GetPublishConnectionDetailsTo().Metadata,
-	}, kv); err != nil {
-		return false, errors.Wrap(err, errWriteStore)
-	}
+		Data:     sFrom.Data,
+	}, SecretMustBeOwnedBy(to))
 
-	// TODO(turkenh): Figure out how can we set published to false
-	//  (and why do we need to?) in case of no-op.
-
-	return true, nil
+	return changed, errors.Wrap(err, errWriteStore)
 }
 
 func (m *DetailsManager) connectStore(ctx context.Context, p *v1.PublishConnectionDetailsTo) (Store, error) {
@@ -206,4 +214,26 @@ func (m *DetailsManager) connectStore(ctx context.Context, p *v1.PublishConnecti
 	}
 
 	return m.storeBuilder(ctx, m.client, sc.GetStoreConfig())
+}
+
+// SecretMustBeOwnedBy requires that the current object is a
+// connection secret that is owned by an object with the supplied UID.
+func SecretMustBeOwnedBy(so metav1.Object) store.WriteOption {
+	return func(_ context.Context, current, desired *store.Secret) error {
+		o := ""
+		if current.Metadata != nil {
+			o = current.Metadata.GetOwnerUID()
+		}
+
+		switch {
+		case o == "" && current.Metadata != nil && current.Metadata.Type != nil && desired.Metadata != nil && current.Metadata.Type != desired.Metadata.Type:
+			return errors.Errorf(errFmtRefusingUnowned, *current.Metadata.Type)
+		case o == "":
+			return nil
+		case o != string(so.GetUID()):
+			return errors.Errorf(errFmtNotOwnedBy, string(so.GetUID()))
+		}
+
+		return nil
+	}
 }

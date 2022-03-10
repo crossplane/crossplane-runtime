@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -37,9 +38,9 @@ import (
 )
 
 const (
-	SecretStoreFake v1.SecretStoreType = "Fake"
-
-	fakeConfig = "fake"
+	secretStoreFake = v1.SecretStoreType("Fake")
+	fakeConfig      = "fake"
+	testUID         = "e8587e99-15c9-4069-a530-1d2205032848"
 )
 
 const (
@@ -47,7 +48,7 @@ const (
 )
 
 var (
-	fakeStore = SecretStoreFake
+	fakeStore = secretStoreFake
 
 	errBoom = errors.New("boom")
 )
@@ -163,7 +164,8 @@ func TestManagerPublishConnection(t *testing.T) {
 	}
 
 	type want struct {
-		err error
+		published bool
+		err       error
 	}
 
 	cases := map[string]struct {
@@ -193,8 +195,8 @@ func TestManagerPublishConnection(t *testing.T) {
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
-					WriteKeyValuesFn: func(ctx context.Context, i store.Secret, c store.KeyValues) error {
-						return nil
+					WriteKeyValuesFn: func(ctx context.Context, s *store.Secret, wo ...store.WriteOption) (bool, error) {
+						return false, nil
 					},
 				}),
 				so: &resourcefake.MockConnectionSecretOwner{
@@ -227,8 +229,8 @@ func TestManagerPublishConnection(t *testing.T) {
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
-					WriteKeyValuesFn: func(ctx context.Context, i store.Secret, c store.KeyValues) error {
-						return errBoom
+					WriteKeyValuesFn: func(ctx context.Context, s *store.Secret, wo ...store.WriteOption) (bool, error) {
+						return false, errBoom
 					},
 				}),
 				so: &resourcefake.MockConnectionSecretOwner{
@@ -261,16 +263,16 @@ func TestManagerPublishConnection(t *testing.T) {
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
-					WriteKeyValuesFn: func(ctx context.Context, i store.Secret, c store.KeyValues) error {
-						if diff := cmp.Diff("e8587e99-15c9-4069-a530-1d2205032848", i.Metadata.GetOwnerUID()); diff != "" {
-							t.Errorf("\nReason: %s\nm.publishConnection(...): -want ownerUID, +got ownerUID:\n%s", "e8587e99-15c9-4069-a530-1d2205032848", diff)
+					WriteKeyValuesFn: func(ctx context.Context, s *store.Secret, wo ...store.WriteOption) (bool, error) {
+						if diff := cmp.Diff(testUID, s.Metadata.GetOwnerUID()); diff != "" {
+							t.Errorf("\nReason: %s\nm.publishConnection(...): -want ownerUID, +got ownerUID:\n%s", testUID, diff)
 						}
-						return nil
+						return true, nil
 					},
 				}),
 				so: &resourcefake.MockConnectionSecretOwner{
 					ObjectMeta: metav1.ObjectMeta{
-						UID: "e8587e99-15c9-4069-a530-1d2205032848",
+						UID: testUID,
 					},
 					To: &v1.PublishConnectionDetailsTo{
 						SecretStoreConfigRef: &v1.Reference{
@@ -281,7 +283,7 @@ func TestManagerPublishConnection(t *testing.T) {
 				},
 			},
 			want: want{
-				err: nil,
+				published: true,
 			},
 		},
 	}
@@ -289,9 +291,12 @@ func TestManagerPublishConnection(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			m := NewDetailsManager(tc.args.c, resourcefake.GVK(&fake.StoreConfig{}), WithStoreBuilder(tc.args.sb))
 
-			err := m.PublishConnection(context.Background(), tc.args.so, tc.args.conn)
+			published, err := m.PublishConnection(context.Background(), tc.args.so, tc.args.conn)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\nReason: %s\nm.publishConnection(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.published, published); diff != "" {
+				t.Errorf("\nReason: %s\nm.publishConnection(...): -want published, +got published:\n%s", tc.reason, diff)
 			}
 		})
 	}
@@ -337,8 +342,8 @@ func TestManagerUnpublishConnection(t *testing.T) {
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
-					WriteKeyValuesFn: func(ctx context.Context, i store.Secret, c store.KeyValues) error {
-						return nil
+					WriteKeyValuesFn: func(ctx context.Context, s *store.Secret, wo ...store.WriteOption) (bool, error) {
+						return false, nil
 					},
 				}),
 				so: &resourcefake.MockConnectionSecretOwner{
@@ -371,7 +376,7 @@ func TestManagerUnpublishConnection(t *testing.T) {
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
-					DeleteKeyValuesFn: func(ctx context.Context, i store.Secret, c store.KeyValues) error {
+					DeleteKeyValuesFn: func(ctx context.Context, s *store.Secret) error {
 						return errBoom
 					},
 				}),
@@ -405,7 +410,7 @@ func TestManagerUnpublishConnection(t *testing.T) {
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
-					DeleteKeyValuesFn: func(ctx context.Context, i store.Secret, c store.KeyValues) error {
+					DeleteKeyValuesFn: func(ctx context.Context, s *store.Secret) error {
 						return nil
 					},
 				}),
@@ -474,8 +479,8 @@ func TestManagerFetchConnection(t *testing.T) {
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
-					WriteKeyValuesFn: func(ctx context.Context, i store.Secret, c store.KeyValues) error {
-						return nil
+					WriteKeyValuesFn: func(ctx context.Context, s *store.Secret, wo ...store.WriteOption) (bool, error) {
+						return false, nil
 					},
 				}),
 				so: &resourcefake.MockConnectionSecretOwner{
@@ -508,8 +513,8 @@ func TestManagerFetchConnection(t *testing.T) {
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
-					ReadKeyValuesFn: func(ctx context.Context, i store.Secret) (store.KeyValues, error) {
-						return nil, errBoom
+					ReadKeyValuesFn: func(ctx context.Context, n store.ScopedName, s *store.Secret) error {
+						return errBoom
 					},
 				}),
 				so: &resourcefake.MockConnectionSecretOwner{
@@ -542,10 +547,11 @@ func TestManagerFetchConnection(t *testing.T) {
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
-					ReadKeyValuesFn: func(ctx context.Context, i store.Secret) (store.KeyValues, error) {
-						return store.KeyValues{
+					ReadKeyValuesFn: func(ctx context.Context, n store.ScopedName, s *store.Secret) error {
+						s.Data = store.KeyValues{
 							"key1": []byte("val1"),
-						}, nil
+						}
+						return nil
 					},
 				}),
 				so: &resourcefake.MockConnectionSecretOwner{
@@ -580,6 +586,8 @@ func TestManagerFetchConnection(t *testing.T) {
 }
 
 func TestManagerPropagateConnection(t *testing.T) {
+	st := corev1.SecretTypeBasicAuth
+
 	type args struct {
 		c  client.Client
 		sb StoreBuilderFn
@@ -633,8 +641,8 @@ func TestManagerPropagateConnection(t *testing.T) {
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
-					WriteKeyValuesFn: func(ctx context.Context, i store.Secret, c store.KeyValues) error {
-						return nil
+					WriteKeyValuesFn: func(ctx context.Context, s *store.Secret, wo ...store.WriteOption) (bool, error) {
+						return false, nil
 					},
 				}),
 				from: &resourcefake.MockConnectionSecretOwner{
@@ -668,8 +676,8 @@ func TestManagerPropagateConnection(t *testing.T) {
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
-					ReadKeyValuesFn: func(ctx context.Context, i store.Secret) (store.KeyValues, error) {
-						return nil, errBoom
+					ReadKeyValuesFn: func(ctx context.Context, n store.ScopedName, s *store.Secret) error {
+						return errBoom
 					},
 				}),
 				from: &resourcefake.MockConnectionSecretOwner{
@@ -683,6 +691,110 @@ func TestManagerPropagateConnection(t *testing.T) {
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errReadStore),
+			},
+		},
+		"CannotEstablishControlOfUnowned": {
+			reason: "We should return a proper error if source secret is not owned by any resource",
+			args: args{
+				c: &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+						if key.Name == fakeConfig {
+							*obj.(*fake.StoreConfig) = fake.StoreConfig{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: fakeConfig,
+								},
+								Config: v1.SecretStoreConfig{
+									Type: &fakeStore,
+								},
+							}
+							return nil
+						}
+
+						return kerrors.NewNotFound(schema.GroupResource{}, "non-existing")
+					},
+					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
+				},
+				sb: fakeStoreBuilderFn(fake.SecretStore{
+					ReadKeyValuesFn: func(ctx context.Context, n store.ScopedName, s *store.Secret) error {
+						s.Metadata = &v1.ConnectionSecretMetadata{}
+						return nil
+					},
+				}),
+				from: &resourcefake.MockConnectionSecretOwner{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: testUID,
+					},
+					To: &v1.PublishConnectionDetailsTo{
+						SecretStoreConfigRef: &v1.Reference{
+							Name: fakeConfig,
+						},
+					},
+					WriterTo: nil,
+				},
+				to: &resourcefake.MockLocalConnectionSecretOwner{
+					To: &v1.PublishConnectionDetailsTo{
+						SecretStoreConfigRef: &v1.Reference{
+							Name: fakeConfig,
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.New(errSecretConflict),
+			},
+		},
+		"CannotEstablishControlOfAnotherOwner": {
+			reason: "We should return a proper error if source secret is owned by another resource",
+			args: args{
+				c: &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+						if key.Name == fakeConfig {
+							*obj.(*fake.StoreConfig) = fake.StoreConfig{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: fakeConfig,
+								},
+								Config: v1.SecretStoreConfig{
+									Type: &fakeStore,
+								},
+							}
+							return nil
+						}
+
+						return kerrors.NewNotFound(schema.GroupResource{}, "non-existing")
+					},
+					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
+				},
+				sb: fakeStoreBuilderFn(fake.SecretStore{
+					ReadKeyValuesFn: func(ctx context.Context, n store.ScopedName, s *store.Secret) error {
+						s.Metadata = &v1.ConnectionSecretMetadata{
+							Labels: map[string]string{
+								v1.LabelKeyOwnerUID: "00000000-1111-2222-3333-444444444444",
+							},
+						}
+						return nil
+					},
+				}),
+				from: &resourcefake.MockConnectionSecretOwner{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: testUID,
+					},
+					To: &v1.PublishConnectionDetailsTo{
+						SecretStoreConfigRef: &v1.Reference{
+							Name: fakeConfig,
+						},
+					},
+					WriterTo: nil,
+				},
+				to: &resourcefake.MockLocalConnectionSecretOwner{
+					To: &v1.PublishConnectionDetailsTo{
+						SecretStoreConfigRef: &v1.Reference{
+							Name: fakeConfig,
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.New(errSecretConflict),
 			},
 		},
 		"CannotConnectDestination": {
@@ -707,16 +819,25 @@ func TestManagerPropagateConnection(t *testing.T) {
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
-					ReadKeyValuesFn: func(ctx context.Context, i store.Secret) (store.KeyValues, error) {
-						return nil, nil
+					ReadKeyValuesFn: func(ctx context.Context, n store.ScopedName, s *store.Secret) error {
+						s.Metadata = &v1.ConnectionSecretMetadata{
+							Labels: map[string]string{
+								v1.LabelKeyOwnerUID: testUID,
+							},
+						}
+						return nil
 					},
 				}),
 				from: &resourcefake.MockConnectionSecretOwner{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: testUID,
+					},
 					To: &v1.PublishConnectionDetailsTo{
 						SecretStoreConfigRef: &v1.Reference{
 							Name: fakeConfig,
 						},
 					},
+					WriterTo: nil,
 				},
 				to: &resourcefake.MockLocalConnectionSecretOwner{
 					To: &v1.PublishConnectionDetailsTo{
@@ -748,14 +869,22 @@ func TestManagerPropagateConnection(t *testing.T) {
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
-					ReadKeyValuesFn: func(ctx context.Context, i store.Secret) (store.KeyValues, error) {
-						return nil, nil
+					ReadKeyValuesFn: func(ctx context.Context, n store.ScopedName, s *store.Secret) error {
+						s.Metadata = &v1.ConnectionSecretMetadata{
+							Labels: map[string]string{
+								v1.LabelKeyOwnerUID: testUID,
+							},
+						}
+						return nil
 					},
-					WriteKeyValuesFn: func(ctx context.Context, i store.Secret, conn store.KeyValues) error {
-						return errBoom
+					WriteKeyValuesFn: func(ctx context.Context, s *store.Secret, wo ...store.WriteOption) (bool, error) {
+						return false, errBoom
 					},
 				}),
 				from: &resourcefake.MockConnectionSecretOwner{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: testUID,
+					},
 					To: &v1.PublishConnectionDetailsTo{
 						SecretStoreConfigRef: &v1.Reference{
 							Name: fakeConfig,
@@ -774,7 +903,140 @@ func TestManagerPropagateConnection(t *testing.T) {
 				err: errors.Wrap(errBoom, errWriteStore),
 			},
 		},
-		"SuccessfulPropagate": {
+		"DestinationSecretCannotBeOwned": {
+			reason: "We should return a proper error if destination secret cannot be owned by destination resource.",
+			args: args{
+				c: &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+						*obj.(*fake.StoreConfig) = fake.StoreConfig{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: fakeConfig,
+							},
+							Config: v1.SecretStoreConfig{
+								Type: &fakeStore,
+							},
+						}
+						return nil
+					},
+					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
+				},
+				sb: fakeStoreBuilderFn(fake.SecretStore{
+					ReadKeyValuesFn: func(ctx context.Context, n store.ScopedName, s *store.Secret) error {
+						s.Metadata = &v1.ConnectionSecretMetadata{
+							Labels: map[string]string{
+								v1.LabelKeyOwnerUID: testUID,
+							},
+						}
+						return nil
+					},
+					WriteKeyValuesFn: func(ctx context.Context, s *store.Secret, wo ...store.WriteOption) (bool, error) {
+						for _, o := range wo {
+							if err := o(context.Background(), &store.Secret{
+								Metadata: &v1.ConnectionSecretMetadata{
+									Labels: map[string]string{
+										v1.LabelKeyOwnerUID: "00000000-1111-2222-3333-444444444444",
+									},
+								},
+							}, s); err != nil {
+								return false, err
+							}
+						}
+						return true, nil
+					},
+				}),
+				from: &resourcefake.MockConnectionSecretOwner{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: testUID,
+					},
+					To: &v1.PublishConnectionDetailsTo{
+						SecretStoreConfigRef: &v1.Reference{
+							Name: fakeConfig,
+						},
+					},
+				},
+				to: &resourcefake.MockLocalConnectionSecretOwner{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: testUID,
+					},
+					To: &v1.PublishConnectionDetailsTo{
+						SecretStoreConfigRef: &v1.Reference{
+							Name: fakeConfig,
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errors.Errorf(errFmtNotOwnedBy, testUID), errWriteStore),
+			},
+		},
+		"DestinationSecretUnexpectedType": {
+			reason: "We should return a proper error if destination secret is of an unexpected type.",
+			args: args{
+				c: &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+						*obj.(*fake.StoreConfig) = fake.StoreConfig{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: fakeConfig,
+							},
+							Config: v1.SecretStoreConfig{
+								Type: &fakeStore,
+							},
+						}
+						return nil
+					},
+					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
+				},
+				sb: fakeStoreBuilderFn(fake.SecretStore{
+					ReadKeyValuesFn: func(ctx context.Context, n store.ScopedName, s *store.Secret) error {
+						s.Metadata = &v1.ConnectionSecretMetadata{
+							Labels: map[string]string{
+								v1.LabelKeyOwnerUID: testUID,
+							},
+						}
+						return nil
+					},
+					WriteKeyValuesFn: func(ctx context.Context, s *store.Secret, wo ...store.WriteOption) (bool, error) {
+						for _, o := range wo {
+							if err := o(context.Background(), &store.Secret{
+								Metadata: &v1.ConnectionSecretMetadata{
+									Type: &st,
+								},
+							}, s); err != nil {
+								return false, err
+							}
+						}
+						return true, nil
+					},
+				}),
+				from: &resourcefake.MockConnectionSecretOwner{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: testUID,
+					},
+					To: &v1.PublishConnectionDetailsTo{
+						SecretStoreConfigRef: &v1.Reference{
+							Name: fakeConfig,
+						},
+					},
+				},
+				to: &resourcefake.MockLocalConnectionSecretOwner{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: testUID,
+					},
+					To: &v1.PublishConnectionDetailsTo{
+						Metadata: &v1.ConnectionSecretMetadata{
+							Type: nil,
+						},
+						SecretStoreConfigRef: &v1.Reference{
+							Name: fakeConfig,
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errors.Errorf(errFmtRefusingUnowned, corev1.SecretTypeBasicAuth), errWriteStore),
+			},
+		},
+		"SuccessfulPropagateCreated": {
 			reason: "We should return no error when propagated successfully.",
 			args: args{
 				c: &test.MockClient{
@@ -792,14 +1054,22 @@ func TestManagerPropagateConnection(t *testing.T) {
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
-					ReadKeyValuesFn: func(ctx context.Context, i store.Secret) (store.KeyValues, error) {
-						return nil, nil
-					},
-					WriteKeyValuesFn: func(ctx context.Context, i store.Secret, conn store.KeyValues) error {
+					ReadKeyValuesFn: func(ctx context.Context, n store.ScopedName, s *store.Secret) error {
+						s.Metadata = &v1.ConnectionSecretMetadata{
+							Labels: map[string]string{
+								v1.LabelKeyOwnerUID: testUID,
+							},
+						}
 						return nil
+					},
+					WriteKeyValuesFn: func(ctx context.Context, s *store.Secret, wo ...store.WriteOption) (bool, error) {
+						return true, nil
 					},
 				}),
 				from: &resourcefake.MockConnectionSecretOwner{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: testUID,
+					},
 					To: &v1.PublishConnectionDetailsTo{
 						SecretStoreConfigRef: &v1.Reference{
 							Name: fakeConfig,
@@ -807,6 +1077,136 @@ func TestManagerPropagateConnection(t *testing.T) {
 					},
 				},
 				to: &resourcefake.MockLocalConnectionSecretOwner{
+					To: &v1.PublishConnectionDetailsTo{
+						SecretStoreConfigRef: &v1.Reference{
+							Name: fakeConfig,
+						},
+					},
+				},
+			},
+			want: want{
+				propagated: true,
+			},
+		},
+		"SuccessfulPropagateUpdatedUnowned": {
+			reason: "We should return no error when propagated successfully by updating an unowned secret.",
+			args: args{
+				c: &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+						*obj.(*fake.StoreConfig) = fake.StoreConfig{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: fakeConfig,
+							},
+							Config: v1.SecretStoreConfig{
+								Type: &fakeStore,
+							},
+						}
+						return nil
+					},
+					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
+				},
+				sb: fakeStoreBuilderFn(fake.SecretStore{
+					ReadKeyValuesFn: func(ctx context.Context, n store.ScopedName, s *store.Secret) error {
+						s.Metadata = &v1.ConnectionSecretMetadata{
+							Labels: map[string]string{
+								v1.LabelKeyOwnerUID: testUID,
+							},
+						}
+						return nil
+					},
+					WriteKeyValuesFn: func(ctx context.Context, s *store.Secret, wo ...store.WriteOption) (bool, error) {
+						for _, o := range wo {
+							if err := o(context.Background(), &store.Secret{
+								Data: map[string][]byte{
+									"some-key": []byte("some-val"),
+								},
+							}, s); err != nil {
+								return false, err
+							}
+						}
+						return true, nil
+					},
+				}),
+				from: &resourcefake.MockConnectionSecretOwner{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: testUID,
+					},
+					To: &v1.PublishConnectionDetailsTo{
+						SecretStoreConfigRef: &v1.Reference{
+							Name: fakeConfig,
+						},
+					},
+				},
+				to: &resourcefake.MockLocalConnectionSecretOwner{
+					To: &v1.PublishConnectionDetailsTo{
+						SecretStoreConfigRef: &v1.Reference{
+							Name: fakeConfig,
+						},
+					},
+				},
+			},
+			want: want{
+				propagated: true,
+			},
+		},
+		"SuccessfulPropagateUpdated": {
+			reason: "We should return no error when propagated successfully by updating an already owned secret.",
+			args: args{
+				c: &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+						*obj.(*fake.StoreConfig) = fake.StoreConfig{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: fakeConfig,
+							},
+							Config: v1.SecretStoreConfig{
+								Type: &fakeStore,
+							},
+						}
+						return nil
+					},
+					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
+				},
+				sb: fakeStoreBuilderFn(fake.SecretStore{
+					ReadKeyValuesFn: func(ctx context.Context, n store.ScopedName, s *store.Secret) error {
+						s.Metadata = &v1.ConnectionSecretMetadata{
+							Labels: map[string]string{
+								v1.LabelKeyOwnerUID: testUID,
+							},
+						}
+						return nil
+					},
+					WriteKeyValuesFn: func(ctx context.Context, s *store.Secret, wo ...store.WriteOption) (bool, error) {
+						for _, o := range wo {
+							if err := o(context.Background(), &store.Secret{
+								Metadata: &v1.ConnectionSecretMetadata{
+									Labels: map[string]string{
+										v1.LabelKeyOwnerUID: testUID,
+									},
+								},
+								Data: map[string][]byte{
+									"some-key": []byte("some-val"),
+								},
+							}, s); err != nil {
+								return false, err
+							}
+						}
+						return true, nil
+					},
+				}),
+				from: &resourcefake.MockConnectionSecretOwner{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: testUID,
+					},
+					To: &v1.PublishConnectionDetailsTo{
+						SecretStoreConfigRef: &v1.Reference{
+							Name: fakeConfig,
+						},
+					},
+				},
+				to: &resourcefake.MockLocalConnectionSecretOwner{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: testUID,
+					},
 					To: &v1.PublishConnectionDetailsTo{
 						SecretStoreConfigRef: &v1.Reference{
 							Name: fakeConfig,

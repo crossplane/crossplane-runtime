@@ -362,6 +362,11 @@ func (e errNotAllowed) NotAllowed() bool {
 	return true
 }
 
+// NewNotAllowed returns a new NotAllowed error
+func NewNotAllowed(message string) error {
+	return errNotAllowed{error: errors.New(message)}
+}
+
 // IsNotAllowed returns true if the supplied error indicates that an operation
 // was not allowed.
 func IsNotAllowed(err error) bool {

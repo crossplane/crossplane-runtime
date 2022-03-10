@@ -30,24 +30,24 @@ import (
 
 // SecretStore is a fake SecretStore
 type SecretStore struct {
-	ReadKeyValuesFn   func(ctx context.Context, i store.Secret) (store.KeyValues, error)
-	WriteKeyValuesFn  func(ctx context.Context, i store.Secret, kv store.KeyValues) error
-	DeleteKeyValuesFn func(ctx context.Context, i store.Secret, kv store.KeyValues) error
+	ReadKeyValuesFn   func(ctx context.Context, n store.ScopedName, s *store.Secret) error
+	WriteKeyValuesFn  func(ctx context.Context, s *store.Secret, wo ...store.WriteOption) (bool, error)
+	DeleteKeyValuesFn func(ctx context.Context, s *store.Secret) error
 }
 
 // ReadKeyValues reads key values.
-func (ss *SecretStore) ReadKeyValues(ctx context.Context, i store.Secret) (store.KeyValues, error) {
-	return ss.ReadKeyValuesFn(ctx, i)
+func (ss *SecretStore) ReadKeyValues(ctx context.Context, n store.ScopedName, s *store.Secret) error {
+	return ss.ReadKeyValuesFn(ctx, n, s)
 }
 
 // WriteKeyValues writes key values.
-func (ss *SecretStore) WriteKeyValues(ctx context.Context, i store.Secret, kv store.KeyValues) error {
-	return ss.WriteKeyValuesFn(ctx, i, kv)
+func (ss *SecretStore) WriteKeyValues(ctx context.Context, s *store.Secret, wo ...store.WriteOption) (bool, error) {
+	return ss.WriteKeyValuesFn(ctx, s, wo...)
 }
 
 // DeleteKeyValues deletes key values.
-func (ss *SecretStore) DeleteKeyValues(ctx context.Context, i store.Secret, kv store.KeyValues) error {
-	return ss.DeleteKeyValuesFn(ctx, i, kv)
+func (ss *SecretStore) DeleteKeyValues(ctx context.Context, s *store.Secret) error {
+	return ss.DeleteKeyValuesFn(ctx, s)
 }
 
 // StoreConfig is a mock implementation of the StoreConfig interface.

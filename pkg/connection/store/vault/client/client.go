@@ -38,6 +38,23 @@ const (
 	ErrNotFound = "secret not found"
 )
 
+// An ApplyOption is called before patching the current secret to match the
+// desired secret. ApplyOptions are not called if no current object exists.
+type ApplyOption func(current, desired *KVSecret) error
+
+// AllowUpdateIf will only update the current object if the supplied fn returns
+// true. An error that satisfies IsNotAllowed will be returned if the supplied
+// function returns false. Creation of a desired object that does not currently
+// exist is always allowed.
+func AllowUpdateIf(fn func(current, desired *KVSecret) bool) ApplyOption {
+	return func(current, desired *KVSecret) error {
+		if fn(current, desired) {
+			return nil
+		}
+		return resource.NewNotAllowed("update not allowed")
+	}
+}
+
 // KVSecret is a KVAdditiveClient Engine secret
 type KVSecret struct {
 	CustomMeta map[string]interface{}
@@ -105,10 +122,23 @@ func (k *KVAdditiveClient) Get(path string, secret *KVSecret) error {
 
 // Apply applies given KVSecret at path by patching its Data and setting
 // provided custom metadata.
-func (k *KVAdditiveClient) Apply(path string, secret *KVSecret) error {
+func (k *KVAdditiveClient) Apply(path string, secret *KVSecret, ao ...ApplyOption) error { // nolint: gocyclo
+	// NOTE(turkenh): Cyclomatic complexity of this method is slight above
+	// our limit. Adding nolint for now since it will be refactored when we
+	// have separate clients for v1 and v2.
+	// TODO(turkenh): Split this into two kv clients as v1 and v2
 	existing := &KVSecret{}
-	if err := k.Get(path, existing); resource.Ignore(IsNotFound, err) != nil {
+	err := k.Get(path, existing)
+
+	if resource.Ignore(IsNotFound, err) != nil {
 		return errors.Wrap(err, errGet)
+	}
+	if !IsNotFound(err) {
+		for _, o := range ao {
+			if err = o(existing, secret); err != nil {
+				return err
+			}
+		}
 	}
 
 	if k.version == v1.VaultKVVersionV1 {

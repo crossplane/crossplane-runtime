@@ -19,9 +19,12 @@ package kubernetes
 import (
 	"context"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -86,38 +89,62 @@ func buildClient(ctx context.Context, local client.Client, cfg v1.SecretStoreCon
 }
 
 // ReadKeyValues reads and returns key value pairs for a given Kubernetes Secret.
-func (ss *SecretStore) ReadKeyValues(ctx context.Context, i store.Secret) (store.KeyValues, error) {
-	s := &corev1.Secret{}
-	return s.Data, errors.Wrap(ss.client.Get(ctx, types.NamespacedName{Name: i.Name, Namespace: ss.namespaceForSecret(i)}, s), errGetSecret)
+func (ss *SecretStore) ReadKeyValues(ctx context.Context, n store.ScopedName, s *store.Secret) error {
+	ks := &corev1.Secret{}
+	if err := ss.client.Get(ctx, types.NamespacedName{Name: n.Name, Namespace: ss.namespaceForSecret(n)}, ks); err != nil {
+		return errors.Wrap(err, errGetSecret)
+	}
+	s.Data = ks.Data
+	s.Metadata = &v1.ConnectionSecretMetadata{
+		Labels:      ks.Labels,
+		Annotations: ks.Annotations,
+		Type:        &ks.Type,
+	}
+	return nil
 }
 
 // WriteKeyValues writes key value pairs to a given Kubernetes Secret.
-func (ss *SecretStore) WriteKeyValues(ctx context.Context, i store.Secret, kv store.KeyValues) error {
-	s := &corev1.Secret{
+func (ss *SecretStore) WriteKeyValues(ctx context.Context, s *store.Secret, wo ...store.WriteOption) (bool, error) {
+	ks := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      i.Name,
-			Namespace: ss.namespaceForSecret(i),
+			Name:      s.Name,
+			Namespace: ss.namespaceForSecret(s.ScopedName),
 		},
 		Type: resource.SecretTypeConnection,
-		Data: kv,
+		Data: s.Data,
 	}
 
-	if i.Metadata != nil {
-		s.Labels = i.Metadata.Labels
-		s.Annotations = i.Metadata.Annotations
-		if i.Metadata.Type != nil {
-			s.Type = *i.Metadata.Type
+	if s.Metadata != nil {
+		ks.Labels = s.Metadata.Labels
+		ks.Annotations = s.Metadata.Annotations
+		if s.Metadata.Type != nil {
+			ks.Type = *s.Metadata.Type
 		}
 	}
 
-	return errors.Wrap(ss.client.Apply(ctx, s), errApplySecret)
+	ao := applyOptions(wo...)
+	ao = append(ao, resource.AllowUpdateIf(func(current, desired runtime.Object) bool {
+		// We consider the update to be a no-op and don't allow it if the
+		// current and existing secret data are identical.
+		return !cmp.Equal(current.(*corev1.Secret).Data, desired.(*corev1.Secret).Data, cmpopts.EquateEmpty())
+	}))
+
+	err := ss.client.Apply(ctx, ks, ao...)
+	if resource.IsNotAllowed(err) {
+		// The update was not allowed because it was a no-op.
+		return false, nil
+	}
+	if err != nil {
+		return false, errors.Wrap(err, errApplySecret)
+	}
+	return true, nil
 }
 
 // DeleteKeyValues delete key value pairs from a given Kubernetes Secret.
 // If no kv specified, the whole secret instance is deleted.
 // If kv specified, those would be deleted and secret instance will be deleted
 // only if there is no data left.
-func (ss *SecretStore) DeleteKeyValues(ctx context.Context, i store.Secret, kv store.KeyValues) error {
+func (ss *SecretStore) DeleteKeyValues(ctx context.Context, s *store.Secret) error {
 	// NOTE(turkenh): DeleteKeyValues method wouldn't need to do anything if we
 	// have used owner references similar to existing implementation. However,
 	// this wouldn't work if the K8s API is not the same as where ConnectionSecretOwner
@@ -126,8 +153,8 @@ func (ss *SecretStore) DeleteKeyValues(ctx context.Context, i store.Secret, kv s
 	// collection in this specific case other than one less API call during
 	// deletion, I opted for unifying both instead of adding conditional logic
 	// like add owner references if not remote and not call delete etc.
-	s := &corev1.Secret{}
-	err := ss.client.Get(ctx, types.NamespacedName{Name: i.Name, Namespace: ss.namespaceForSecret(i)}, s)
+	ks := &corev1.Secret{}
+	err := ss.client.Get(ctx, types.NamespacedName{Name: s.Name, Namespace: ss.namespaceForSecret(s.ScopedName)}, ks)
 	if kerrors.IsNotFound(err) {
 		// Secret already deleted, nothing to do.
 		return nil
@@ -136,22 +163,58 @@ func (ss *SecretStore) DeleteKeyValues(ctx context.Context, i store.Secret, kv s
 		return errors.Wrap(err, errGetSecret)
 	}
 	// Delete all supplied keys from secret data
-	for k := range kv {
-		delete(s.Data, k)
+	for k := range s.Data {
+		delete(ks.Data, k)
 	}
-	if len(kv) == 0 || len(s.Data) == 0 {
+	if len(s.Data) == 0 || len(ks.Data) == 0 {
 		// Secret is deleted only if:
 		// - No kv to delete specified as input
 		// - No data left in the secret
-		return errors.Wrapf(ss.client.Delete(ctx, s), errDeleteSecret)
+		return errors.Wrapf(ss.client.Delete(ctx, ks), errDeleteSecret)
 	}
 	// If there are still keys left, update the secret with the remaining.
-	return errors.Wrapf(ss.client.Update(ctx, s), errUpdateSecret)
+	return errors.Wrapf(ss.client.Update(ctx, ks), errUpdateSecret)
 }
 
-func (ss *SecretStore) namespaceForSecret(i store.Secret) string {
-	if i.Scope == "" {
+func (ss *SecretStore) namespaceForSecret(n store.ScopedName) string {
+	if n.Scope == "" {
 		return ss.defaultNamespace
 	}
-	return i.Scope
+	return n.Scope
+}
+
+func applyOptions(wo ...store.WriteOption) []resource.ApplyOption {
+	ao := make([]resource.ApplyOption, len(wo))
+	for i := range wo {
+		o := wo[i]
+		ao[i] = func(ctx context.Context, current, desired runtime.Object) error {
+			cs := current.(*corev1.Secret)
+			ds := desired.(*corev1.Secret)
+			return o(ctx,
+				&store.Secret{
+					ScopedName: store.ScopedName{
+						Name:  cs.Name,
+						Scope: cs.Namespace,
+					},
+					Metadata: &v1.ConnectionSecretMetadata{
+						Labels:      cs.Labels,
+						Annotations: cs.Annotations,
+						Type:        &cs.Type,
+					},
+					Data: cs.Data,
+				}, &store.Secret{
+					ScopedName: store.ScopedName{
+						Name:  ds.Name,
+						Scope: ds.Namespace,
+					},
+					Metadata: &v1.ConnectionSecretMetadata{
+						Labels:      ds.Labels,
+						Annotations: ds.Annotations,
+						Type:        &ds.Type,
+					},
+					Data: ds.Data,
+				})
+		}
+	}
+	return ao
 }
