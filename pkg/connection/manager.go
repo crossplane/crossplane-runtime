@@ -99,6 +99,11 @@ func (m *DetailsManager) PublishConnection(ctx context.Context, so resource.Conn
 		return errors.Wrap(err, errConnectStore)
 	}
 
+	if p.Metadata == nil {
+		p.Metadata = &v1.ConnectionSecretMetadata{}
+	}
+	p.Metadata.SetOwnerUID(so)
+
 	return errors.Wrap(ss.WriteKeyValues(ctx, store.Secret{
 		Name:     p.Name,
 		Scope:    so.GetNamespace(),

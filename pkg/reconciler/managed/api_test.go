@@ -49,7 +49,8 @@ func TestNameAsExternalName(t *testing.T) {
 	}
 
 	errBoom := errors.New("boom")
-	testExternalName := "my-external-name"
+	testExternalName := "my-" +
+		"external-name"
 
 	cases := map[string]struct {
 		client client.Client

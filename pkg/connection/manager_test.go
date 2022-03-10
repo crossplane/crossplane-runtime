@@ -243,7 +243,7 @@ func TestManagerPublishConnection(t *testing.T) {
 				err: errors.Wrap(errBoom, errWriteStore),
 			},
 		},
-		"SuccessfulPublish": {
+		"SuccessfulPublishWithOwnerUID": {
 			reason: "We should return no error when published successfully.",
 			args: args{
 				c: &test.MockClient{
@@ -262,15 +262,22 @@ func TestManagerPublishConnection(t *testing.T) {
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
 					WriteKeyValuesFn: func(ctx context.Context, i store.Secret, c store.KeyValues) error {
+						if diff := cmp.Diff("e8587e99-15c9-4069-a530-1d2205032848", i.Metadata.GetOwnerUID()); diff != "" {
+							t.Errorf("\nReason: %s\nm.publishConnection(...): -want ownerUID, +got ownerUID:\n%s", "e8587e99-15c9-4069-a530-1d2205032848", diff)
+						}
 						return nil
 					},
 				}),
 				so: &resourcefake.MockConnectionSecretOwner{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: "e8587e99-15c9-4069-a530-1d2205032848",
+					},
 					To: &v1.PublishConnectionDetailsTo{
 						SecretStoreConfigRef: &v1.Reference{
 							Name: fakeConfig,
 						},
 					},
+					WriterTo: nil,
 				},
 			},
 			want: want{

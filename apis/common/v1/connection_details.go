@@ -18,6 +18,12 @@ package v1
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	// LabelKeyOwnerUID is the UID of the owner resource of a connection secret.
+	LabelKeyOwnerUID = "secret.crossplane.io/owner-uid"
 )
 
 // PublishConnectionDetailsTo represents configuration of a connection secret.
@@ -52,6 +58,20 @@ type ConnectionSecretMetadata struct {
 	// - Only valid for Kubernetes Secret Stores.
 	// +optional
 	Type *corev1.SecretType `json:"type,omitempty"`
+}
+
+func (m *ConnectionSecretMetadata) SetOwnerUID(so metav1.Object) {
+	if m.Labels == nil {
+		m.Labels = map[string]string{}
+	}
+	m.Labels[LabelKeyOwnerUID] = string(so.GetUID())
+}
+
+func (m *ConnectionSecretMetadata) GetOwnerUID() string {
+	if u, ok := m.Labels[LabelKeyOwnerUID]; ok {
+		return u
+	}
+	return ""
 }
 
 // SecretStoreType represents a secret store type.
