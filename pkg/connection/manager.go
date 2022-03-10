@@ -195,12 +195,17 @@ func (m *DetailsManager) PropagateConnection(ctx context.Context, to resource.Lo
 		return false, errors.Wrap(err, errConnectStore)
 	}
 
+	toMeta := to.GetPublishConnectionDetailsTo().Metadata
+	if toMeta == nil {
+		toMeta = &v1.ConnectionSecretMetadata{}
+	}
+	toMeta.SetOwnerUID(to)
 	changed, err := ssTo.WriteKeyValues(ctx, &store.Secret{
 		ScopedName: store.ScopedName{
 			Name:  to.GetPublishConnectionDetailsTo().Name,
 			Scope: to.GetNamespace(),
 		},
-		Metadata: to.GetPublishConnectionDetailsTo().Metadata,
+		Metadata: toMeta,
 		Data:     sFrom.Data,
 	}, SecretMustBeOwnedBy(to))
 
