@@ -103,20 +103,7 @@ func (m *DetailsManager) PublishConnection(ctx context.Context, so resource.Conn
 		return false, errors.Wrap(err, errConnectStore)
 	}
 
-	if p.Metadata == nil {
-		p.Metadata = &v1.ConnectionSecretMetadata{}
-	}
-	p.Metadata.SetOwnerUID(so)
-
-	changed, err := ss.WriteKeyValues(ctx, &store.Secret{
-		ScopedName: store.ScopedName{
-			Name:  p.Name,
-			Scope: so.GetNamespace(),
-		},
-		Metadata: p.Metadata,
-		Data:     store.KeyValues(conn),
-	}, SecretToWriteMustBeOwnedBy(so))
-
+	changed, err := ss.WriteKeyValues(ctx, store.NewSecret(so, store.KeyValues(conn)), SecretToWriteMustBeOwnedBy(so))
 	return changed, errors.Wrap(err, errWriteStore)
 }
 
@@ -134,16 +121,7 @@ func (m *DetailsManager) UnpublishConnection(ctx context.Context, so resource.Co
 		return errors.Wrap(err, errConnectStore)
 	}
 
-	err = ss.DeleteKeyValues(ctx, &store.Secret{
-		ScopedName: store.ScopedName{
-			Name:  p.Name,
-			Scope: so.GetNamespace(),
-		},
-		Metadata: p.Metadata,
-		Data:     store.KeyValues(conn),
-	}, SecretToDeleteMustBeOwnedBy(so))
-
-	return errors.Wrap(err, errDeleteFromStore)
+	return errors.Wrap(ss.DeleteKeyValues(ctx, store.NewSecret(so, store.KeyValues(conn)), SecretToDeleteMustBeOwnedBy(so)), errDeleteFromStore)
 }
 
 // FetchConnection fetches connection details of a given ConnectionSecretOwner.
@@ -164,7 +142,12 @@ func (m *DetailsManager) FetchConnection(ctx context.Context, so resource.Connec
 }
 
 // PropagateConnection propagate connection details from one resource to another.
-func (m *DetailsManager) PropagateConnection(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
+func (m *DetailsManager) PropagateConnection(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) { // nolint:interfacer
+	// NOTE(turkenh): Had to add linter exception for "interfacer" suggestion
+	// to use "store.SecretOwner" as the type of "to" parameter. We want to
+	// keep it as "resource.LocalConnectionSecretOwner" to satisfy the
+	// ConnectionPropagater interface for XR Claims.
+
 	// Either from does not expose a connection secret, or to does not want one.
 	if from.GetPublishConnectionDetailsTo() == nil || to.GetPublishConnectionDetailsTo() == nil {
 		return false, nil
@@ -186,7 +169,7 @@ func (m *DetailsManager) PropagateConnection(ctx context.Context, to resource.Lo
 	// Make sure 'from' is the controller of the connection secret it references
 	// before we propagate it. This ensures a resource cannot use Crossplane to
 	// circumvent RBAC by propagating a secret it does not own.
-	if m := sFrom.Metadata; m == nil || m.GetOwnerUID() != string(from.GetUID()) {
+	if sFrom.GetOwner() != string(from.GetUID()) {
 		return false, errors.New(errSecretConflict)
 	}
 
@@ -195,20 +178,7 @@ func (m *DetailsManager) PropagateConnection(ctx context.Context, to resource.Lo
 		return false, errors.Wrap(err, errConnectStore)
 	}
 
-	toMeta := to.GetPublishConnectionDetailsTo().Metadata
-	if toMeta == nil {
-		toMeta = &v1.ConnectionSecretMetadata{}
-	}
-	toMeta.SetOwnerUID(to)
-	changed, err := ssTo.WriteKeyValues(ctx, &store.Secret{
-		ScopedName: store.ScopedName{
-			Name:  to.GetPublishConnectionDetailsTo().Name,
-			Scope: to.GetNamespace(),
-		},
-		Metadata: toMeta,
-		Data:     sFrom.Data,
-	}, SecretToWriteMustBeOwnedBy(to))
-
+	changed, err := ssTo.WriteKeyValues(ctx, store.NewSecret(to, sFrom.Data), SecretToWriteMustBeOwnedBy(to))
 	return changed, errors.Wrap(err, errWriteStore)
 }
 

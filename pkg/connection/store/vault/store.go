@@ -277,7 +277,9 @@ func dataFromKeyValues(kv store.KeyValues) map[string]interface{} {
 	}
 	data := make(map[string]interface{}, len(kv))
 	for k, v := range kv {
-		data[k] = v
+		// NOTE(turkenh): vault stores values as strings. So we convert []byte
+		// to string before writing to Vault.
+		data[k] = string(v)
 	}
 	return data
 }

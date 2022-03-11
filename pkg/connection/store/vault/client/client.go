@@ -173,18 +173,17 @@ func (k *KVAdditiveClient) Apply(path string, secret *KVSecret, ao ...ApplyOptio
 		return errors.Wrap(err, errWriteData)
 	}
 
+	mp, changed := metadataPayload(existing.CustomMeta, secret.CustomMeta)
+	if changed {
+		if _, err := k.client.Write(filepath.Join(k.mountPath, "metadata", path), mp); err != nil {
+			return errors.Wrap(err, errWriteMetadata)
+		}
+	}
+
 	dp, changed := dataPayloadV2(existing, secret)
 	if changed {
 		if _, err := k.client.Write(filepath.Join(k.mountPath, "data", path), dp); err != nil {
 			return errors.Wrap(err, errWriteData)
-		}
-	}
-
-	mp, changed := metadataPayload(existing.CustomMeta, secret.CustomMeta)
-	// Update metadata only if there is some Data in secret.
-	if len(existing.Data) > 0 && changed {
-		if _, err := k.client.Write(filepath.Join(k.mountPath, "metadata", path), mp); err != nil {
-			return errors.Wrap(err, errWriteMetadata)
 		}
 	}
 
