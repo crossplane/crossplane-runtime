@@ -641,8 +641,8 @@ func TestKVClientApply(t *testing.T) {
 						if diff := cmp.Diff(map[string]interface{}{
 							"key1":                 "val1",
 							"key2":                 "val2",
+							metadataPrefix + "old": "meta",
 							metadataPrefix + "foo": "bar",
-							metadataPrefix + "baz": "qux",
 						}, data); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
@@ -657,8 +657,8 @@ func TestKVClientApply(t *testing.T) {
 						"key2": "val2",
 					},
 					CustomMeta: map[string]interface{}{
+						"old": "meta",
 						"foo": "bar",
-						"baz": "qux",
 					},
 				},
 			},

@@ -263,9 +263,8 @@ func payloadV1(existing, new *KVSecret) (map[string]interface{}, bool) {
 		// by prefixing with "metadata:"
 		if val, ok := existing.CustomMeta[k]; !ok && val != v {
 			changed = true
-			payload[metadataPrefix+k] = v
 		}
-
+		payload[metadataPrefix+k] = v
 	}
 	return payload, changed
 }
