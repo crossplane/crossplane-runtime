@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -211,7 +210,7 @@ func TestManagerPublishConnection(t *testing.T) {
 				err: errors.Wrap(errors.Wrapf(kerrors.NewNotFound(schema.GroupResource{}, "non-existing"), errGetStoreConfig), errConnectStore),
 			},
 		},
-		"CannotToPublish": {
+		"CannotPublishTo": {
 			reason: "We should return a proper error when publish to secret store failed.",
 			args: args{
 				c: &test.MockClient{
@@ -376,7 +375,7 @@ func TestManagerUnpublishConnection(t *testing.T) {
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
-					DeleteKeyValuesFn: func(ctx context.Context, s *store.Secret) error {
+					DeleteKeyValuesFn: func(ctx context.Context, s *store.Secret, do ...store.DeleteOption) error {
 						return errBoom
 					},
 				}),
@@ -390,6 +389,53 @@ func TestManagerUnpublishConnection(t *testing.T) {
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errDeleteFromStore),
+			},
+		},
+		"CannotUnpublishUnowned": {
+			reason: "We should return a proper error when attempted to unpublish a secret that is not owned.",
+			args: args{
+				c: &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+						*obj.(*fake.StoreConfig) = fake.StoreConfig{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: fakeConfig,
+							},
+							Config: v1.SecretStoreConfig{
+								Type: &fakeStore,
+							},
+						}
+						return nil
+					},
+					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
+				},
+				sb: fakeStoreBuilderFn(fake.SecretStore{
+					DeleteKeyValuesFn: func(ctx context.Context, s *store.Secret, do ...store.DeleteOption) error {
+						s.Metadata = &v1.ConnectionSecretMetadata{
+							Labels: map[string]string{
+								v1.LabelKeyOwnerUID: "00000000-1111-2222-3333-444444444444",
+							},
+						}
+						for _, o := range do {
+							if err := o(ctx, s); err != nil {
+								return err
+							}
+						}
+						return nil
+					},
+				}),
+				so: &resourcefake.MockConnectionSecretOwner{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: testUID,
+					},
+					To: &v1.PublishConnectionDetailsTo{
+						SecretStoreConfigRef: &v1.Reference{
+							Name: fakeConfig,
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errors.Errorf(errFmtNotOwnedBy, testUID), errDeleteFromStore),
 			},
 		},
 		"SuccessfulUnpublish": {
@@ -410,11 +456,24 @@ func TestManagerUnpublishConnection(t *testing.T) {
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{
-					DeleteKeyValuesFn: func(ctx context.Context, s *store.Secret) error {
+					DeleteKeyValuesFn: func(ctx context.Context, s *store.Secret, do ...store.DeleteOption) error {
+						s.Metadata = &v1.ConnectionSecretMetadata{
+							Labels: map[string]string{
+								v1.LabelKeyOwnerUID: testUID,
+							},
+						}
+						for _, o := range do {
+							if err := o(ctx, s); err != nil {
+								return err
+							}
+						}
 						return nil
 					},
 				}),
 				so: &resourcefake.MockConnectionSecretOwner{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: testUID,
+					},
 					To: &v1.PublishConnectionDetailsTo{
 						SecretStoreConfigRef: &v1.Reference{
 							Name: fakeConfig,
@@ -586,8 +645,6 @@ func TestManagerFetchConnection(t *testing.T) {
 }
 
 func TestManagerPropagateConnection(t *testing.T) {
-	st := corev1.SecretTypeBasicAuth
-
 	type args struct {
 		c  client.Client
 		sb StoreBuilderFn
@@ -969,73 +1026,6 @@ func TestManagerPropagateConnection(t *testing.T) {
 				err: errors.Wrap(errors.Errorf(errFmtNotOwnedBy, testUID), errWriteStore),
 			},
 		},
-		"DestinationSecretUnexpectedType": {
-			reason: "We should return a proper error if destination secret is of an unexpected type.",
-			args: args{
-				c: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
-						*obj.(*fake.StoreConfig) = fake.StoreConfig{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: fakeConfig,
-							},
-							Config: v1.SecretStoreConfig{
-								Type: &fakeStore,
-							},
-						}
-						return nil
-					},
-					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
-				},
-				sb: fakeStoreBuilderFn(fake.SecretStore{
-					ReadKeyValuesFn: func(ctx context.Context, n store.ScopedName, s *store.Secret) error {
-						s.Metadata = &v1.ConnectionSecretMetadata{
-							Labels: map[string]string{
-								v1.LabelKeyOwnerUID: testUID,
-							},
-						}
-						return nil
-					},
-					WriteKeyValuesFn: func(ctx context.Context, s *store.Secret, wo ...store.WriteOption) (bool, error) {
-						for _, o := range wo {
-							if err := o(context.Background(), &store.Secret{
-								Metadata: &v1.ConnectionSecretMetadata{
-									Type: &st,
-								},
-							}, s); err != nil {
-								return false, err
-							}
-						}
-						return true, nil
-					},
-				}),
-				from: &resourcefake.MockConnectionSecretOwner{
-					ObjectMeta: metav1.ObjectMeta{
-						UID: testUID,
-					},
-					To: &v1.PublishConnectionDetailsTo{
-						SecretStoreConfigRef: &v1.Reference{
-							Name: fakeConfig,
-						},
-					},
-				},
-				to: &resourcefake.MockLocalConnectionSecretOwner{
-					ObjectMeta: metav1.ObjectMeta{
-						UID: testUID,
-					},
-					To: &v1.PublishConnectionDetailsTo{
-						Metadata: &v1.ConnectionSecretMetadata{
-							Type: nil,
-						},
-						SecretStoreConfigRef: &v1.Reference{
-							Name: fakeConfig,
-						},
-					},
-				},
-			},
-			want: want{
-				err: errors.Wrap(errors.Errorf(errFmtRefusingUnowned, corev1.SecretTypeBasicAuth), errWriteStore),
-			},
-		},
 		"SuccessfulPropagateCreated": {
 			reason: "We should return no error when propagated successfully.",
 			args: args{
@@ -1088,8 +1078,8 @@ func TestManagerPropagateConnection(t *testing.T) {
 				propagated: true,
 			},
 		},
-		"SuccessfulPropagateUpdatedUnowned": {
-			reason: "We should return no error when propagated successfully by updating an unowned secret.",
+		"CannotPropagateToUnowned": {
+			reason: "We should return a proper error when attempted to update an unowned secret.",
 			args: args{
 				c: &test.MockClient{
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
@@ -1146,7 +1136,8 @@ func TestManagerPropagateConnection(t *testing.T) {
 				},
 			},
 			want: want{
-				propagated: true,
+				propagated: false,
+				err:        errors.Wrap(errors.Errorf(errFmtNotOwnedBy, ""), errWriteStore),
 			},
 		},
 		"SuccessfulPropagateUpdated": {

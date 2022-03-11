@@ -32,7 +32,7 @@ import (
 type SecretStore struct {
 	ReadKeyValuesFn   func(ctx context.Context, n store.ScopedName, s *store.Secret) error
 	WriteKeyValuesFn  func(ctx context.Context, s *store.Secret, wo ...store.WriteOption) (bool, error)
-	DeleteKeyValuesFn func(ctx context.Context, s *store.Secret) error
+	DeleteKeyValuesFn func(ctx context.Context, s *store.Secret, do ...store.DeleteOption) error
 }
 
 // ReadKeyValues reads key values.
@@ -46,8 +46,8 @@ func (ss *SecretStore) WriteKeyValues(ctx context.Context, s *store.Secret, wo .
 }
 
 // DeleteKeyValues deletes key values.
-func (ss *SecretStore) DeleteKeyValues(ctx context.Context, s *store.Secret) error {
-	return ss.DeleteKeyValuesFn(ctx, s)
+func (ss *SecretStore) DeleteKeyValues(ctx context.Context, s *store.Secret, do ...store.DeleteOption) error {
+	return ss.DeleteKeyValuesFn(ctx, s, do...)
 }
 
 // StoreConfig is a mock implementation of the StoreConfig interface.

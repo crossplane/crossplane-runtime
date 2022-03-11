@@ -38,6 +38,9 @@ type Secret struct {
 	Data     KeyValues
 }
 
-// An WriteOption is called before writing the desired secret over the
+// A WriteOption is called before writing the desired secret over the
 // current object.
 type WriteOption func(ctx context.Context, current, desired *Secret) error
+
+// An DeleteOption is called before deleting the secret.
+type DeleteOption func(ctx context.Context, secret *Secret) error

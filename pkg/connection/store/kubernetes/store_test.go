@@ -424,6 +424,8 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 		client           resource.ClientApplicator
 		defaultNamespace string
 		secret           *store.Secret
+
+		do []store.DeleteOption
 	}
 	type want struct {
 		err error
@@ -529,6 +531,36 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 				err: nil,
 			},
 		},
+		"FailedDeleteOption": {
+			reason: "Should return a proper error if provided delete option fails.",
+			args: args{
+				client: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							*obj.(*corev1.Secret) = *fakeConnectionSecret(withData(fakeKV()))
+							return nil
+						}),
+						MockDelete: func(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
+							return nil
+						},
+					},
+				},
+				secret: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name:  fakeSecretName,
+						Scope: fakeSecretNamespace,
+					},
+				},
+				do: []store.DeleteOption{
+					func(ctx context.Context, secret *store.Secret) error {
+						return errBoom
+					},
+				},
+			},
+			want: want{
+				err: errBoom,
+			},
+		},
 		"SecretDeletedNoKVSupplied": {
 			reason: "Should delete the whole secret if no kv supplied as parameter.",
 			args: args{
@@ -549,6 +581,11 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 						Scope: fakeSecretNamespace,
 					},
 				},
+				do: []store.DeleteOption{
+					func(ctx context.Context, secret *store.Secret) error {
+						return nil
+					},
+				},
 			},
 			want: want{
 				err: nil,
@@ -561,7 +598,7 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 				client:           tc.args.client,
 				defaultNamespace: tc.args.defaultNamespace,
 			}
-			err := ss.DeleteKeyValues(context.Background(), tc.args.secret)
+			err := ss.DeleteKeyValues(context.Background(), tc.args.secret, tc.args.do...)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nss.DeleteKeyValues(...): -want error, +got error:\n%s", tc.reason, diff)
 			}

@@ -22,7 +22,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
@@ -138,7 +138,7 @@ func TestDisabledSecretStorePublish(t *testing.T) {
 			args: args{
 				mg: &fake.Managed{
 					ConnectionDetailsPublisherTo: fake.ConnectionDetailsPublisherTo{
-						To: &v1.PublishConnectionDetailsTo{},
+						To: &xpv1.PublishConnectionDetailsTo{},
 					},
 				},
 			},
@@ -183,7 +183,7 @@ func TestDisabledSecretStoreUnpublish(t *testing.T) {
 			args: args{
 				mg: &fake.Managed{
 					ConnectionDetailsPublisherTo: fake.ConnectionDetailsPublisherTo{
-						To: &v1.PublishConnectionDetailsTo{},
+						To: &xpv1.PublishConnectionDetailsTo{},
 					},
 				},
 			},

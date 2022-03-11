@@ -40,8 +40,7 @@ const (
 	errGetStoreConfig  = "cannot get store config"
 	errSecretConflict  = "cannot establish control of existing connection secret"
 
-	errFmtNotOwnedBy      = "existing secret is not owned by UID %q"
-	errFmtRefusingUnowned = "refusing to modify unowned secret of type %q"
+	errFmtNotOwnedBy = "existing secret is not owned by UID %q"
 )
 
 // StoreBuilderFn is a function that builds and returns a Store with a given
@@ -116,7 +115,7 @@ func (m *DetailsManager) PublishConnection(ctx context.Context, so resource.Conn
 		},
 		Metadata: p.Metadata,
 		Data:     store.KeyValues(conn),
-	}, SecretMustBeOwnedBy(so))
+	}, SecretToWriteMustBeOwnedBy(so))
 
 	return changed, errors.Wrap(err, errWriteStore)
 }
@@ -142,7 +141,8 @@ func (m *DetailsManager) UnpublishConnection(ctx context.Context, so resource.Co
 		},
 		Metadata: p.Metadata,
 		Data:     store.KeyValues(conn),
-	})
+	}, SecretToDeleteMustBeOwnedBy(so))
+
 	return errors.Wrap(err, errDeleteFromStore)
 }
 
@@ -207,7 +207,7 @@ func (m *DetailsManager) PropagateConnection(ctx context.Context, to resource.Lo
 		},
 		Metadata: toMeta,
 		Data:     sFrom.Data,
-	}, SecretMustBeOwnedBy(to))
+	}, SecretToWriteMustBeOwnedBy(to))
 
 	return changed, errors.Wrap(err, errWriteStore)
 }
@@ -221,24 +221,25 @@ func (m *DetailsManager) connectStore(ctx context.Context, p *v1.PublishConnecti
 	return m.storeBuilder(ctx, m.client, sc.GetStoreConfig())
 }
 
-// SecretMustBeOwnedBy requires that the current object is a
+// SecretToWriteMustBeOwnedBy requires that the current object is a
 // connection secret that is owned by an object with the supplied UID.
-func SecretMustBeOwnedBy(so metav1.Object) store.WriteOption {
-	return func(_ context.Context, current, desired *store.Secret) error {
-		o := ""
-		if current.Metadata != nil {
-			o = current.Metadata.GetOwnerUID()
-		}
-
-		switch {
-		case o == "" && current.Metadata != nil && current.Metadata.Type != nil && desired.Metadata != nil && current.Metadata.Type != desired.Metadata.Type:
-			return errors.Errorf(errFmtRefusingUnowned, *current.Metadata.Type)
-		case o == "":
-			return nil
-		case o != string(so.GetUID()):
-			return errors.Errorf(errFmtNotOwnedBy, string(so.GetUID()))
-		}
-
-		return nil
+func SecretToWriteMustBeOwnedBy(so metav1.Object) store.WriteOption {
+	return func(_ context.Context, current, _ *store.Secret) error {
+		return secretMustBeOwnedBy(so, current)
 	}
+}
+
+// SecretToDeleteMustBeOwnedBy requires that the current secret is owned by
+// an object with the supplied UID.
+func SecretToDeleteMustBeOwnedBy(so metav1.Object) store.DeleteOption {
+	return func(_ context.Context, secret *store.Secret) error {
+		return secretMustBeOwnedBy(so, secret)
+	}
+}
+
+func secretMustBeOwnedBy(so metav1.Object, secret *store.Secret) error {
+	if secret.Metadata == nil || secret.Metadata.GetOwnerUID() != string(so.GetUID()) {
+		return errors.Errorf(errFmtNotOwnedBy, string(so.GetUID()))
+	}
+	return nil
 }

@@ -460,6 +460,8 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 		client            KVClient
 		defaultParentPath string
 		secret            *store.Secret
+
+		do []store.DeleteOption
 	}
 	type want struct {
 		err error
@@ -633,7 +635,36 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 				err: errors.Wrap(errBoom, errDelete),
 			},
 		},
-		"DeletesSecretIfNoKeysLeft": {
+		"FailedDeleteOption": {
+			reason: "Should return a proper error if provided delete option fails.",
+			args: args{
+				client: &fake.KVClient{
+					GetFn: func(path string, secret *kvclient.KVSecret) error {
+						secret.Data = map[string]interface{}{
+							"key1": "val1",
+						}
+						return nil
+					},
+					DeleteFn: func(path string) error {
+						return nil
+					},
+				},
+				secret: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name: secretName,
+					},
+				},
+				do: []store.DeleteOption{
+					func(ctx context.Context, secret *store.Secret) error {
+						return errBoom
+					},
+				},
+			},
+			want: want{
+				err: errBoom,
+			},
+		},
+		"SuccessfulDeleteNoKeysLeft": {
 			reason: "Should delete the secret if no keys left.",
 			args: args{
 				client: &fake.KVClient{
@@ -659,6 +690,11 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 						"key3": []byte("val3"),
 					},
 				},
+				do: []store.DeleteOption{
+					func(ctx context.Context, secret *store.Secret) error {
+						return nil
+					},
+				},
 			},
 			want: want{
 				err: nil,
@@ -671,7 +707,7 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 				client:            tc.args.client,
 				defaultParentPath: tc.args.defaultParentPath,
 			}
-			err := ss.DeleteKeyValues(context.Background(), tc.args.secret)
+			err := ss.DeleteKeyValues(context.Background(), tc.args.secret, tc.args.do...)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nss.ReadKeyValues(...): -want error, +got error:\n%s", tc.reason, diff)
 			}

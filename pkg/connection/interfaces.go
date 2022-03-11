@@ -35,5 +35,5 @@ type StoreConfig interface {
 type Store interface {
 	ReadKeyValues(ctx context.Context, n store.ScopedName, s *store.Secret) error
 	WriteKeyValues(ctx context.Context, s *store.Secret, wo ...store.WriteOption) (changed bool, err error)
-	DeleteKeyValues(ctx context.Context, s *store.Secret) error
+	DeleteKeyValues(ctx context.Context, s *store.Secret, do ...store.DeleteOption) error
 }

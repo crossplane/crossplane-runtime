@@ -144,7 +144,7 @@ func (ss *SecretStore) WriteKeyValues(ctx context.Context, s *store.Secret, wo .
 // If no kv specified, the whole secret instance is deleted.
 // If kv specified, those would be deleted and secret instance will be deleted
 // only if there is no data left.
-func (ss *SecretStore) DeleteKeyValues(ctx context.Context, s *store.Secret) error {
+func (ss *SecretStore) DeleteKeyValues(ctx context.Context, s *store.Secret, do ...store.DeleteOption) error {
 	// NOTE(turkenh): DeleteKeyValues method wouldn't need to do anything if we
 	// have used owner references similar to existing implementation. However,
 	// this wouldn't work if the K8s API is not the same as where ConnectionSecretOwner
@@ -162,6 +162,13 @@ func (ss *SecretStore) DeleteKeyValues(ctx context.Context, s *store.Secret) err
 	if err != nil {
 		return errors.Wrap(err, errGetSecret)
 	}
+
+	for _, o := range do {
+		if err = o(ctx, s); err != nil {
+			return err
+		}
+	}
+
 	// Delete all supplied keys from secret data
 	for k := range s.Data {
 		delete(ks.Data, k)

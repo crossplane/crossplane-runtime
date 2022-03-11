@@ -169,7 +169,7 @@ func (ss *SecretStore) WriteKeyValues(_ context.Context, s *store.Secret, wo ...
 // If no kv specified, the whole secret instance is deleted.
 // If kv specified, those would be deleted and secret instance will be deleted
 // only if there is no Data left.
-func (ss *SecretStore) DeleteKeyValues(_ context.Context, s *store.Secret) error {
+func (ss *SecretStore) DeleteKeyValues(_ context.Context, s *store.Secret, do ...store.DeleteOption) error {
 	kvSecret := &kvclient.KVSecret{}
 	err := ss.client.Get(ss.path(s.ScopedName), kvSecret)
 	if kvclient.IsNotFound(err) {
@@ -179,6 +179,13 @@ func (ss *SecretStore) DeleteKeyValues(_ context.Context, s *store.Secret) error
 	if err != nil {
 		return errors.Wrap(err, errGet)
 	}
+
+	for _, o := range do {
+		if err = o(context.Background(), s); err != nil {
+			return err
+		}
+	}
+
 	for k := range s.Data {
 		delete(kvSecret.Data, k)
 	}

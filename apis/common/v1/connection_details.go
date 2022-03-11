@@ -23,6 +23,11 @@ import (
 
 const (
 	// LabelKeyOwnerUID is the UID of the owner resource of a connection secret.
+	// Kubernetes provides owner/controller references to track ownership of
+	// resources including secrets, however, this would only work for in cluster
+	// k8s secrets. We opted to use a label for this purpose to be consistent
+	// across Secret Store implementations and expect all to support
+	// setting/getting labels.
 	LabelKeyOwnerUID = "secret.crossplane.io/owner-uid"
 )
 
@@ -43,6 +48,8 @@ type PublishConnectionDetailsTo struct {
 }
 
 // ConnectionSecretMetadata represents metadata of a connection secret.
+// Labels are used to track ownership of connection secrets and has to be
+// supported for any secret store implementation.
 type ConnectionSecretMetadata struct {
 	// Labels are the labels/tags to be added to connection secret.
 	// - For Kubernetes secrets, this will be used as "metadata.labels".
