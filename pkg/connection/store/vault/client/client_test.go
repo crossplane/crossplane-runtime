@@ -103,7 +103,9 @@ func TestKVClientGet(t *testing.T) {
 						}
 						return &api.Secret{
 							Data: map[string]interface{}{
-								"foo": "bar",
+								"foo":                               "bar",
+								metadataPrefix + "owner":            "jdoe",
+								metadataPrefix + "mission_critical": "false",
 							},
 						}, nil
 					},
@@ -115,6 +117,10 @@ func TestKVClientGet(t *testing.T) {
 				out: &KVSecret{
 					Data: map[string]interface{}{
 						"foo": "bar",
+					},
+					CustomMeta: map[string]interface{}{
+						"owner":            "jdoe",
+						"mission_critical": "false",
 					},
 				},
 			},
@@ -329,7 +335,9 @@ func TestKVClientApply(t *testing.T) {
 					ReadFn: func(path string) (*api.Secret, error) {
 						return &api.Secret{
 							Data: map[string]interface{}{
-								"foo": "bar",
+								"foo":                               "bar",
+								metadataPrefix + "owner":            "jdoe",
+								metadataPrefix + "mission_critical": "false",
 							},
 						}, nil
 					},
@@ -342,6 +350,10 @@ func TestKVClientApply(t *testing.T) {
 				in: &KVSecret{
 					Data: map[string]interface{}{
 						"foo": "bar",
+					},
+					CustomMeta: map[string]interface{}{
+						"owner":            "jdoe",
+						"mission_critical": "false",
 					},
 				},
 			},
@@ -558,6 +570,95 @@ func TestKVClientApply(t *testing.T) {
 					CustomMeta: map[string]interface{}{
 						"foo": "bar",
 						"baz": "qux",
+					},
+				},
+			},
+			want: want{
+				err: nil,
+			},
+		},
+		"SuccessfulAddV1Metadata": {
+			reason: "Should successfully add new metadata.",
+			args: args{
+				client: &fake.LogicalClient{
+					ReadFn: func(path string) (*api.Secret, error) {
+						return &api.Secret{
+							Data: map[string]interface{}{
+								"key1": "val1",
+								"key2": "val2",
+							},
+						}, nil
+					},
+					WriteFn: func(path string, data map[string]interface{}) (*api.Secret, error) {
+						if diff := cmp.Diff(filepath.Join(mountPath, secretName), path); diff != "" {
+							t.Errorf("r: -want, +got:\n%s", diff)
+						}
+						if diff := cmp.Diff(map[string]interface{}{
+							"key1":                 "val1",
+							"key2":                 "val2",
+							metadataPrefix + "foo": "bar",
+							metadataPrefix + "baz": "qux",
+						}, data); diff != "" {
+							t.Errorf("r: -want, +got:\n%s", diff)
+						}
+						return nil, nil
+					},
+				},
+				version: &kvv1,
+				path:    secretName,
+				in: &KVSecret{
+					Data: map[string]interface{}{
+						"key1": "val1",
+						"key2": "val2",
+					},
+					CustomMeta: map[string]interface{}{
+						"foo": "bar",
+						"baz": "qux",
+					},
+				},
+			},
+			want: want{
+				err: nil,
+			},
+		},
+		"SuccessfulUpdateV1Metadata": {
+			reason: "Should successfully update metadata by overriding the existing ones.",
+			args: args{
+				client: &fake.LogicalClient{
+					ReadFn: func(path string) (*api.Secret, error) {
+						return &api.Secret{
+							Data: map[string]interface{}{
+								"key1":                 "val1",
+								"key2":                 "val2",
+								metadataPrefix + "old": "meta",
+							},
+						}, nil
+					},
+					WriteFn: func(path string, data map[string]interface{}) (*api.Secret, error) {
+						if diff := cmp.Diff(filepath.Join(mountPath, secretName), path); diff != "" {
+							t.Errorf("r: -want, +got:\n%s", diff)
+						}
+						if diff := cmp.Diff(map[string]interface{}{
+							"key1":                 "val1",
+							"key2":                 "val2",
+							metadataPrefix + "old": "meta",
+							metadataPrefix + "foo": "bar",
+						}, data); diff != "" {
+							t.Errorf("r: -want, +got:\n%s", diff)
+						}
+						return nil, nil
+					},
+				},
+				version: &kvv1,
+				path:    secretName,
+				in: &KVSecret{
+					Data: map[string]interface{}{
+						"key1": "val1",
+						"key2": "val2",
+					},
+					CustomMeta: map[string]interface{}{
+						"old": "meta",
+						"foo": "bar",
 					},
 				},
 			},

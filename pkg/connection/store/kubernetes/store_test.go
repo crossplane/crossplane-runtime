@@ -40,28 +40,34 @@ var (
 	fakeSecretName      = "fake"
 	fakeSecretNamespace = "fake-namespace"
 
-	fakeKV = map[string][]byte{
+	storeTypeKubernetes = v1.SecretStoreKubernetes
+)
+
+func fakeKV() map[string][]byte {
+	return map[string][]byte{
 		"key1": []byte("value1"),
 		"key2": []byte("value2"),
 		"key3": []byte("value3"),
 	}
+}
 
-	fakeLabels = map[string]string{
+func fakeLabels() map[string]string {
+	return map[string]string{
 		"environment": "unit-test",
 		"reason":      "testing",
 	}
+}
 
-	fakeAnnotations = map[string]string{
+func fakeAnnotations() map[string]string {
+	return map[string]string{
 		"some-annotation-key": "some-annotation-value",
 	}
-
-	storeTypeKubernetes = v1.SecretStoreKubernetes
-)
+}
 
 func TestSecretStoreReadKeyValues(t *testing.T) {
 	type args struct {
 		client resource.ClientApplicator
-		secret store.Secret
+		n      store.ScopedName
 	}
 	type want struct {
 		result store.KeyValues
@@ -81,7 +87,7 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 						MockGet: test.NewMockGetFn(errBoom),
 					},
 				},
-				secret: store.Secret{
+				n: store.ScopedName{
 					Name: fakeSecretName,
 				},
 			},
@@ -96,18 +102,18 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							*obj.(*corev1.Secret) = corev1.Secret{
-								Data: fakeKV,
+								Data: fakeKV(),
 							}
 							return nil
 						}),
 					},
 				},
-				secret: store.Secret{
-					Name: "fake",
+				n: store.ScopedName{
+					Name: fakeSecretName,
 				},
 			},
 			want: want{
-				result: store.KeyValues(fakeKV),
+				result: store.KeyValues(fakeKV()),
 			},
 		},
 	}
@@ -117,12 +123,13 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 				client: tc.args.client,
 			}
 
-			got, err := ss.ReadKeyValues(context.Background(), tc.args.secret)
+			s := &store.Secret{}
+			err := ss.ReadKeyValues(context.Background(), tc.args.n, s)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nss.ReadKeyValues(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
-			if diff := cmp.Diff(tc.want.result, got); diff != "" {
+			if diff := cmp.Diff(tc.want.result, s.Data); diff != "" {
 				t.Errorf("\n%s\nss.ReadKeyValues(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
@@ -134,11 +141,13 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 	type args struct {
 		client           resource.ClientApplicator
 		defaultNamespace string
-		secret           store.Secret
-		kv               store.KeyValues
+		secret           *store.Secret
+
+		wo []store.WriteOption
 	}
 	type want struct {
-		err error
+		changed bool
+		err     error
 	}
 
 	cases := map[string]struct {
@@ -154,14 +163,82 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 						return errBoom
 					}),
 				},
-				secret: store.Secret{
-					Name:  fakeSecretName,
-					Scope: fakeSecretNamespace,
+				secret: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name:  fakeSecretName,
+						Scope: fakeSecretNamespace,
+					},
+					Data: store.KeyValues(fakeKV()),
 				},
-				kv: store.KeyValues(fakeKV),
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errApplySecret),
+			},
+		},
+		"FailedWriteOption": {
+			reason: "Should return a proper error if supplied write option fails",
+			args: args{
+				client: resource.ClientApplicator{
+					Applicator: resource.ApplyFn(func(ctx context.Context, obj client.Object, option ...resource.ApplyOption) error {
+						for _, fn := range option {
+							if err := fn(ctx, fakeConnectionSecret(withData(fakeKV())), obj); err != nil {
+								return err
+							}
+						}
+						return nil
+					}),
+				},
+				secret: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name:  fakeSecretName,
+						Scope: fakeSecretNamespace,
+					},
+					Data: store.KeyValues(fakeKV()),
+				},
+				wo: []store.WriteOption{
+					func(ctx context.Context, current, desired *store.Secret) error {
+						return errBoom
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errApplySecret),
+			},
+		},
+		"SuccessfulWriteOption": {
+			reason: "Should return a proper error if supplied write option fails",
+			args: args{
+				client: resource.ClientApplicator{
+					Applicator: resource.ApplyFn(func(ctx context.Context, obj client.Object, option ...resource.ApplyOption) error {
+						for _, fn := range option {
+							if err := fn(ctx, fakeConnectionSecret(withData(fakeKV())), obj); err != nil {
+								return err
+							}
+						}
+						return nil
+					}),
+				},
+				secret: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name:  fakeSecretName,
+						Scope: fakeSecretNamespace,
+					},
+					Data: store.KeyValues(fakeKV()),
+				},
+				wo: []store.WriteOption{
+					func(ctx context.Context, current, desired *store.Secret) error {
+						desired.Data["customkey"] = []byte("customval")
+						desired.Metadata = &v1.ConnectionSecretMetadata{
+							Labels: map[string]string{
+								"foo": "baz",
+							},
+						}
+						return nil
+					},
+				},
+			},
+			want: want{
+				changed: true,
 			},
 		},
 		"SecretAlreadyUpToDate": {
@@ -169,20 +246,21 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 			args: args{
 				client: resource.ClientApplicator{
 					Applicator: resource.ApplyFn(func(ctx context.Context, obj client.Object, option ...resource.ApplyOption) error {
-						if diff := cmp.Diff(fakeConnectionSecret(withData(fakeKV)), obj.(*corev1.Secret)); diff != "" {
-							t.Errorf("r: -want, +got:\n%s", diff)
+						for _, fn := range option {
+							if err := fn(ctx, fakeConnectionSecret(withData(fakeKV())), obj); err != nil {
+								return err
+							}
 						}
 						return nil
 					}),
 				},
-				secret: store.Secret{
-					Name:  fakeSecretName,
-					Scope: fakeSecretNamespace,
+				secret: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name:  fakeSecretName,
+						Scope: fakeSecretNamespace,
+					},
+					Data: store.KeyValues(fakeKV()),
 				},
-				kv: store.KeyValues(fakeKV),
-			},
-			want: want{
-				err: nil,
 			},
 		},
 		"SecretUpdatedWithNewValue": {
@@ -195,22 +273,31 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 						})), obj.(*corev1.Secret)); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
+						for _, fn := range option {
+							if err := fn(ctx, fakeConnectionSecret(withData(map[string][]byte{
+								"existing-key": []byte("old-value"),
+							})), obj); err != nil {
+								return err
+							}
+						}
 						return nil
 					}),
 				},
-				secret: store.Secret{
-					Name:  fakeSecretName,
-					Scope: fakeSecretNamespace,
+				secret: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name:  fakeSecretName,
+						Scope: fakeSecretNamespace,
+					},
+					Data: store.KeyValues(map[string][]byte{
+						"existing-key": []byte("new-value"),
+					}),
 				},
-				kv: store.KeyValues(map[string][]byte{
-					"existing-key": []byte("new-value"),
-				}),
 			},
 			want: want{
-				err: nil,
+				changed: true,
 			},
 		},
-		"SecretPatchedWithNewKey": {
+		"SecretUpdatedWithNewKey": {
 			reason: "Should update existing secret additively if a new key added",
 			args: args{
 				client: resource.ClientApplicator{
@@ -220,19 +307,28 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 						})), obj.(*corev1.Secret)); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
+						for _, fn := range option {
+							if err := fn(ctx, fakeConnectionSecret(withData(map[string][]byte{
+								"existing-key": []byte("existing-value"),
+							})), obj); err != nil {
+								return err
+							}
+						}
 						return nil
 					}),
 				},
-				secret: store.Secret{
-					Name:  fakeSecretName,
-					Scope: fakeSecretNamespace,
+				secret: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name:  fakeSecretName,
+						Scope: fakeSecretNamespace,
+					},
+					Data: store.KeyValues(map[string][]byte{
+						"new-key": []byte("new-value"),
+					}),
 				},
-				kv: store.KeyValues(map[string][]byte{
-					"new-key": []byte("new-value"),
-				}),
 			},
 			want: want{
-				err: nil,
+				changed: true,
 			},
 		},
 		"SecretCreatedWithData": {
@@ -240,20 +336,27 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 			args: args{
 				client: resource.ClientApplicator{
 					Applicator: resource.ApplyFn(func(ctx context.Context, obj client.Object, option ...resource.ApplyOption) error {
-						if diff := cmp.Diff(fakeConnectionSecret(withData(fakeKV)), obj.(*corev1.Secret)); diff != "" {
+						if diff := cmp.Diff(fakeConnectionSecret(withData(fakeKV())), obj.(*corev1.Secret)); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
+						}
+						for _, fn := range option {
+							if err := fn(ctx, &corev1.Secret{}, obj); err != nil {
+								return err
+							}
 						}
 						return nil
 					}),
 				},
-				secret: store.Secret{
-					Name:  fakeSecretName,
-					Scope: fakeSecretNamespace,
+				secret: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name:  fakeSecretName,
+						Scope: fakeSecretNamespace,
+					},
+					Data: store.KeyValues(fakeKV()),
 				},
-				kv: store.KeyValues(fakeKV),
 			},
 			want: want{
-				err: nil,
+				changed: true,
 			},
 		},
 		"SecretCreatedWithDataAndMetadata": {
@@ -262,18 +365,25 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 				client: resource.ClientApplicator{
 					Applicator: resource.ApplyFn(func(ctx context.Context, obj client.Object, option ...resource.ApplyOption) error {
 						if diff := cmp.Diff(fakeConnectionSecret(
-							withData(fakeKV),
+							withData(fakeKV()),
 							withType(corev1.SecretTypeOpaque),
-							withLabels(fakeLabels),
-							withAnnotations(fakeAnnotations)), obj.(*corev1.Secret)); diff != "" {
+							withLabels(fakeLabels()),
+							withAnnotations(fakeAnnotations())), obj.(*corev1.Secret)); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
+						}
+						for _, fn := range option {
+							if err := fn(ctx, &corev1.Secret{}, obj); err != nil {
+								return err
+							}
 						}
 						return nil
 					}),
 				},
-				secret: store.Secret{
-					Name:  fakeSecretName,
-					Scope: fakeSecretNamespace,
+				secret: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name:  fakeSecretName,
+						Scope: fakeSecretNamespace,
+					},
 					Metadata: &v1.ConnectionSecretMetadata{
 						Labels: map[string]string{
 							"environment": "unit-test",
@@ -284,11 +394,11 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 						},
 						Type: &secretTypeOpaque,
 					},
+					Data: store.KeyValues(fakeKV()),
 				},
-				kv: store.KeyValues(fakeKV),
 			},
 			want: want{
-				err: nil,
+				changed: true,
 			},
 		},
 	}
@@ -298,9 +408,12 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 				client:           tc.args.client,
 				defaultNamespace: tc.args.defaultNamespace,
 			}
-			err := ss.WriteKeyValues(context.Background(), tc.args.secret, tc.args.kv)
+			changed, err := ss.WriteKeyValues(context.Background(), tc.args.secret, tc.args.wo...)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nss.WriteKeyValues(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.changed, changed); diff != "" {
+				t.Errorf("\n%s\nss.WriteKeyValues(...): -want changed, +got changed:\n%s", tc.reason, diff)
 			}
 		})
 	}
@@ -310,8 +423,9 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 	type args struct {
 		client           resource.ClientApplicator
 		defaultNamespace string
-		secret           store.Secret
-		kv               store.KeyValues
+		secret           *store.Secret
+
+		do []store.DeleteOption
 	}
 	type want struct {
 		err error
@@ -330,9 +444,11 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 						MockGet: test.NewMockGetFn(errBoom),
 					},
 				},
-				secret: store.Secret{
-					Name:  fakeSecretName,
-					Scope: fakeSecretNamespace,
+				secret: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name:  fakeSecretName,
+						Scope: fakeSecretNamespace,
+					},
 				},
 			},
 			want: want{
@@ -345,7 +461,7 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 				client: resource.ClientApplicator{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							*obj.(*corev1.Secret) = *fakeConnectionSecret(withData(fakeKV))
+							*obj.(*corev1.Secret) = *fakeConnectionSecret(withData(fakeKV()))
 							return nil
 						}),
 						MockUpdate: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
@@ -356,14 +472,16 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 						},
 					},
 				},
-				secret: store.Secret{
-					Name:  fakeSecretName,
-					Scope: fakeSecretNamespace,
+				secret: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name:  fakeSecretName,
+						Scope: fakeSecretNamespace,
+					},
+					Data: store.KeyValues(map[string][]byte{
+						"key1": []byte("value1"),
+						"key2": []byte("value2"),
+					}),
 				},
-				kv: store.KeyValues(map[string][]byte{
-					"key1": []byte("value1"),
-					"key2": []byte("value2"),
-				}),
 			},
 			want: want{
 				err: nil,
@@ -381,9 +499,11 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 						MockDelete: test.NewMockDeleteFn(errBoom),
 					},
 				},
-				secret: store.Secret{
-					Name:  fakeSecretName,
-					Scope: fakeSecretNamespace,
+				secret: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name:  fakeSecretName,
+						Scope: fakeSecretNamespace,
+					},
 				},
 			},
 			want: want{
@@ -400,13 +520,45 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 						}),
 					},
 				},
-				secret: store.Secret{
-					Name:  fakeSecretName,
-					Scope: fakeSecretNamespace,
+				secret: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name:  fakeSecretName,
+						Scope: fakeSecretNamespace,
+					},
 				},
 			},
 			want: want{
 				err: nil,
+			},
+		},
+		"FailedDeleteOption": {
+			reason: "Should return a proper error if provided delete option fails.",
+			args: args{
+				client: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							*obj.(*corev1.Secret) = *fakeConnectionSecret(withData(fakeKV()))
+							return nil
+						}),
+						MockDelete: func(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
+							return nil
+						},
+					},
+				},
+				secret: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name:  fakeSecretName,
+						Scope: fakeSecretNamespace,
+					},
+				},
+				do: []store.DeleteOption{
+					func(ctx context.Context, secret *store.Secret) error {
+						return errBoom
+					},
+				},
+			},
+			want: want{
+				err: errBoom,
 			},
 		},
 		"SecretDeletedNoKVSupplied": {
@@ -415,7 +567,7 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 				client: resource.ClientApplicator{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							*obj.(*corev1.Secret) = *fakeConnectionSecret(withData(fakeKV))
+							*obj.(*corev1.Secret) = *fakeConnectionSecret(withData(fakeKV()))
 							return nil
 						}),
 						MockDelete: func(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
@@ -423,9 +575,16 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 						},
 					},
 				},
-				secret: store.Secret{
-					Name:  fakeSecretName,
-					Scope: fakeSecretNamespace,
+				secret: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name:  fakeSecretName,
+						Scope: fakeSecretNamespace,
+					},
+				},
+				do: []store.DeleteOption{
+					func(ctx context.Context, secret *store.Secret) error {
+						return nil
+					},
 				},
 			},
 			want: want{
@@ -439,7 +598,7 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 				client:           tc.args.client,
 				defaultNamespace: tc.args.defaultNamespace,
 			}
-			err := ss.DeleteKeyValues(context.Background(), tc.args.secret, tc.args.kv)
+			err := ss.DeleteKeyValues(context.Background(), tc.args.secret, tc.args.do...)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nss.DeleteKeyValues(...): -want error, +got error:\n%s", tc.reason, diff)
 			}

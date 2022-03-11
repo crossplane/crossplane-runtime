@@ -19,6 +19,7 @@ package connection
 import (
 	"context"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -26,7 +27,6 @@ import (
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
@@ -35,8 +35,12 @@ import (
 const (
 	errConnectStore    = "cannot connect to secret store"
 	errWriteStore      = "cannot write to secret store"
+	errReadStore       = "cannot read from secret store"
 	errDeleteFromStore = "cannot delete from secret store"
 	errGetStoreConfig  = "cannot get store config"
+	errSecretConflict  = "cannot establish control of existing connection secret"
+
+	errFmtNotOwnedBy = "existing secret is not owned by UID %q"
 )
 
 // StoreBuilderFn is a function that builds and returns a Store with a given
@@ -45,13 +49,6 @@ type StoreBuilderFn func(ctx context.Context, local client.Client, cfg v1.Secret
 
 // A DetailsManagerOption configures a DetailsManager.
 type DetailsManagerOption func(*DetailsManager)
-
-// WithLogger specifies how the DetailsManager should log messages.
-func WithLogger(l logging.Logger) DetailsManagerOption {
-	return func(m *DetailsManager) {
-		m.log = l
-	}
-}
 
 // WithStoreBuilder configures the StoreBuilder to use.
 func WithStoreBuilder(sb StoreBuilderFn) DetailsManagerOption {
@@ -67,8 +64,6 @@ type DetailsManager struct {
 	client       client.Client
 	newConfig    func() StoreConfig
 	storeBuilder StoreBuilderFn
-
-	log logging.Logger
 }
 
 // NewDetailsManager returns a new connection DetailsManager.
@@ -85,8 +80,6 @@ func NewDetailsManager(c client.Client, of schema.GroupVersionKind, o ...Details
 		client:       c,
 		newConfig:    nc,
 		storeBuilder: RuntimeStoreBuilder,
-
-		log: logging.NewNopLogger(),
 	}
 
 	for _, mo := range o {
@@ -98,49 +91,38 @@ func NewDetailsManager(c client.Client, of schema.GroupVersionKind, o ...Details
 
 // PublishConnection publishes the supplied ConnectionDetails to a secret on
 // the configured connection Store.
-// TODO(turkenh): Refactor this method once the `managed.ConnectionPublisher`
-//  interface methods refactored per new types: SecretOwner and KeyValues
-func (m *DetailsManager) PublishConnection(ctx context.Context, mg resource.Managed, c managed.ConnectionDetails) error {
-	return m.publishConnection(ctx, mg.(SecretOwner), store.KeyValues(c))
-}
-
-// UnpublishConnection deletes connection details secret from the configured
-// connection Store.
-// TODO(turkenh): Refactor this method once the `managed.ConnectionPublisher`
-//  interface methods refactored per new types: SecretOwner and KeyValues
-func (m *DetailsManager) UnpublishConnection(ctx context.Context, mg resource.Managed, c managed.ConnectionDetails) error {
-	return m.unpublishConnection(ctx, mg.(SecretOwner), store.KeyValues(c))
-}
-
-func (m *DetailsManager) connectStore(ctx context.Context, p *v1.PublishConnectionDetailsTo) (Store, error) {
-	sc := m.newConfig()
-	if err := m.client.Get(ctx, types.NamespacedName{Name: p.SecretStoreConfigRef.Name}, sc); err != nil {
-		return nil, errors.Wrap(err, errGetStoreConfig)
-	}
-
-	return m.storeBuilder(ctx, m.client, sc.GetStoreConfig())
-}
-
-func (m *DetailsManager) publishConnection(ctx context.Context, so SecretOwner, kv store.KeyValues) error {
+func (m *DetailsManager) PublishConnection(ctx context.Context, so resource.ConnectionSecretOwner, conn managed.ConnectionDetails) (bool, error) {
 	// This resource does not want to expose a connection secret.
 	p := so.GetPublishConnectionDetailsTo()
 	if p == nil {
-		return nil
+		return false, nil
 	}
 
 	ss, err := m.connectStore(ctx, p)
 	if err != nil {
-		return errors.Wrap(err, errConnectStore)
+		return false, errors.Wrap(err, errConnectStore)
 	}
 
-	return errors.Wrap(ss.WriteKeyValues(ctx, store.Secret{
-		Name:     p.Name,
-		Scope:    so.GetNamespace(),
+	if p.Metadata == nil {
+		p.Metadata = &v1.ConnectionSecretMetadata{}
+	}
+	p.Metadata.SetOwnerUID(so)
+
+	changed, err := ss.WriteKeyValues(ctx, &store.Secret{
+		ScopedName: store.ScopedName{
+			Name:  p.Name,
+			Scope: so.GetNamespace(),
+		},
 		Metadata: p.Metadata,
-	}, kv), errWriteStore)
+		Data:     store.KeyValues(conn),
+	}, SecretToWriteMustBeOwnedBy(so))
+
+	return changed, errors.Wrap(err, errWriteStore)
 }
 
-func (m *DetailsManager) unpublishConnection(ctx context.Context, so SecretOwner, kv store.KeyValues) error {
+// UnpublishConnection deletes connection details secret to the configured
+// connection Store.
+func (m *DetailsManager) UnpublishConnection(ctx context.Context, so resource.ConnectionSecretOwner, conn managed.ConnectionDetails) error {
 	// This resource didn't expose a connection secret.
 	p := so.GetPublishConnectionDetailsTo()
 	if p == nil {
@@ -152,9 +134,112 @@ func (m *DetailsManager) unpublishConnection(ctx context.Context, so SecretOwner
 		return errors.Wrap(err, errConnectStore)
 	}
 
-	return errors.Wrap(ss.DeleteKeyValues(ctx, store.Secret{
-		Name:     p.Name,
-		Scope:    so.GetNamespace(),
+	err = ss.DeleteKeyValues(ctx, &store.Secret{
+		ScopedName: store.ScopedName{
+			Name:  p.Name,
+			Scope: so.GetNamespace(),
+		},
 		Metadata: p.Metadata,
-	}, kv), errDeleteFromStore)
+		Data:     store.KeyValues(conn),
+	}, SecretToDeleteMustBeOwnedBy(so))
+
+	return errors.Wrap(err, errDeleteFromStore)
+}
+
+// FetchConnection fetches connection details of a given ConnectionSecretOwner.
+func (m *DetailsManager) FetchConnection(ctx context.Context, so resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+	// This resource does not want to expose a connection secret.
+	p := so.GetPublishConnectionDetailsTo()
+	if p == nil {
+		return nil, nil
+	}
+
+	ss, err := m.connectStore(ctx, p)
+	if err != nil {
+		return nil, errors.Wrap(err, errConnectStore)
+	}
+
+	s := &store.Secret{}
+	return managed.ConnectionDetails(s.Data), errors.Wrap(ss.ReadKeyValues(ctx, store.ScopedName{Name: p.Name, Scope: so.GetNamespace()}, s), errReadStore)
+}
+
+// PropagateConnection propagate connection details from one resource to another.
+func (m *DetailsManager) PropagateConnection(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
+	// Either from does not expose a connection secret, or to does not want one.
+	if from.GetPublishConnectionDetailsTo() == nil || to.GetPublishConnectionDetailsTo() == nil {
+		return false, nil
+	}
+
+	ssFrom, err := m.connectStore(ctx, from.GetPublishConnectionDetailsTo())
+	if err != nil {
+		return false, errors.Wrap(err, errConnectStore)
+	}
+
+	sFrom := &store.Secret{}
+	if err = ssFrom.ReadKeyValues(ctx, store.ScopedName{
+		Name:  from.GetPublishConnectionDetailsTo().Name,
+		Scope: from.GetNamespace(),
+	}, sFrom); err != nil {
+		return false, errors.Wrap(err, errReadStore)
+	}
+
+	// Make sure 'from' is the controller of the connection secret it references
+	// before we propagate it. This ensures a resource cannot use Crossplane to
+	// circumvent RBAC by propagating a secret it does not own.
+	if m := sFrom.Metadata; m == nil || m.GetOwnerUID() != string(from.GetUID()) {
+		return false, errors.New(errSecretConflict)
+	}
+
+	ssTo, err := m.connectStore(ctx, to.GetPublishConnectionDetailsTo())
+	if err != nil {
+		return false, errors.Wrap(err, errConnectStore)
+	}
+
+	toMeta := to.GetPublishConnectionDetailsTo().Metadata
+	if toMeta == nil {
+		toMeta = &v1.ConnectionSecretMetadata{}
+	}
+	toMeta.SetOwnerUID(to)
+	changed, err := ssTo.WriteKeyValues(ctx, &store.Secret{
+		ScopedName: store.ScopedName{
+			Name:  to.GetPublishConnectionDetailsTo().Name,
+			Scope: to.GetNamespace(),
+		},
+		Metadata: toMeta,
+		Data:     sFrom.Data,
+	}, SecretToWriteMustBeOwnedBy(to))
+
+	return changed, errors.Wrap(err, errWriteStore)
+}
+
+func (m *DetailsManager) connectStore(ctx context.Context, p *v1.PublishConnectionDetailsTo) (Store, error) {
+	sc := m.newConfig()
+	if err := m.client.Get(ctx, types.NamespacedName{Name: p.SecretStoreConfigRef.Name}, sc); err != nil {
+		return nil, errors.Wrap(err, errGetStoreConfig)
+	}
+
+	return m.storeBuilder(ctx, m.client, sc.GetStoreConfig())
+}
+
+// SecretToWriteMustBeOwnedBy requires that the current object is a
+// connection secret that is owned by an object with the supplied UID.
+func SecretToWriteMustBeOwnedBy(so metav1.Object) store.WriteOption {
+	return func(_ context.Context, current, _ *store.Secret) error {
+		return secretMustBeOwnedBy(so, current)
+	}
+}
+
+// SecretToDeleteMustBeOwnedBy requires that the current secret is owned by
+// an object with the supplied UID.
+func SecretToDeleteMustBeOwnedBy(so metav1.Object) store.DeleteOption {
+	return func(_ context.Context, secret *store.Secret) error {
+		return secretMustBeOwnedBy(so, secret)
+	}
+}
+
+func secretMustBeOwnedBy(so metav1.Object, secret *store.Secret) error {
+	if secret.Metadata == nil || secret.Metadata.GetOwnerUID() != string(so.GetUID()) {
+		return errors.Errorf(errFmtNotOwnedBy, string(so.GetUID()))
+	}
+	return nil
 }

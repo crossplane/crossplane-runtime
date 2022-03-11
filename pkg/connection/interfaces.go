@@ -24,30 +24,16 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
-// A DetailsPublisherTo may write a connection details secret to a secret store
-type DetailsPublisherTo interface {
-	SetPublishConnectionDetailsTo(r *v1.PublishConnectionDetailsTo)
-	GetPublishConnectionDetailsTo() *v1.PublishConnectionDetailsTo
-}
-
-// A SecretOwner is a Kubernetes object that owns a connection secret.
-type SecretOwner interface {
-	resource.Object
-
-	DetailsPublisherTo
-}
-
 // A StoreConfig configures a connection store.
 type StoreConfig interface {
 	resource.Object
 
-	resource.Conditioned
 	GetStoreConfig() v1.SecretStoreConfig
 }
 
 // A Store stores sensitive key values in Secret.
 type Store interface {
-	ReadKeyValues(ctx context.Context, i store.Secret) (store.KeyValues, error)
-	WriteKeyValues(ctx context.Context, i store.Secret, kv store.KeyValues) error
-	DeleteKeyValues(ctx context.Context, i store.Secret, kv store.KeyValues) error
+	ReadKeyValues(ctx context.Context, n store.ScopedName, s *store.Secret) error
+	WriteKeyValues(ctx context.Context, s *store.Secret, wo ...store.WriteOption) (changed bool, err error)
+	DeleteKeyValues(ctx context.Context, s *store.Secret, do ...store.DeleteOption) error
 }

@@ -172,6 +172,20 @@ func (c *Unstructured) SetWriteConnectionSecretToReference(ref *xpv1.SecretRefer
 	_ = fieldpath.Pave(c.Object).SetValue("spec.writeConnectionSecretToRef", ref)
 }
 
+// GetPublishConnectionDetailsTo of this Composite resource.
+func (c *Unstructured) GetPublishConnectionDetailsTo() *xpv1.PublishConnectionDetailsTo {
+	out := &xpv1.PublishConnectionDetailsTo{}
+	if err := fieldpath.Pave(c.Object).GetValueInto("spec.publishConnectionDetailsTo", out); err != nil {
+		return nil
+	}
+	return out
+}
+
+// SetPublishConnectionDetailsTo of this Composite resource.
+func (c *Unstructured) SetPublishConnectionDetailsTo(ref *xpv1.PublishConnectionDetailsTo) {
+	_ = fieldpath.Pave(c.Object).SetValue("spec.publishConnectionDetailsTo", ref)
+}
+
 // GetCondition of this Composite resource.
 func (c *Unstructured) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	conditioned := xpv1.ConditionedStatus{}

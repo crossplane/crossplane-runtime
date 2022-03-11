@@ -18,6 +18,17 @@ package v1
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	// LabelKeyOwnerUID is the UID of the owner resource of a connection secret.
+	// Kubernetes provides owner/controller references to track ownership of
+	// resources including secrets, however, this would only work for in cluster
+	// k8s secrets. We opted to use a label for this purpose to be consistent
+	// across Secret Store implementations and expect all to support
+	// setting/getting labels.
+	LabelKeyOwnerUID = "secret.crossplane.io/owner-uid"
 )
 
 // PublishConnectionDetailsTo represents configuration of a connection secret.
@@ -37,6 +48,8 @@ type PublishConnectionDetailsTo struct {
 }
 
 // ConnectionSecretMetadata represents metadata of a connection secret.
+// Labels are used to track ownership of connection secrets and has to be
+// supported for any secret store implementation.
 type ConnectionSecretMetadata struct {
 	// Labels are the labels/tags to be added to connection secret.
 	// - For Kubernetes secrets, this will be used as "metadata.labels".
@@ -52,6 +65,22 @@ type ConnectionSecretMetadata struct {
 	// - Only valid for Kubernetes Secret Stores.
 	// +optional
 	Type *corev1.SecretType `json:"type,omitempty"`
+}
+
+// SetOwnerUID sets owner object uid label.
+func (in *ConnectionSecretMetadata) SetOwnerUID(so metav1.Object) {
+	if in.Labels == nil {
+		in.Labels = map[string]string{}
+	}
+	in.Labels[LabelKeyOwnerUID] = string(so.GetUID())
+}
+
+// GetOwnerUID gets owner object uid.
+func (in *ConnectionSecretMetadata) GetOwnerUID() string {
+	if u, ok := in.Labels[LabelKeyOwnerUID]; ok {
+		return u
+	}
+	return ""
 }
 
 // SecretStoreType represents a secret store type.

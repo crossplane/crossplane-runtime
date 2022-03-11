@@ -110,26 +110,32 @@ type ConnectionPublisher interface {
 	// PublishConnection details for the supplied Managed resource. Publishing
 	// must be additive; i.e. if details (a, b, c) are published, subsequently
 	// publicing details (b, c, d) should update (b, c) but not remove a.
-	PublishConnection(ctx context.Context, mg resource.Managed, c ConnectionDetails) error
+	PublishConnection(ctx context.Context, so resource.ConnectionSecretOwner, c ConnectionDetails) (published bool, err error)
 
 	// UnpublishConnection details for the supplied Managed resource.
-	UnpublishConnection(ctx context.Context, mg resource.Managed, c ConnectionDetails) error
+	UnpublishConnection(ctx context.Context, so resource.ConnectionSecretOwner, c ConnectionDetails) error
 }
 
 // ConnectionPublisherFns is the pluggable struct to produce objects with ConnectionPublisher interface.
 type ConnectionPublisherFns struct {
-	PublishConnectionFn   func(ctx context.Context, mg resource.Managed, c ConnectionDetails) error
-	UnpublishConnectionFn func(ctx context.Context, mg resource.Managed, c ConnectionDetails) error
+	PublishConnectionFn   func(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) (bool, error)
+	UnpublishConnectionFn func(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) error
 }
 
 // PublishConnection details for the supplied Managed resource.
-func (fn ConnectionPublisherFns) PublishConnection(ctx context.Context, mg resource.Managed, c ConnectionDetails) error {
-	return fn.PublishConnectionFn(ctx, mg, c)
+func (fn ConnectionPublisherFns) PublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) (bool, error) {
+	return fn.PublishConnectionFn(ctx, o, c)
 }
 
 // UnpublishConnection details for the supplied Managed resource.
-func (fn ConnectionPublisherFns) UnpublishConnection(ctx context.Context, mg resource.Managed, c ConnectionDetails) error {
-	return fn.UnpublishConnectionFn(ctx, mg, c)
+func (fn ConnectionPublisherFns) UnpublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) error {
+	return fn.UnpublishConnectionFn(ctx, o, c)
+}
+
+// A ConnectionDetailsFetcher fetches connection details for the supplied
+// Connection Secret owner.
+type ConnectionDetailsFetcher interface {
+	FetchConnection(ctx context.Context, so resource.ConnectionSecretOwner) (ConnectionDetails, error)
 }
 
 // A Initializer establishes ownership of the supplied Managed resource.
@@ -463,10 +469,13 @@ type mrManaged struct {
 func defaultMRManaged(m manager.Manager) mrManaged {
 	return mrManaged{
 		CriticalAnnotationUpdater: NewRetryingCriticalAnnotationUpdater(m.GetClient()),
-		ConnectionPublisher:       NewAPISecretPublisher(m.GetClient(), m.GetScheme()),
 		Finalizer:                 resource.NewAPIFinalizer(m.GetClient(), FinalizerName),
 		Initializer:               NewNameAsExternalName(m.GetClient()),
 		ReferenceResolver:         NewAPISimpleReferenceResolver(m.GetClient()),
+		ConnectionPublisher: PublisherChain([]ConnectionPublisher{
+			NewAPISecretPublisher(m.GetClient(), m.GetScheme()),
+			&DisabledSecretStoreManager{},
+		}),
 	}
 }
 
@@ -839,7 +848,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: false}, nil
 	}
 
-	if err := r.managed.PublishConnection(ctx, managed, observation.ConnectionDetails); err != nil {
+	if _, err := r.managed.PublishConnection(ctx, managed, observation.ConnectionDetails); err != nil {
 		// If this is the first time we encounter this issue we'll be requeued
 		// implicitly when we update our status with the new error condition. If
 		// not, we requeue explicitly, which will trigger backoff.
@@ -928,7 +937,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 		}
 
-		if err := r.managed.PublishConnection(ctx, managed, creation.ConnectionDetails); err != nil {
+		if _, err := r.managed.PublishConnection(ctx, managed, creation.ConnectionDetails); err != nil {
 			// If this is the first time we encounter this issue we'll be
 			// requeued implicitly when we update our status with the new error
 			// condition. If not, we requeue explicitly, which will trigger backoff.
@@ -993,7 +1002,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
-	if err := r.managed.PublishConnection(ctx, managed, update.ConnectionDetails); err != nil {
+	if _, err := r.managed.PublishConnection(ctx, managed, update.ConnectionDetails); err != nil {
 		// If this is the first time we encounter this issue we'll be requeued
 		// implicitly when we update our status with the new error condition. If
 		// not, we requeue explicitly, which will trigger backoff.

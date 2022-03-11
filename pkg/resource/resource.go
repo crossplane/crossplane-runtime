@@ -63,6 +63,14 @@ type ProviderConfigKinds struct {
 	UsageList schema.GroupVersionKind
 }
 
+// A ConnectionSecretOwner is a Kubernetes object that owns a connection secret.
+type ConnectionSecretOwner interface {
+	Object
+
+	ConnectionSecretWriterTo
+	ConnectionDetailsPublisherTo
+}
+
 // A LocalConnectionSecretOwner may create and manage a connection secret in its
 // own namespace.
 type LocalConnectionSecretOwner interface {
@@ -70,6 +78,7 @@ type LocalConnectionSecretOwner interface {
 	metav1.Object
 
 	LocalConnectionSecretWriterTo
+	ConnectionDetailsPublisherTo
 }
 
 // A ConnectionPropagator is responsible for propagating information required to
@@ -113,15 +122,6 @@ func LocalConnectionSecretFor(o LocalConnectionSecretOwner, kind schema.GroupVer
 		Type: SecretTypeConnection,
 		Data: make(map[string][]byte),
 	}
-}
-
-// A ConnectionSecretOwner may create and manage a connection secret in an
-// arbitrary namespace.
-type ConnectionSecretOwner interface {
-	runtime.Object
-	metav1.Object
-
-	ConnectionSecretWriterTo
 }
 
 // ConnectionSecretFor creates a connection for the supplied
@@ -360,6 +360,11 @@ type errNotAllowed struct{ error }
 
 func (e errNotAllowed) NotAllowed() bool {
 	return true
+}
+
+// NewNotAllowed returns a new NotAllowed error
+func NewNotAllowed(message string) error {
+	return errNotAllowed{error: errors.New(message)}
 }
 
 // IsNotAllowed returns true if the supplied error indicates that an operation

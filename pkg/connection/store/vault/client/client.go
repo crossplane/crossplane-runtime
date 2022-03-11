@@ -19,6 +19,7 @@ package client
 import (
 	"encoding/json"
 	"path/filepath"
+	"strings"
 
 	"github.com/hashicorp/vault/api"
 
@@ -38,11 +39,50 @@ const (
 	ErrNotFound = "secret not found"
 )
 
-// KVSecret is a KVAdditiveClient Engine secret
+// We use this prefix to store metadata of v1 secrets as there is no dedicated
+// metadata. Considering a connection key cannot contain ":" (since it is not
+// in the set of allowed chars for a k8s secret key), it is safe to assume
+// there is no connection data starting with this prefix.
+const metadataPrefix = "metadata:"
+
+// An ApplyOption is called before patching the current secret to match the
+// desired secret. ApplyOptions are not called if no current object exists.
+type ApplyOption func(current, desired *KVSecret) error
+
+// AllowUpdateIf will only update the current object if the supplied fn returns
+// true. An error that satisfies IsNotAllowed will be returned if the supplied
+// function returns false. Creation of a desired object that does not currently
+// exist is always allowed.
+func AllowUpdateIf(fn func(current, desired *KVSecret) bool) ApplyOption {
+	return func(current, desired *KVSecret) error {
+		if fn(current, desired) {
+			return nil
+		}
+		return resource.NewNotAllowed("update not allowed")
+	}
+}
+
+// KVSecret is a KVAdditiveClient Engine secret.
 type KVSecret struct {
 	CustomMeta map[string]interface{}
 	Data       map[string]interface{}
 	version    json.Number
+}
+
+// AddData adds supplied key value as data.
+func (kv *KVSecret) AddData(key string, val interface{}) {
+	if kv.Data == nil {
+		kv.Data = map[string]interface{}{}
+	}
+	kv.Data[key] = val
+}
+
+// AddMetadata adds supplied key value as metadata.
+func (kv *KVSecret) AddMetadata(key string, val interface{}) {
+	if kv.CustomMeta == nil {
+		kv.CustomMeta = map[string]interface{}{}
+	}
+	kv.CustomMeta[key] = val
 }
 
 // LogicalClient is a client to perform logical backend operations on Vault.
@@ -105,17 +145,28 @@ func (k *KVAdditiveClient) Get(path string, secret *KVSecret) error {
 
 // Apply applies given KVSecret at path by patching its Data and setting
 // provided custom metadata.
-func (k *KVAdditiveClient) Apply(path string, secret *KVSecret) error {
+func (k *KVAdditiveClient) Apply(path string, secret *KVSecret, ao ...ApplyOption) error { // nolint: gocyclo
+	// NOTE(turkenh): Cyclomatic complexity of this method is slight above
+	// our limit. Adding nolint for now since it will be refactored when we
+	// have separate clients for v1 and v2.
+	// TODO(turkenh): Split this into two kv clients as v1 and v2
 	existing := &KVSecret{}
-	if err := k.Get(path, existing); resource.Ignore(IsNotFound, err) != nil {
+	err := k.Get(path, existing)
+
+	if resource.Ignore(IsNotFound, err) != nil {
 		return errors.Wrap(err, errGet)
+	}
+	if !IsNotFound(err) {
+		for _, o := range ao {
+			if err = o(existing, secret); err != nil {
+				return err
+			}
+		}
 	}
 
 	if k.version == v1.VaultKVVersionV1 {
-		dp, changed := dataPayloadV1(existing, secret)
+		dp, changed := payloadV1(existing, secret)
 		if !changed {
-			// No metadata in v1 secrets.
-			// Hence, already up to date.
 			return nil
 		}
 		_, err := k.client.Write(filepath.Join(k.mountPath, path), dp)
@@ -192,24 +243,41 @@ func metadataPayload(existing, new map[string]interface{}) (map[string]interface
 	return payload, false
 }
 
-func dataPayloadV1(existing, new *KVSecret) (map[string]interface{}, bool) {
-	data := make(map[string]interface{}, len(existing.Data)+len(new.Data))
+func payloadV1(existing, new *KVSecret) (map[string]interface{}, bool) {
+	payload := make(map[string]interface{}, len(existing.Data)+len(new.Data))
 	for k, v := range existing.Data {
-		data[k] = v
+		// Only transfer existing data, metadata updates are not additive.
+		if !strings.HasPrefix(k, metadataPrefix) {
+			payload[k] = v
+		}
 	}
 	changed := false
 	for k, v := range new.Data {
 		if ev, ok := existing.Data[k]; !ok || ev != v {
 			changed = true
-			data[k] = v
+			payload[k] = v
 		}
 	}
-	return data, changed
+	for k, v := range new.CustomMeta {
+		// kv secret engine v1 does not have metadata. So, we store them as data
+		// by prefixing with "metadata:"
+		if val, ok := existing.CustomMeta[k]; !ok && val != v {
+			changed = true
+		}
+		payload[metadataPrefix+k] = v
+	}
+	return payload, changed
 }
 
 func (k *KVAdditiveClient) parseAsKVSecret(s *api.Secret, kv *KVSecret) error {
 	if k.version == v1.VaultKVVersionV1 {
-		kv.Data = s.Data
+		for key, val := range s.Data {
+			if strings.HasPrefix(key, metadataPrefix) {
+				kv.AddMetadata(strings.TrimPrefix(key, metadataPrefix), val)
+				continue
+			}
+			kv.AddData(key, val)
+		}
 		return nil
 	}
 

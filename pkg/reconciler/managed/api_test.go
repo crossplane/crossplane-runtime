@@ -49,7 +49,8 @@ func TestNameAsExternalName(t *testing.T) {
 	}
 
 	errBoom := errors.New("boom")
-	testExternalName := "my-external-name"
+	testExternalName := "my-" +
+		"external-name"
 
 	cases := map[string]struct {
 		client client.Client
@@ -205,11 +206,15 @@ func TestAPISecretPublisher(t *testing.T) {
 		c   ConnectionDetails
 	}
 
+	type want struct {
+		err       error
+		published bool
+	}
 	cases := map[string]struct {
 		reason string
 		fields fields
 		args   args
-		want   error
+		want   want
 	}{
 		"ResourceDoesNotPublishSecret": {
 			reason: "A managed resource with a nil GetWriteConnectionSecretToReference should not publish a secret",
@@ -228,7 +233,34 @@ func TestAPISecretPublisher(t *testing.T) {
 				ctx: context.Background(),
 				mg:  mg,
 			},
-			want: errors.Wrap(errBoom, errCreateOrUpdateSecret),
+			want: want{
+				err: errors.Wrap(errBoom, errCreateOrUpdateSecret),
+			},
+		},
+		"AlreadyPublished": {
+			reason: "An up to date connection secret should result in no error and not being published",
+			fields: fields{
+				secret: resource.ApplyFn(func(_ context.Context, o client.Object, ao ...resource.ApplyOption) error {
+					want := resource.ConnectionSecretFor(mg, fake.GVK(mg))
+					want.Data = cd
+					for _, fn := range ao {
+						if err := fn(context.Background(), o, want); err != nil {
+							return err
+						}
+					}
+					return nil
+				}),
+				typer: fake.SchemeWith(&fake.Managed{}),
+			},
+			args: args{
+				ctx: context.Background(),
+				mg:  mg,
+				c:   cd,
+			},
+			want: want{
+				published: false,
+				err:       nil,
+			},
 		},
 		"Success": {
 			reason: "A successful application of the connection secret should result in no error",
@@ -248,15 +280,21 @@ func TestAPISecretPublisher(t *testing.T) {
 				mg:  mg,
 				c:   cd,
 			},
+			want: want{
+				published: true,
+			},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			a := &APISecretPublisher{tc.fields.secret, tc.fields.typer}
-			got := a.PublishConnection(tc.args.ctx, tc.args.mg, tc.args.c)
-			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nPublish(...): -want, +got:\n%s", tc.reason, diff)
+			got, gotErr := a.PublishConnection(tc.args.ctx, tc.args.mg, tc.args.c)
+			if diff := cmp.Diff(tc.want.err, gotErr, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nPublish(...): -wantErr, +gotErr:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.published, got); diff != "" {
+				t.Errorf("\n%s\nPublish(...): -wantPublished, +gotPublished:\n%s", tc.reason, diff)
 			}
 		})
 	}

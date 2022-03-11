@@ -17,15 +17,30 @@
 package store
 
 import (
+	"context"
+
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
 // KeyValues is a map with sensitive values.
 type KeyValues map[string][]byte
 
+// ScopedName is scoped name of a secret.
+type ScopedName struct {
+	Name  string
+	Scope string
+}
+
 // A Secret is an entity representing a set of sensitive Key Values.
 type Secret struct {
-	Name     string
-	Scope    string
+	ScopedName
 	Metadata *v1.ConnectionSecretMetadata
+	Data     KeyValues
 }
+
+// A WriteOption is called before writing the desired secret over the
+// current object.
+type WriteOption func(ctx context.Context, current, desired *Secret) error
+
+// An DeleteOption is called before deleting the secret.
+type DeleteOption func(ctx context.Context, secret *Secret) error

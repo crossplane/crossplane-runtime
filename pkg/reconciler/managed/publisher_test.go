@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
@@ -40,12 +41,17 @@ func TestPublisherChain(t *testing.T) {
 		c   ConnectionDetails
 	}
 
+	type want struct {
+		err       error
+		published bool
+	}
+
 	errBoom := errors.New("boom")
 
 	cases := map[string]struct {
 		p    ConnectionPublisher
 		args args
-		want error
+		want want
 	}{
 		"EmptyChain": {
 			p: PublisherChain{},
@@ -54,15 +60,14 @@ func TestPublisherChain(t *testing.T) {
 				mg:  &fake.Managed{},
 				c:   ConnectionDetails{},
 			},
-			want: nil,
 		},
 		"SuccessfulPublisher": {
 			p: PublisherChain{
 				ConnectionPublisherFns{
-					PublishConnectionFn: func(_ context.Context, mg resource.Managed, c ConnectionDetails) error {
-						return nil
+					PublishConnectionFn: func(_ context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) (bool, error) {
+						return true, nil
 					},
-					UnpublishConnectionFn: func(ctx context.Context, mg resource.Managed, c ConnectionDetails) error {
+					UnpublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) error {
 						return nil
 					},
 				},
@@ -72,15 +77,17 @@ func TestPublisherChain(t *testing.T) {
 				mg:  &fake.Managed{},
 				c:   ConnectionDetails{},
 			},
-			want: nil,
+			want: want{
+				published: true,
+			},
 		},
 		"PublisherReturnsError": {
 			p: PublisherChain{
 				ConnectionPublisherFns{
-					PublishConnectionFn: func(_ context.Context, mg resource.Managed, c ConnectionDetails) error {
-						return errBoom
+					PublishConnectionFn: func(_ context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) (bool, error) {
+						return false, errBoom
 					},
-					UnpublishConnectionFn: func(ctx context.Context, mg resource.Managed, c ConnectionDetails) error {
+					UnpublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) error {
 						return nil
 					},
 				},
@@ -90,14 +97,107 @@ func TestPublisherChain(t *testing.T) {
 				mg:  &fake.Managed{},
 				c:   ConnectionDetails{},
 			},
-			want: errBoom,
+			want: want{
+				err: errBoom,
+			},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := tc.p.PublishConnection(tc.args.ctx, tc.args.mg, tc.args.c)
-			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
+			got, gotErr := tc.p.PublishConnection(tc.args.ctx, tc.args.mg, tc.args.c)
+			if diff := cmp.Diff(tc.want.err, gotErr, test.EquateErrors()); diff != "" {
+				t.Errorf("Publish(...): -want, +got:\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.want.published, got); diff != "" {
+				t.Errorf("Publish(...): -wantPublished, +gotPublished:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestDisabledSecretStorePublish(t *testing.T) {
+	type args struct {
+		mg resource.Managed
+	}
+	type want struct {
+		published bool
+		err       error
+	}
+
+	cases := map[string]struct {
+		args args
+		want want
+	}{
+		"APINotUsedNoError": {
+			args: args{
+				mg: &fake.Managed{},
+			},
+		},
+		"APIUsedProperError": {
+			args: args{
+				mg: &fake.Managed{
+					ConnectionDetailsPublisherTo: fake.ConnectionDetailsPublisherTo{
+						To: &xpv1.PublishConnectionDetailsTo{},
+					},
+				},
+			},
+			want: want{
+				err: errors.New(errSecretStoreDisabled),
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			ss := &DisabledSecretStoreManager{}
+			got, gotErr := ss.PublishConnection(context.Background(), tc.args.mg, nil)
+			if diff := cmp.Diff(tc.want.err, gotErr, test.EquateErrors()); diff != "" {
+				t.Errorf("Publish(...): -want, +got:\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.want.published, got); diff != "" {
+				t.Errorf("Publish(...): -wantPublished, +gotPublished:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestDisabledSecretStoreUnpublish(t *testing.T) {
+	type args struct {
+		mg resource.Managed
+	}
+	type want struct {
+		err error
+	}
+
+	cases := map[string]struct {
+		args args
+		want want
+	}{
+		"APINotUsedNoError": {
+			args: args{
+				mg: &fake.Managed{},
+			},
+		},
+		"APIUsedProperError": {
+			args: args{
+				mg: &fake.Managed{
+					ConnectionDetailsPublisherTo: fake.ConnectionDetailsPublisherTo{
+						To: &xpv1.PublishConnectionDetailsTo{},
+					},
+				},
+			},
+			want: want{
+				err: errors.New(errSecretStoreDisabled),
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			ss := &DisabledSecretStoreManager{}
+			gotErr := ss.UnpublishConnection(context.Background(), tc.args.mg, nil)
+			if diff := cmp.Diff(tc.want.err, gotErr, test.EquateErrors()); diff != "" {
 				t.Errorf("Publish(...): -want, +got:\n%s", diff)
 			}
 		})
