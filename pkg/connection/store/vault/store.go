@@ -114,20 +114,11 @@ func (ss *SecretStore) ReadKeyValues(_ context.Context, n store.ScopedName, s *s
 		return errors.Wrap(err, errGet)
 	}
 
-	kv := make(store.KeyValues, len(kvs.Data))
-	for k, v := range kvs.Data {
-		kv[k] = []byte(v.(string))
-	}
 	s.ScopedName = n
-	s.Data = kv
+	s.Data = keyValuesFromData(kvs.Data)
 	if len(kvs.CustomMeta) > 0 {
 		s.Metadata = &v1.ConnectionSecretMetadata{
-			Labels: make(map[string]string, len(kvs.CustomMeta)),
-		}
-	}
-	for k, v := range kvs.CustomMeta {
-		if val, ok := v.(string); ok {
-			s.Metadata.Labels[k] = val
+			Labels: kvs.CustomMeta,
 		}
 	}
 	return nil
@@ -135,26 +126,12 @@ func (ss *SecretStore) ReadKeyValues(_ context.Context, n store.ScopedName, s *s
 
 // WriteKeyValues writes key value pairs to a given Vault Secret.
 func (ss *SecretStore) WriteKeyValues(_ context.Context, s *store.Secret, wo ...store.WriteOption) (changed bool, err error) {
-	data := make(map[string]interface{}, len(s.Data))
-	for k, v := range s.Data {
-		data[k] = string(v)
-	}
-
-	kvSecret := &kvclient.KVSecret{}
-	kvSecret.Data = data
-	if s.Metadata != nil && len(s.Metadata.Labels) > 0 {
-		kvSecret.CustomMeta = make(map[string]interface{}, len(s.Metadata.Labels))
-		for k, v := range s.Metadata.Labels {
-			kvSecret.CustomMeta[k] = v
-		}
-	}
-
 	ao := applyOptions(wo...)
 	ao = append(ao, kvclient.AllowUpdateIf(func(current, desired *kvclient.KVSecret) bool {
 		return !cmp.Equal(current, desired, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(kvclient.KVSecret{}))
 	}))
 
-	err = ss.client.Apply(ss.path(s.ScopedName), kvSecret, ao...)
+	err = ss.client.Apply(ss.path(s.ScopedName), kvclient.NewKVSecret(dataFromKeyValues(s.Data), s.GetLabels()), ao...)
 	if resource.IsNotAllowed(err) {
 		// The update was not allowed because it was a no-op.
 		return false, nil
@@ -213,20 +190,20 @@ func applyOptions(wo ...store.WriteOption) []kvclient.ApplyOption {
 		ao[i] = func(current, desired *kvclient.KVSecret) error {
 			cs := &store.Secret{
 				Metadata: &v1.ConnectionSecretMetadata{
-					Labels: labelsFromCustomMetadata(current.CustomMeta),
+					Labels: current.CustomMeta,
 				},
 				Data: keyValuesFromData(current.Data),
 			}
 			ds := &store.Secret{
 				Metadata: &v1.ConnectionSecretMetadata{
-					Labels: labelsFromCustomMetadata(desired.CustomMeta),
+					Labels: desired.CustomMeta,
 				},
 				Data: keyValuesFromData(desired.Data),
 			}
 			if err := o(context.Background(), cs, ds); err != nil {
 				return err
 			}
-			desired.CustomMeta = customMetaFromLabels(ds.Metadata.Labels)
+			desired.CustomMeta = ds.GetLabels()
 			desired.Data = dataFromKeyValues(ds.Data)
 			return nil
 		}
@@ -234,48 +211,22 @@ func applyOptions(wo ...store.WriteOption) []kvclient.ApplyOption {
 	return ao
 }
 
-func labelsFromCustomMetadata(meta map[string]interface{}) map[string]string {
-	if len(meta) == 0 {
-		return nil
-	}
-	l := make(map[string]string, len(meta))
-	for k := range meta {
-		if val, ok := meta[k].(string); ok {
-			l[k] = val
-		}
-	}
-	return l
-}
-
-func keyValuesFromData(data map[string]interface{}) store.KeyValues {
+func keyValuesFromData(data map[string]string) store.KeyValues {
 	if len(data) == 0 {
 		return nil
 	}
 	kv := make(store.KeyValues, len(data))
-	for k := range data {
-		if val, ok := data[k].(string); ok {
-			kv[k] = []byte(val)
-		}
+	for k, v := range data {
+		kv[k] = []byte(v)
 	}
 	return kv
 }
 
-func customMetaFromLabels(labels map[string]string) map[string]interface{} {
-	if len(labels) == 0 {
-		return nil
-	}
-	meta := make(map[string]interface{}, len(labels))
-	for k, v := range labels {
-		meta[k] = v
-	}
-	return meta
-}
-
-func dataFromKeyValues(kv store.KeyValues) map[string]interface{} {
+func dataFromKeyValues(kv store.KeyValues) map[string]string {
 	if len(kv) == 0 {
 		return nil
 	}
-	data := make(map[string]interface{}, len(kv))
+	data := make(map[string]string, len(kv))
 	for k, v := range kv {
 		// NOTE(turkenh): vault stores values as strings. So we convert []byte
 		// to string before writing to Vault.

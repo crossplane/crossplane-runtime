@@ -75,6 +75,14 @@ func (s *Secret) GetOwner() string {
 	return s.Metadata.GetOwnerUID()
 }
 
+// GetLabels returns the labels of the secret.
+func (s *Secret) GetLabels() map[string]string {
+	if s.Metadata == nil {
+		return nil
+	}
+	return s.Metadata.Labels
+}
+
 // A WriteOption is called before writing the desired secret over the
 // current object.
 type WriteOption func(ctx context.Context, current, desired *Secret) error

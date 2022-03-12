@@ -64,23 +64,31 @@ func AllowUpdateIf(fn func(current, desired *KVSecret) bool) ApplyOption {
 
 // KVSecret is a KVAdditiveClient Engine secret.
 type KVSecret struct {
-	CustomMeta map[string]interface{}
-	Data       map[string]interface{}
+	CustomMeta map[string]string
+	Data       map[string]string
 	version    json.Number
 }
 
+// NewKVSecret returns a new KVSecret.
+func NewKVSecret(data map[string]string, meta map[string]string) *KVSecret {
+	return &KVSecret{
+		Data:       data,
+		CustomMeta: meta,
+	}
+}
+
 // AddData adds supplied key value as data.
-func (kv *KVSecret) AddData(key string, val interface{}) {
+func (kv *KVSecret) AddData(key string, val string) {
 	if kv.Data == nil {
-		kv.Data = map[string]interface{}{}
+		kv.Data = map[string]string{}
 	}
 	kv.Data[key] = val
 }
 
 // AddMetadata adds supplied key value as metadata.
-func (kv *KVSecret) AddMetadata(key string, val interface{}) {
+func (kv *KVSecret) AddMetadata(key string, val string) {
 	if kv.CustomMeta == nil {
-		kv.CustomMeta = map[string]interface{}{}
+		kv.CustomMeta = map[string]string{}
 	}
 	kv.CustomMeta[key] = val
 }
@@ -204,7 +212,7 @@ func (k *KVAdditiveClient) Delete(path string) error {
 }
 
 func dataPayloadV2(existing, new *KVSecret) (map[string]interface{}, bool) {
-	data := make(map[string]interface{}, len(existing.Data)+len(new.Data))
+	data := make(map[string]string, len(existing.Data)+len(new.Data))
 	for k, v := range existing.Data {
 		data[k] = v
 	}
@@ -227,7 +235,7 @@ func dataPayloadV2(existing, new *KVSecret) (map[string]interface{}, bool) {
 	}, changed
 }
 
-func metadataPayload(existing, new map[string]interface{}) (map[string]interface{}, bool) {
+func metadataPayload(existing, new map[string]string) (map[string]interface{}, bool) {
 	payload := map[string]interface{}{
 		"custom_metadata": new,
 	}
@@ -268,14 +276,16 @@ func payloadV1(existing, new *KVSecret) (map[string]interface{}, bool) {
 	return payload, changed
 }
 
-func (k *KVAdditiveClient) parseAsKVSecret(s *api.Secret, kv *KVSecret) error {
+func (k *KVAdditiveClient) parseAsKVSecret(s *api.Secret, kv *KVSecret) error { // nolint: gocyclo
 	if k.version == v1.VaultKVVersionV1 {
 		for key, val := range s.Data {
-			if strings.HasPrefix(key, metadataPrefix) {
-				kv.AddMetadata(strings.TrimPrefix(key, metadataPrefix), val)
-				continue
+			if sVal, ok := val.(string); ok {
+				if strings.HasPrefix(key, metadataPrefix) {
+					kv.AddMetadata(strings.TrimPrefix(key, metadataPrefix), sVal)
+					continue
+				}
+				kv.AddData(key, sVal)
 			}
-			kv.AddData(key, val)
 		}
 		return nil
 	}
@@ -286,12 +296,22 @@ func (k *KVAdditiveClient) parseAsKVSecret(s *api.Secret, kv *KVSecret) error {
 	// block inside the top level generic "Data" field.
 	// https://www.vaultproject.io/api/secret/kv/kv-v2#sample-response-1
 	if sData, ok := s.Data["data"].(map[string]interface{}); ok && sData != nil {
-		kv.Data = sData
+		kv.Data = make(map[string]string, len(sData))
+		for key, val := range sData {
+			if sVal, ok := val.(string); ok {
+				kv.Data[key] = sVal
+			}
+		}
 	}
 	if sMeta, ok := s.Data["metadata"].(map[string]interface{}); ok && sMeta != nil {
 		kv.version, _ = sMeta["version"].(json.Number)
 		if cMeta, ok := sMeta["custom_metadata"].(map[string]interface{}); ok && cMeta != nil {
-			kv.CustomMeta = cMeta
+			kv.CustomMeta = make(map[string]string, len(cMeta))
+			for key, val := range cMeta {
+				if sVal, ok := val.(string); ok {
+					kv.CustomMeta[key] = sVal
+				}
+			}
 		}
 	}
 	return nil

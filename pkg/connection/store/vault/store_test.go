@@ -86,7 +86,7 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 						if diff := cmp.Diff(filepath.Join(parentPathDefault, secretName), path); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
-						secret.Data = map[string]interface{}{
+						secret.Data = map[string]string{
 							"key1": "val1",
 							"key2": "val2",
 						}
@@ -119,7 +119,7 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 						if diff := cmp.Diff(filepath.Join("another-scope", secretName), path); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
-						secret.Data = map[string]interface{}{
+						secret.Data = map[string]string{
 							"key1": "val1",
 							"key2": "val2",
 						}
@@ -154,11 +154,11 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 						if diff := cmp.Diff(filepath.Join(parentPathDefault, secretName), path); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
-						secret.Data = map[string]interface{}{
+						secret.Data = map[string]string{
 							"key1": "val1",
 							"key2": "val2",
 						}
-						secret.CustomMeta = map[string]interface{}{
+						secret.CustomMeta = map[string]string{
 							"foo": "bar",
 						}
 						return nil
@@ -289,11 +289,11 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 					ApplyFn: func(path string, secret *kvclient.KVSecret, ao ...kvclient.ApplyOption) error {
 						for _, o := range ao {
 							if err := o(&kvclient.KVSecret{
-								Data: map[string]interface{}{
+								Data: map[string]string{
 									"key1": "val1",
 									"key2": "val2",
 								},
-								CustomMeta: map[string]interface{}{
+								CustomMeta: map[string]string{
 									"foo": "bar",
 								},
 							}, secret); err != nil {
@@ -336,7 +336,7 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 					ApplyFn: func(path string, secret *kvclient.KVSecret, ao ...kvclient.ApplyOption) error {
 						for _, o := range ao {
 							if err := o(&kvclient.KVSecret{
-								Data: map[string]interface{}{
+								Data: map[string]string{
 									"key1": "val1",
 									"key2": "val2",
 								},
@@ -371,7 +371,7 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 						if diff := cmp.Diff(filepath.Join(parentPathDefault, secretName), path); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
-						if diff := cmp.Diff(map[string]interface{}{
+						if diff := cmp.Diff(map[string]string{
 							"key1": "val1",
 							"key2": "val2",
 						}, secret.Data); diff != "" {
@@ -403,13 +403,13 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 						if diff := cmp.Diff(filepath.Join(parentPathDefault, secretName), path); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
-						if diff := cmp.Diff(map[string]interface{}{
+						if diff := cmp.Diff(map[string]string{
 							"key1": "val1",
 							"key2": "val2",
 						}, secret.Data); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
-						if diff := cmp.Diff(map[string]interface{}{
+						if diff := cmp.Diff(map[string]string{
 							"foo": "bar",
 						}, secret.CustomMeta); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
@@ -512,7 +512,7 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 			args: args{
 				client: &fake.KVClient{
 					GetFn: func(path string, secret *kvclient.KVSecret) error {
-						secret.Data = map[string]interface{}{
+						secret.Data = map[string]string{
 							"key1": "val1",
 							"key2": "val2",
 							"key3": "val3",
@@ -538,7 +538,7 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 			args: args{
 				client: &fake.KVClient{
 					GetFn: func(path string, secret *kvclient.KVSecret) error {
-						secret.Data = map[string]interface{}{
+						secret.Data = map[string]string{
 							"key1": "val1",
 							"key2": "val2",
 							"key3": "val3",
@@ -571,7 +571,7 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 			args: args{
 				client: &fake.KVClient{
 					GetFn: func(path string, secret *kvclient.KVSecret) error {
-						secret.Data = map[string]interface{}{
+						secret.Data = map[string]string{
 							"key1": "val1",
 							"key2": "val2",
 							"key3": "val3",
@@ -579,7 +579,7 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 						return nil
 					},
 					ApplyFn: func(path string, secret *kvclient.KVSecret, ao ...kvclient.ApplyOption) error {
-						if diff := cmp.Diff(map[string]interface{}{
+						if diff := cmp.Diff(map[string]string{
 							"key3": "val3",
 						}, secret.Data); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
@@ -609,7 +609,7 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 			args: args{
 				client: &fake.KVClient{
 					GetFn: func(path string, secret *kvclient.KVSecret) error {
-						secret.Data = map[string]interface{}{
+						secret.Data = map[string]string{
 							"key1": "val1",
 							"key2": "val2",
 							"key3": "val3",
@@ -640,7 +640,7 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 			args: args{
 				client: &fake.KVClient{
 					GetFn: func(path string, secret *kvclient.KVSecret) error {
-						secret.Data = map[string]interface{}{
+						secret.Data = map[string]string{
 							"key1": "val1",
 						}
 						return nil
@@ -669,7 +669,7 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 			args: args{
 				client: &fake.KVClient{
 					GetFn: func(path string, secret *kvclient.KVSecret) error {
-						secret.Data = map[string]interface{}{
+						secret.Data = map[string]string{
 							"key1": "val1",
 							"key2": "val2",
 							"key3": "val3",

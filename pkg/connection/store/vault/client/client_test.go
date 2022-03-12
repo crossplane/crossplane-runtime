@@ -115,10 +115,10 @@ func TestKVClientGet(t *testing.T) {
 			},
 			want: want{
 				out: &KVSecret{
-					Data: map[string]interface{}{
+					Data: map[string]string{
 						"foo": "bar",
 					},
-					CustomMeta: map[string]interface{}{
+					CustomMeta: map[string]string{
 						"owner":            "jdoe",
 						"mission_critical": "false",
 					},
@@ -159,10 +159,10 @@ func TestKVClientGet(t *testing.T) {
 			},
 			want: want{
 				out: &KVSecret{
-					Data: map[string]interface{}{
+					Data: map[string]string{
 						"foo": "bar",
 					},
-					CustomMeta: map[string]interface{}{
+					CustomMeta: map[string]string{
 						"owner":            "jdoe",
 						"mission_critical": "false",
 					},
@@ -236,7 +236,7 @@ func TestKVClientApply(t *testing.T) {
 				version: &kvv1,
 				path:    secretName,
 				in: &KVSecret{
-					Data: map[string]interface{}{
+					Data: map[string]string{
 						"key1": "val1updated",
 						"key3": "val3",
 					},
@@ -253,7 +253,7 @@ func TestKVClientApply(t *testing.T) {
 					ReadFn: func(path string) (*api.Secret, error) {
 						return &api.Secret{
 							Data: map[string]interface{}{
-								"data": map[string]interface{}{
+								"data": map[string]string{
 									"key1": "val1",
 									"key2": "val2",
 								},
@@ -274,11 +274,11 @@ func TestKVClientApply(t *testing.T) {
 				version: &kvv2,
 				path:    secretName,
 				in: &KVSecret{
-					Data: map[string]interface{}{
+					Data: map[string]string{
 						"key1": "val1updated",
 						"key3": "val3",
 					},
-					CustomMeta: map[string]interface{}{
+					CustomMeta: map[string]string{
 						"foo": "bar",
 						"baz": "qux",
 					},
@@ -295,7 +295,7 @@ func TestKVClientApply(t *testing.T) {
 					ReadFn: func(path string) (*api.Secret, error) {
 						return &api.Secret{
 							Data: map[string]interface{}{
-								"data": map[string]interface{}{
+								"data": map[string]string{
 									"key1": "val1",
 									"key2": "val2",
 								},
@@ -315,11 +315,11 @@ func TestKVClientApply(t *testing.T) {
 				version: &kvv2,
 				path:    secretName,
 				in: &KVSecret{
-					Data: map[string]interface{}{
+					Data: map[string]string{
 						"key1": "val1",
 						"key2": "val2",
 					},
-					CustomMeta: map[string]interface{}{
+					CustomMeta: map[string]string{
 						"foo": "baz",
 					},
 				},
@@ -348,10 +348,10 @@ func TestKVClientApply(t *testing.T) {
 				version: &kvv1,
 				path:    secretName,
 				in: &KVSecret{
-					Data: map[string]interface{}{
+					Data: map[string]string{
 						"foo": "bar",
 					},
-					CustomMeta: map[string]interface{}{
+					CustomMeta: map[string]string{
 						"owner":            "jdoe",
 						"mission_critical": "false",
 					},
@@ -393,11 +393,11 @@ func TestKVClientApply(t *testing.T) {
 				version: &kvv2,
 				path:    secretName,
 				in: &KVSecret{
-					CustomMeta: map[string]interface{}{
+					CustomMeta: map[string]string{
 						"owner":            "jdoe",
 						"mission_critical": "false",
 					},
-					Data: map[string]interface{}{
+					Data: map[string]string{
 						"foo": "bar",
 					},
 				},
@@ -431,7 +431,7 @@ func TestKVClientApply(t *testing.T) {
 				version: &kvv1,
 				path:    secretName,
 				in: &KVSecret{
-					Data: map[string]interface{}{
+					Data: map[string]string{
 						"key1": "val1",
 						"key2": "val2",
 					},
@@ -455,7 +455,7 @@ func TestKVClientApply(t *testing.T) {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
 						if diff := cmp.Diff(map[string]interface{}{
-							"data": map[string]interface{}{
+							"data": map[string]string{
 								"key1": "val1",
 								"key2": "val2",
 							},
@@ -471,7 +471,7 @@ func TestKVClientApply(t *testing.T) {
 				version: &kvv2,
 				path:    secretName,
 				in: &KVSecret{
-					Data: map[string]interface{}{
+					Data: map[string]string{
 						"key1": "val1",
 						"key2": "val2",
 					},
@@ -510,7 +510,7 @@ func TestKVClientApply(t *testing.T) {
 				version: &kvv1,
 				path:    secretName,
 				in: &KVSecret{
-					Data: map[string]interface{}{
+					Data: map[string]string{
 						"key1": "val1updated",
 						"key3": "val3",
 					},
@@ -546,7 +546,7 @@ func TestKVClientApply(t *testing.T) {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
 						if diff := cmp.Diff(map[string]interface{}{
-							"data": map[string]interface{}{
+							"data": map[string]string{
 								"key1": "val1updated",
 								"key2": "val2",
 								"key3": "val3",
@@ -563,11 +563,11 @@ func TestKVClientApply(t *testing.T) {
 				version: &kvv2,
 				path:    secretName,
 				in: &KVSecret{
-					Data: map[string]interface{}{
+					Data: map[string]string{
 						"key1": "val1updated",
 						"key3": "val3",
 					},
-					CustomMeta: map[string]interface{}{
+					CustomMeta: map[string]string{
 						"foo": "bar",
 						"baz": "qux",
 					},
@@ -607,11 +607,11 @@ func TestKVClientApply(t *testing.T) {
 				version: &kvv1,
 				path:    secretName,
 				in: &KVSecret{
-					Data: map[string]interface{}{
+					Data: map[string]string{
 						"key1": "val1",
 						"key2": "val2",
 					},
-					CustomMeta: map[string]interface{}{
+					CustomMeta: map[string]string{
 						"foo": "bar",
 						"baz": "qux",
 					},
@@ -652,11 +652,11 @@ func TestKVClientApply(t *testing.T) {
 				version: &kvv1,
 				path:    secretName,
 				in: &KVSecret{
-					Data: map[string]interface{}{
+					Data: map[string]string{
 						"key1": "val1",
 						"key2": "val2",
 					},
-					CustomMeta: map[string]interface{}{
+					CustomMeta: map[string]string{
 						"old": "meta",
 						"foo": "bar",
 					},
@@ -688,7 +688,7 @@ func TestKVClientApply(t *testing.T) {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
 						if diff := cmp.Diff(map[string]interface{}{
-							"custom_metadata": map[string]interface{}{
+							"custom_metadata": map[string]string{
 								"foo": "bar",
 								"baz": "qux",
 							},
@@ -701,11 +701,11 @@ func TestKVClientApply(t *testing.T) {
 				version: &kvv2,
 				path:    secretName,
 				in: &KVSecret{
-					Data: map[string]interface{}{
+					Data: map[string]string{
 						"key1": "val1",
 						"key2": "val2",
 					},
-					CustomMeta: map[string]interface{}{
+					CustomMeta: map[string]string{
 						"foo": "bar",
 						"baz": "qux",
 					},
@@ -740,7 +740,7 @@ func TestKVClientApply(t *testing.T) {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
 						if diff := cmp.Diff(map[string]interface{}{
-							"custom_metadata": map[string]interface{}{
+							"custom_metadata": map[string]string{
 								"foo": "bar",
 								"baz": "qux",
 							},
@@ -753,11 +753,11 @@ func TestKVClientApply(t *testing.T) {
 				version: &kvv2,
 				path:    secretName,
 				in: &KVSecret{
-					Data: map[string]interface{}{
+					Data: map[string]string{
 						"key1": "val1",
 						"key2": "val2",
 					},
-					CustomMeta: map[string]interface{}{
+					CustomMeta: map[string]string{
 						"foo": "bar",
 						"baz": "qux",
 					},
