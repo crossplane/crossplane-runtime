@@ -29,7 +29,7 @@ import (
 
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store"
-	kvclient "github.com/crossplane/crossplane-runtime/pkg/connection/store/vault/client"
+	"github.com/crossplane/crossplane-runtime/pkg/connection/store/vault/kv"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
@@ -50,8 +50,8 @@ const (
 
 // KVClient is a Vault AdditiveKVClient Secrets engine client that supports both v1 and v2.
 type KVClient interface {
-	Get(path string, secret *kvclient.KVSecret) error
-	Apply(path string, secret *kvclient.KVSecret, ao ...kvclient.ApplyOption) error
+	Get(path string, secret *kv.Secret) error
+	Apply(path string, secret *kv.Secret, ao ...kv.ApplyOption) error
 	Delete(path string) error
 }
 
@@ -63,7 +63,7 @@ type SecretStore struct {
 }
 
 // NewSecretStore returns a new Vault SecretStore.
-func NewSecretStore(ctx context.Context, kube client.Client, cfg v1.SecretStoreConfig) (*SecretStore, error) {
+func NewSecretStore(ctx context.Context, kube client.Client, cfg v1.SecretStoreConfig) (*SecretStore, error) { // nolint: gocyclo
 	if cfg.Vault == nil {
 		return nil, errors.New(errNoConfig)
 	}
@@ -101,16 +101,24 @@ func NewSecretStore(ctx context.Context, kube client.Client, cfg v1.SecretStoreC
 		return nil, errors.Errorf("%q is not supported as an auth method", cfg.Vault.Auth.Method)
 	}
 
+	var kvClient KVClient
+	switch *cfg.Vault.Version {
+	case v1.VaultKVVersionV1:
+		kvClient = kv.NewV1Client(c.Logical(), cfg.Vault.MountPath)
+	case v1.VaultKVVersionV2:
+		kvClient = kv.NewV2Client(c.Logical(), cfg.Vault.MountPath)
+	}
+
 	return &SecretStore{
-		client:            kvclient.NewAdditiveClient(c.Logical(), cfg.Vault.MountPath, kvclient.WithVersion(cfg.Vault.Version)),
+		client:            kvClient,
 		defaultParentPath: cfg.DefaultScope,
 	}, nil
 }
 
 // ReadKeyValues reads and returns key value pairs for a given Vault Secret.
 func (ss *SecretStore) ReadKeyValues(_ context.Context, n store.ScopedName, s *store.Secret) error {
-	kvs := &kvclient.KVSecret{}
-	if err := ss.client.Get(ss.path(n), kvs); resource.Ignore(kvclient.IsNotFound, err) != nil {
+	kvs := &kv.Secret{}
+	if err := ss.client.Get(ss.path(n), kvs); resource.Ignore(kv.IsNotFound, err) != nil {
 		return errors.Wrap(err, errGet)
 	}
 
@@ -127,11 +135,11 @@ func (ss *SecretStore) ReadKeyValues(_ context.Context, n store.ScopedName, s *s
 // WriteKeyValues writes key value pairs to a given Vault Secret.
 func (ss *SecretStore) WriteKeyValues(_ context.Context, s *store.Secret, wo ...store.WriteOption) (changed bool, err error) {
 	ao := applyOptions(wo...)
-	ao = append(ao, kvclient.AllowUpdateIf(func(current, desired *kvclient.KVSecret) bool {
-		return !cmp.Equal(current, desired, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(kvclient.KVSecret{}))
+	ao = append(ao, kv.AllowUpdateIf(func(current, desired *kv.Secret) bool {
+		return !cmp.Equal(current, desired, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(kv.Secret{}))
 	}))
 
-	err = ss.client.Apply(ss.path(s.ScopedName), kvclient.NewKVSecret(dataFromKeyValues(s.Data), s.GetLabels()), ao...)
+	err = ss.client.Apply(ss.path(s.ScopedName), kv.NewSecret(dataFromKeyValues(s.Data), s.GetLabels()), ao...)
 	if resource.IsNotAllowed(err) {
 		// The update was not allowed because it was a no-op.
 		return false, nil
@@ -147,9 +155,9 @@ func (ss *SecretStore) WriteKeyValues(_ context.Context, s *store.Secret, wo ...
 // If kv specified, those would be deleted and secret instance will be deleted
 // only if there is no Data left.
 func (ss *SecretStore) DeleteKeyValues(_ context.Context, s *store.Secret, do ...store.DeleteOption) error {
-	kvSecret := &kvclient.KVSecret{}
-	err := ss.client.Get(ss.path(s.ScopedName), kvSecret)
-	if kvclient.IsNotFound(err) {
+	Secret := &kv.Secret{}
+	err := ss.client.Get(ss.path(s.ScopedName), Secret)
+	if kv.IsNotFound(err) {
 		// Secret already deleted, nothing to do.
 		return nil
 	}
@@ -164,16 +172,16 @@ func (ss *SecretStore) DeleteKeyValues(_ context.Context, s *store.Secret, do ..
 	}
 
 	for k := range s.Data {
-		delete(kvSecret.Data, k)
+		delete(Secret.Data, k)
 	}
-	if len(s.Data) == 0 || len(kvSecret.Data) == 0 {
+	if len(s.Data) == 0 || len(Secret.Data) == 0 {
 		// Secret is deleted only if:
 		// - No kv to delete specified as input
 		// - No data left in the secret
 		return errors.Wrap(ss.client.Delete(ss.path(s.ScopedName)), errDelete)
 	}
 	// If there are still keys left, update the secret with the remaining.
-	return errors.Wrap(ss.client.Apply(ss.path(s.ScopedName), kvSecret), errApply)
+	return errors.Wrap(ss.client.Apply(ss.path(s.ScopedName), Secret), errApply)
 }
 
 func (ss *SecretStore) path(s store.ScopedName) string {
@@ -183,11 +191,11 @@ func (ss *SecretStore) path(s store.ScopedName) string {
 	return filepath.Join(ss.defaultParentPath, s.Name)
 }
 
-func applyOptions(wo ...store.WriteOption) []kvclient.ApplyOption {
-	ao := make([]kvclient.ApplyOption, len(wo))
+func applyOptions(wo ...store.WriteOption) []kv.ApplyOption {
+	ao := make([]kv.ApplyOption, len(wo))
 	for i := range wo {
 		o := wo[i]
-		ao[i] = func(current, desired *kvclient.KVSecret) error {
+		ao[i] = func(current, desired *kv.Secret) error {
 			cs := &store.Secret{
 				Metadata: &v1.ConnectionSecretMetadata{
 					Labels: current.CustomMeta,
