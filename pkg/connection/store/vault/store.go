@@ -64,6 +64,9 @@ type SecretStore struct {
 
 // NewSecretStore returns a new Vault SecretStore.
 func NewSecretStore(ctx context.Context, kube client.Client, cfg v1.SecretStoreConfig) (*SecretStore, error) { // nolint: gocyclo
+	// NOTE(turkenh): Adding linter exception for gocyclo since this function
+	// went a little over the limit due to the switch statements not because of
+	// some complex logic.
 	if cfg.Vault == nil {
 		return nil, errors.New(errNoConfig)
 	}

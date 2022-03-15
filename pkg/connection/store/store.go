@@ -56,7 +56,7 @@ func NewSecret(so SecretOwner, data KeyValues) *Secret {
 	if p.Metadata == nil {
 		p.Metadata = &v1.ConnectionSecretMetadata{}
 	}
-	p.Metadata.SetOwnerUID(string(so.GetUID()))
+	p.Metadata.SetOwnerUID(so.GetUID())
 	return &Secret{
 		ScopedName: ScopedName{
 			Name:  p.Name,

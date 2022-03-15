@@ -18,6 +18,7 @@ package v1
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 const (
@@ -67,11 +68,11 @@ type ConnectionSecretMetadata struct {
 }
 
 // SetOwnerUID sets owner object uid label.
-func (in *ConnectionSecretMetadata) SetOwnerUID(uid string) {
+func (in *ConnectionSecretMetadata) SetOwnerUID(uid types.UID) {
 	if in.Labels == nil {
 		in.Labels = map[string]string{}
 	}
-	in.Labels[LabelKeyOwnerUID] = uid
+	in.Labels[LabelKeyOwnerUID] = string(uid)
 }
 
 // GetOwnerUID gets owner object uid.
