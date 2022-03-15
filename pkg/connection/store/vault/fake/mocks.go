@@ -17,23 +17,23 @@
 package fake
 
 import (
-	"github.com/crossplane/crossplane-runtime/pkg/connection/store/vault/client"
+	"github.com/crossplane/crossplane-runtime/pkg/connection/store/vault/kv"
 )
 
 // KVClient is a fake KVClient.
 type KVClient struct {
-	GetFn    func(path string, secret *client.KVSecret) error
-	ApplyFn  func(path string, secret *client.KVSecret, ao ...client.ApplyOption) error
+	GetFn    func(path string, secret *kv.Secret) error
+	ApplyFn  func(path string, secret *kv.Secret, ao ...kv.ApplyOption) error
 	DeleteFn func(path string) error
 }
 
 // Get fetches a secret at a given path.
-func (k *KVClient) Get(path string, secret *client.KVSecret) error {
+func (k *KVClient) Get(path string, secret *kv.Secret) error {
 	return k.GetFn(path, secret)
 }
 
 // Apply creates or updates a secret at a given path.
-func (k *KVClient) Apply(path string, secret *client.KVSecret, ao ...client.ApplyOption) error {
+func (k *KVClient) Apply(path string, secret *kv.Secret, ao ...kv.ApplyOption) error {
 	return k.ApplyFn(path, secret, ao...)
 }
 

@@ -29,7 +29,7 @@ import (
 
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store"
-	kvclient "github.com/crossplane/crossplane-runtime/pkg/connection/store/vault/client"
+	"github.com/crossplane/crossplane-runtime/pkg/connection/store/vault/kv"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
@@ -50,8 +50,8 @@ const (
 
 // KVClient is a Vault AdditiveKVClient Secrets engine client that supports both v1 and v2.
 type KVClient interface {
-	Get(path string, secret *kvclient.KVSecret) error
-	Apply(path string, secret *kvclient.KVSecret, ao ...kvclient.ApplyOption) error
+	Get(path string, secret *kv.Secret) error
+	Apply(path string, secret *kv.Secret, ao ...kv.ApplyOption) error
 	Delete(path string) error
 }
 
@@ -63,7 +63,10 @@ type SecretStore struct {
 }
 
 // NewSecretStore returns a new Vault SecretStore.
-func NewSecretStore(ctx context.Context, kube client.Client, cfg v1.SecretStoreConfig) (*SecretStore, error) {
+func NewSecretStore(ctx context.Context, kube client.Client, cfg v1.SecretStoreConfig) (*SecretStore, error) { // nolint: gocyclo
+	// NOTE(turkenh): Adding linter exception for gocyclo since this function
+	// went a little over the limit due to the switch statements not because of
+	// some complex logic.
 	if cfg.Vault == nil {
 		return nil, errors.New(errNoConfig)
 	}
@@ -101,33 +104,32 @@ func NewSecretStore(ctx context.Context, kube client.Client, cfg v1.SecretStoreC
 		return nil, errors.Errorf("%q is not supported as an auth method", cfg.Vault.Auth.Method)
 	}
 
+	var kvClient KVClient
+	switch *cfg.Vault.Version {
+	case v1.VaultKVVersionV1:
+		kvClient = kv.NewV1Client(c.Logical(), cfg.Vault.MountPath)
+	case v1.VaultKVVersionV2:
+		kvClient = kv.NewV2Client(c.Logical(), cfg.Vault.MountPath)
+	}
+
 	return &SecretStore{
-		client:            kvclient.NewAdditiveClient(c.Logical(), cfg.Vault.MountPath, kvclient.WithVersion(cfg.Vault.Version)),
+		client:            kvClient,
 		defaultParentPath: cfg.DefaultScope,
 	}, nil
 }
 
 // ReadKeyValues reads and returns key value pairs for a given Vault Secret.
 func (ss *SecretStore) ReadKeyValues(_ context.Context, n store.ScopedName, s *store.Secret) error {
-	kvs := &kvclient.KVSecret{}
-	if err := ss.client.Get(ss.path(n), kvs); resource.Ignore(kvclient.IsNotFound, err) != nil {
+	kvs := &kv.Secret{}
+	if err := ss.client.Get(ss.path(n), kvs); resource.Ignore(kv.IsNotFound, err) != nil {
 		return errors.Wrap(err, errGet)
 	}
 
-	kv := make(store.KeyValues, len(kvs.Data))
-	for k, v := range kvs.Data {
-		kv[k] = []byte(v.(string))
-	}
 	s.ScopedName = n
-	s.Data = kv
+	s.Data = keyValuesFromData(kvs.Data)
 	if len(kvs.CustomMeta) > 0 {
 		s.Metadata = &v1.ConnectionSecretMetadata{
-			Labels: make(map[string]string, len(kvs.CustomMeta)),
-		}
-	}
-	for k, v := range kvs.CustomMeta {
-		if val, ok := v.(string); ok {
-			s.Metadata.Labels[k] = val
+			Labels: kvs.CustomMeta,
 		}
 	}
 	return nil
@@ -135,26 +137,12 @@ func (ss *SecretStore) ReadKeyValues(_ context.Context, n store.ScopedName, s *s
 
 // WriteKeyValues writes key value pairs to a given Vault Secret.
 func (ss *SecretStore) WriteKeyValues(_ context.Context, s *store.Secret, wo ...store.WriteOption) (changed bool, err error) {
-	data := make(map[string]interface{}, len(s.Data))
-	for k, v := range s.Data {
-		data[k] = string(v)
-	}
-
-	kvSecret := &kvclient.KVSecret{}
-	kvSecret.Data = data
-	if s.Metadata != nil && len(s.Metadata.Labels) > 0 {
-		kvSecret.CustomMeta = make(map[string]interface{}, len(s.Metadata.Labels))
-		for k, v := range s.Metadata.Labels {
-			kvSecret.CustomMeta[k] = v
-		}
-	}
-
 	ao := applyOptions(wo...)
-	ao = append(ao, kvclient.AllowUpdateIf(func(current, desired *kvclient.KVSecret) bool {
-		return !cmp.Equal(current, desired, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(kvclient.KVSecret{}))
+	ao = append(ao, kv.AllowUpdateIf(func(current, desired *kv.Secret) bool {
+		return !cmp.Equal(current, desired, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(kv.Secret{}))
 	}))
 
-	err = ss.client.Apply(ss.path(s.ScopedName), kvSecret, ao...)
+	err = ss.client.Apply(ss.path(s.ScopedName), kv.NewSecret(dataFromKeyValues(s.Data), s.GetLabels()), ao...)
 	if resource.IsNotAllowed(err) {
 		// The update was not allowed because it was a no-op.
 		return false, nil
@@ -170,9 +158,9 @@ func (ss *SecretStore) WriteKeyValues(_ context.Context, s *store.Secret, wo ...
 // If kv specified, those would be deleted and secret instance will be deleted
 // only if there is no Data left.
 func (ss *SecretStore) DeleteKeyValues(_ context.Context, s *store.Secret, do ...store.DeleteOption) error {
-	kvSecret := &kvclient.KVSecret{}
-	err := ss.client.Get(ss.path(s.ScopedName), kvSecret)
-	if kvclient.IsNotFound(err) {
+	Secret := &kv.Secret{}
+	err := ss.client.Get(ss.path(s.ScopedName), Secret)
+	if kv.IsNotFound(err) {
 		// Secret already deleted, nothing to do.
 		return nil
 	}
@@ -187,16 +175,16 @@ func (ss *SecretStore) DeleteKeyValues(_ context.Context, s *store.Secret, do ..
 	}
 
 	for k := range s.Data {
-		delete(kvSecret.Data, k)
+		delete(Secret.Data, k)
 	}
-	if len(s.Data) == 0 || len(kvSecret.Data) == 0 {
+	if len(s.Data) == 0 || len(Secret.Data) == 0 {
 		// Secret is deleted only if:
 		// - No kv to delete specified as input
 		// - No data left in the secret
 		return errors.Wrap(ss.client.Delete(ss.path(s.ScopedName)), errDelete)
 	}
 	// If there are still keys left, update the secret with the remaining.
-	return errors.Wrap(ss.client.Apply(ss.path(s.ScopedName), kvSecret), errApply)
+	return errors.Wrap(ss.client.Apply(ss.path(s.ScopedName), Secret), errApply)
 }
 
 func (ss *SecretStore) path(s store.ScopedName) string {
@@ -206,27 +194,27 @@ func (ss *SecretStore) path(s store.ScopedName) string {
 	return filepath.Join(ss.defaultParentPath, s.Name)
 }
 
-func applyOptions(wo ...store.WriteOption) []kvclient.ApplyOption {
-	ao := make([]kvclient.ApplyOption, len(wo))
+func applyOptions(wo ...store.WriteOption) []kv.ApplyOption {
+	ao := make([]kv.ApplyOption, len(wo))
 	for i := range wo {
 		o := wo[i]
-		ao[i] = func(current, desired *kvclient.KVSecret) error {
+		ao[i] = func(current, desired *kv.Secret) error {
 			cs := &store.Secret{
 				Metadata: &v1.ConnectionSecretMetadata{
-					Labels: labelsFromCustomMetadata(current.CustomMeta),
+					Labels: current.CustomMeta,
 				},
 				Data: keyValuesFromData(current.Data),
 			}
 			ds := &store.Secret{
 				Metadata: &v1.ConnectionSecretMetadata{
-					Labels: labelsFromCustomMetadata(desired.CustomMeta),
+					Labels: desired.CustomMeta,
 				},
 				Data: keyValuesFromData(desired.Data),
 			}
 			if err := o(context.Background(), cs, ds); err != nil {
 				return err
 			}
-			desired.CustomMeta = customMetaFromLabels(ds.Metadata.Labels)
+			desired.CustomMeta = ds.GetLabels()
 			desired.Data = dataFromKeyValues(ds.Data)
 			return nil
 		}
@@ -234,50 +222,26 @@ func applyOptions(wo ...store.WriteOption) []kvclient.ApplyOption {
 	return ao
 }
 
-func labelsFromCustomMetadata(meta map[string]interface{}) map[string]string {
-	if len(meta) == 0 {
-		return nil
-	}
-	l := make(map[string]string, len(meta))
-	for k := range meta {
-		if val, ok := meta[k].(string); ok {
-			l[k] = val
-		}
-	}
-	return l
-}
-
-func keyValuesFromData(data map[string]interface{}) store.KeyValues {
+func keyValuesFromData(data map[string]string) store.KeyValues {
 	if len(data) == 0 {
 		return nil
 	}
 	kv := make(store.KeyValues, len(data))
-	for k := range data {
-		if val, ok := data[k].(string); ok {
-			kv[k] = []byte(val)
-		}
+	for k, v := range data {
+		kv[k] = []byte(v)
 	}
 	return kv
 }
 
-func customMetaFromLabels(labels map[string]string) map[string]interface{} {
-	if len(labels) == 0 {
-		return nil
-	}
-	meta := make(map[string]interface{}, len(labels))
-	for k, v := range labels {
-		meta[k] = v
-	}
-	return meta
-}
-
-func dataFromKeyValues(kv store.KeyValues) map[string]interface{} {
+func dataFromKeyValues(kv store.KeyValues) map[string]string {
 	if len(kv) == 0 {
 		return nil
 	}
-	data := make(map[string]interface{}, len(kv))
+	data := make(map[string]string, len(kv))
 	for k, v := range kv {
-		data[k] = v
+		// NOTE(turkenh): vault stores values as strings. So we convert []byte
+		// to string before writing to Vault.
+		data[k] = string(v)
 	}
 	return data
 }

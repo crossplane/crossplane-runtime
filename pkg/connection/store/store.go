@@ -20,7 +20,15 @@ import (
 	"context"
 
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
+
+// SecretOwner owns a Secret.
+type SecretOwner interface {
+	resource.Object
+
+	resource.ConnectionDetailsPublisherTo
+}
 
 // KeyValues is a map with sensitive values.
 type KeyValues map[string][]byte
@@ -36,6 +44,43 @@ type Secret struct {
 	ScopedName
 	Metadata *v1.ConnectionSecretMetadata
 	Data     KeyValues
+}
+
+// NewSecret returns a new Secret owned by supplied SecretOwner and with
+// supplied data.
+func NewSecret(so SecretOwner, data KeyValues) *Secret {
+	if so.GetPublishConnectionDetailsTo() == nil {
+		return nil
+	}
+	p := so.GetPublishConnectionDetailsTo()
+	if p.Metadata == nil {
+		p.Metadata = &v1.ConnectionSecretMetadata{}
+	}
+	p.Metadata.SetOwnerUID(so.GetUID())
+	return &Secret{
+		ScopedName: ScopedName{
+			Name:  p.Name,
+			Scope: so.GetNamespace(),
+		},
+		Metadata: p.Metadata,
+		Data:     data,
+	}
+}
+
+// GetOwner returns the UID of the owner of secret.
+func (s *Secret) GetOwner() string {
+	if s.Metadata == nil {
+		return ""
+	}
+	return s.Metadata.GetOwnerUID()
+}
+
+// GetLabels returns the labels of the secret.
+func (s *Secret) GetLabels() map[string]string {
+	if s.Metadata == nil {
+		return nil
+	}
+	return s.Metadata.Labels
 }
 
 // A WriteOption is called before writing the desired secret over the

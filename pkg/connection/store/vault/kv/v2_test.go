@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-package client
+package kv
 
 import (
 	"encoding/json"
@@ -25,9 +25,9 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/vault/api"
 
-	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/connection/store/vault/client/fake"
+	"github.com/crossplane/crossplane-runtime/pkg/connection/store/vault/kv/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
@@ -39,20 +39,16 @@ const (
 
 var (
 	errBoom = errors.New("boom")
-
-	kvv1 = v1.VaultKVVersionV1
-	kvv2 = v1.VaultKVVersionV2
 )
 
-func TestKVClientGet(t *testing.T) {
+func TestV2ClientGet(t *testing.T) {
 	type args struct {
-		client  LogicalClient
-		version *v1.VaultKVVersion
-		path    string
+		client LogicalClient
+		path   string
 	}
 	type want struct {
 		err error
-		out *KVSecret
+		out *Secret
 	}
 	cases := map[string]struct {
 		reason string
@@ -67,12 +63,11 @@ func TestKVClientGet(t *testing.T) {
 						return nil, errBoom
 					},
 				},
-				version: &kvv1,
-				path:    secretName,
+				path: secretName,
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errRead),
-				out: &KVSecret{},
+				out: NewSecret(nil, nil),
 			},
 		},
 		"SecretNotFound": {
@@ -85,47 +80,75 @@ func TestKVClientGet(t *testing.T) {
 						return nil, nil
 					},
 				},
-				version: &kvv1,
-				path:    secretName,
+				path: secretName,
 			},
 			want: want{
 				err: errors.New(ErrNotFound),
-				out: &KVSecret{},
+				out: NewSecret(nil, nil),
 			},
 		},
-		"SuccessfulGetFromV1": {
-			reason: "Should successfully return secret from v1 KV engine.",
+		"SuccessfulGetNoData": {
+			reason: "Should successfully return secret from v2 KV engine even it only contains metadata.",
 			args: args{
 				client: &fake.LogicalClient{
 					ReadFn: func(path string) (*api.Secret, error) {
-						if diff := cmp.Diff(filepath.Join(mountPath, secretName), path); diff != "" {
+						if diff := cmp.Diff(filepath.Join(mountPath, "data", secretName), path); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
 						return &api.Secret{
+							// Using sample response here:
+							// https://www.vaultproject.io/api/secret/kv/kv-v2#sample-response-1
 							Data: map[string]interface{}{
-								"foo":                               "bar",
-								metadataPrefix + "owner":            "jdoe",
-								metadataPrefix + "mission_critical": "false",
+								"metadata": map[string]interface{}{
+									"created_time": "2018-03-22T02:24:06.945319214Z",
+									"custom_metadata": map[string]interface{}{
+										"owner":            "jdoe",
+										"mission_critical": "false",
+									},
+									"deletion_time": "",
+									"destroyed":     false,
+								},
 							},
 						}, nil
 					},
 				},
-				version: &kvv1,
-				path:    secretName,
+				path: secretName,
 			},
 			want: want{
-				out: &KVSecret{
-					Data: map[string]interface{}{
-						"foo": "bar",
-					},
-					CustomMeta: map[string]interface{}{
-						"owner":            "jdoe",
-						"mission_critical": "false",
-					},
-				},
+				out: NewSecret(nil, map[string]string{
+					"owner":            "jdoe",
+					"mission_critical": "false",
+				}),
 			},
 		},
-		"SuccessfulGetFromV2": {
+		"SuccessfulGetNoMetadata": {
+			reason: "Should successfully return secret from v2 KV engine even it only contains data.",
+			args: args{
+				client: &fake.LogicalClient{
+					ReadFn: func(path string) (*api.Secret, error) {
+						if diff := cmp.Diff(filepath.Join(mountPath, "data", secretName), path); diff != "" {
+							t.Errorf("r: -want, +got:\n%s", diff)
+						}
+						return &api.Secret{
+							// Using sample response here:
+							// https://www.vaultproject.io/api/secret/kv/kv-v2#sample-response-1
+							Data: map[string]interface{}{
+								"data": map[string]interface{}{
+									"foo": "bar",
+								},
+							},
+						}, nil
+					},
+				},
+				path: secretName,
+			},
+			want: want{
+				out: NewSecret(map[string]string{
+					"foo": "bar",
+				}, nil),
+			},
+		},
+		"SuccessfulGet": {
 			reason: "Should successfully return secret from v2 KV engine.",
 			args: args{
 				client: &fake.LogicalClient{
@@ -154,45 +177,42 @@ func TestKVClientGet(t *testing.T) {
 						}, nil
 					},
 				},
-				version: &kvv2,
-				path:    secretName,
+				path: secretName,
 			},
 			want: want{
-				out: &KVSecret{
-					Data: map[string]interface{}{
-						"foo": "bar",
-					},
-					CustomMeta: map[string]interface{}{
-						"owner":            "jdoe",
-						"mission_critical": "false",
-					},
-				},
+				out: NewSecret(map[string]string{
+					"foo": "bar",
+				}, map[string]string{
+					"owner":            "jdoe",
+					"mission_critical": "false",
+				}),
 			},
 		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			k := NewAdditiveClient(tc.args.client, mountPath, WithVersion(tc.args.version))
+			k := NewV2Client(tc.args.client, mountPath)
 
-			s := KVSecret{}
+			s := Secret{}
 			err := k.Get(tc.args.path, &s)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nkvClient.Get(...): -want error, +got error:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nv2Client.Get(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
-			if diff := cmp.Diff(tc.want.out, &s, cmpopts.IgnoreUnexported(KVSecret{})); diff != "" {
-				t.Errorf("\n%s\nkvClient.Get(...): -want, +got:\n%s", tc.reason, diff)
+			if diff := cmp.Diff(tc.want.out, &s, cmpopts.IgnoreUnexported(Secret{})); diff != "" {
+				t.Errorf("\n%s\nv2Client.Get(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
 }
 
-func TestKVClientApply(t *testing.T) {
+func TestV2ClientApply(t *testing.T) {
 	type args struct {
-		client  LogicalClient
-		version *v1.VaultKVVersion
-		in      *KVSecret
-		path    string
+		client LogicalClient
+		in     *Secret
+		path   string
+
+		ao []ApplyOption
 	}
 	type want struct {
 		err error
@@ -210,50 +230,20 @@ func TestKVClientApply(t *testing.T) {
 						return nil, errBoom
 					},
 				},
-				version: &kvv1,
-				path:    secretName,
+				path: secretName,
 			},
 			want: want{
 				err: errors.Wrap(errors.Wrap(errBoom, errRead), errGet),
 			},
 		},
-		"ErrorWhileWritingV1Data": {
+		"ErrorWhileWritingData": {
 			reason: "Should return a proper error if writing secret failed.",
 			args: args{
 				client: &fake.LogicalClient{
 					ReadFn: func(path string) (*api.Secret, error) {
 						return &api.Secret{
 							Data: map[string]interface{}{
-								"key1": "val1",
-								"key2": "val2",
-							},
-						}, nil
-					},
-					WriteFn: func(path string, data map[string]interface{}) (*api.Secret, error) {
-						return nil, errBoom
-					},
-				},
-				version: &kvv1,
-				path:    secretName,
-				in: &KVSecret{
-					Data: map[string]interface{}{
-						"key1": "val1updated",
-						"key3": "val3",
-					},
-				},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errWriteData),
-			},
-		},
-		"ErrorWhileWritingV2Data": {
-			reason: "Should return a proper error if writing secret failed.",
-			args: args{
-				client: &fake.LogicalClient{
-					ReadFn: func(path string) (*api.Secret, error) {
-						return &api.Secret{
-							Data: map[string]interface{}{
-								"data": map[string]interface{}{
+								"data": map[string]string{
 									"key1": "val1",
 									"key2": "val2",
 								},
@@ -271,31 +261,27 @@ func TestKVClientApply(t *testing.T) {
 						return nil, errBoom
 					},
 				},
-				version: &kvv2,
-				path:    secretName,
-				in: &KVSecret{
-					Data: map[string]interface{}{
-						"key1": "val1updated",
-						"key3": "val3",
-					},
-					CustomMeta: map[string]interface{}{
-						"foo": "bar",
-						"baz": "qux",
-					},
-				},
+				path: secretName,
+				in: NewSecret(map[string]string{
+					"key1": "val1updated",
+					"key3": "val3",
+				}, map[string]string{
+					"foo": "bar",
+					"baz": "qux",
+				}),
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errWriteData),
 			},
 		},
-		"ErrorWhileWritingV2Metadata": {
+		"ErrorWhileWritingMetadata": {
 			reason: "Should return a proper error if writing secret metadata failed.",
 			args: args{
 				client: &fake.LogicalClient{
 					ReadFn: func(path string) (*api.Secret, error) {
 						return &api.Secret{
 							Data: map[string]interface{}{
-								"data": map[string]interface{}{
+								"data": map[string]string{
 									"key1": "val1",
 									"key2": "val2",
 								},
@@ -312,56 +298,19 @@ func TestKVClientApply(t *testing.T) {
 						return nil, errBoom
 					},
 				},
-				version: &kvv2,
-				path:    secretName,
-				in: &KVSecret{
-					Data: map[string]interface{}{
-						"key1": "val1",
-						"key2": "val2",
-					},
-					CustomMeta: map[string]interface{}{
-						"foo": "baz",
-					},
-				},
+				path: secretName,
+				in: NewSecret(map[string]string{
+					"key1": "val1",
+					"key2": "val2",
+				}, map[string]string{
+					"foo": "baz",
+				}),
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errWriteMetadata),
 			},
 		},
-		"AlreadyUpToDateV1": {
-			reason: "Should not perform a write if a v1 secret is already up to date.",
-			args: args{
-				client: &fake.LogicalClient{
-					ReadFn: func(path string) (*api.Secret, error) {
-						return &api.Secret{
-							Data: map[string]interface{}{
-								"foo":                               "bar",
-								metadataPrefix + "owner":            "jdoe",
-								metadataPrefix + "mission_critical": "false",
-							},
-						}, nil
-					},
-					WriteFn: func(path string, data map[string]interface{}) (*api.Secret, error) {
-						return nil, errors.New("no write operation expected")
-					},
-				},
-				version: &kvv1,
-				path:    secretName,
-				in: &KVSecret{
-					Data: map[string]interface{}{
-						"foo": "bar",
-					},
-					CustomMeta: map[string]interface{}{
-						"owner":            "jdoe",
-						"mission_critical": "false",
-					},
-				},
-			},
-			want: want{
-				err: nil,
-			},
-		},
-		"AlreadyUpToDateV2": {
+		"AlreadyUpToDate": {
 			reason: "Should not perform a write if a v2 secret is already up to date.",
 			args: args{
 				client: &fake.LogicalClient{
@@ -390,58 +339,19 @@ func TestKVClientApply(t *testing.T) {
 						return nil, errors.New("no write operation expected")
 					},
 				},
-				version: &kvv2,
-				path:    secretName,
-				in: &KVSecret{
-					CustomMeta: map[string]interface{}{
-						"owner":            "jdoe",
-						"mission_critical": "false",
-					},
-					Data: map[string]interface{}{
-						"foo": "bar",
-					},
-				},
+				path: secretName,
+				in: NewSecret(map[string]string{
+					"foo": "bar",
+				}, map[string]string{
+					"owner":            "jdoe",
+					"mission_critical": "false",
+				}),
 			},
 			want: want{
 				err: nil,
 			},
 		},
-		"SuccessfulCreateV1": {
-			reason: "Should successfully create with new data if secret does not exists.",
-			args: args{
-				client: &fake.LogicalClient{
-					ReadFn: func(path string) (*api.Secret, error) {
-						// Vault logical client returns both error and secret as
-						// nil if secret does not exist.
-						return nil, nil
-					},
-					WriteFn: func(path string, data map[string]interface{}) (*api.Secret, error) {
-						if diff := cmp.Diff(filepath.Join(mountPath, secretName), path); diff != "" {
-							t.Errorf("r: -want, +got:\n%s", diff)
-						}
-						if diff := cmp.Diff(map[string]interface{}{
-							"key1": "val1",
-							"key2": "val2",
-						}, data); diff != "" {
-							t.Errorf("r: -want, +got:\n%s", diff)
-						}
-						return nil, nil
-					},
-				},
-				version: &kvv1,
-				path:    secretName,
-				in: &KVSecret{
-					Data: map[string]interface{}{
-						"key1": "val1",
-						"key2": "val2",
-					},
-				},
-			},
-			want: want{
-				err: nil,
-			},
-		},
-		"SuccessfulCreateV2": {
+		"SuccessfulCreate": {
 			reason: "Should successfully create with new data if secret does not exists.",
 			args: args{
 				client: &fake.LogicalClient{
@@ -455,7 +365,7 @@ func TestKVClientApply(t *testing.T) {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
 						if diff := cmp.Diff(map[string]interface{}{
-							"data": map[string]interface{}{
+							"data": map[string]string{
 								"key1": "val1",
 								"key2": "val2",
 							},
@@ -468,59 +378,75 @@ func TestKVClientApply(t *testing.T) {
 						return nil, nil
 					},
 				},
-				version: &kvv2,
-				path:    secretName,
-				in: &KVSecret{
-					Data: map[string]interface{}{
-						"key1": "val1",
-						"key2": "val2",
-					},
-				},
+				path: secretName,
+				in: NewSecret(map[string]string{
+					"key1": "val1",
+					"key2": "val2",
+				}, nil),
 			},
 			want: want{
 				err: nil,
 			},
 		},
-		"SuccessfulUpdateV1": {
-			reason: "Should successfully update by appending new data to existing ones.",
+		"UpdateNotAllowed": {
+			reason: "Should return not allowed error if update is not allowed.",
 			args: args{
 				client: &fake.LogicalClient{
 					ReadFn: func(path string) (*api.Secret, error) {
 						return &api.Secret{
 							Data: map[string]interface{}{
-								"key1": "val1",
-								"key2": "val2",
+								"data": map[string]interface{}{
+									"key1": "val1",
+									"key2": "val2",
+								},
+								"metadata": map[string]interface{}{
+									"custom_metadata": map[string]interface{}{
+										"foo": "bar",
+										"baz": "qux",
+									},
+									"version": json.Number("2"),
+								},
 							},
 						}, nil
 					},
 					WriteFn: func(path string, data map[string]interface{}) (*api.Secret, error) {
-						if diff := cmp.Diff(filepath.Join(mountPath, secretName), path); diff != "" {
+						if diff := cmp.Diff(filepath.Join(mountPath, "data", secretName), path); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
 						if diff := cmp.Diff(map[string]interface{}{
-							"key1": "val1updated",
-							"key2": "val2",
-							"key3": "val3",
+							"data": map[string]string{
+								"key1": "val1updated",
+								"key2": "val2",
+								"key3": "val3",
+							},
+							"options": map[string]interface{}{
+								"cas": json.Number("2"),
+							},
 						}, data); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
 						return nil, nil
 					},
 				},
-				version: &kvv1,
-				path:    secretName,
-				in: &KVSecret{
-					Data: map[string]interface{}{
-						"key1": "val1updated",
-						"key3": "val3",
-					},
+				path: secretName,
+				in: NewSecret(map[string]string{
+					"key1": "val1updated",
+					"key3": "val3",
+				}, map[string]string{
+					"foo": "bar",
+					"baz": "qux",
+				}),
+				ao: []ApplyOption{
+					AllowUpdateIf(func(current, desired *Secret) bool {
+						return false
+					}),
 				},
 			},
 			want: want{
-				err: nil,
+				err: resource.NewNotAllowed(errUpdateNotAllowed),
 			},
 		},
-		"SuccessfulUpdateV2Data": {
+		"SuccessfulUpdateData": {
 			reason: "Should successfully update by appending new data to existing ones.",
 			args: args{
 				client: &fake.LogicalClient{
@@ -546,7 +472,7 @@ func TestKVClientApply(t *testing.T) {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
 						if diff := cmp.Diff(map[string]interface{}{
-							"data": map[string]interface{}{
+							"data": map[string]string{
 								"key1": "val1updated",
 								"key2": "val2",
 								"key3": "val3",
@@ -560,113 +486,25 @@ func TestKVClientApply(t *testing.T) {
 						return nil, nil
 					},
 				},
-				version: &kvv2,
-				path:    secretName,
-				in: &KVSecret{
-					Data: map[string]interface{}{
-						"key1": "val1updated",
-						"key3": "val3",
-					},
-					CustomMeta: map[string]interface{}{
-						"foo": "bar",
-						"baz": "qux",
-					},
+				path: secretName,
+				in: NewSecret(map[string]string{
+					"key1": "val1updated",
+					"key3": "val3",
+				}, map[string]string{
+					"foo": "bar",
+					"baz": "qux",
+				}),
+				ao: []ApplyOption{
+					AllowUpdateIf(func(current, desired *Secret) bool {
+						return true
+					}),
 				},
 			},
 			want: want{
 				err: nil,
 			},
 		},
-		"SuccessfulAddV1Metadata": {
-			reason: "Should successfully add new metadata.",
-			args: args{
-				client: &fake.LogicalClient{
-					ReadFn: func(path string) (*api.Secret, error) {
-						return &api.Secret{
-							Data: map[string]interface{}{
-								"key1": "val1",
-								"key2": "val2",
-							},
-						}, nil
-					},
-					WriteFn: func(path string, data map[string]interface{}) (*api.Secret, error) {
-						if diff := cmp.Diff(filepath.Join(mountPath, secretName), path); diff != "" {
-							t.Errorf("r: -want, +got:\n%s", diff)
-						}
-						if diff := cmp.Diff(map[string]interface{}{
-							"key1":                 "val1",
-							"key2":                 "val2",
-							metadataPrefix + "foo": "bar",
-							metadataPrefix + "baz": "qux",
-						}, data); diff != "" {
-							t.Errorf("r: -want, +got:\n%s", diff)
-						}
-						return nil, nil
-					},
-				},
-				version: &kvv1,
-				path:    secretName,
-				in: &KVSecret{
-					Data: map[string]interface{}{
-						"key1": "val1",
-						"key2": "val2",
-					},
-					CustomMeta: map[string]interface{}{
-						"foo": "bar",
-						"baz": "qux",
-					},
-				},
-			},
-			want: want{
-				err: nil,
-			},
-		},
-		"SuccessfulUpdateV1Metadata": {
-			reason: "Should successfully update metadata by overriding the existing ones.",
-			args: args{
-				client: &fake.LogicalClient{
-					ReadFn: func(path string) (*api.Secret, error) {
-						return &api.Secret{
-							Data: map[string]interface{}{
-								"key1":                 "val1",
-								"key2":                 "val2",
-								metadataPrefix + "old": "meta",
-							},
-						}, nil
-					},
-					WriteFn: func(path string, data map[string]interface{}) (*api.Secret, error) {
-						if diff := cmp.Diff(filepath.Join(mountPath, secretName), path); diff != "" {
-							t.Errorf("r: -want, +got:\n%s", diff)
-						}
-						if diff := cmp.Diff(map[string]interface{}{
-							"key1":                 "val1",
-							"key2":                 "val2",
-							metadataPrefix + "old": "meta",
-							metadataPrefix + "foo": "bar",
-						}, data); diff != "" {
-							t.Errorf("r: -want, +got:\n%s", diff)
-						}
-						return nil, nil
-					},
-				},
-				version: &kvv1,
-				path:    secretName,
-				in: &KVSecret{
-					Data: map[string]interface{}{
-						"key1": "val1",
-						"key2": "val2",
-					},
-					CustomMeta: map[string]interface{}{
-						"old": "meta",
-						"foo": "bar",
-					},
-				},
-			},
-			want: want{
-				err: nil,
-			},
-		},
-		"SuccessfulAddV2Metadata": {
+		"SuccessfulAddMetadata": {
 			reason: "Should successfully add new metadata.",
 			args: args{
 				client: &fake.LogicalClient{
@@ -688,7 +526,7 @@ func TestKVClientApply(t *testing.T) {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
 						if diff := cmp.Diff(map[string]interface{}{
-							"custom_metadata": map[string]interface{}{
+							"custom_metadata": map[string]string{
 								"foo": "bar",
 								"baz": "qux",
 							},
@@ -698,24 +536,20 @@ func TestKVClientApply(t *testing.T) {
 						return nil, nil
 					},
 				},
-				version: &kvv2,
-				path:    secretName,
-				in: &KVSecret{
-					Data: map[string]interface{}{
-						"key1": "val1",
-						"key2": "val2",
-					},
-					CustomMeta: map[string]interface{}{
-						"foo": "bar",
-						"baz": "qux",
-					},
-				},
+				path: secretName,
+				in: NewSecret(map[string]string{
+					"key1": "val1",
+					"key2": "val2",
+				}, map[string]string{
+					"foo": "bar",
+					"baz": "qux",
+				}),
 			},
 			want: want{
 				err: nil,
 			},
 		},
-		"SuccessfulUpdateV2Metadata": {
+		"SuccessfulUpdateMetadata": {
 			reason: "Should successfully update metadata by overriding the existing ones.",
 			args: args{
 				client: &fake.LogicalClient{
@@ -740,7 +574,7 @@ func TestKVClientApply(t *testing.T) {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
 						if diff := cmp.Diff(map[string]interface{}{
-							"custom_metadata": map[string]interface{}{
+							"custom_metadata": map[string]string{
 								"foo": "bar",
 								"baz": "qux",
 							},
@@ -750,18 +584,14 @@ func TestKVClientApply(t *testing.T) {
 						return nil, nil
 					},
 				},
-				version: &kvv2,
-				path:    secretName,
-				in: &KVSecret{
-					Data: map[string]interface{}{
-						"key1": "val1",
-						"key2": "val2",
-					},
-					CustomMeta: map[string]interface{}{
-						"foo": "bar",
-						"baz": "qux",
-					},
-				},
+				path: secretName,
+				in: NewSecret(map[string]string{
+					"key1": "val1",
+					"key2": "val2",
+				}, map[string]string{
+					"foo": "bar",
+					"baz": "qux",
+				}),
 			},
 			want: want{
 				err: nil,
@@ -770,21 +600,20 @@ func TestKVClientApply(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			k := NewAdditiveClient(tc.args.client, mountPath, WithVersion(tc.args.version))
+			k := NewV2Client(tc.args.client, mountPath)
 
-			err := k.Apply(tc.args.path, tc.args.in)
+			err := k.Apply(tc.args.path, tc.args.in, tc.args.ao...)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nkvClient.Apply(...): -want error, +got error:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nv2Client.Apply(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
 	}
 }
 
-func TestKVClientDelete(t *testing.T) {
+func TestV2ClientDelete(t *testing.T) {
 	type args struct {
-		client  LogicalClient
-		version *v1.VaultKVVersion
-		path    string
+		client LogicalClient
+		path   string
 	}
 	type want struct {
 		err error
@@ -802,8 +631,7 @@ func TestKVClientDelete(t *testing.T) {
 						return nil, errBoom
 					},
 				},
-				version: &kvv1,
-				path:    secretName,
+				path: secretName,
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errDelete),
@@ -819,34 +647,13 @@ func TestKVClientDelete(t *testing.T) {
 						return nil, nil
 					},
 				},
-				version: &kvv1,
-				path:    secretName,
+				path: secretName,
 			},
 			want: want{
 				err: nil,
 			},
 		},
-		"SuccessfulDeleteFromV1": {
-			reason: "Should return no error after successful deletion of a v1 secret.",
-			args: args{
-				client: &fake.LogicalClient{
-					DeleteFn: func(path string) (*api.Secret, error) {
-						if diff := cmp.Diff(filepath.Join(mountPath, secretName), path); diff != "" {
-							t.Errorf("r: -want, +got:\n%s", diff)
-						}
-						return &api.Secret{
-							Data: map[string]interface{}{
-								"foo": "bar",
-							},
-						}, nil
-					},
-				},
-				version: &kvv1,
-				path:    secretName,
-			},
-			want: want{},
-		},
-		"SuccessfulDeleteFromV2": {
+		"SuccessfulDelete": {
 			reason: "Should return no error after successful deletion of a v2 secret.",
 			args: args{
 				client: &fake.LogicalClient{
@@ -857,19 +664,18 @@ func TestKVClientDelete(t *testing.T) {
 						return nil, nil
 					},
 				},
-				version: &kvv2,
-				path:    secretName,
+				path: secretName,
 			},
 			want: want{},
 		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			k := NewAdditiveClient(tc.args.client, mountPath, WithVersion(tc.args.version))
+			k := NewV2Client(tc.args.client, mountPath)
 
 			err := k.Delete(tc.args.path)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nkvClient.Get(...): -want error, +got error:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nv2Client.Get(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
 	}

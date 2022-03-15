@@ -29,8 +29,8 @@ import (
 
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store"
-	kvclient "github.com/crossplane/crossplane-runtime/pkg/connection/store/vault/client"
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store/vault/fake"
+	"github.com/crossplane/crossplane-runtime/pkg/connection/store/vault/kv"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
@@ -64,7 +64,7 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 			reason: "Should return a proper error if secret cannot be obtained",
 			args: args{
 				client: &fake.KVClient{
-					GetFn: func(path string, secret *kvclient.KVSecret) error {
+					GetFn: func(path string, secret *kv.Secret) error {
 						return errBoom
 					},
 				},
@@ -82,11 +82,11 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 			reason: "Should return key values from a secret with default scope",
 			args: args{
 				client: &fake.KVClient{
-					GetFn: func(path string, secret *kvclient.KVSecret) error {
+					GetFn: func(path string, secret *kv.Secret) error {
 						if diff := cmp.Diff(filepath.Join(parentPathDefault, secretName), path); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
-						secret.Data = map[string]interface{}{
+						secret.Data = map[string]string{
 							"key1": "val1",
 							"key2": "val2",
 						}
@@ -115,11 +115,11 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 			reason: "Should return key values from a secret with custom scope",
 			args: args{
 				client: &fake.KVClient{
-					GetFn: func(path string, secret *kvclient.KVSecret) error {
+					GetFn: func(path string, secret *kv.Secret) error {
 						if diff := cmp.Diff(filepath.Join("another-scope", secretName), path); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
-						secret.Data = map[string]interface{}{
+						secret.Data = map[string]string{
 							"key1": "val1",
 							"key2": "val2",
 						}
@@ -150,15 +150,15 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 			reason: "Should return both data and metadata.",
 			args: args{
 				client: &fake.KVClient{
-					GetFn: func(path string, secret *kvclient.KVSecret) error {
+					GetFn: func(path string, secret *kv.Secret) error {
 						if diff := cmp.Diff(filepath.Join(parentPathDefault, secretName), path); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
-						secret.Data = map[string]interface{}{
+						secret.Data = map[string]string{
 							"key1": "val1",
 							"key2": "val2",
 						}
-						secret.CustomMeta = map[string]interface{}{
+						secret.CustomMeta = map[string]string{
 							"foo": "bar",
 						}
 						return nil
@@ -228,7 +228,7 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 			reason: "Should successfully write key values",
 			args: args{
 				client: &fake.KVClient{
-					ApplyFn: func(path string, secret *kvclient.KVSecret, ao ...kvclient.ApplyOption) error {
+					ApplyFn: func(path string, secret *kv.Secret, ao ...kv.ApplyOption) error {
 						return errBoom
 					},
 				},
@@ -252,9 +252,9 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 			reason: "Should return a proper error if supplied write option fails",
 			args: args{
 				client: &fake.KVClient{
-					ApplyFn: func(path string, secret *kvclient.KVSecret, ao ...kvclient.ApplyOption) error {
+					ApplyFn: func(path string, secret *kv.Secret, ao ...kv.ApplyOption) error {
 						for _, o := range ao {
-							if err := o(&kvclient.KVSecret{}, secret); err != nil {
+							if err := o(&kv.Secret{}, secret); err != nil {
 								return err
 							}
 						}
@@ -286,14 +286,14 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 			reason: "Should return a no error if supplied write option succeeds",
 			args: args{
 				client: &fake.KVClient{
-					ApplyFn: func(path string, secret *kvclient.KVSecret, ao ...kvclient.ApplyOption) error {
+					ApplyFn: func(path string, secret *kv.Secret, ao ...kv.ApplyOption) error {
 						for _, o := range ao {
-							if err := o(&kvclient.KVSecret{
-								Data: map[string]interface{}{
+							if err := o(&kv.Secret{
+								Data: map[string]string{
 									"key1": "val1",
 									"key2": "val2",
 								},
-								CustomMeta: map[string]interface{}{
+								CustomMeta: map[string]string{
 									"foo": "bar",
 								},
 							}, secret); err != nil {
@@ -333,10 +333,10 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 			reason: "Should return no error and changed as false if secret is already up to date",
 			args: args{
 				client: &fake.KVClient{
-					ApplyFn: func(path string, secret *kvclient.KVSecret, ao ...kvclient.ApplyOption) error {
+					ApplyFn: func(path string, secret *kv.Secret, ao ...kv.ApplyOption) error {
 						for _, o := range ao {
-							if err := o(&kvclient.KVSecret{
-								Data: map[string]interface{}{
+							if err := o(&kv.Secret{
+								Data: map[string]string{
 									"key1": "val1",
 									"key2": "val2",
 								},
@@ -367,11 +367,11 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 			reason: "Should successfully write key values",
 			args: args{
 				client: &fake.KVClient{
-					ApplyFn: func(path string, secret *kvclient.KVSecret, ao ...kvclient.ApplyOption) error {
+					ApplyFn: func(path string, secret *kv.Secret, ao ...kv.ApplyOption) error {
 						if diff := cmp.Diff(filepath.Join(parentPathDefault, secretName), path); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
-						if diff := cmp.Diff(map[string]interface{}{
+						if diff := cmp.Diff(map[string]string{
 							"key1": "val1",
 							"key2": "val2",
 						}, secret.Data); diff != "" {
@@ -399,17 +399,17 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 			reason: "Should successfully write key values",
 			args: args{
 				client: &fake.KVClient{
-					ApplyFn: func(path string, secret *kvclient.KVSecret, ao ...kvclient.ApplyOption) error {
+					ApplyFn: func(path string, secret *kv.Secret, ao ...kv.ApplyOption) error {
 						if diff := cmp.Diff(filepath.Join(parentPathDefault, secretName), path); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
-						if diff := cmp.Diff(map[string]interface{}{
+						if diff := cmp.Diff(map[string]string{
 							"key1": "val1",
 							"key2": "val2",
 						}, secret.Data); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
-						if diff := cmp.Diff(map[string]interface{}{
+						if diff := cmp.Diff(map[string]string{
 							"foo": "bar",
 						}, secret.CustomMeta); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
@@ -475,7 +475,7 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 			reason: "Should return a proper error if getting secret fails.",
 			args: args{
 				client: &fake.KVClient{
-					GetFn: func(path string, secret *kvclient.KVSecret) error {
+					GetFn: func(path string, secret *kv.Secret) error {
 						return errBoom
 					},
 				},
@@ -493,8 +493,8 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 			reason: "Should return no error if connection secret already deleted.",
 			args: args{
 				client: &fake.KVClient{
-					GetFn: func(path string, secret *kvclient.KVSecret) error {
-						return errors.New(kvclient.ErrNotFound)
+					GetFn: func(path string, secret *kv.Secret) error {
+						return errors.New(kv.ErrNotFound)
 					},
 				},
 				secret: &store.Secret{
@@ -511,8 +511,8 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 			reason: "Should delete whole secret if no kv provided as input",
 			args: args{
 				client: &fake.KVClient{
-					GetFn: func(path string, secret *kvclient.KVSecret) error {
-						secret.Data = map[string]interface{}{
+					GetFn: func(path string, secret *kv.Secret) error {
+						secret.Data = map[string]string{
 							"key1": "val1",
 							"key2": "val2",
 							"key3": "val3",
@@ -537,15 +537,15 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 			reason: "Should return a proper error if updating secret with remaining keys fails.",
 			args: args{
 				client: &fake.KVClient{
-					GetFn: func(path string, secret *kvclient.KVSecret) error {
-						secret.Data = map[string]interface{}{
+					GetFn: func(path string, secret *kv.Secret) error {
+						secret.Data = map[string]string{
 							"key1": "val1",
 							"key2": "val2",
 							"key3": "val3",
 						}
 						return nil
 					},
-					ApplyFn: func(path string, secret *kvclient.KVSecret, ao ...kvclient.ApplyOption) error {
+					ApplyFn: func(path string, secret *kv.Secret, ao ...kv.ApplyOption) error {
 						return errBoom
 					},
 					DeleteFn: func(path string) error {
@@ -570,16 +570,16 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 			reason: "Should only delete provided keys and should not delete secret if kv provided as input.",
 			args: args{
 				client: &fake.KVClient{
-					GetFn: func(path string, secret *kvclient.KVSecret) error {
-						secret.Data = map[string]interface{}{
+					GetFn: func(path string, secret *kv.Secret) error {
+						secret.Data = map[string]string{
 							"key1": "val1",
 							"key2": "val2",
 							"key3": "val3",
 						}
 						return nil
 					},
-					ApplyFn: func(path string, secret *kvclient.KVSecret, ao ...kvclient.ApplyOption) error {
-						if diff := cmp.Diff(map[string]interface{}{
+					ApplyFn: func(path string, secret *kv.Secret, ao ...kv.ApplyOption) error {
+						if diff := cmp.Diff(map[string]string{
 							"key3": "val3",
 						}, secret.Data); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
@@ -608,8 +608,8 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 			reason: "Should return a proper error if deleting the secret after no keys left fails.",
 			args: args{
 				client: &fake.KVClient{
-					GetFn: func(path string, secret *kvclient.KVSecret) error {
-						secret.Data = map[string]interface{}{
+					GetFn: func(path string, secret *kv.Secret) error {
+						secret.Data = map[string]string{
 							"key1": "val1",
 							"key2": "val2",
 							"key3": "val3",
@@ -639,8 +639,8 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 			reason: "Should return a proper error if provided delete option fails.",
 			args: args{
 				client: &fake.KVClient{
-					GetFn: func(path string, secret *kvclient.KVSecret) error {
-						secret.Data = map[string]interface{}{
+					GetFn: func(path string, secret *kv.Secret) error {
+						secret.Data = map[string]string{
 							"key1": "val1",
 						}
 						return nil
@@ -668,8 +668,8 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 			reason: "Should delete the secret if no keys left.",
 			args: args{
 				client: &fake.KVClient{
-					GetFn: func(path string, secret *kvclient.KVSecret) error {
-						secret.Data = map[string]interface{}{
+					GetFn: func(path string, secret *kv.Secret) error {
+						secret.Data = map[string]string{
 							"key1": "val1",
 							"key2": "val2",
 							"key3": "val3",
@@ -716,6 +716,7 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 }
 
 func TestNewSecretStore(t *testing.T) {
+	kvv2 := v1.VaultKVVersionV2
 	type args struct {
 		kube client.Client
 		cfg  v1.SecretStoreConfig
@@ -791,6 +792,7 @@ func TestNewSecretStore(t *testing.T) {
 				},
 				cfg: v1.SecretStoreConfig{
 					Vault: &v1.VaultSecretStoreConfig{
+						Version: &kvv2,
 						Auth: v1.VaultAuthConfig{
 							Method: v1.VaultAuthToken,
 							Token: &v1.VaultAuthTokenConfig{
