@@ -25,15 +25,32 @@ import (
 
 var _ webhook.CustomValidator = &Validator{}
 
-// NewValidator returns a new Validator with no-op defaults.
-func NewValidator() *Validator {
-	vc := &Validator{
-		CreationChain: []ValidateCreateFn{NopValidateCreate},
-		UpdateChain:   []ValidateUpdateFn{NopValidateUpdate},
-		DeletionChain: []ValidateDeleteFn{NopValidateDelete},
+// WithValidateCreateFns initializes the Validator with given set of creation
+// validation functions.
+func WithValidateCreateFns(fns ...ValidateCreateFn) ValidatorOption {
+	return func(v *Validator) {
+		v.CreationChain = fns
 	}
-	return vc
 }
+
+// WithValidateUpdateFns initializes the Validator with given set of update
+// validation functions.
+func WithValidateUpdateFns(fns ...ValidateUpdateFn) ValidatorOption {
+	return func(v *Validator) {
+		v.UpdateChain = fns
+	}
+}
+
+// WithValidateDeletionFns initializes the Validator with given set of deletion
+// validation functions.
+func WithValidateDeletionFns(fns ...ValidateDeleteFn) ValidatorOption {
+	return func(v *Validator) {
+		v.DeletionChain = fns
+	}
+}
+
+// ValidatorOption allows you to configure given Validator.
+type ValidatorOption func(*Validator)
 
 // ValidateCreateFn is function type for creation validation.
 type ValidateCreateFn func(ctx context.Context, obj runtime.Object) error
@@ -44,18 +61,18 @@ type ValidateUpdateFn func(ctx context.Context, oldObj, newObj runtime.Object) e
 // ValidateDeleteFn is function type for deletion validation.
 type ValidateDeleteFn func(ctx context.Context, obj runtime.Object) error
 
-// No-op validator functions.
-var (
-	NopValidateCreate ValidateCreateFn = func(_ context.Context, _ runtime.Object) error {
-		return nil
+// NewValidator returns a new Validator with no-op defaults.
+func NewValidator(opts ...ValidatorOption) *Validator {
+	vc := &Validator{
+		CreationChain: []ValidateCreateFn{},
+		UpdateChain:   []ValidateUpdateFn{},
+		DeletionChain: []ValidateDeleteFn{},
 	}
-	NopValidateUpdate ValidateUpdateFn = func(_ context.Context, _, _ runtime.Object) error {
-		return nil
+	for _, f := range opts {
+		f(vc)
 	}
-	NopValidateDelete ValidateDeleteFn = func(_ context.Context, _ runtime.Object) error {
-		return nil
-	}
-)
+	return vc
+}
 
 // Validator runs the given validation chains in order.
 type Validator struct {
