@@ -25,9 +25,9 @@ import (
 
 var _ webhook.CustomValidator = &Validator{}
 
-// WithValidateCreateFns initializes the Validator with given set of creation
+// WithValidateCreationFns initializes the Validator with given set of creation
 // validation functions.
-func WithValidateCreateFns(fns ...ValidateCreateFn) ValidatorOption {
+func WithValidateCreationFns(fns ...ValidateCreateFn) ValidatorOption {
 	return func(v *Validator) {
 		v.CreationChain = fns
 	}
