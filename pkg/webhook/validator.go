@@ -20,10 +20,10 @@ import (
 	"context"
 
 	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
-var _ admission.CustomValidator = &Validator{}
+var _ webhook.CustomValidator = &Validator{}
 
 // NewValidator returns a new Validator with no-op defaults.
 func NewValidator() *Validator {
