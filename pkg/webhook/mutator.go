@@ -20,29 +20,26 @@ import (
 	"context"
 
 	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
-var _ webhook.CustomDefaulter = &Mutator{}
-
-// WithMutatorFns allows you to initiate the mutator with given list of mutator
+// WithMutationFns allows you to initiate the mutator with given list of mutator
 // functions.
-func WithMutatorFns(fns ...MutatorFn) MutatorOption {
+func WithMutationFns(fns ...MutateFn) MutatorOption {
 	return func(m *Mutator) {
-		m.MutatorChain = fns
+		m.MutationChain = fns
 	}
 }
 
 // MutatorOption configures given Mutator.
 type MutatorOption func(*Mutator)
 
-// MutatorFn is a single mutating function that can be used by Mutator.
-type MutatorFn func(ctx context.Context, obj runtime.Object) error
+// MutateFn is a single mutating function that can be used by Mutator.
+type MutateFn func(ctx context.Context, obj runtime.Object) error
 
 // NewMutator returns a new instance of Mutator that can be used as CustomDefaulter.
 func NewMutator(opts ...MutatorOption) *Mutator {
 	m := &Mutator{
-		MutatorChain: []MutatorFn{},
+		MutationChain: []MutateFn{},
 	}
 	for _, f := range opts {
 		f(m)
@@ -50,16 +47,16 @@ func NewMutator(opts ...MutatorOption) *Mutator {
 	return m
 }
 
-// Mutator satisfies CustomDefaulter interface with an ordered MutatorFn list.
+// Mutator satisfies CustomDefaulter interface with an ordered MutateFn list.
 type Mutator struct {
-	MutatorChain []MutatorFn
+	MutationChain []MutateFn
 }
 
 // Default executes the MutatorFns in given order. Its name might sound misleading
 // since defaulting seems to be the first use case used by controller-runtime
 // but MutatorFns can make any changes on given resource.
 func (m *Mutator) Default(ctx context.Context, obj runtime.Object) error {
-	for _, f := range m.MutatorChain {
+	for _, f := range m.MutationChain {
 		if err := f(ctx, obj); err != nil {
 			return err
 		}

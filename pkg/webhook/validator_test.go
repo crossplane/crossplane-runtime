@@ -20,13 +20,18 @@ import (
 	"context"
 	"testing"
 
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/google/go-cmp/cmp"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
+
+// Validator has to satisfy CustomValidator interface so that it can be used by
+// controller-runtime Manager.
+var _ webhook.CustomValidator = &Validator{}
 
 var errBoom = errors.New("boom")
 

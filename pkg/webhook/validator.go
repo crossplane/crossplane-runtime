@@ -20,10 +20,7 @@ import (
 	"context"
 
 	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
-
-var _ webhook.CustomValidator = &Validator{}
 
 // WithValidateCreationFns initializes the Validator with given set of creation
 // validation functions.
