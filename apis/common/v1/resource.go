@@ -77,10 +77,27 @@ type SecretKeySelector struct {
 	Key string `json:"key"`
 }
 
+// A ReferenceResolutionPolicy is a value for resolution policy for reference.
+type ReferenceResolutionPolicy string
+
+const (
+	// ReferencePolicyOptional is a resolution option.
+	// When the ReferenceResolutionPolicy is set to ReferencePolicyOptional the
+	// execution could continue even if the reference cannot be resolved.
+	ReferencePolicyOptional ReferenceResolutionPolicy = "Optional"
+)
+
 // A Reference to a named object.
 type Reference struct {
 	// Name of the referenced object.
 	Name string `json:"name"`
+	// Policy of the referenced object.
+	Policy ReferenceResolutionPolicy `json:"policy,omitempty"`
+}
+
+// IsReferenceResolutionPolicyOptional checks whether the resolution policy of relevant reference is Optional.
+func (in *Reference) IsReferenceResolutionPolicyOptional() bool {
+	return in.Policy == ReferencePolicyOptional
 }
 
 // A TypedReference refers to an object by Name, Kind, and APIVersion. It is

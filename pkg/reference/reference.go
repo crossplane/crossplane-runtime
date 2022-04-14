@@ -182,9 +182,9 @@ func (rr MultiResolutionResponse) Validate() error {
 		return errors.New(errNoMatches)
 	}
 
-	for _, v := range rr.ResolvedValues {
+	for i, v := range rr.ResolvedValues {
 		if v == "" {
-			return errors.New(errNoValue)
+			return getReferenceError(&rr.ResolvedReferences[i], errors.New(errNoValue))
 		}
 	}
 
@@ -216,11 +216,11 @@ func (r *APIResolver) Resolve(ctx context.Context, req ResolutionRequest) (Resol
 	// The reference is already set - resolve it.
 	if req.Reference != nil {
 		if err := r.client.Get(ctx, types.NamespacedName{Name: req.Reference.Name}, req.To.Managed); err != nil {
-			return ResolutionResponse{}, errors.Wrap(err, errGetManaged)
+			return ResolutionResponse{}, getReferenceError(req.Reference, errors.Wrap(err, errGetManaged))
 		}
 
 		rsp := ResolutionResponse{ResolvedValue: req.Extract(req.To.Managed), ResolvedReference: req.Reference}
-		return rsp, rsp.Validate()
+		return rsp, getReferenceError(req.Reference, rsp.Validate())
 	}
 
 	// The reference was not set, but a selector was. Select a reference.
@@ -255,7 +255,7 @@ func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRe
 		vals := make([]string, len(req.References))
 		for i := range req.References {
 			if err := r.client.Get(ctx, types.NamespacedName{Name: req.References[i].Name}, req.To.Managed); err != nil {
-				return MultiResolutionResponse{}, errors.Wrap(err, errGetManaged)
+				return MultiResolutionResponse{}, getReferenceError(&req.References[i], errors.Wrap(err, errGetManaged))
 			}
 			vals[i] = req.Extract(req.To.Managed)
 		}
@@ -283,6 +283,13 @@ func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRe
 
 	rsp := MultiResolutionResponse{ResolvedValues: vals, ResolvedReferences: refs}
 	return rsp, rsp.Validate()
+}
+
+func getReferenceError(ref *xpv1.Reference, err error) error {
+	if !ref.IsReferenceResolutionPolicyOptional() {
+		return err
+	}
+	return nil
 }
 
 // ControllersMustMatch returns true if the supplied Selector requires that a

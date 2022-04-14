@@ -91,6 +91,7 @@ func TestResolve(t *testing.T) {
 	now := metav1.Now()
 	value := "coolv"
 	ref := &xpv1.Reference{Name: "cool"}
+	optionalRef := &xpv1.Reference{Name: "cool", Policy: xpv1.ReferencePolicyOptional}
 
 	controlled := &fake.Managed{}
 	controlled.SetName(value)
@@ -204,6 +205,26 @@ func TestResolve(t *testing.T) {
 				},
 			},
 		},
+		"OptionalPolicy": {
+			reason: "No error should be returned when the resolution policy is Optional",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil),
+			},
+			from: &fake.Managed{},
+			args: args{
+				req: ResolutionRequest{
+					Reference: optionalRef,
+					To:        To{Managed: &fake.Managed{}},
+					Extract:   func(resource.Managed) string { return "" },
+				},
+			},
+			want: want{
+				rsp: ResolutionResponse{
+					ResolvedReference: optionalRef,
+				},
+				err: nil,
+			},
+		},
 		"ListError": {
 			reason: "Should return errors encountered while listing potential referenced resources",
 			c: &test.MockClient{
@@ -282,6 +303,7 @@ func TestResolveMultiple(t *testing.T) {
 	now := metav1.Now()
 	value := "coolv"
 	ref := xpv1.Reference{Name: "cool"}
+	optionalRef := xpv1.Reference{Name: "cool", Policy: xpv1.ReferencePolicyOptional}
 
 	controlled := &fake.Managed{}
 	controlled.SetName(value)
@@ -394,6 +416,27 @@ func TestResolveMultiple(t *testing.T) {
 					ResolvedValues:     []string{value},
 					ResolvedReferences: []xpv1.Reference{ref},
 				},
+			},
+		},
+		"OptionalPolicy": {
+			reason: "No error should be returned when the resolution policy is Optional",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil),
+			},
+			from: &fake.Managed{},
+			args: args{
+				req: MultiResolutionRequest{
+					References: []xpv1.Reference{optionalRef},
+					To:         To{Managed: &fake.Managed{}},
+					Extract:    func(resource.Managed) string { return "" },
+				},
+			},
+			want: want{
+				rsp: MultiResolutionResponse{
+					ResolvedValues:     []string{""},
+					ResolvedReferences: []xpv1.Reference{optionalRef},
+				},
+				err: nil,
 			},
 		},
 		"ListError": {
