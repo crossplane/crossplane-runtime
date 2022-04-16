@@ -20,6 +20,8 @@ import (
 	"context"
 	"os"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -153,7 +155,7 @@ func (u *ProviderConfigUsageTracker) Track(ctx context.Context, mg Managed) erro
 	err := u.c.Apply(ctx, pcu,
 		MustBeControllableBy(mg.GetUID()),
 		AllowUpdateIf(func(current, _ runtime.Object) bool {
-			return current.(ProviderConfigUsage).GetProviderConfigReference() != pcu.GetProviderConfigReference()
+			return !cmp.Equal(current.(ProviderConfigUsage).GetProviderConfigReference(), pcu.GetProviderConfigReference())
 		}),
 	)
 	return errors.Wrap(Ignore(IsNotAllowed, err), errApplyPCU)

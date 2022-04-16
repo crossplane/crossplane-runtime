@@ -113,10 +113,17 @@ type ResolutionRequest struct {
 // IsNoOp returns true if the supplied ResolutionRequest cannot or should not be
 // processed.
 func (rr ResolutionRequest) IsNoOp() bool {
-	// We don't resolve values that are already set; we effectively cache
-	// resolved values. The CR author can invalidate the cache and trigger a new
-	// resolution by explicitly clearing the resolved value.
-	if rr.CurrentValue != "" {
+	isAlways := false
+	if rr.Reference != nil {
+		if rr.Reference.IsReferenceResolutionPolicyAlways() {
+			isAlways = true
+		}
+	}
+	// We don't resolve values that are already set (if reference resolution policy
+	// is not set to Always); we effectively cache resolved values. The CR author
+	// can invalidate the cache and trigger a new resolution by explicitly clearing
+	// the resolved value.
+	if rr.CurrentValue != "" && !isAlways {
 		return true
 	}
 
@@ -154,12 +161,19 @@ type MultiResolutionRequest struct {
 // IsNoOp returns true if the supplied MultiResolutionRequest cannot or should
 // not be processed.
 func (rr MultiResolutionRequest) IsNoOp() bool {
-	// We don't resolve values that are already set; we effectively cache
-	// resolved values. The CR author can invalidate the cache and trigger a new
-	// resolution by explicitly clearing the resolved values. This is a little
-	// unintuitive for the APIMultiResolver but mimics the UX of the APIResolver
-	// and simplifies the overall mental model.
-	if len(rr.CurrentValues) > 0 {
+	isAlways := false
+	for _, r := range rr.References {
+		if r.IsReferenceResolutionPolicyAlways() {
+			isAlways = true
+			break
+		}
+	}
+	// We don't resolve values that are already set (if reference resolution policy
+	// is not set to Always); we effectively cache resolved values. The CR author
+	// can invalidate the cache and trigger a new resolution by explicitly clearing
+	// the resolved values. This is a little unintuitive for the APIMultiResolver
+	// but mimics the UX of the APIResolver and simplifies the overall mental model.
+	if len(rr.CurrentValues) > 0 && !isAlways {
 		return true
 	}
 

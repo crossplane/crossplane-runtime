@@ -91,7 +91,8 @@ func TestResolve(t *testing.T) {
 	now := metav1.Now()
 	value := "coolv"
 	ref := &xpv1.Reference{Name: "cool"}
-	optionalRef := &xpv1.Reference{Name: "cool", Policy: xpv1.ReferencePolicyOptional}
+	optionalRef := &xpv1.Reference{Name: "cool", Policies: []xpv1.ReferenceResolutionPolicy{xpv1.ReferencePolicyOptional}}
+	alwaysRef := &xpv1.Reference{Name: "cool", Policies: []xpv1.ReferenceResolutionPolicy{xpv1.ReferencePolicyAlways}}
 
 	controlled := &fake.Managed{}
 	controlled.SetName(value)
@@ -132,6 +133,32 @@ func TestResolve(t *testing.T) {
 			},
 			want: want{
 				rsp: ResolutionResponse{ResolvedValue: value},
+				err: nil,
+			},
+		},
+		"AlwaysResolve": {
+			reason: "Should not return early if the current value is non-zero, when the resolution policy is set to" +
+				"Always",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+					meta.SetExternalName(obj.(metav1.Object), value)
+					return nil
+				}),
+			},
+			from: &fake.Managed{},
+			args: args{
+				req: ResolutionRequest{
+					Reference:    alwaysRef,
+					To:           To{Managed: &fake.Managed{}},
+					Extract:      ExternalName(),
+					CurrentValue: "oldValue",
+				},
+			},
+			want: want{
+				rsp: ResolutionResponse{
+					ResolvedValue:     value,
+					ResolvedReference: alwaysRef,
+				},
 				err: nil,
 			},
 		},
@@ -303,7 +330,8 @@ func TestResolveMultiple(t *testing.T) {
 	now := metav1.Now()
 	value := "coolv"
 	ref := xpv1.Reference{Name: "cool"}
-	optionalRef := xpv1.Reference{Name: "cool", Policy: xpv1.ReferencePolicyOptional}
+	optionalRef := xpv1.Reference{Name: "cool", Policies: []xpv1.ReferenceResolutionPolicy{xpv1.ReferencePolicyOptional}}
+	alwaysRef := xpv1.Reference{Name: "cool", Policies: []xpv1.ReferenceResolutionPolicy{xpv1.ReferencePolicyAlways}}
 
 	controlled := &fake.Managed{}
 	controlled.SetName(value)
@@ -344,6 +372,32 @@ func TestResolveMultiple(t *testing.T) {
 			},
 			want: want{
 				rsp: MultiResolutionResponse{ResolvedValues: []string{value}},
+				err: nil,
+			},
+		},
+		"AlwaysResolve": {
+			reason: "Should not return early if the current value is non-zero, when the resolution policy is set to" +
+				"Always",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+					meta.SetExternalName(obj.(metav1.Object), value)
+					return nil
+				}),
+			},
+			from: &fake.Managed{},
+			args: args{
+				req: MultiResolutionRequest{
+					References:    []xpv1.Reference{alwaysRef},
+					To:            To{Managed: &fake.Managed{}},
+					Extract:       ExternalName(),
+					CurrentValues: []string{"oldValue"},
+				},
+			},
+			want: want{
+				rsp: MultiResolutionResponse{
+					ResolvedValues:     []string{value},
+					ResolvedReferences: []xpv1.Reference{alwaysRef},
+				},
 				err: nil,
 			},
 		},

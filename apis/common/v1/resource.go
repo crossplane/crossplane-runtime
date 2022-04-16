@@ -85,19 +85,39 @@ const (
 	// When the ReferenceResolutionPolicy is set to ReferencePolicyOptional the
 	// execution could continue even if the reference cannot be resolved.
 	ReferencePolicyOptional ReferenceResolutionPolicy = "Optional"
+
+	// ReferencePolicyAlways is a resolution option.
+	// When the ReferenceResolutionPolicy is set to ReferencePolicyAlways the
+	// reference will be tried to resolve for every reconcile loop.
+	ReferencePolicyAlways ReferenceResolutionPolicy = "Always"
 )
 
 // A Reference to a named object.
 type Reference struct {
 	// Name of the referenced object.
 	Name string `json:"name"`
-	// Policy of the referenced object.
-	Policy ReferenceResolutionPolicy `json:"policy,omitempty"`
+	// Policies of the referenced object.
+	Policies []ReferenceResolutionPolicy `json:"policies,omitempty"`
 }
 
 // IsReferenceResolutionPolicyOptional checks whether the resolution policy of relevant reference is Optional.
 func (in *Reference) IsReferenceResolutionPolicyOptional() bool {
-	return in.Policy == ReferencePolicyOptional
+	for _, policy := range in.Policies {
+		if policy == ReferencePolicyOptional {
+			return true
+		}
+	}
+	return false
+}
+
+// IsReferenceResolutionPolicyAlways checks whether the resolution policy of relevant reference is Always.
+func (in *Reference) IsReferenceResolutionPolicyAlways() bool {
+	for _, policy := range in.Policies {
+		if policy == ReferencePolicyAlways {
+			return true
+		}
+	}
+	return false
 }
 
 // A TypedReference refers to an object by Name, Kind, and APIVersion. It is
