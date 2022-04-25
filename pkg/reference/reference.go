@@ -115,7 +115,7 @@ type ResolutionRequest struct {
 func (rr ResolutionRequest) IsNoOp() bool {
 	isAlways := false
 	if rr.Reference != nil {
-		if rr.Reference.IsReferenceResolutionPolicyAlways() {
+		if rr.Reference.Policy.IsResolvePolicyAlways() {
 			isAlways = true
 		}
 	}
@@ -163,7 +163,7 @@ type MultiResolutionRequest struct {
 func (rr MultiResolutionRequest) IsNoOp() bool {
 	isAlways := false
 	for _, r := range rr.References {
-		if r.IsReferenceResolutionPolicyAlways() {
+		if r.Policy.IsResolvePolicyAlways() {
 			isAlways = true
 			break
 		}
@@ -198,7 +198,7 @@ func (rr MultiResolutionResponse) Validate() error {
 
 	for i, v := range rr.ResolvedValues {
 		if v == "" {
-			return getReferenceError(&rr.ResolvedReferences[i], errors.New(errNoValue))
+			return getResolutionError(rr.ResolvedReferences[i].Policy, errors.New(errNoValue))
 		}
 	}
 
@@ -230,11 +230,11 @@ func (r *APIResolver) Resolve(ctx context.Context, req ResolutionRequest) (Resol
 	// The reference is already set - resolve it.
 	if req.Reference != nil {
 		if err := r.client.Get(ctx, types.NamespacedName{Name: req.Reference.Name}, req.To.Managed); err != nil {
-			return ResolutionResponse{}, getReferenceError(req.Reference, errors.Wrap(err, errGetManaged))
+			return ResolutionResponse{}, getResolutionError(req.Reference.Policy, errors.Wrap(err, errGetManaged))
 		}
 
 		rsp := ResolutionResponse{ResolvedValue: req.Extract(req.To.Managed), ResolvedReference: req.Reference}
-		return rsp, getReferenceError(req.Reference, rsp.Validate())
+		return rsp, getResolutionError(req.Reference.Policy, rsp.Validate())
 	}
 
 	// The reference was not set, but a selector was. Select a reference.
@@ -269,7 +269,7 @@ func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRe
 		vals := make([]string, len(req.References))
 		for i := range req.References {
 			if err := r.client.Get(ctx, types.NamespacedName{Name: req.References[i].Name}, req.To.Managed); err != nil {
-				return MultiResolutionResponse{}, getReferenceError(&req.References[i], errors.Wrap(err, errGetManaged))
+				return MultiResolutionResponse{}, getResolutionError(req.References[i].Policy, errors.Wrap(err, errGetManaged))
 			}
 			vals[i] = req.Extract(req.To.Managed)
 		}
@@ -299,8 +299,8 @@ func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRe
 	return rsp, rsp.Validate()
 }
 
-func getReferenceError(ref *xpv1.Reference, err error) error {
-	if !ref.IsReferenceResolutionPolicyOptional() {
+func getResolutionError(p *xpv1.Policy, err error) error {
+	if !p.IsResolutionPolicyOptional() {
 		return err
 	}
 	return nil

@@ -91,8 +91,10 @@ func TestResolve(t *testing.T) {
 	now := metav1.Now()
 	value := "coolv"
 	ref := &xpv1.Reference{Name: "cool"}
-	optionalRef := &xpv1.Reference{Name: "cool", Policies: []xpv1.ReferenceResolutionPolicy{xpv1.ReferencePolicyOptional}}
-	alwaysRef := &xpv1.Reference{Name: "cool", Policies: []xpv1.ReferenceResolutionPolicy{xpv1.ReferencePolicyAlways}}
+	optionalPolicy := xpv1.ResolutionPolicyOptional
+	alwaysPolicy := xpv1.ResolvePolicyAlways
+	optionalRef := &xpv1.Reference{Name: "cool", Policy: &xpv1.Policy{Resolution: &optionalPolicy}}
+	alwaysRef := &xpv1.Reference{Name: "cool", Policy: &xpv1.Policy{Resolve: &alwaysPolicy}}
 
 	controlled := &fake.Managed{}
 	controlled.SetName(value)
@@ -330,8 +332,10 @@ func TestResolveMultiple(t *testing.T) {
 	now := metav1.Now()
 	value := "coolv"
 	ref := xpv1.Reference{Name: "cool"}
-	optionalRef := xpv1.Reference{Name: "cool", Policies: []xpv1.ReferenceResolutionPolicy{xpv1.ReferencePolicyOptional}}
-	alwaysRef := xpv1.Reference{Name: "cool", Policies: []xpv1.ReferenceResolutionPolicy{xpv1.ReferencePolicyAlways}}
+	optionalPolicy := xpv1.ResolutionPolicyOptional
+	alwaysPolicy := xpv1.ResolvePolicyAlways
+	optionalRef := xpv1.Reference{Name: "cool", Policy: &xpv1.Policy{Resolution: &optionalPolicy}}
+	alwaysRef := xpv1.Reference{Name: "cool", Policy: &xpv1.Policy{Resolve: &alwaysPolicy}}
 
 	controlled := &fake.Managed{}
 	controlled.SetName(value)

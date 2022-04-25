@@ -77,47 +77,75 @@ type SecretKeySelector struct {
 	Key string `json:"key"`
 }
 
-// A ReferenceResolutionPolicy is a value for resolution policy for reference.
-type ReferenceResolutionPolicy string
+// ResolvePolicy is a type for resolve policy.
+type ResolvePolicy string
+
+// ResolutionPolicy is a type for resolution policy.
+type ResolutionPolicy string
+
+// Policy represents the Resolve and Resolution policies of Reference instance.
+type Policy struct {
+	// Resolve specifies when this reference should be resolved. The default
+	// is 'IfNotPresent', which will attempt to resolve the reference only when
+	// the corresponding field is not present. Use 'Always' to resolve the
+	// reference on every reconcile.
+	// +optional
+	Resolve *ResolvePolicy `json:"resolve,omitempty"`
+
+	// Resolution specifies whether resolution of this reference is required.
+	// The default is 'Required', which means the reconcile will fail if the
+	// reference cannot be resolved. 'Optional' means this reference will be
+	// a no-op if it cannot be resolved.
+	// +optional
+	// +kubebuilder:default=Required
+	Resolution *ResolutionPolicy `json:"resolution,omitempty"`
+}
 
 const (
-	// ReferencePolicyOptional is a resolution option.
+	// ResolvePolicyAlways is a resolve option.
+	// When the ResolvePolicy is set to ResolvePolicyAlways the reference will
+	// be tried to resolve for every reconcile loop.
+	ResolvePolicyAlways ResolvePolicy = "Always"
+
+	// ResolutionPolicyRequired is a resolution option.
+	// When the ResolutionPolicy is set to ResolutionPolicyRequired the execution
+	// could not continue even if the reference cannot be resolved.
+	ResolutionPolicyRequired ResolutionPolicy = "Required"
+
+	// ResolutionPolicyOptional is a resolution option.
 	// When the ReferenceResolutionPolicy is set to ReferencePolicyOptional the
 	// execution could continue even if the reference cannot be resolved.
-	ReferencePolicyOptional ReferenceResolutionPolicy = "Optional"
-
-	// ReferencePolicyAlways is a resolution option.
-	// When the ReferenceResolutionPolicy is set to ReferencePolicyAlways the
-	// reference will be tried to resolve for every reconcile loop.
-	ReferencePolicyAlways ReferenceResolutionPolicy = "Always"
+	ResolutionPolicyOptional ResolutionPolicy = "Optional"
 )
+
+// IsResolutionPolicyOptional checks whether the resolution policy of relevant reference is Optional.
+func (p *Policy) IsResolutionPolicyOptional() bool {
+	if p != nil {
+		if p.Resolution != nil {
+			return *p.Resolution == ResolutionPolicyOptional
+		}
+	}
+	return false
+}
+
+// IsResolvePolicyAlways checks whether the resolution policy of relevant reference is Always.
+func (p *Policy) IsResolvePolicyAlways() bool {
+	if p != nil {
+		if p.Resolve != nil {
+			return *p.Resolve == ResolvePolicyAlways
+		}
+	}
+	return false
+}
 
 // A Reference to a named object.
 type Reference struct {
 	// Name of the referenced object.
 	Name string `json:"name"`
+
 	// Policies of the referenced object.
-	Policies []ReferenceResolutionPolicy `json:"policies,omitempty"`
-}
-
-// IsReferenceResolutionPolicyOptional checks whether the resolution policy of relevant reference is Optional.
-func (in *Reference) IsReferenceResolutionPolicyOptional() bool {
-	for _, policy := range in.Policies {
-		if policy == ReferencePolicyOptional {
-			return true
-		}
-	}
-	return false
-}
-
-// IsReferenceResolutionPolicyAlways checks whether the resolution policy of relevant reference is Always.
-func (in *Reference) IsReferenceResolutionPolicyAlways() bool {
-	for _, policy := range in.Policies {
-		if policy == ReferencePolicyAlways {
-			return true
-		}
-	}
-	return false
+	// +optional
+	Policy *Policy `json:"policy,omitempty"`
 }
 
 // A TypedReference refers to an object by Name, Kind, and APIVersion. It is
