@@ -120,22 +120,18 @@ const (
 
 // IsResolutionPolicyOptional checks whether the resolution policy of relevant reference is Optional.
 func (p *Policy) IsResolutionPolicyOptional() bool {
-	if p != nil {
-		if p.Resolution != nil {
-			return *p.Resolution == ResolutionPolicyOptional
-		}
+	if p == nil || p.Resolution == nil {
+		return false
 	}
-	return false
+	return *p.Resolution == ResolutionPolicyOptional
 }
 
 // IsResolvePolicyAlways checks whether the resolution policy of relevant reference is Always.
 func (p *Policy) IsResolvePolicyAlways() bool {
-	if p != nil {
-		if p.Resolve != nil {
-			return *p.Resolve == ResolvePolicyAlways
-		}
+	if p == nil || p.Resolve == nil {
+		return false
 	}
-	return false
+	return *p.Resolve == ResolvePolicyAlways
 }
 
 // A Reference to a named object.
@@ -174,6 +170,10 @@ type Selector struct {
 	// MatchControllerRef ensures an object with the same controller reference
 	// as the selecting object is selected.
 	MatchControllerRef *bool `json:"matchControllerRef,omitempty"`
+
+	// Policies of the referenced object.
+	// +optional
+	Policy *Policy `json:"policy,omitempty"`
 }
 
 // SetGroupVersionKind sets the Kind and APIVersion of a TypedReference.
