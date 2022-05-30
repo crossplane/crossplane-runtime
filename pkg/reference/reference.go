@@ -19,6 +19,8 @@ package reference
 import (
 	"context"
 
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -112,10 +114,11 @@ type ResolutionRequest struct {
 
 // IsNoOp returns true if the supplied ResolutionRequest cannot or should not be
 // processed.
-func (rr ResolutionRequest) IsNoOp() bool {
+func (rr *ResolutionRequest) IsNoOp() bool {
 	isAlways := false
 	if rr.Selector != nil {
 		if rr.Selector.Policy.IsResolvePolicyAlways() {
+			rr.Reference = nil
 			isAlways = true
 		}
 	} else if rr.Reference != nil {
@@ -165,10 +168,11 @@ type MultiResolutionRequest struct {
 
 // IsNoOp returns true if the supplied MultiResolutionRequest cannot or should
 // not be processed.
-func (rr MultiResolutionRequest) IsNoOp() bool {
+func (rr *MultiResolutionRequest) IsNoOp() bool {
 	isAlways := false
 	if rr.Selector != nil {
 		if rr.Selector.Policy.IsResolvePolicyAlways() {
+			rr.References = nil
 			isAlways = true
 		}
 	} else {
@@ -239,78 +243,83 @@ func (r *APIResolver) Resolve(ctx context.Context, req ResolutionRequest) (Resol
 		return ResolutionResponse{ResolvedValue: req.CurrentValue, ResolvedReference: req.Reference}, nil
 	}
 
-	// The selector is set - resolve it.
-	if req.Selector != nil {
-		if err := r.client.List(ctx, req.To.List, client.MatchingLabels(req.Selector.MatchLabels)); err != nil {
-			return ResolutionResponse{}, getResolutionError(req.Selector.Policy, errors.Wrap(err, errListManaged))
-		}
-
-		for _, to := range req.To.List.GetItems() {
-			if ControllersMustMatch(req.Selector) && !meta.HaveSameController(r.from, to) {
-				continue
+	// The reference is already set - resolve it.
+	if req.Reference != nil {
+		if err := r.client.Get(ctx, types.NamespacedName{Name: req.Reference.Name}, req.To.Managed); err != nil {
+			if kerrors.IsNotFound(err) {
+				return ResolutionResponse{}, getResolutionError(req.Reference.Policy, errors.Wrap(err, errGetManaged))
 			}
-
-			rsp := ResolutionResponse{ResolvedValue: req.Extract(to), ResolvedReference: &xpv1.Reference{Name: to.GetName()}}
-			return rsp, getResolutionError(req.Selector.Policy, rsp.Validate())
+			return ResolutionResponse{}, errors.Wrap(err, errGetManaged)
 		}
 
-		// We couldn't resolve anything.
-		return ResolutionResponse{}, getResolutionError(req.Selector.Policy, errors.New(errNoMatches))
+		rsp := ResolutionResponse{ResolvedValue: req.Extract(req.To.Managed), ResolvedReference: req.Reference}
+		return rsp, getResolutionError(req.Reference.Policy, rsp.Validate())
 	}
 
-	// The selector was not set, check the reference.
-	if err := r.client.Get(ctx, types.NamespacedName{Name: req.Reference.Name}, req.To.Managed); err != nil {
-		return ResolutionResponse{}, getResolutionError(req.Reference.Policy, errors.Wrap(err, errGetManaged))
+	// The reference was not set, but a selector was. Select a reference.
+	if err := r.client.List(ctx, req.To.List, client.MatchingLabels(req.Selector.MatchLabels)); err != nil {
+		return ResolutionResponse{}, errors.Wrap(err, errListManaged)
 	}
 
-	rsp := ResolutionResponse{ResolvedValue: req.Extract(req.To.Managed), ResolvedReference: req.Reference}
-	return rsp, getResolutionError(req.Reference.Policy, rsp.Validate())
+	for _, to := range req.To.List.GetItems() {
+		if ControllersMustMatch(req.Selector) && !meta.HaveSameController(r.from, to) {
+			continue
+		}
+
+		rsp := ResolutionResponse{ResolvedValue: req.Extract(to), ResolvedReference: &xpv1.Reference{Name: to.GetName()}}
+		return rsp, getResolutionError(req.Selector.Policy, rsp.Validate())
+	}
+
+	// We couldn't resolve anything.
+	return ResolutionResponse{}, getResolutionError(req.Selector.Policy, errors.New(errNoMatches))
 
 }
 
 // ResolveMultiple resolves the supplied MultiResolutionRequest. The returned
 // MultiResolutionResponse always contains valid values unless an error was
 // returned.
-func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRequest) (MultiResolutionResponse, error) {
+func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRequest) (MultiResolutionResponse, error) { // nolint: gocyclo
 	// Return early if from is being deleted, or the request is a no-op.
 	if meta.WasDeleted(r.from) || req.IsNoOp() {
 		return MultiResolutionResponse{ResolvedValues: req.CurrentValues, ResolvedReferences: req.References}, nil
 	}
 
-	// The selector is set - resolve it.
-	if req.Selector != nil {
-		if err := r.client.List(ctx, req.To.List, client.MatchingLabels(req.Selector.MatchLabels)); err != nil {
-			return MultiResolutionResponse{}, getResolutionError(req.Selector.Policy, errors.Wrap(err, errListManaged))
-		}
-
-		items := req.To.List.GetItems()
-		refs := make([]xpv1.Reference, 0, len(items))
-		vals := make([]string, 0, len(items))
-		for _, to := range req.To.List.GetItems() {
-			if ControllersMustMatch(req.Selector) && !meta.HaveSameController(r.from, to) {
-				continue
+	// The references are already set - resolve them.
+	if len(req.References) > 0 {
+		vals := make([]string, len(req.References))
+		for i := range req.References {
+			if err := r.client.Get(ctx, types.NamespacedName{Name: req.References[i].Name}, req.To.Managed); err != nil {
+				if kerrors.IsNotFound(err) {
+					return MultiResolutionResponse{}, getResolutionError(req.References[i].Policy, errors.Wrap(err, errGetManaged))
+				}
+				return MultiResolutionResponse{}, errors.Wrap(err, errGetManaged)
 			}
-
-			vals = append(vals, req.Extract(to))
-			refs = append(refs, xpv1.Reference{Name: to.GetName()})
+			vals[i] = req.Extract(req.To.Managed)
 		}
 
-		rsp := MultiResolutionResponse{ResolvedValues: vals, ResolvedReferences: refs}
-		return rsp, getResolutionError(req.Selector.Policy, rsp.Validate())
+		rsp := MultiResolutionResponse{ResolvedValues: vals, ResolvedReferences: req.References}
+		return rsp, rsp.Validate()
 	}
 
-	// The selector was not set, check the references.
-	vals := make([]string, len(req.References))
-	for i := range req.References {
-		if err := r.client.Get(ctx, types.NamespacedName{Name: req.References[i].Name}, req.To.Managed); err != nil {
-			return MultiResolutionResponse{}, getResolutionError(req.References[i].Policy, errors.Wrap(err, errGetManaged))
+	// No references were set, but a selector was. Select and resolve references.
+	if err := r.client.List(ctx, req.To.List, client.MatchingLabels(req.Selector.MatchLabels)); err != nil {
+		return MultiResolutionResponse{}, errors.Wrap(err, errListManaged)
+	}
+
+	items := req.To.List.GetItems()
+	refs := make([]xpv1.Reference, 0, len(items))
+	vals := make([]string, 0, len(items))
+	for _, to := range req.To.List.GetItems() {
+		if ControllersMustMatch(req.Selector) && !meta.HaveSameController(r.from, to) {
+			continue
 		}
-		vals[i] = req.Extract(req.To.Managed)
+
+		vals = append(vals, req.Extract(to))
+		refs = append(refs, xpv1.Reference{Name: to.GetName()})
 	}
 
-	rsp := MultiResolutionResponse{ResolvedValues: vals, ResolvedReferences: req.References}
-	return rsp, rsp.Validate()
-
+	rsp := MultiResolutionResponse{ResolvedValues: vals, ResolvedReferences: refs}
+	return rsp, getResolutionError(req.Selector.Policy, rsp.Validate())
 }
 
 func getResolutionError(p *xpv1.Policy, err error) error {
