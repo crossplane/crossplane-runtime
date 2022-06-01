@@ -361,6 +361,32 @@ func TestResolve(t *testing.T) {
 				err: nil,
 			},
 		},
+		"BothReferenceSelector": {
+			reason: "When both Reference and Selector fields set and Policy is not set, the Reference must be resolved",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+					meta.SetExternalName(obj.(metav1.Object), value)
+					return nil
+				}),
+			},
+			from: &fake.Managed{},
+			args: args{
+				req: ResolutionRequest{
+					Reference: ref,
+					Selector: &xpv1.Selector{
+						MatchControllerRef: func() *bool { t := true; return &t }(),
+					},
+					To:      To{Managed: &fake.Managed{}},
+					Extract: ExternalName(),
+				},
+			},
+			want: want{
+				rsp: ResolutionResponse{
+					ResolvedValue:     value,
+					ResolvedReference: ref,
+				},
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -650,6 +676,32 @@ func TestResolveMultiple(t *testing.T) {
 					ResolvedReferences: []xpv1.Reference{{Name: value}},
 				},
 				err: nil,
+			},
+		},
+		"BothReferenceSelector": {
+			reason: "When both Reference and Selector fields set and Policy is not set, the Reference must be resolved",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+					meta.SetExternalName(obj.(metav1.Object), value)
+					return nil
+				}),
+			},
+			from: &fake.Managed{},
+			args: args{
+				req: MultiResolutionRequest{
+					References: []xpv1.Reference{ref},
+					Selector: &xpv1.Selector{
+						MatchControllerRef: func() *bool { t := true; return &t }(),
+					},
+					To:      To{Managed: &fake.Managed{}},
+					Extract: ExternalName(),
+				},
+			},
+			want: want{
+				rsp: MultiResolutionResponse{
+					ResolvedValues:     []string{value},
+					ResolvedReferences: []xpv1.Reference{ref},
+				},
 			},
 		},
 	}
