@@ -19,6 +19,8 @@ package reference
 import (
 	"context"
 
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -112,11 +114,24 @@ type ResolutionRequest struct {
 
 // IsNoOp returns true if the supplied ResolutionRequest cannot or should not be
 // processed.
-func (rr ResolutionRequest) IsNoOp() bool {
-	// We don't resolve values that are already set; we effectively cache
-	// resolved values. The CR author can invalidate the cache and trigger a new
-	// resolution by explicitly clearing the resolved value.
-	if rr.CurrentValue != "" {
+func (rr *ResolutionRequest) IsNoOp() bool {
+	isAlways := false
+	if rr.Selector != nil {
+		if rr.Selector.Policy.IsResolvePolicyAlways() {
+			rr.Reference = nil
+			isAlways = true
+		}
+	} else if rr.Reference != nil {
+		if rr.Reference.Policy.IsResolvePolicyAlways() {
+			isAlways = true
+		}
+	}
+
+	// We don't resolve values that are already set (if reference resolution policy
+	// is not set to Always); we effectively cache resolved values. The CR author
+	// can invalidate the cache and trigger a new resolution by explicitly clearing
+	// the resolved value.
+	if rr.CurrentValue != "" && !isAlways {
 		return true
 	}
 
@@ -153,13 +168,28 @@ type MultiResolutionRequest struct {
 
 // IsNoOp returns true if the supplied MultiResolutionRequest cannot or should
 // not be processed.
-func (rr MultiResolutionRequest) IsNoOp() bool {
-	// We don't resolve values that are already set; we effectively cache
-	// resolved values. The CR author can invalidate the cache and trigger a new
-	// resolution by explicitly clearing the resolved values. This is a little
-	// unintuitive for the APIMultiResolver but mimics the UX of the APIResolver
-	// and simplifies the overall mental model.
-	if len(rr.CurrentValues) > 0 {
+func (rr *MultiResolutionRequest) IsNoOp() bool {
+	isAlways := false
+	if rr.Selector != nil {
+		if rr.Selector.Policy.IsResolvePolicyAlways() {
+			rr.References = nil
+			isAlways = true
+		}
+	} else {
+		for _, r := range rr.References {
+			if r.Policy.IsResolvePolicyAlways() {
+				isAlways = true
+				break
+			}
+		}
+	}
+
+	// We don't resolve values that are already set (if reference resolution policy
+	// is not set to Always); we effectively cache resolved values. The CR author
+	// can invalidate the cache and trigger a new resolution by explicitly clearing
+	// the resolved values. This is a little unintuitive for the APIMultiResolver
+	// but mimics the UX of the APIResolver and simplifies the overall mental model.
+	if len(rr.CurrentValues) > 0 && !isAlways {
 		return true
 	}
 
@@ -182,9 +212,9 @@ func (rr MultiResolutionResponse) Validate() error {
 		return errors.New(errNoMatches)
 	}
 
-	for _, v := range rr.ResolvedValues {
+	for i, v := range rr.ResolvedValues {
 		if v == "" {
-			return errors.New(errNoValue)
+			return getResolutionError(rr.ResolvedReferences[i].Policy, errors.New(errNoValue))
 		}
 	}
 
@@ -216,11 +246,14 @@ func (r *APIResolver) Resolve(ctx context.Context, req ResolutionRequest) (Resol
 	// The reference is already set - resolve it.
 	if req.Reference != nil {
 		if err := r.client.Get(ctx, types.NamespacedName{Name: req.Reference.Name}, req.To.Managed); err != nil {
+			if kerrors.IsNotFound(err) {
+				return ResolutionResponse{}, getResolutionError(req.Reference.Policy, errors.Wrap(err, errGetManaged))
+			}
 			return ResolutionResponse{}, errors.Wrap(err, errGetManaged)
 		}
 
 		rsp := ResolutionResponse{ResolvedValue: req.Extract(req.To.Managed), ResolvedReference: req.Reference}
-		return rsp, rsp.Validate()
+		return rsp, getResolutionError(req.Reference.Policy, rsp.Validate())
 	}
 
 	// The reference was not set, but a selector was. Select a reference.
@@ -234,17 +267,18 @@ func (r *APIResolver) Resolve(ctx context.Context, req ResolutionRequest) (Resol
 		}
 
 		rsp := ResolutionResponse{ResolvedValue: req.Extract(to), ResolvedReference: &xpv1.Reference{Name: to.GetName()}}
-		return rsp, rsp.Validate()
+		return rsp, getResolutionError(req.Selector.Policy, rsp.Validate())
 	}
 
 	// We couldn't resolve anything.
-	return ResolutionResponse{}, errors.New(errNoMatches)
+	return ResolutionResponse{}, getResolutionError(req.Selector.Policy, errors.New(errNoMatches))
+
 }
 
 // ResolveMultiple resolves the supplied MultiResolutionRequest. The returned
 // MultiResolutionResponse always contains valid values unless an error was
 // returned.
-func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRequest) (MultiResolutionResponse, error) {
+func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRequest) (MultiResolutionResponse, error) { // nolint: gocyclo
 	// Return early if from is being deleted, or the request is a no-op.
 	if meta.WasDeleted(r.from) || req.IsNoOp() {
 		return MultiResolutionResponse{ResolvedValues: req.CurrentValues, ResolvedReferences: req.References}, nil
@@ -255,6 +289,9 @@ func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRe
 		vals := make([]string, len(req.References))
 		for i := range req.References {
 			if err := r.client.Get(ctx, types.NamespacedName{Name: req.References[i].Name}, req.To.Managed); err != nil {
+				if kerrors.IsNotFound(err) {
+					return MultiResolutionResponse{}, getResolutionError(req.References[i].Policy, errors.Wrap(err, errGetManaged))
+				}
 				return MultiResolutionResponse{}, errors.Wrap(err, errGetManaged)
 			}
 			vals[i] = req.Extract(req.To.Managed)
@@ -282,7 +319,14 @@ func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRe
 	}
 
 	rsp := MultiResolutionResponse{ResolvedValues: vals, ResolvedReferences: refs}
-	return rsp, rsp.Validate()
+	return rsp, getResolutionError(req.Selector.Policy, rsp.Validate())
+}
+
+func getResolutionError(p *xpv1.Policy, err error) error {
+	if !p.IsResolutionPolicyOptional() {
+		return err
+	}
+	return nil
 }
 
 // ControllersMustMatch returns true if the supplied Selector requires that a

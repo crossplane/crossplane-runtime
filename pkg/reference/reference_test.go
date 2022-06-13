@@ -91,6 +91,10 @@ func TestResolve(t *testing.T) {
 	now := metav1.Now()
 	value := "coolv"
 	ref := &xpv1.Reference{Name: "cool"}
+	optionalPolicy := xpv1.ResolutionPolicyOptional
+	alwaysPolicy := xpv1.ResolvePolicyAlways
+	optionalRef := &xpv1.Reference{Name: "cool", Policy: &xpv1.Policy{Resolution: &optionalPolicy}}
+	alwaysRef := &xpv1.Reference{Name: "cool", Policy: &xpv1.Policy{Resolve: &alwaysPolicy}}
 
 	controlled := &fake.Managed{}
 	controlled.SetName(value)
@@ -131,6 +135,32 @@ func TestResolve(t *testing.T) {
 			},
 			want: want{
 				rsp: ResolutionResponse{ResolvedValue: value},
+				err: nil,
+			},
+		},
+		"AlwaysResolveReference": {
+			reason: "Should not return early if the current value is non-zero, when the resolve policy is set to" +
+				"Always",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+					meta.SetExternalName(obj.(metav1.Object), value)
+					return nil
+				}),
+			},
+			from: &fake.Managed{},
+			args: args{
+				req: ResolutionRequest{
+					Reference:    alwaysRef,
+					To:           To{Managed: &fake.Managed{}},
+					Extract:      ExternalName(),
+					CurrentValue: "oldValue",
+				},
+			},
+			want: want{
+				rsp: ResolutionResponse{
+					ResolvedValue:     value,
+					ResolvedReference: alwaysRef,
+				},
 				err: nil,
 			},
 		},
@@ -204,6 +234,26 @@ func TestResolve(t *testing.T) {
 				},
 			},
 		},
+		"OptionalReference": {
+			reason: "No error should be returned when the resolution policy is Optional",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil),
+			},
+			from: &fake.Managed{},
+			args: args{
+				req: ResolutionRequest{
+					Reference: optionalRef,
+					To:        To{Managed: &fake.Managed{}},
+					Extract:   func(resource.Managed) string { return "" },
+				},
+			},
+			want: want{
+				rsp: ResolutionResponse{
+					ResolvedReference: optionalRef,
+				},
+				err: nil,
+			},
+		},
 		"ListError": {
 			reason: "Should return errors encountered while listing potential referenced resources",
 			c: &test.MockClient{
@@ -237,6 +287,25 @@ func TestResolve(t *testing.T) {
 				err: errors.New(errNoMatches),
 			},
 		},
+		"OptionalSelector": {
+			reason: "No error should be returned when the resolution policy is Optional",
+			c: &test.MockClient{
+				MockList: test.NewMockListFn(nil),
+			},
+			from: &fake.Managed{},
+			args: args{
+				req: ResolutionRequest{
+					Selector: &xpv1.Selector{
+						Policy: &xpv1.Policy{Resolution: &optionalPolicy},
+					},
+					To: To{List: &FakeManagedList{}},
+				},
+			},
+			want: want{
+				rsp: ResolutionResponse{},
+				err: nil,
+			},
+		},
 		"SuccessfulSelect": {
 			reason: "A managed resource with a matching controller reference should be selected and returned",
 			c: &test.MockClient{
@@ -263,6 +332,61 @@ func TestResolve(t *testing.T) {
 				err: nil,
 			},
 		},
+		"AlwaysResolveSelector": {
+			reason: "Should not return early if the current value is non-zero, when the resolve policy is set to" +
+				"Always",
+			c: &test.MockClient{
+				MockList: test.NewMockListFn(nil),
+			},
+			from: controlled,
+			args: args{
+				req: ResolutionRequest{
+					Selector: &xpv1.Selector{
+						MatchControllerRef: func() *bool { t := true; return &t }(),
+						Policy:             &xpv1.Policy{Resolve: &alwaysPolicy},
+					},
+					To: To{List: &FakeManagedList{Items: []resource.Managed{
+						&fake.Managed{}, // A resource that does not match.
+						controlled,      // A resource with a matching controller reference.
+					}}},
+					Extract:      ExternalName(),
+					CurrentValue: "oldValue",
+				},
+			},
+			want: want{
+				rsp: ResolutionResponse{
+					ResolvedValue:     value,
+					ResolvedReference: &xpv1.Reference{Name: value},
+				},
+				err: nil,
+			},
+		},
+		"BothReferenceSelector": {
+			reason: "When both Reference and Selector fields set and Policy is not set, the Reference must be resolved",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+					meta.SetExternalName(obj.(metav1.Object), value)
+					return nil
+				}),
+			},
+			from: &fake.Managed{},
+			args: args{
+				req: ResolutionRequest{
+					Reference: ref,
+					Selector: &xpv1.Selector{
+						MatchControllerRef: func() *bool { t := true; return &t }(),
+					},
+					To:      To{Managed: &fake.Managed{}},
+					Extract: ExternalName(),
+				},
+			},
+			want: want{
+				rsp: ResolutionResponse{
+					ResolvedValue:     value,
+					ResolvedReference: ref,
+				},
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -282,6 +406,10 @@ func TestResolveMultiple(t *testing.T) {
 	now := metav1.Now()
 	value := "coolv"
 	ref := xpv1.Reference{Name: "cool"}
+	optionalPolicy := xpv1.ResolutionPolicyOptional
+	alwaysPolicy := xpv1.ResolvePolicyAlways
+	optionalRef := xpv1.Reference{Name: "cool", Policy: &xpv1.Policy{Resolution: &optionalPolicy}}
+	alwaysRef := xpv1.Reference{Name: "cool", Policy: &xpv1.Policy{Resolve: &alwaysPolicy}}
 
 	controlled := &fake.Managed{}
 	controlled.SetName(value)
@@ -322,6 +450,32 @@ func TestResolveMultiple(t *testing.T) {
 			},
 			want: want{
 				rsp: MultiResolutionResponse{ResolvedValues: []string{value}},
+				err: nil,
+			},
+		},
+		"AlwaysResolveReference": {
+			reason: "Should not return early if the current value is non-zero, when the resolve policy is set to" +
+				"Always",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+					meta.SetExternalName(obj.(metav1.Object), value)
+					return nil
+				}),
+			},
+			from: &fake.Managed{},
+			args: args{
+				req: MultiResolutionRequest{
+					References:    []xpv1.Reference{alwaysRef},
+					To:            To{Managed: &fake.Managed{}},
+					Extract:       ExternalName(),
+					CurrentValues: []string{"oldValue"},
+				},
+			},
+			want: want{
+				rsp: MultiResolutionResponse{
+					ResolvedValues:     []string{value},
+					ResolvedReferences: []xpv1.Reference{alwaysRef},
+				},
 				err: nil,
 			},
 		},
@@ -396,6 +550,27 @@ func TestResolveMultiple(t *testing.T) {
 				},
 			},
 		},
+		"OptionalReference": {
+			reason: "No error should be returned when the resolution policy is Optional",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil),
+			},
+			from: &fake.Managed{},
+			args: args{
+				req: MultiResolutionRequest{
+					References: []xpv1.Reference{optionalRef},
+					To:         To{Managed: &fake.Managed{}},
+					Extract:    func(resource.Managed) string { return "" },
+				},
+			},
+			want: want{
+				rsp: MultiResolutionResponse{
+					ResolvedValues:     []string{""},
+					ResolvedReferences: []xpv1.Reference{optionalRef},
+				},
+				err: nil,
+			},
+		},
 		"ListError": {
 			reason: "Should return errors encountered while listing potential referenced resources",
 			c: &test.MockClient{
@@ -429,6 +604,25 @@ func TestResolveMultiple(t *testing.T) {
 				err: errors.New(errNoMatches),
 			},
 		},
+		"OptionalSelector": {
+			reason: "No error should be returned when the resolution policy is Optional",
+			c: &test.MockClient{
+				MockList: test.NewMockListFn(nil),
+			},
+			from: &fake.Managed{},
+			args: args{
+				req: MultiResolutionRequest{
+					Selector: &xpv1.Selector{
+						Policy: &xpv1.Policy{Resolution: &optionalPolicy},
+					},
+					To: To{List: &FakeManagedList{}},
+				},
+			},
+			want: want{
+				rsp: MultiResolutionResponse{},
+				err: nil,
+			},
+		},
 		"SuccessfulSelect": {
 			reason: "A managed resource with a matching controller reference should be selected and returned",
 			c: &test.MockClient{
@@ -453,6 +647,61 @@ func TestResolveMultiple(t *testing.T) {
 					ResolvedReferences: []xpv1.Reference{{Name: value}},
 				},
 				err: nil,
+			},
+		},
+		"AlwaysResolveSelector": {
+			reason: "Should not return early if the current value is non-zero, when the resolve policy is set to" +
+				"Always",
+			c: &test.MockClient{
+				MockList: test.NewMockListFn(nil),
+			},
+			from: controlled,
+			args: args{
+				req: MultiResolutionRequest{
+					Selector: &xpv1.Selector{
+						MatchControllerRef: func() *bool { t := true; return &t }(),
+						Policy:             &xpv1.Policy{Resolve: &alwaysPolicy},
+					},
+					To: To{List: &FakeManagedList{Items: []resource.Managed{
+						&fake.Managed{}, // A resource that does not match.
+						controlled,      // A resource with a matching controller reference.
+					}}},
+					Extract:       ExternalName(),
+					CurrentValues: []string{"oldValue"},
+				},
+			},
+			want: want{
+				rsp: MultiResolutionResponse{
+					ResolvedValues:     []string{value},
+					ResolvedReferences: []xpv1.Reference{{Name: value}},
+				},
+				err: nil,
+			},
+		},
+		"BothReferenceSelector": {
+			reason: "When both Reference and Selector fields set and Policy is not set, the Reference must be resolved",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+					meta.SetExternalName(obj.(metav1.Object), value)
+					return nil
+				}),
+			},
+			from: &fake.Managed{},
+			args: args{
+				req: MultiResolutionRequest{
+					References: []xpv1.Reference{ref},
+					Selector: &xpv1.Selector{
+						MatchControllerRef: func() *bool { t := true; return &t }(),
+					},
+					To:      To{Managed: &fake.Managed{}},
+					Extract: ExternalName(),
+				},
+			},
+			want: want{
+				rsp: MultiResolutionResponse{
+					ResolvedValues:     []string{value},
+					ResolvedReferences: []xpv1.Reference{ref},
+				},
 			},
 		},
 	}
