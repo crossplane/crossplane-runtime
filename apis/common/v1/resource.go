@@ -84,6 +84,7 @@ type Policy struct {
 	// the corresponding field is not present. Use 'Always' to resolve the
 	// reference on every reconcile.
 	// +optional
+	// +kubebuilder:validation:Enum=Always
 	Resolve *ResolvePolicy `json:"resolve,omitempty"`
 
 	// Resolution specifies whether resolution of this reference is required.
@@ -92,6 +93,7 @@ type Policy struct {
 	// a no-op if it cannot be resolved.
 	// +optional
 	// +kubebuilder:default=Required
+	// +kubebuilder:validation:Enum=Required;Optional
 	Resolution *ResolutionPolicy `json:"resolution,omitempty"`
 }
 
