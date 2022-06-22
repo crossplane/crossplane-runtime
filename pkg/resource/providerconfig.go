@@ -95,6 +95,8 @@ func CommonCredentialExtractor(ctx context.Context, source xpv1.CredentialsSourc
 		return ExtractFs(ctx, afero.NewOsFs(), selector)
 	case xpv1.CredentialsSourceSecret:
 		return ExtractSecret(ctx, client, selector)
+	case xpv1.CredentialsSourceInjectedIdentity:
+		return nil, nil
 	case xpv1.CredentialsSourceNone:
 		return nil, nil
 	}
