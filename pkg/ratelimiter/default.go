@@ -78,6 +78,6 @@ func LimitRESTConfig(cfg *rest.Config, rps int) *rest.Config {
 	// second so our defaults are designed to accommodate that.
 	out := rest.CopyConfig(cfg)
 	out.QPS = float32(rps * 2)
-	out.Burst = 3
+	out.Burst = rps * 3
 	return out
 }
