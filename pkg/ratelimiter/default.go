@@ -77,7 +77,7 @@ func LimitRESTConfig(cfg *rest.Config, rps int) *rest.Config {
 	// managers use 20qps with 30 burst. We default to 10 reconciles per
 	// second so our defaults are designed to accommodate that.
 	out := rest.CopyConfig(cfg)
-	out.QPS = float32(rps * 2)
-	out.Burst = rps * 3
+	out.QPS = float32(rps * 5)
+	out.Burst = rps * 10
 	return out
 }
