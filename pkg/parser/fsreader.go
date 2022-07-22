@@ -17,6 +17,7 @@ limitations under the License.
 package parser
 
 import (
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -134,7 +135,7 @@ func (r *FsReadCloser) Read(p []byte) (n int, err error) {
 	b, err := afero.ReadFile(r.fs, r.paths[r.index])
 	n = copy(p, b[r.position:])
 	r.position += n
-	if err == io.EOF || n == 0 {
+	if errors.Is(err, io.EOF) || n == 0 {
 		r.writeBreak = true
 		err = nil
 	}

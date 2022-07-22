@@ -38,7 +38,7 @@ func (e errNotFound) IsNotFound() bool {
 // index was out of bounds in an array.
 func IsNotFound(err error) bool {
 	cause := errors.Cause(err)
-	_, ok := cause.(interface {
+	_, ok := cause.(interface { //nolint: errorlint // Skip errorlint for interface type
 		IsNotFound() bool
 	})
 	return ok

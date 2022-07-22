@@ -30,7 +30,7 @@ const (
 	// DefaultProviderRPS is the recommended default average requeues per
 	// second tolerated by a Crossplane provider.
 	//
-	// Deprecated. Use a flag.
+	// Deprecated: Use a flag
 	DefaultProviderRPS = 1
 )
 
