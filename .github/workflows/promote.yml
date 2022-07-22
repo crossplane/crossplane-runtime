@@ -20,7 +20,7 @@ env:
 
 jobs:
   promote-artifacts:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
 
     steps:
       - name: Checkout
@@ -46,4 +46,3 @@ jobs:
           CHANNEL: ${{ github.event.inputs.channel }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_USR }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PSW }}
-        
