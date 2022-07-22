@@ -40,8 +40,8 @@ var (
 type Wrapped struct{ client.Object }
 
 func (w *Wrapped) GetUnstructured() *unstructured.Unstructured {
-	return &unstructured.Unstructured{Object: map[string]interface{}{
-		"metadata": map[string]interface{}{
+	return &unstructured.Unstructured{Object: map[string]any{
+		"metadata": map[string]any{
 			"name": nameWrapped,
 		},
 	}}
@@ -59,8 +59,8 @@ func (w *WrappedList) GetUnstructuredList() *unstructured.UnstructuredList {
 func NewWrappedList() *WrappedList { return &WrappedList{} }
 
 func NewUnwrapped() *unstructured.Unstructured {
-	return &unstructured.Unstructured{Object: map[string]interface{}{
-		"metadata": map[string]interface{}{
+	return &unstructured.Unstructured{Object: map[string]any{
+		"metadata": map[string]any{
 			"name": nameUnwrapped,
 		},
 	}}

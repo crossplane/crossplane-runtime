@@ -38,7 +38,7 @@ import (
 // implementations to supply additional information about data that is read.
 type AnnotatedReadCloser interface {
 	io.ReadCloser
-	Annotate() interface{}
+	Annotate() any
 }
 
 // ObjectCreaterTyper know how to create and determine the type of objects.
@@ -102,10 +102,10 @@ func (p *PackageParser) Parse(ctx context.Context, reader io.ReadCloser) (*Packa
 	do := json.NewSerializerWithOptions(json.DefaultMetaFactory, p.objScheme, p.objScheme, json.SerializerOptions{Yaml: true})
 	for {
 		bytes, err := yr.Read()
-		if err != nil && err != io.EOF {
+		if err != nil && !errors.Is(err, io.EOF) {
 			return pkg, err
 		}
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if len(bytes) == 0 {

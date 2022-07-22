@@ -64,7 +64,7 @@ func TestIsNotFound(t *testing.T) {
 
 func TestGetValue(t *testing.T) {
 	type want struct {
-		value interface{}
+		value any
 		err   error
 	}
 	cases := map[string]struct {
@@ -164,7 +164,7 @@ func TestGetValue(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			in := make(map[string]interface{})
+			in := make(map[string]any)
 			_ = json.Unmarshal(tc.data, &in)
 			p := Pave(in)
 
@@ -190,10 +190,10 @@ func TestGetValueInto(t *testing.T) {
 
 	type args struct {
 		path string
-		out  interface{}
+		out  any
 	}
 	type want struct {
-		out interface{}
+		out any
 		err error
 	}
 	cases := map[string]struct {
@@ -240,7 +240,7 @@ func TestGetValueInto(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			in := make(map[string]interface{})
+			in := make(map[string]any)
 			_ = json.Unmarshal(tc.data, &in)
 			p := Pave(in)
 
@@ -293,7 +293,7 @@ func TestGetString(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			in := make(map[string]interface{})
+			in := make(map[string]any)
 			_ = json.Unmarshal(tc.data, &in)
 			p := Pave(in)
 
@@ -354,7 +354,7 @@ func TestGetStringArray(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			in := make(map[string]interface{})
+			in := make(map[string]any)
 			_ = json.Unmarshal(tc.data, &in)
 			p := Pave(in)
 
@@ -415,7 +415,7 @@ func TestGetStringObject(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			in := make(map[string]interface{})
+			in := make(map[string]any)
 			_ = json.Unmarshal(tc.data, &in)
 			p := Pave(in)
 
@@ -468,7 +468,7 @@ func TestGetBool(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			in := make(map[string]interface{})
+			in := make(map[string]any)
 			_ = json.Unmarshal(tc.data, &in)
 			p := Pave(in)
 
@@ -521,7 +521,7 @@ func TestGetNumber(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			in := make(map[string]interface{})
+			in := make(map[string]any)
 			_ = json.Unmarshal(tc.data, &in)
 			p := Pave(in)
 
@@ -574,7 +574,7 @@ func TestGetInteger(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			in := make(map[string]interface{})
+			in := make(map[string]any)
 			_ = json.Unmarshal(tc.data, &in)
 			p := Pave(in)
 
@@ -592,10 +592,10 @@ func TestGetInteger(t *testing.T) {
 func TestSetValue(t *testing.T) {
 	type args struct {
 		path  string
-		value interface{}
+		value any
 	}
 	type want struct {
-		object map[string]interface{}
+		object map[string]any
 		err    error
 	}
 	cases := map[string]struct {
@@ -612,8 +612,8 @@ func TestSetValue(t *testing.T) {
 				value: "cool",
 			},
 			want: want{
-				object: map[string]interface{}{
-					"metadata": map[string]interface{}{
+				object: map[string]any{
+					"metadata": map[string]any{
 						"name": "cool",
 					},
 				},
@@ -627,8 +627,8 @@ func TestSetValue(t *testing.T) {
 				value: "cool",
 			},
 			want: want{
-				object: map[string]interface{}{
-					"metadata": map[string]interface{}{
+				object: map[string]any{
+					"metadata": map[string]any{
 						"name": "cool",
 					},
 				},
@@ -642,10 +642,10 @@ func TestSetValue(t *testing.T) {
 				value: "cool",
 			},
 			want: want{
-				object: map[string]interface{}{
-					"spec": map[string]interface{}{
-						"containers": []interface{}{
-							map[string]interface{}{
+				object: map[string]any{
+					"spec": map[string]any{
+						"containers": []any{
+							map[string]any{
 								"name": "cool",
 							},
 						},
@@ -661,10 +661,10 @@ func TestSetValue(t *testing.T) {
 				value: "cool",
 			},
 			want: want{
-				object: map[string]interface{}{
-					"spec": map[string]interface{}{
-						"containers": []interface{}{
-							map[string]interface{}{
+				object: map[string]any{
+					"spec": map[string]any{
+						"containers": []any{
+							map[string]any{
 								"name": "cool",
 							},
 						},
@@ -680,13 +680,13 @@ func TestSetValue(t *testing.T) {
 				value: "cooler",
 			},
 			want: want{
-				object: map[string]interface{}{
-					"spec": map[string]interface{}{
-						"containers": []interface{}{
-							map[string]interface{}{
+				object: map[string]any{
+					"spec": map[string]any{
+						"containers": []any{
+							map[string]any{
 								"name": "cool",
 							},
-							map[string]interface{}{
+							map[string]any{
 								"name": "cooler",
 							},
 						},
@@ -702,9 +702,9 @@ func TestSetValue(t *testing.T) {
 				value: "a",
 			},
 			want: want{
-				object: map[string]interface{}{
-					"data": []interface{}{
-						[]interface{}{"a"},
+				object: map[string]any{
+					"data": []any{
+						[]any{"a"},
 					},
 				},
 			},
@@ -717,9 +717,9 @@ func TestSetValue(t *testing.T) {
 				value: "b",
 			},
 			want: want{
-				object: map[string]interface{}{
-					"data": []interface{}{
-						[]interface{}{"a", "b"},
+				object: map[string]any{
+					"data": []any{
+						[]any{"a", "b"},
 					},
 				},
 			},
@@ -732,28 +732,28 @@ func TestSetValue(t *testing.T) {
 				value: "c",
 			},
 			want: want{
-				object: map[string]interface{}{
-					"data": []interface{}{"a", nil, "c"},
+				object: map[string]any{
+					"data": []any{"a", nil, "c"},
 				},
 			},
 		},
 		"MapStringString": {
-			reason: "A map of string to string should be converted to a map of string to interface{}",
+			reason: "A map of string to string should be converted to a map of string to any",
 			data:   []byte(`{"metadata":{}}`),
 			args: args{
 				path:  "metadata.labels",
 				value: map[string]string{"cool": "very"},
 			},
 			want: want{
-				object: map[string]interface{}{
-					"metadata": map[string]interface{}{
-						"labels": map[string]interface{}{"cool": "very"},
+				object: map[string]any{
+					"metadata": map[string]any{
+						"labels": map[string]any{"cool": "very"},
 					},
 				},
 			},
 		},
 		"OwnerReference": {
-			reason: "An ObjectReference (i.e. struct) should be converted to a map of string to interface{}",
+			reason: "An ObjectReference (i.e. struct) should be converted to a map of string to any",
 			data:   []byte(`{"metadata":{}}`),
 			args: args{
 				path: "metadata.ownerRefs[0]",
@@ -765,10 +765,10 @@ func TestSetValue(t *testing.T) {
 				},
 			},
 			want: want{
-				object: map[string]interface{}{
-					"metadata": map[string]interface{}{
-						"ownerRefs": []interface{}{
-							map[string]interface{}{
+				object: map[string]any{
+					"metadata": map[string]any{
+						"ownerRefs": []any{
+							map[string]any{
 								"apiVersion": "v",
 								"kind":       "k",
 								"name":       "n",
@@ -786,7 +786,7 @@ func TestSetValue(t *testing.T) {
 				path: "data[0]",
 			},
 			want: want{
-				object: map[string]interface{}{"data": map[string]interface{}{}},
+				object: map[string]any{"data": map[string]any{}},
 				err:    errors.New("data is not an array"),
 			},
 		},
@@ -797,7 +797,7 @@ func TestSetValue(t *testing.T) {
 				path: "data.name",
 			},
 			want: want{
-				object: map[string]interface{}{"data": []interface{}{}},
+				object: map[string]any{"data": []any{}},
 				err:    errors.New("data is not an object"),
 			},
 		},
@@ -807,7 +807,7 @@ func TestSetValue(t *testing.T) {
 				path: "spec[]",
 			},
 			want: want{
-				object: map[string]interface{}{},
+				object: map[string]any{},
 				err:    errors.Wrap(errors.New("unexpected ']' at position 5"), "cannot parse path \"spec[]\""),
 			},
 		},
@@ -815,7 +815,7 @@ func TestSetValue(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			in := make(map[string]interface{})
+			in := make(map[string]any)
 			_ = json.Unmarshal(tc.data, &in)
 			p := Pave(in)
 
@@ -972,7 +972,7 @@ func TestExpandWildcards(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			in := make(map[string]interface{})
+			in := make(map[string]any)
 			_ = json.Unmarshal(tc.data, &in)
 			p := Pave(in)
 

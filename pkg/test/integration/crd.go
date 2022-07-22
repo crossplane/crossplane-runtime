@@ -19,6 +19,7 @@ package integration
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"io"
 	"io/ioutil"
 	"os"
@@ -86,7 +87,7 @@ func readDocuments(fp string) ([][]byte, error) {
 	for {
 		// Read document
 		doc, err := reader.Read()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

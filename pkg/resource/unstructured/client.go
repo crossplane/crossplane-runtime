@@ -39,7 +39,7 @@ type ListWrapper interface {
 // NewClient returns a client.Client that will operate on the underlying
 // *unstructured.Unstructured if the object satisfies the Wrapper or ListWrapper
 // interfaces. It relies on *unstructured.Unstructured instead of simpler
-// map[string]interface{} to avoid unnecessary copying.
+// map[string]any to avoid unnecessary copying.
 func NewClient(c client.Client) *WrapperClient {
 	return &WrapperClient{kube: c}
 }

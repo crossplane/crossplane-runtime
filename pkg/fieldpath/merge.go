@@ -31,7 +31,7 @@ const (
 
 // MergeValue of the receiver p at the specified field path with the supplied
 // value according to supplied merge options
-func (p *Paved) MergeValue(path string, value interface{}, mo *xpv1.MergeOptions) error {
+func (p *Paved) MergeValue(path string, value any, mo *xpv1.MergeOptions) error {
 	dst, err := p.GetValue(path)
 	if IsNotFound(err) || mo == nil {
 		dst = nil
@@ -52,13 +52,13 @@ func (p *Paved) MergeValue(path string, value interface{}, mo *xpv1.MergeOptions
 // If a nil merge options is supplied, the default behavior is MergeOptions'
 // default behavior. If dst or src is nil, src is returned
 // (i.e., dst replaced by src).
-func merge(dst, src interface{}, mergeOptions *xpv1.MergeOptions) (interface{}, error) {
+func merge(dst, src any, mergeOptions *xpv1.MergeOptions) (any, error) {
 	// because we are merging values of a field, which can be a slice, and
 	// because mergo currently supports merging only maps or structs,
 	// we wrap the argument to be passed to mergo.Merge in a map.
 	const keyArg = "arg"
-	argWrap := func(arg interface{}) map[string]interface{} {
-		return map[string]interface{}{
+	argWrap := func(arg any) map[string]any {
+		return map[string]any{
 			keyArg: arg,
 		}
 	}
@@ -80,7 +80,7 @@ func merge(dst, src interface{}, mergeOptions *xpv1.MergeOptions) (interface{}, 
 	return mDst[keyArg], nil
 }
 
-func removeSourceDuplicates(dst, src interface{}) interface{} {
+func removeSourceDuplicates(dst, src any) any {
 	sliceDst, sliceSrc := reflect.ValueOf(dst), reflect.ValueOf(src)
 	if sliceDst.Kind() == reflect.Ptr {
 		sliceDst = sliceDst.Elem()

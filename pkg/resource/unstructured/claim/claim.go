@@ -48,7 +48,7 @@ func WithConditions(c ...xpv1.Condition) Option {
 
 // New returns a new unstructured composite resource claim.
 func New(opts ...Option) *Unstructured {
-	c := &Unstructured{Unstructured: unstructured.Unstructured{Object: make(map[string]interface{})}}
+	c := &Unstructured{Unstructured: unstructured.Unstructured{Object: make(map[string]any)}}
 	for _, f := range opts {
 		f(c)
 	}

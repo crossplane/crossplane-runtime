@@ -106,8 +106,8 @@ func (c *V1Client) parseAsSecret(s *api.Secret, kv *Secret) error {
 	return nil
 }
 
-func payloadV1(existing, new *Secret) (map[string]interface{}, bool) {
-	payload := make(map[string]interface{}, len(existing.Data)+len(new.Data))
+func payloadV1(existing, new *Secret) (map[string]any, bool) {
+	payload := make(map[string]any, len(existing.Data)+len(new.Data))
 	for k, v := range existing.Data {
 		// Only transfer existing data, metadata updates are not additive.
 		if !strings.HasPrefix(k, metadataPrefix) {

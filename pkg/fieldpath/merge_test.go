@@ -47,21 +47,21 @@ func TestMergeValue(t *testing.T) {
 	}
 
 	arrSrc := []string{valSrc}
-	fnMapSrc := func() map[string]interface{} {
-		return map[string]interface{}{pathTest: valSrc}
+	fnMapSrc := func() map[string]any {
+		return map[string]any{pathTest: valSrc}
 	}
 	arrDst := []string{valDst}
-	fnMapDst := func() map[string]interface{} {
-		return map[string]interface{}{pathTest: map[string]interface{}{pathTest: valDst}}
+	fnMapDst := func() map[string]any {
+		return map[string]any{pathTest: map[string]any{pathTest: valDst}}
 	}
 	valFalse, valTrue := false, true
 
 	type fields struct {
-		object map[string]interface{}
+		object map[string]any
 	}
 	type args struct {
 		path  string
-		value interface{}
+		value any
 		mo    *xpv1.MergeOptions
 	}
 	type want struct {
@@ -77,7 +77,7 @@ func TestMergeValue(t *testing.T) {
 		"MergeArrayNoMergeOptions": {
 			reason: "If no merge options are given, default is to override an array",
 			fields: fields{
-				object: map[string]interface{}{
+				object: map[string]any{
 					pathTest: valDst,
 				},
 			},
@@ -92,7 +92,7 @@ func TestMergeValue(t *testing.T) {
 		"MergeArrayNoAppend": {
 			reason: "If MergeOptions.AppendSlice is false, an array should be overridden when merging",
 			fields: fields{
-				object: map[string]interface{}{
+				object: map[string]any{
 					pathTest: arrDst,
 				},
 			},
@@ -110,7 +110,7 @@ func TestMergeValue(t *testing.T) {
 		"MergeArrayAppend": {
 			reason: "If MergeOptions.AppendSlice is true, dst array should be merged with the src array",
 			fields: fields{
-				object: map[string]interface{}{
+				object: map[string]any{
 					pathTest: arrDst,
 				},
 			},
@@ -128,7 +128,7 @@ func TestMergeValue(t *testing.T) {
 		"MergeArrayAppendDuplicate": {
 			reason: "If MergeOptions.AppendSlice is true, dst array should be merged with the src array not allowing duplicates",
 			fields: fields{
-				object: map[string]interface{}{
+				object: map[string]any{
 					pathTest: []string{valDst, valSrc},
 				},
 			},
@@ -191,7 +191,7 @@ func TestMergeValue(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			want := make(map[string]interface{})
+			want := make(map[string]any)
 			if err := json.Unmarshal([]byte(tc.want.serialized), &want); err != nil {
 				t.Fatalf("Test case error: Unable to unmarshall JSON doc: %v", err)
 			}

@@ -106,7 +106,7 @@ func (c *V2Client) Delete(path string) error {
 	return errors.Wrap(err, errDelete)
 }
 
-func dataPayload(existing, new *Secret) (map[string]interface{}, bool) {
+func dataPayload(existing, new *Secret) (map[string]any, bool) {
 	data := make(map[string]string, len(existing.Data)+len(new.Data))
 	for k, v := range existing.Data {
 		data[k] = v
@@ -122,16 +122,16 @@ func dataPayload(existing, new *Secret) (map[string]interface{}, bool) {
 	if existing.version != "" {
 		ver = existing.version
 	}
-	return map[string]interface{}{
-		"options": map[string]interface{}{
+	return map[string]any{
+		"options": map[string]any{
 			"cas": ver,
 		},
 		"data": data,
 	}, changed
 }
 
-func metadataPayload(existing, new map[string]string) (map[string]interface{}, bool) {
-	payload := map[string]interface{}{
+func metadataPayload(existing, new map[string]string) (map[string]any, bool) {
+	payload := map[string]any{
 		"custom_metadata": new,
 	}
 	if len(existing) != len(new) {
@@ -160,7 +160,7 @@ func (c *V2Client) parseAsKVSecret(s *api.Secret, kv *Secret) error {
 }
 
 func parseSecretData(payload *fieldpath.Paved, kv *Secret) error {
-	sData := map[string]interface{}{}
+	sData := map[string]any{}
 	err := payload.GetValueInto("data", &sData)
 	if fieldpath.IsNotFound(err) {
 		return nil
@@ -179,7 +179,7 @@ func parseSecretData(payload *fieldpath.Paved, kv *Secret) error {
 }
 
 func parseSecretMeta(payload *fieldpath.Paved, kv *Secret) error {
-	sMeta := map[string]interface{}{}
+	sMeta := map[string]any{}
 	err := payload.GetValueInto("metadata", &sMeta)
 	if fieldpath.IsNotFound(err) {
 		return nil
@@ -193,7 +193,7 @@ func parseSecretMeta(payload *fieldpath.Paved, kv *Secret) error {
 		return err
 	}
 
-	customMeta := map[string]interface{}{}
+	customMeta := map[string]any{}
 	err = pavedMeta.GetValueInto("custom_metadata", &customMeta)
 	if fieldpath.IsNotFound(err) {
 		return nil

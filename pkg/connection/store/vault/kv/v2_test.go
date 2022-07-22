@@ -98,10 +98,10 @@ func TestV2ClientGet(t *testing.T) {
 						return &api.Secret{
 							// Using sample response here:
 							// https://www.vaultproject.io/api/secret/kv/kv-v2#sample-response-1
-							Data: map[string]interface{}{
-								"metadata": map[string]interface{}{
+							Data: map[string]any{
+								"metadata": map[string]any{
 									"created_time": "2018-03-22T02:24:06.945319214Z",
-									"custom_metadata": map[string]interface{}{
+									"custom_metadata": map[string]any{
 										"owner":            "jdoe",
 										"mission_critical": "false",
 									},
@@ -132,8 +132,8 @@ func TestV2ClientGet(t *testing.T) {
 						return &api.Secret{
 							// Using sample response here:
 							// https://www.vaultproject.io/api/secret/kv/kv-v2#sample-response-1
-							Data: map[string]interface{}{
-								"data": map[string]interface{}{
+							Data: map[string]any{
+								"data": map[string]any{
 									"foo": "bar",
 								},
 							},
@@ -159,13 +159,13 @@ func TestV2ClientGet(t *testing.T) {
 						return &api.Secret{
 							// Using sample response here:
 							// https://www.vaultproject.io/api/secret/kv/kv-v2#sample-response-1
-							Data: map[string]interface{}{
-								"data": map[string]interface{}{
+							Data: map[string]any{
+								"data": map[string]any{
 									"foo": "bar",
 								},
-								"metadata": map[string]interface{}{
+								"metadata": map[string]any{
 									"created_time": "2018-03-22T02:24:06.945319214Z",
-									"custom_metadata": map[string]interface{}{
+									"custom_metadata": map[string]any{
 										"owner":            "jdoe",
 										"mission_critical": "false",
 									},
@@ -242,13 +242,13 @@ func TestV2ClientApply(t *testing.T) {
 				client: &fake.LogicalClient{
 					ReadFn: func(path string) (*api.Secret, error) {
 						return &api.Secret{
-							Data: map[string]interface{}{
+							Data: map[string]any{
 								"data": map[string]string{
 									"key1": "val1",
 									"key2": "val2",
 								},
-								"metadata": map[string]interface{}{
-									"custom_metadata": map[string]interface{}{
+								"metadata": map[string]any{
+									"custom_metadata": map[string]any{
 										"foo": "bar",
 										"baz": "qux",
 									},
@@ -257,7 +257,7 @@ func TestV2ClientApply(t *testing.T) {
 							},
 						}, nil
 					},
-					WriteFn: func(path string, data map[string]interface{}) (*api.Secret, error) {
+					WriteFn: func(path string, data map[string]any) (*api.Secret, error) {
 						return nil, errBoom
 					},
 				},
@@ -280,13 +280,13 @@ func TestV2ClientApply(t *testing.T) {
 				client: &fake.LogicalClient{
 					ReadFn: func(path string) (*api.Secret, error) {
 						return &api.Secret{
-							Data: map[string]interface{}{
+							Data: map[string]any{
 								"data": map[string]string{
 									"key1": "val1",
 									"key2": "val2",
 								},
-								"metadata": map[string]interface{}{
-									"custom_metadata": map[string]interface{}{
+								"metadata": map[string]any{
+									"custom_metadata": map[string]any{
 										"foo": "bar",
 									},
 									"version": json.Number("2"),
@@ -294,7 +294,7 @@ func TestV2ClientApply(t *testing.T) {
 							},
 						}, nil
 					},
-					WriteFn: func(path string, data map[string]interface{}) (*api.Secret, error) {
+					WriteFn: func(path string, data map[string]any) (*api.Secret, error) {
 						return nil, errBoom
 					},
 				},
@@ -318,13 +318,13 @@ func TestV2ClientApply(t *testing.T) {
 						return &api.Secret{
 							// Using sample response here:
 							// https://www.vaultproject.io/api/secret/kv/kv-v2#sample-response-1
-							Data: map[string]interface{}{
-								"data": map[string]interface{}{
+							Data: map[string]any{
+								"data": map[string]any{
 									"foo": "bar",
 								},
-								"metadata": map[string]interface{}{
+								"metadata": map[string]any{
 									"created_time": "2018-03-22T02:24:06.945319214Z",
-									"custom_metadata": map[string]interface{}{
+									"custom_metadata": map[string]any{
 										"owner":            "jdoe",
 										"mission_critical": "false",
 									},
@@ -335,7 +335,7 @@ func TestV2ClientApply(t *testing.T) {
 							},
 						}, nil
 					},
-					WriteFn: func(path string, data map[string]interface{}) (*api.Secret, error) {
+					WriteFn: func(path string, data map[string]any) (*api.Secret, error) {
 						return nil, errors.New("no write operation expected")
 					},
 				},
@@ -360,16 +360,16 @@ func TestV2ClientApply(t *testing.T) {
 						// nil if secret does not exist.
 						return nil, nil
 					},
-					WriteFn: func(path string, data map[string]interface{}) (*api.Secret, error) {
+					WriteFn: func(path string, data map[string]any) (*api.Secret, error) {
 						if diff := cmp.Diff(filepath.Join(mountPath, "data", secretName), path); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
-						if diff := cmp.Diff(map[string]interface{}{
+						if diff := cmp.Diff(map[string]any{
 							"data": map[string]string{
 								"key1": "val1",
 								"key2": "val2",
 							},
-							"options": map[string]interface{}{
+							"options": map[string]any{
 								"cas": json.Number("0"),
 							},
 						}, data); diff != "" {
@@ -394,13 +394,13 @@ func TestV2ClientApply(t *testing.T) {
 				client: &fake.LogicalClient{
 					ReadFn: func(path string) (*api.Secret, error) {
 						return &api.Secret{
-							Data: map[string]interface{}{
-								"data": map[string]interface{}{
+							Data: map[string]any{
+								"data": map[string]any{
 									"key1": "val1",
 									"key2": "val2",
 								},
-								"metadata": map[string]interface{}{
-									"custom_metadata": map[string]interface{}{
+								"metadata": map[string]any{
+									"custom_metadata": map[string]any{
 										"foo": "bar",
 										"baz": "qux",
 									},
@@ -409,17 +409,17 @@ func TestV2ClientApply(t *testing.T) {
 							},
 						}, nil
 					},
-					WriteFn: func(path string, data map[string]interface{}) (*api.Secret, error) {
+					WriteFn: func(path string, data map[string]any) (*api.Secret, error) {
 						if diff := cmp.Diff(filepath.Join(mountPath, "data", secretName), path); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
-						if diff := cmp.Diff(map[string]interface{}{
+						if diff := cmp.Diff(map[string]any{
 							"data": map[string]string{
 								"key1": "val1updated",
 								"key2": "val2",
 								"key3": "val3",
 							},
-							"options": map[string]interface{}{
+							"options": map[string]any{
 								"cas": json.Number("2"),
 							},
 						}, data); diff != "" {
@@ -452,13 +452,13 @@ func TestV2ClientApply(t *testing.T) {
 				client: &fake.LogicalClient{
 					ReadFn: func(path string) (*api.Secret, error) {
 						return &api.Secret{
-							Data: map[string]interface{}{
-								"data": map[string]interface{}{
+							Data: map[string]any{
+								"data": map[string]any{
 									"key1": "val1",
 									"key2": "val2",
 								},
-								"metadata": map[string]interface{}{
-									"custom_metadata": map[string]interface{}{
+								"metadata": map[string]any{
+									"custom_metadata": map[string]any{
 										"foo": "bar",
 										"baz": "qux",
 									},
@@ -467,17 +467,17 @@ func TestV2ClientApply(t *testing.T) {
 							},
 						}, nil
 					},
-					WriteFn: func(path string, data map[string]interface{}) (*api.Secret, error) {
+					WriteFn: func(path string, data map[string]any) (*api.Secret, error) {
 						if diff := cmp.Diff(filepath.Join(mountPath, "data", secretName), path); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
-						if diff := cmp.Diff(map[string]interface{}{
+						if diff := cmp.Diff(map[string]any{
 							"data": map[string]string{
 								"key1": "val1updated",
 								"key2": "val2",
 								"key3": "val3",
 							},
-							"options": map[string]interface{}{
+							"options": map[string]any{
 								"cas": json.Number("2"),
 							},
 						}, data); diff != "" {
@@ -510,22 +510,22 @@ func TestV2ClientApply(t *testing.T) {
 				client: &fake.LogicalClient{
 					ReadFn: func(path string) (*api.Secret, error) {
 						return &api.Secret{
-							Data: map[string]interface{}{
-								"data": map[string]interface{}{
+							Data: map[string]any{
+								"data": map[string]any{
 									"key1": "val1",
 									"key2": "val2",
 								},
-								"metadata": map[string]interface{}{
+								"metadata": map[string]any{
 									"version": json.Number("2"),
 								},
 							},
 						}, nil
 					},
-					WriteFn: func(path string, data map[string]interface{}) (*api.Secret, error) {
+					WriteFn: func(path string, data map[string]any) (*api.Secret, error) {
 						if diff := cmp.Diff(filepath.Join(mountPath, "metadata", secretName), path); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
-						if diff := cmp.Diff(map[string]interface{}{
+						if diff := cmp.Diff(map[string]any{
 							"custom_metadata": map[string]string{
 								"foo": "bar",
 								"baz": "qux",
@@ -555,13 +555,13 @@ func TestV2ClientApply(t *testing.T) {
 				client: &fake.LogicalClient{
 					ReadFn: func(path string) (*api.Secret, error) {
 						return &api.Secret{
-							Data: map[string]interface{}{
-								"data": map[string]interface{}{
+							Data: map[string]any{
+								"data": map[string]any{
 									"key1": "val1",
 									"key2": "val2",
 								},
-								"metadata": map[string]interface{}{
-									"custom_metadata": map[string]interface{}{
+								"metadata": map[string]any{
+									"custom_metadata": map[string]any{
 										"old": "meta",
 									},
 									"version": json.Number("2"),
@@ -569,11 +569,11 @@ func TestV2ClientApply(t *testing.T) {
 							},
 						}, nil
 					},
-					WriteFn: func(path string, data map[string]interface{}) (*api.Secret, error) {
+					WriteFn: func(path string, data map[string]any) (*api.Secret, error) {
 						if diff := cmp.Diff(filepath.Join(mountPath, "metadata", secretName), path); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
-						if diff := cmp.Diff(map[string]interface{}{
+						if diff := cmp.Diff(map[string]any{
 							"custom_metadata": map[string]string{
 								"foo": "bar",
 								"baz": "qux",
