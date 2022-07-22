@@ -40,10 +40,10 @@ func TestFromReference(t *testing.T) {
 		"New": {
 			ref: ref,
 			want: &Unstructured{Unstructured: unstructured.Unstructured{
-				Object: map[string]interface{}{
+				Object: map[string]any{
 					"apiVersion": "a/v1",
 					"kind":       "k",
-					"metadata": map[string]interface{}{
+					"metadata": map[string]any{
 						"name":      "name",
 						"namespace": "ns",
 					},
@@ -87,7 +87,7 @@ func TestConditions(t *testing.T) {
 		},
 		"WeirdStatus": {
 			reason: "It should not be possible to set a condition when status is not an object.",
-			u: &Unstructured{unstructured.Unstructured{Object: map[string]interface{}{
+			u: &Unstructured{unstructured.Unstructured{Object: map[string]any{
 				"status": "wat",
 			}}},
 			set:  []xpv1.Condition{xpv1.Available()},
@@ -96,8 +96,8 @@ func TestConditions(t *testing.T) {
 		},
 		"WeirdStatusConditions": {
 			reason: "Conditions should be overwritten if they are not an object.",
-			u: &Unstructured{unstructured.Unstructured{Object: map[string]interface{}{
-				"status": map[string]interface{}{
+			u: &Unstructured{unstructured.Unstructured{Object: map[string]any{
+				"status": map[string]any{
 					"conditions": "wat",
 				},
 			}}},

@@ -85,7 +85,7 @@ func TestV1ClientGet(t *testing.T) {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
 						return &api.Secret{
-							Data: map[string]interface{}{
+							Data: map[string]any{
 								"foo":                               "bar",
 								metadataPrefix + "owner":            "jdoe",
 								metadataPrefix + "mission_critical": "false",
@@ -158,13 +158,13 @@ func TestV1ClientApply(t *testing.T) {
 				client: &fake.LogicalClient{
 					ReadFn: func(path string) (*api.Secret, error) {
 						return &api.Secret{
-							Data: map[string]interface{}{
+							Data: map[string]any{
 								"key1": "val1",
 								"key2": "val2",
 							},
 						}, nil
 					},
-					WriteFn: func(path string, data map[string]interface{}) (*api.Secret, error) {
+					WriteFn: func(path string, data map[string]any) (*api.Secret, error) {
 						return nil, errBoom
 					},
 				},
@@ -184,14 +184,14 @@ func TestV1ClientApply(t *testing.T) {
 				client: &fake.LogicalClient{
 					ReadFn: func(path string) (*api.Secret, error) {
 						return &api.Secret{
-							Data: map[string]interface{}{
+							Data: map[string]any{
 								"foo":                               "bar",
 								metadataPrefix + "owner":            "jdoe",
 								metadataPrefix + "mission_critical": "false",
 							},
 						}, nil
 					},
-					WriteFn: func(path string, data map[string]interface{}) (*api.Secret, error) {
+					WriteFn: func(path string, data map[string]any) (*api.Secret, error) {
 						return nil, errors.New("no write operation expected")
 					},
 				},
@@ -216,11 +216,11 @@ func TestV1ClientApply(t *testing.T) {
 						// nil if secret does not exist.
 						return nil, nil
 					},
-					WriteFn: func(path string, data map[string]interface{}) (*api.Secret, error) {
+					WriteFn: func(path string, data map[string]any) (*api.Secret, error) {
 						if diff := cmp.Diff(filepath.Join(mountPath, secretName), path); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
-						if diff := cmp.Diff(map[string]interface{}{
+						if diff := cmp.Diff(map[string]any{
 							"key1": "val1",
 							"key2": "val2",
 						}, data); diff != "" {
@@ -245,17 +245,17 @@ func TestV1ClientApply(t *testing.T) {
 				client: &fake.LogicalClient{
 					ReadFn: func(path string) (*api.Secret, error) {
 						return &api.Secret{
-							Data: map[string]interface{}{
+							Data: map[string]any{
 								"key1": "val1",
 								"key2": "val2",
 							},
 						}, nil
 					},
-					WriteFn: func(path string, data map[string]interface{}) (*api.Secret, error) {
+					WriteFn: func(path string, data map[string]any) (*api.Secret, error) {
 						if diff := cmp.Diff(filepath.Join(mountPath, secretName), path); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
-						if diff := cmp.Diff(map[string]interface{}{
+						if diff := cmp.Diff(map[string]any{
 							"key1": "val1updated",
 							"key2": "val2",
 							"key3": "val3",
@@ -286,17 +286,17 @@ func TestV1ClientApply(t *testing.T) {
 				client: &fake.LogicalClient{
 					ReadFn: func(path string) (*api.Secret, error) {
 						return &api.Secret{
-							Data: map[string]interface{}{
+							Data: map[string]any{
 								"key1": "val1",
 								"key2": "val2",
 							},
 						}, nil
 					},
-					WriteFn: func(path string, data map[string]interface{}) (*api.Secret, error) {
+					WriteFn: func(path string, data map[string]any) (*api.Secret, error) {
 						if diff := cmp.Diff(filepath.Join(mountPath, secretName), path); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
-						if diff := cmp.Diff(map[string]interface{}{
+						if diff := cmp.Diff(map[string]any{
 							"key1": "val1updated",
 							"key2": "val2",
 							"key3": "val3",
@@ -327,17 +327,17 @@ func TestV1ClientApply(t *testing.T) {
 				client: &fake.LogicalClient{
 					ReadFn: func(path string) (*api.Secret, error) {
 						return &api.Secret{
-							Data: map[string]interface{}{
+							Data: map[string]any{
 								"key1": "val1",
 								"key2": "val2",
 							},
 						}, nil
 					},
-					WriteFn: func(path string, data map[string]interface{}) (*api.Secret, error) {
+					WriteFn: func(path string, data map[string]any) (*api.Secret, error) {
 						if diff := cmp.Diff(filepath.Join(mountPath, secretName), path); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
-						if diff := cmp.Diff(map[string]interface{}{
+						if diff := cmp.Diff(map[string]any{
 							"key1":                 "val1",
 							"key2":                 "val2",
 							metadataPrefix + "foo": "bar",
@@ -367,18 +367,18 @@ func TestV1ClientApply(t *testing.T) {
 				client: &fake.LogicalClient{
 					ReadFn: func(path string) (*api.Secret, error) {
 						return &api.Secret{
-							Data: map[string]interface{}{
+							Data: map[string]any{
 								"key1":                 "val1",
 								"key2":                 "val2",
 								metadataPrefix + "old": "meta",
 							},
 						}, nil
 					},
-					WriteFn: func(path string, data map[string]interface{}) (*api.Secret, error) {
+					WriteFn: func(path string, data map[string]any) (*api.Secret, error) {
 						if diff := cmp.Diff(filepath.Join(mountPath, secretName), path); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
-						if diff := cmp.Diff(map[string]interface{}{
+						if diff := cmp.Diff(map[string]any{
 							"key1":                 "val1",
 							"key2":                 "val2",
 							metadataPrefix + "old": "meta",
@@ -467,7 +467,7 @@ func TestV1ClientDelete(t *testing.T) {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
 						return &api.Secret{
-							Data: map[string]interface{}{
+							Data: map[string]any{
 								"foo": "bar",
 							},
 						}, nil

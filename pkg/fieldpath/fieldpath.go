@@ -187,7 +187,7 @@ func (l *lexer) emit(t itemType) {
 	l.start = l.pos
 }
 
-func (l *lexer) errorf(pos int, format string, args ...interface{}) stateFn {
+func (l *lexer) errorf(pos int, format string, args ...any) stateFn {
 	l.items <- item{typ: itemError, pos: pos, val: fmt.Sprintf(format, args...)}
 	return nil
 }

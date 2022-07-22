@@ -33,9 +33,9 @@ var (
 	_ handler.EventHandler = &EnqueueRequestForProviderConfig{}
 )
 
-type addFn func(item interface{})
+type addFn func(item any)
 
-func (fn addFn) Add(item interface{}) {
+func (fn addFn) Add(item any) {
 	fn(item)
 }
 
@@ -47,7 +47,7 @@ func TestAddProviderConfig(t *testing.T) {
 		queue adder
 	}{
 		"NotProviderConfigReferencer": {
-			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
+			queue: addFn(func(_ any) { t.Errorf("queue.Add() called unexpectedly") }),
 		},
 		"IsProviderConfigReferencer": {
 			obj: &fake.ProviderConfigUsage{
@@ -55,7 +55,7 @@ func TestAddProviderConfig(t *testing.T) {
 					Ref: xpv1.Reference{Name: name},
 				},
 			},
-			queue: addFn(func(got interface{}) {
+			queue: addFn(func(got any) {
 				want := reconcile.Request{NamespacedName: types.NamespacedName{Name: name}}
 				if diff := cmp.Diff(want, got); diff != "" {
 					t.Errorf("-want, +got:\n%s", diff)

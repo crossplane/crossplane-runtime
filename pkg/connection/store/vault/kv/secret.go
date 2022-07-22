@@ -38,7 +38,7 @@ const (
 // LogicalClient is a client to perform logical backend operations on Vault.
 type LogicalClient interface {
 	Read(path string) (*api.Secret, error)
-	Write(path string, data map[string]interface{}) (*api.Secret, error)
+	Write(path string, data map[string]any) (*api.Secret, error)
 	Delete(path string) (*api.Secret, error)
 }
 

@@ -63,7 +63,7 @@ func TestWrapf(t *testing.T) {
 	type args struct {
 		err     error
 		message string
-		args    []interface{}
+		args    []any
 	}
 	cases := map[string]struct {
 		args args
@@ -80,7 +80,7 @@ func TestWrapf(t *testing.T) {
 			args: args{
 				err:     New("boom"),
 				message: "very useful context about %s",
-				args:    []interface{}{"ducks"},
+				args:    []any{"ducks"},
 			},
 			want: Errorf("very useful context about %s: %w", "ducks", New("boom")),
 		},

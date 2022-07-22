@@ -33,9 +33,9 @@ var _ ratelimiter.RateLimiter = &predictableRateLimiter{}
 
 type predictableRateLimiter struct{ d time.Duration }
 
-func (r *predictableRateLimiter) When(_ interface{}) time.Duration { return r.d }
-func (r *predictableRateLimiter) Forget(_ interface{})             {}
-func (r *predictableRateLimiter) NumRequeues(_ interface{}) int    { return 0 }
+func (r *predictableRateLimiter) When(_ any) time.Duration { return r.d }
+func (r *predictableRateLimiter) Forget(_ any)             {}
+func (r *predictableRateLimiter) NumRequeues(_ any) int    { return 0 }
 
 func TestReconcile(t *testing.T) {
 	type args struct {

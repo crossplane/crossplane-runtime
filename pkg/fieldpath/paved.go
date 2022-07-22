@@ -46,7 +46,7 @@ func IsNotFound(err error) bool {
 
 // A Paved JSON object supports getting and setting values by their field path.
 type Paved struct {
-	object map[string]interface{}
+	object map[string]any
 }
 
 // PaveObject paves a runtime.Object, making it possible to get and set values
@@ -57,7 +57,7 @@ func PaveObject(o runtime.Object) (*Paved, error) {
 }
 
 // Pave a JSON object, making it possible to get and set values by field path.
-func Pave(object map[string]interface{}) *Paved {
+func Pave(object map[string]any) *Paved {
 	return &Paved{object: object}
 }
 
@@ -72,28 +72,28 @@ func (p *Paved) UnmarshalJSON(data []byte) error {
 }
 
 // UnstructuredContent returns the JSON serialisable content of this Paved.
-func (p *Paved) UnstructuredContent() map[string]interface{} {
+func (p *Paved) UnstructuredContent() map[string]any {
 	if p.object == nil {
-		return make(map[string]interface{})
+		return make(map[string]any)
 	}
 	return p.object
 }
 
 // SetUnstructuredContent sets the JSON serialisable content of this Paved.
-func (p *Paved) SetUnstructuredContent(content map[string]interface{}) {
+func (p *Paved) SetUnstructuredContent(content map[string]any) {
 	p.object = content
 }
 
-func (p *Paved) getValue(s Segments) (interface{}, error) {
+func (p *Paved) getValue(s Segments) (any, error) {
 	return getValueFromInterface(p.object, s)
 }
 
-func getValueFromInterface(it interface{}, s Segments) (interface{}, error) {
+func getValueFromInterface(it any, s Segments) (any, error) {
 	for i, current := range s {
 		final := i == len(s)-1
 		switch current.Type {
 		case SegmentIndex:
-			array, ok := it.([]interface{})
+			array, ok := it.([]any)
 			if !ok {
 				return nil, errors.Errorf("%s: not an array", s[:i])
 			}
@@ -105,7 +105,7 @@ func getValueFromInterface(it interface{}, s Segments) (interface{}, error) {
 			}
 			it = array[current.Index]
 		case SegmentField:
-			object, ok := it.(map[string]interface{})
+			object, ok := it.(map[string]any)
 			if !ok {
 				return nil, errors.Errorf("%s: not an object", s[:i])
 			}
@@ -152,14 +152,14 @@ func (p *Paved) ExpandWildcards(path string) ([]string, error) {
 // Note(turkenh): Explanation for nolint:gocyclo
 // Even complexity turns out to be high, it is mostly because we have duplicate
 // logic for arrays and maps and a couple of error handling.
-func expandWildcards(data interface{}, segments Segments) ([]Segments, error) { //nolint:gocyclo
+func expandWildcards(data any, segments Segments) ([]Segments, error) { //nolint:gocyclo
 	var res []Segments
 	it := data
 	for i, current := range segments {
 		// wildcards are regular fields with "*" as string
 		if current.Type == SegmentField && current.Field == wildcard {
 			switch mapOrArray := it.(type) {
-			case []interface{}:
+			case []any:
 				for ix := range mapOrArray {
 					expanded := make(Segments, len(segments))
 					copy(expanded, segments)
@@ -170,7 +170,7 @@ func expandWildcards(data interface{}, segments Segments) ([]Segments, error) { 
 					}
 					res = append(res, r...)
 				}
-			case map[string]interface{}:
+			case map[string]any:
 				for k := range mapOrArray {
 					expanded := make(Segments, len(segments))
 					copy(expanded, segments)
@@ -199,7 +199,7 @@ func expandWildcards(data interface{}, segments Segments) ([]Segments, error) { 
 }
 
 // GetValue of the supplied field path.
-func (p *Paved) GetValue(path string) (interface{}, error) {
+func (p *Paved) GetValue(path string) (any, error) {
 	segments, err := Parse(path)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot parse path %q", path)
@@ -209,7 +209,7 @@ func (p *Paved) GetValue(path string) (interface{}, error) {
 }
 
 // GetValueInto the supplied type.
-func (p *Paved) GetValueInto(path string, out interface{}) error {
+func (p *Paved) GetValueInto(path string, out any) error {
 	val, err := p.GetValue(path)
 	if err != nil {
 		return err
@@ -242,7 +242,7 @@ func (p *Paved) GetStringArray(path string) ([]string, error) {
 		return nil, err
 	}
 
-	a, ok := v.([]interface{})
+	a, ok := v.([]any)
 	if !ok {
 		return nil, errors.Errorf("%s: not an array", path)
 	}
@@ -266,7 +266,7 @@ func (p *Paved) GetStringObject(path string) (map[string]string, error) {
 		return nil, err
 	}
 
-	o, ok := v.(map[string]interface{})
+	o, ok := v.(map[string]any)
 	if !ok {
 		return nil, errors.Errorf("%s: not an object", path)
 	}
@@ -334,12 +334,12 @@ func (p *Paved) GetInteger(path string) (int64, error) {
 	return f, nil
 }
 
-func (p *Paved) setValue(s Segments, value interface{}) error {
+func (p *Paved) setValue(s Segments, value any) error {
 	// We expect p.object to look like JSON data that was unmarshalled into an
-	// interface{} per https://golang.org/pkg/encoding/json/#Unmarshal. We
-	// marshal our value to JSON and unmarshal it into an interface{} to ensure
+	// any per https://golang.org/pkg/encoding/json/#Unmarshal. We
+	// marshal our value to JSON and unmarshal it into an any to ensure
 	// it meets these criteria before setting it within p.object.
-	var v interface{}
+	var v any
 	j, err := json.Marshal(value)
 	if err != nil {
 		return errors.Wrap(err, "cannot marshal value to JSON")
@@ -348,13 +348,13 @@ func (p *Paved) setValue(s Segments, value interface{}) error {
 		return errors.Wrap(err, "cannot unmarshal value from JSON")
 	}
 
-	var in interface{} = p.object
+	var in any = p.object
 	for i, current := range s {
 		final := i == len(s)-1
 
 		switch current.Type {
 		case SegmentIndex:
-			array, ok := in.([]interface{})
+			array, ok := in.([]any)
 			if !ok {
 				return errors.Errorf("%s is not an array", s[:i])
 			}
@@ -368,7 +368,7 @@ func (p *Paved) setValue(s Segments, value interface{}) error {
 			in = array[current.Index]
 
 		case SegmentField:
-			object, ok := in.(map[string]interface{})
+			object, ok := in.(map[string]any)
 			if !ok {
 				return errors.Errorf("%s is not an object", s[:i])
 			}
@@ -386,15 +386,15 @@ func (p *Paved) setValue(s Segments, value interface{}) error {
 	return nil
 }
 
-func prepareElement(array []interface{}, current, next Segment) {
+func prepareElement(array []any, current, next Segment) {
 	// If this segment is not the final one and doesn't exist we need to
 	// create it for our next segment.
 	if array[current.Index] == nil {
 		switch next.Type {
 		case SegmentIndex:
-			array[current.Index] = make([]interface{}, next.Index+1)
+			array[current.Index] = make([]any, next.Index+1)
 		case SegmentField:
-			array[current.Index] = make(map[string]interface{})
+			array[current.Index] = make(map[string]any)
 		}
 		return
 	}
@@ -405,7 +405,7 @@ func prepareElement(array []interface{}, current, next Segment) {
 		return
 	}
 
-	na, ok := array[current.Index].([]interface{})
+	na, ok := array[current.Index].([]any)
 	if !ok {
 		return
 	}
@@ -414,18 +414,18 @@ func prepareElement(array []interface{}, current, next Segment) {
 		return
 	}
 
-	array[current.Index] = append(na, make([]interface{}, int(next.Index)-len(na)+1)...)
+	array[current.Index] = append(na, make([]any, int(next.Index)-len(na)+1)...)
 }
 
-func prepareField(object map[string]interface{}, current, next Segment) {
+func prepareField(object map[string]any, current, next Segment) {
 	// If this segment is not the final one and doesn't exist we need to
 	// create it for our next segment.
 	if _, ok := object[current.Field]; !ok {
 		switch next.Type {
 		case SegmentIndex:
-			object[current.Field] = make([]interface{}, next.Index+1)
+			object[current.Field] = make([]any, next.Index+1)
 		case SegmentField:
-			object[current.Field] = make(map[string]interface{})
+			object[current.Field] = make(map[string]any)
 		}
 		return
 	}
@@ -436,7 +436,7 @@ func prepareField(object map[string]interface{}, current, next Segment) {
 		return
 	}
 
-	na, ok := object[current.Field].([]interface{})
+	na, ok := object[current.Field].([]any)
 	if !ok {
 		return
 	}
@@ -445,11 +445,11 @@ func prepareField(object map[string]interface{}, current, next Segment) {
 		return
 	}
 
-	object[current.Field] = append(na, make([]interface{}, int(next.Index)-len(na)+1)...)
+	object[current.Field] = append(na, make([]any, int(next.Index)-len(na)+1)...)
 }
 
 // SetValue at the supplied field path.
-func (p *Paved) SetValue(path string, value interface{}) error {
+func (p *Paved) SetValue(path string, value any) error {
 	segments, err := Parse(path)
 	if err != nil {
 		return errors.Wrapf(err, "cannot parse path %q", path)

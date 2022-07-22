@@ -38,7 +38,7 @@ import (
 // implementations to supply additional information about data that is read.
 type AnnotatedReadCloser interface {
 	io.ReadCloser
-	Annotate() interface{}
+	Annotate() any
 }
 
 // ObjectCreaterTyper know how to create and determine the type of objects.

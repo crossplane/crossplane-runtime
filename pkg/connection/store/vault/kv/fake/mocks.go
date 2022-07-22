@@ -23,7 +23,7 @@ import (
 // LogicalClient is a fake LogicalClient
 type LogicalClient struct {
 	ReadFn   func(path string) (*api.Secret, error)
-	WriteFn  func(path string, data map[string]interface{}) (*api.Secret, error)
+	WriteFn  func(path string, data map[string]any) (*api.Secret, error)
 	DeleteFn func(path string) (*api.Secret, error)
 }
 
@@ -33,7 +33,7 @@ func (l *LogicalClient) Read(path string) (*api.Secret, error) {
 }
 
 // Write writes data to the given path.
-func (l *LogicalClient) Write(path string, data map[string]interface{}) (*api.Secret, error) {
+func (l *LogicalClient) Write(path string, data map[string]any) (*api.Secret, error) {
 	return l.WriteFn(path, data)
 }
 

@@ -147,7 +147,7 @@ func (r *FsReadCloser) Close() error {
 }
 
 // Annotate returns additional about the data currently being read.
-func (r *FsReadCloser) Annotate() interface{} {
+func (r *FsReadCloser) Annotate() any {
 	// Index will be out of bounds if we error after the final file has been
 	// read.
 	index := r.index
