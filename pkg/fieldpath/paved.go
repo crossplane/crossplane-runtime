@@ -485,17 +485,27 @@ func (p *Paved) DeleteField(path string) error {
 	return p.delete(segments)
 }
 
-func (p *Paved) delete(segments Segments) error {
+func (p *Paved) delete(segments Segments) error { // nolint:gocyclo
+	// NOTE(muvaf): I could not reduce the cyclomatic complexity
+	// more than that without disturbing the reading flow.
+	if len(segments) == 1 {
+		o, err := deleteField(p.object, segments[0])
+		if err != nil {
+			return errors.Wrapf(err, "cannot delete %s", segments)
+		}
+		p.object = o.(map[string]any)
+		return nil
+	}
 	var in any = p.object
 	for i, current := range segments {
-		// final is true for the element before the last one because
+		// beforeLast is true for the element before the last one because
 		// slices cannot be changed in place and Go does not allow
 		// taking address of map elements which prevents us from
 		// assigning a new array for that entry unless we have the
 		// map available in the context, which is achieved by iterating
 		// until the element before the last one as opposed to
 		// Set/Get functions in this file.
-		final := i == len(segments)-2
+		beforeLast := i == len(segments)-2
 		switch current.Type {
 		case SegmentIndex:
 			array, ok := in.([]any)
@@ -503,8 +513,13 @@ func (p *Paved) delete(segments Segments) error {
 				return errors.Errorf("%s is not an array", segments[:i])
 			}
 
-			if final {
-				o, err := deleteField(array[current.Index], segments[i+1])
+			// It doesn't exist anyway.
+			if len(array) <= int(current.Index) {
+				return nil
+			}
+
+			if beforeLast {
+				o, err := deleteField(array[current.Index], segments[len(segments)-1])
 				if err != nil {
 					return errors.Wrapf(err, "cannot delete %s", segments)
 				}
@@ -519,8 +534,13 @@ func (p *Paved) delete(segments Segments) error {
 				return errors.Errorf("%s is not an object", segments[:i])
 			}
 
-			if final {
-				o, err := deleteField(object[current.Field], segments[i+1])
+			// It doesn't exist anyway.
+			if _, ok := object[current.Field]; !ok {
+				return nil
+			}
+
+			if beforeLast {
+				o, err := deleteField(object[current.Field], segments[len(segments)-1])
 				if err != nil {
 					return errors.Wrapf(err, "cannot delete %s", segments)
 				}
@@ -544,7 +564,7 @@ func deleteField(obj any, s Segment) (any, error) {
 		if !ok {
 			return nil, errors.New("not an array")
 		}
-		if len(array) == 0 {
+		if len(array) == 0 || len(array) <= int(s.Index) {
 			return array, nil
 		}
 		for i := int(s.Index); i < len(array)-1; i++ {
@@ -554,7 +574,7 @@ func deleteField(obj any, s Segment) (any, error) {
 	case SegmentField:
 		object, ok := obj.(map[string]any)
 		if !ok {
-			return nil, errors.New("not a map")
+			return nil, errors.New("not an object")
 		}
 		delete(object, s.Field)
 		return object, nil

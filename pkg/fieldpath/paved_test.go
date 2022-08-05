@@ -1032,7 +1032,7 @@ func TestDeleteField(t *testing.T) {
 			},
 			want: want{
 				object: map[string]any{"data": []any{[]any{"a"}}},
-				err:    errors.Wrap(errors.New("not a map"), "cannot delete data[0].a"),
+				err:    errors.Wrap(errors.New("not an object"), "cannot delete data[0].a"),
 			},
 		},
 		"KeyGivenForNonMapInMiddle": {
@@ -1074,6 +1074,20 @@ func TestDeleteField(t *testing.T) {
 			want: want{
 				object: map[string]any{
 					"metadata": map[string]any{},
+				},
+			},
+		},
+		"ObjectSingleField": {
+			reason: "Deleting a field from a map should work.",
+			data:   []byte(`{"metadata":{"name":"lame"}, "olala": {"omama": "koala"}}`),
+			args: args{
+				path: "metadata",
+			},
+			want: want{
+				object: map[string]any{
+					"olala": map[string]any{
+						"omama": "koala",
+					},
 				},
 			},
 		},
@@ -1199,6 +1213,46 @@ func TestDeleteField(t *testing.T) {
 			want: want{
 				object: map[string]any{
 					"items": []any{},
+				},
+			},
+		},
+		"NonExistentPathInMap": {
+			reason: "It should be no-op if the field does not exist already.",
+			data:   []byte(`{"items":[]}`),
+			args: args{
+				path: "items[0].metadata",
+			},
+			want: want{
+				object: map[string]any{
+					"items": []any{},
+				},
+			},
+		},
+		"NonExistentPathInArray": {
+			reason: "It should be no-op if the field does not exist already.",
+			data:   []byte(`{"items":{"some": "other"}}`),
+			args: args{
+				path: "items.metadata[0]",
+			},
+			want: want{
+				object: map[string]any{
+					"items": map[string]any{
+						"some": "other",
+					},
+				},
+			},
+		},
+		"NonExistentElementInArray": {
+			reason: "It should be no-op if the field does not exist already.",
+			data:   []byte(`{"items":["some", "other"]}`),
+			args: args{
+				path: "items[5]",
+			},
+			want: want{
+				object: map[string]any{
+					"items": []any{
+						"some", "other",
+					},
 				},
 			},
 		},
