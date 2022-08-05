@@ -988,3 +988,235 @@ func TestExpandWildcards(t *testing.T) {
 		})
 	}
 }
+
+func TestDeleteField(t *testing.T) {
+	type args struct {
+		path string
+	}
+	type want struct {
+		object map[string]any
+		err    error
+	}
+	cases := map[string]struct {
+		reason string
+		data   []byte
+		args   args
+		want   want
+	}{
+		"MalformedPath": {
+			reason: "Requesting an invalid field path should fail",
+			args: args{
+				path: "spec[]",
+			},
+			want: want{
+				object: map[string]any{},
+				err:    errors.Wrap(errors.New("unexpected ']' at position 5"), "cannot parse path \"spec[]\""),
+			},
+		},
+		"IndexGivenForNonArray": {
+			reason: "Trying to delete a numbered index from a map should fail.",
+			data:   []byte(`{"data":{}}`),
+			args: args{
+				path: "data[0]",
+			},
+			want: want{
+				object: map[string]any{"data": map[string]any{}},
+				err:    errors.Wrap(errors.New("not an array"), "cannot delete data[0]"),
+			},
+		},
+		"KeyGivenForNonMap": {
+			reason: "Trying to delete a key from an array should fail.",
+			data:   []byte(`{"data":[["a"]]}`),
+			args: args{
+				path: "data[0].a",
+			},
+			want: want{
+				object: map[string]any{"data": []any{[]any{"a"}}},
+				err:    errors.Wrap(errors.New("not a map"), "cannot delete data[0].a"),
+			},
+		},
+		"KeyGivenForNonMapInMiddle": {
+			reason: "If one of the segments that is a field corresponds to array, it should fail.",
+			data:   []byte(`{"data":[{"another": "field"}]}`),
+			args: args{
+				path: "data.some.another",
+			},
+			want: want{
+				object: map[string]any{"data": []any{
+					map[string]any{
+						"another": "field",
+					},
+				}},
+				err: errors.New("data is not an object"),
+			},
+		},
+		"IndexGivenForNonArrayInMiddle": {
+			reason: "If one of the segments that is an index corresponds to map, it should fail.",
+			data:   []byte(`{"data":{"another": ["field"]}}`),
+			args: args{
+				path: "data[0].another",
+			},
+			want: want{
+				object: map[string]any{"data": map[string]any{
+					"another": []any{
+						"field",
+					},
+				}},
+				err: errors.New("data is not an array"),
+			},
+		},
+		"ObjectField": {
+			reason: "Deleting a field from a map should work.",
+			data:   []byte(`{"metadata":{"name":"lame"}}`),
+			args: args{
+				path: "metadata.name",
+			},
+			want: want{
+				object: map[string]any{
+					"metadata": map[string]any{},
+				},
+			},
+		},
+		"ObjectLeafField": {
+			reason: "Deleting a field that is deep in the tree from a map should work.",
+			data:   []byte(`{"spec":{"some": {"more": "delete-me"}}}`),
+			args: args{
+				path: "spec.some.more",
+			},
+			want: want{
+				object: map[string]any{
+					"spec": map[string]any{
+						"some": map[string]any{},
+					},
+				},
+			},
+		},
+		"ObjectMidField": {
+			reason: "Deleting a field that is in the middle of the tree from a map should work.",
+			data:   []byte(`{"spec":{"some": {"more": "delete-me"}}}`),
+			args: args{
+				path: "spec.some",
+			},
+			want: want{
+				object: map[string]any{
+					"spec": map[string]any{},
+				},
+			},
+		},
+		"ObjectInArray": {
+			reason: "Deleting a field that is in the middle of the tree from a map should work.",
+			data:   []byte(`{"spec":[{"some": {"more": "delete-me"}}]}`),
+			args: args{
+				path: "spec[0].some.more",
+			},
+			want: want{
+				object: map[string]any{
+					"spec": []any{
+						map[string]any{
+							"some": map[string]any{},
+						},
+					},
+				},
+			},
+		},
+		"ArrayFirstElement": {
+			reason: "Deleting the first element from an array should work",
+			data:   []byte(`{"items":["a", "b"]}`),
+			args: args{
+				path: "items[0]",
+			},
+			want: want{
+				object: map[string]any{
+					"items": []any{
+						"b",
+					},
+				},
+			},
+		},
+		"ArrayLastElement": {
+			reason: "Deleting the last element from an array should work",
+			data:   []byte(`{"items":["a", "b"]}`),
+			args: args{
+				path: "items[1]",
+			},
+			want: want{
+				object: map[string]any{
+					"items": []any{
+						"a",
+					},
+				},
+			},
+		},
+		"ArrayMidElement": {
+			reason: "Deleting an element that is neither first nor last from an array should work",
+			data:   []byte(`{"items":["a", "b", "c"]}`),
+			args: args{
+				path: "items[1]",
+			},
+			want: want{
+				object: map[string]any{
+					"items": []any{
+						"a",
+						"c",
+					},
+				},
+			},
+		},
+		"ArrayOnlyElements": {
+			reason: "Deleting the only element from an array should work",
+			data:   []byte(`{"items":["a"]}`),
+			args: args{
+				path: "items[0]",
+			},
+			want: want{
+				object: map[string]any{
+					"items": []any{},
+				},
+			},
+		},
+		"ArrayMultipleIndex": {
+			reason: "Deleting an element from an array of array should work",
+			data:   []byte(`{"items":[["a", "b"]]}`),
+			args: args{
+				path: "items[0][1]",
+			},
+			want: want{
+				object: map[string]any{
+					"items": []any{
+						[]any{
+							"a",
+						},
+					},
+				},
+			},
+		},
+		"ArrayNoElement": {
+			reason: "Deleting an element from an empty array should work",
+			data:   []byte(`{"items":[]}`),
+			args: args{
+				path: "items[0]",
+			},
+			want: want{
+				object: map[string]any{
+					"items": []any{},
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			in := make(map[string]any)
+			_ = json.Unmarshal(tc.data, &in)
+			p := Pave(in)
+
+			err := p.DeleteField(tc.args.path)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Fatalf("\np.DeleteField(%s): %s: -want error, +got error:\n%s", tc.args.path, tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.object, p.object); diff != "" {
+				t.Fatalf("\np.DeleteField(%s): %s: -want, +got:\n%s", tc.args.path, tc.reason, diff)
+			}
+		})
+	}
+}

@@ -471,3 +471,93 @@ func (p *Paved) SetBool(path string, value bool) error {
 func (p *Paved) SetNumber(path string, value float64) error {
 	return p.SetValue(path, value)
 }
+
+// DeleteField deletes the field from the object.
+// If the path points to an entry in an array, the element
+// on that index is removed and the next ones are pulled
+// back. If it is a field on a map, the field is
+// removed from the map.
+func (p *Paved) DeleteField(path string) error {
+	segments, err := Parse(path)
+	if err != nil {
+		return errors.Wrapf(err, "cannot parse path %q", path)
+	}
+	return p.delete(segments)
+}
+
+func (p *Paved) delete(segments Segments) error {
+	var in any = p.object
+	for i, current := range segments {
+		// final is true for the element before the last one because
+		// slices cannot be changed in place and Go does not allow
+		// taking address of map elements which prevents us from
+		// assigning a new array for that entry unless we have the
+		// map available in the context, which is achieved by iterating
+		// until the element before the last one as opposed to
+		// Set/Get functions in this file.
+		final := i == len(segments)-2
+		switch current.Type {
+		case SegmentIndex:
+			array, ok := in.([]any)
+			if !ok {
+				return errors.Errorf("%s is not an array", segments[:i])
+			}
+
+			if final {
+				o, err := deleteField(array[current.Index], segments[i+1])
+				if err != nil {
+					return errors.Wrapf(err, "cannot delete %s", segments)
+				}
+				array[current.Index] = o
+				return nil
+			}
+
+			in = array[current.Index]
+		case SegmentField:
+			object, ok := in.(map[string]any)
+			if !ok {
+				return errors.Errorf("%s is not an object", segments[:i])
+			}
+
+			if final {
+				o, err := deleteField(object[current.Field], segments[i+1])
+				if err != nil {
+					return errors.Wrapf(err, "cannot delete %s", segments)
+				}
+				object[current.Field] = o
+				return nil
+			}
+
+			in = object[current.Field]
+		}
+	}
+	return nil
+}
+
+// deleteField deletes the object in obj pointed by
+// the given Segment and returns it. Returned object
+// may or may not have the same address in memory.
+func deleteField(obj any, s Segment) (any, error) {
+	switch s.Type {
+	case SegmentIndex:
+		array, ok := obj.([]any)
+		if !ok {
+			return nil, errors.New("not an array")
+		}
+		if len(array) == 0 {
+			return array, nil
+		}
+		for i := int(s.Index); i < len(array)-1; i++ {
+			array[i] = array[i+1]
+		}
+		return array[:len(array)-1], nil
+	case SegmentField:
+		object, ok := obj.(map[string]any)
+		if !ok {
+			return nil, errors.New("not a map")
+		}
+		delete(object, s.Field)
+		return object, nil
+	}
+	return nil, nil
+}
