@@ -162,7 +162,7 @@ func TestAsOwner(t *testing.T) {
 }
 
 func TestAsController(t *testing.T) {
-	controller := true
+	flag := true
 
 	tests := map[string]struct {
 		r    *xpv1.TypedReference
@@ -176,11 +176,12 @@ func TestAsController(t *testing.T) {
 				UID:        uid,
 			},
 			want: metav1.OwnerReference{
-				APIVersion: groupVersion,
-				Kind:       kind,
-				Name:       name,
-				UID:        uid,
-				Controller: &controller,
+				APIVersion:         groupVersion,
+				Kind:               kind,
+				Name:               name,
+				UID:                uid,
+				Controller:         &flag,
+				BlockOwnerDeletion: &flag,
 			},
 		},
 	}

@@ -111,9 +111,10 @@ func AsOwner(r *xpv1.TypedReference) metav1.OwnerReference {
 // AsController converts the supplied object reference to a controller
 // reference. You may also consider using metav1.NewControllerRef.
 func AsController(r *xpv1.TypedReference) metav1.OwnerReference {
-	c := true
+	t := true
 	ref := AsOwner(r)
-	ref.Controller = &c
+	ref.Controller = &t
+	ref.BlockOwnerDeletion = &t
 	return ref
 }
 

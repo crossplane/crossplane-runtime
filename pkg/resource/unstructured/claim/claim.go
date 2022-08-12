@@ -122,6 +122,21 @@ func (c *Unstructured) GetCompositionUpdatePolicy() *xpv1.UpdatePolicy {
 	return &out
 }
 
+// SetCompositeDeletePolicy of this resource claim.
+func (c *Unstructured) SetCompositeDeletePolicy(p *xpv1.CompositeDeletePolicy) {
+	_ = fieldpath.Pave(c.Object).SetValue("spec.compositeDeletePolicy", p)
+}
+
+// GetCompositeDeletePolicy of this resource claim.
+func (c *Unstructured) GetCompositeDeletePolicy() *xpv1.CompositeDeletePolicy {
+	p, err := fieldpath.Pave(c.Object).GetString("spec.compositeDeletePolicy")
+	if err != nil {
+		return nil
+	}
+	out := xpv1.CompositeDeletePolicy(p)
+	return &out
+}
+
 // GetResourceReference of this composite resource claim.
 func (c *Unstructured) GetResourceReference() *corev1.ObjectReference {
 	out := &corev1.ObjectReference{}

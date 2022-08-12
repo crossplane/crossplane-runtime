@@ -31,6 +31,21 @@ const (
 	DeletionDelete DeletionPolicy = "Delete"
 )
 
+// A CompositeDeletePolicy determines how the composite resource should be deleted
+// when the corresponding claim is deleted.
+// +kubebuilder:validation:Enum=Background;Foreground
+type CompositeDeletePolicy string
+
+const (
+	// CompositeDeleteBackground means the composite resource will be deleted using
+	// the Background Propagation Policy when the claim is deleted.
+	CompositeDeleteBackground CompositeDeletePolicy = "Background"
+
+	// CompositeDeleteForeground means the composite resource will be deleted using
+	// the Foreground Propagation Policy when the claim is deleted.
+	CompositeDeleteForeground CompositeDeletePolicy = "Foreground"
+)
+
 // An UpdatePolicy determines how something should be updated - either
 // automatically (without human intervention) or manually.
 // +kubebuilder:validation:Enum=Automatic;Manual
