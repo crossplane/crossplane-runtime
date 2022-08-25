@@ -194,7 +194,7 @@ func NewRetryingCriticalAnnotationUpdater(c client.Client) *RetryingCriticalAnno
 func (u *RetryingCriticalAnnotationUpdater) UpdateCriticalAnnotations(ctx context.Context, o client.Object) error {
 	a := o.GetAnnotations()
 	err := retry.OnError(retry.DefaultRetry, resource.IsAPIError, func() error {
-		nn := types.NamespacedName{Name: o.GetName()}
+		nn := types.NamespacedName{Name: o.GetName(), Namespace: o.GetNamespace()}
 		if err := u.client.Get(ctx, nn, o); err != nil {
 			return err
 		}
