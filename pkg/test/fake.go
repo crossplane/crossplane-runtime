@@ -27,7 +27,7 @@ import (
 var _ client.Client = &MockClient{}
 
 // A MockGetFn is used to mock client.Client's Get implementation.
-type MockGetFn func(ctx context.Context, key client.ObjectKey, obj client.Object) error
+type MockGetFn func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error
 
 // A MockListFn is used to mock client.Client's List implementation.
 type MockListFn func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error
@@ -66,7 +66,7 @@ type ObjectListFn func(obj client.ObjectList) error
 
 // NewMockGetFn returns a MockGetFn that returns the supplied error.
 func NewMockGetFn(err error, ofn ...ObjectFn) MockGetFn {
-	return func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+	return func(_ context.Context, _ client.ObjectKey, obj client.Object, _ ...client.GetOption) error {
 		for _, fn := range ofn {
 			if err := fn(obj); err != nil {
 				return err
@@ -216,7 +216,7 @@ func NewMockClient() *MockClient {
 }
 
 // Get calls MockClient's MockGet function.
-func (c *MockClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+func (c *MockClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 	return c.MockGet(ctx, key, obj)
 }
 

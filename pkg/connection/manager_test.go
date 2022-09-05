@@ -73,7 +73,7 @@ func TestManagerConnectStore(t *testing.T) {
 			reason: "We should return a proper error if referenced StoreConfig does not exist.",
 			args: args{
 				c: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 						return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
 					},
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
@@ -93,7 +93,7 @@ func TestManagerConnectStore(t *testing.T) {
 			reason: "We should return any error encountered while building the Store.",
 			args: args{
 				c: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 						*obj.(*fake.StoreConfig) = fake.StoreConfig{}
 						return nil
 					},
@@ -116,7 +116,7 @@ func TestManagerConnectStore(t *testing.T) {
 			reason: "We should not return an error when connected successfully.",
 			args: args{
 				c: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 						*obj.(*fake.StoreConfig) = fake.StoreConfig{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: fakeConfig,
@@ -188,7 +188,7 @@ func TestManagerPublishConnection(t *testing.T) {
 			reason: "We should return any error encountered while connecting to Store.",
 			args: args{
 				c: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 						return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
 					},
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
@@ -214,7 +214,7 @@ func TestManagerPublishConnection(t *testing.T) {
 			reason: "We should return a proper error when publish to secret store failed.",
 			args: args{
 				c: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 						*obj.(*fake.StoreConfig) = fake.StoreConfig{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: fakeConfig,
@@ -248,7 +248,7 @@ func TestManagerPublishConnection(t *testing.T) {
 			reason: "We should return no error when published successfully.",
 			args: args{
 				c: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 						*obj.(*fake.StoreConfig) = fake.StoreConfig{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: fakeConfig,
@@ -335,7 +335,7 @@ func TestManagerUnpublishConnection(t *testing.T) {
 			reason: "We should return any error encountered while connecting to Store.",
 			args: args{
 				c: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 						return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
 					},
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
@@ -361,7 +361,7 @@ func TestManagerUnpublishConnection(t *testing.T) {
 			reason: "We should return a proper error when delete from secret store failed.",
 			args: args{
 				c: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 						*obj.(*fake.StoreConfig) = fake.StoreConfig{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: fakeConfig,
@@ -395,7 +395,7 @@ func TestManagerUnpublishConnection(t *testing.T) {
 			reason: "We should return a proper error when attempted to unpublish a secret that is not owned.",
 			args: args{
 				c: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 						*obj.(*fake.StoreConfig) = fake.StoreConfig{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: fakeConfig,
@@ -442,7 +442,7 @@ func TestManagerUnpublishConnection(t *testing.T) {
 			reason: "We should return no error when unpublished successfully.",
 			args: args{
 				c: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 						*obj.(*fake.StoreConfig) = fake.StoreConfig{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: fakeConfig,
@@ -532,7 +532,7 @@ func TestManagerFetchConnection(t *testing.T) {
 			reason: "We should return any error encountered while connecting to Store.",
 			args: args{
 				c: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 						return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
 					},
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
@@ -558,7 +558,7 @@ func TestManagerFetchConnection(t *testing.T) {
 			reason: "We should return a proper error when fetch from secret store failed.",
 			args: args{
 				c: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 						*obj.(*fake.StoreConfig) = fake.StoreConfig{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: fakeConfig,
@@ -592,7 +592,7 @@ func TestManagerFetchConnection(t *testing.T) {
 			reason: "We should return no error when fetched successfully.",
 			args: args{
 				c: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 						*obj.(*fake.StoreConfig) = fake.StoreConfig{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: fakeConfig,
@@ -692,7 +692,7 @@ func TestManagerPropagateConnection(t *testing.T) {
 			reason: "We should return any error encountered while connecting to Source Store.",
 			args: args{
 				c: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 						return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
 					},
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
@@ -719,7 +719,7 @@ func TestManagerPropagateConnection(t *testing.T) {
 			reason: "We should return a proper error when fetch from secret store failed.",
 			args: args{
 				c: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 						*obj.(*fake.StoreConfig) = fake.StoreConfig{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: fakeConfig,
@@ -754,7 +754,7 @@ func TestManagerPropagateConnection(t *testing.T) {
 			reason: "We should return a proper error if source secret is not owned by any resource",
 			args: args{
 				c: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 						if key.Name == fakeConfig {
 							*obj.(*fake.StoreConfig) = fake.StoreConfig{
 								ObjectMeta: metav1.ObjectMeta{
@@ -804,7 +804,7 @@ func TestManagerPropagateConnection(t *testing.T) {
 			reason: "We should return a proper error if source secret is owned by another resource",
 			args: args{
 				c: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 						if key.Name == fakeConfig {
 							*obj.(*fake.StoreConfig) = fake.StoreConfig{
 								ObjectMeta: metav1.ObjectMeta{
@@ -858,7 +858,7 @@ func TestManagerPropagateConnection(t *testing.T) {
 			reason: "We should return any error encountered while connecting to Destination Store.",
 			args: args{
 				c: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 						if key.Name == fakeConfig {
 							*obj.(*fake.StoreConfig) = fake.StoreConfig{
 								ObjectMeta: metav1.ObjectMeta{
@@ -912,7 +912,7 @@ func TestManagerPropagateConnection(t *testing.T) {
 			reason: "We should return any error encountered while publishing to Destination Store.",
 			args: args{
 				c: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 						*obj.(*fake.StoreConfig) = fake.StoreConfig{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: fakeConfig,
@@ -964,7 +964,7 @@ func TestManagerPropagateConnection(t *testing.T) {
 			reason: "We should return a proper error if destination secret cannot be owned by destination resource.",
 			args: args{
 				c: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 						*obj.(*fake.StoreConfig) = fake.StoreConfig{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: fakeConfig,
@@ -1030,7 +1030,7 @@ func TestManagerPropagateConnection(t *testing.T) {
 			reason: "We should return no error when propagated successfully.",
 			args: args{
 				c: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 						*obj.(*fake.StoreConfig) = fake.StoreConfig{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: fakeConfig,
@@ -1082,7 +1082,7 @@ func TestManagerPropagateConnection(t *testing.T) {
 			reason: "We should return a proper error when attempted to update an unowned secret.",
 			args: args{
 				c: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 						*obj.(*fake.StoreConfig) = fake.StoreConfig{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: fakeConfig,
@@ -1144,7 +1144,7 @@ func TestManagerPropagateConnection(t *testing.T) {
 			reason: "We should return no error when propagated successfully by updating an already owned secret.",
 			args: args{
 				c: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 						*obj.(*fake.StoreConfig) = fake.StoreConfig{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: fakeConfig,
