@@ -222,6 +222,18 @@ func (m *ComposedResourcesReferencer) SetResourceReferences(r []corev1.ObjectRef
 // GetResourceReferences gets the composed references.
 func (m *ComposedResourcesReferencer) GetResourceReferences() []corev1.ObjectReference { return m.Refs }
 
+type EnvironmentConfigReferencer struct{ Refs []corev1.ObjectReference }
+
+// SetEnvironmentConfigReferences sets the EnvironmentConfig references.
+func (m *EnvironmentConfigReferencer) SetEnvironmentConfigReferences(refs []corev1.ObjectReference) {
+	m.Refs = refs
+}
+
+// GetEnvironmentConfigReferences gets the EnvironmentConfig references.
+func (m *EnvironmentConfigReferencer) GetEnvironmentConfigReferences() []corev1.ObjectReference {
+	return m.Refs
+}
+
 // ConnectionDetailsLastPublishedTimer is a mock that implements the
 // ConnectionDetailsLastPublishedTimer interface.
 type ConnectionDetailsLastPublishedTimer struct{ Time *metav1.Time }
@@ -307,6 +319,7 @@ type Composite struct {
 	CompositionRevisionReferencer
 	CompositionUpdater
 	ComposedResourcesReferencer
+	EnvironmentConfigReferencer
 	ClaimReferencer
 	ConnectionSecretWriterTo
 	ConnectionDetailsPublisherTo

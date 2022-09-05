@@ -218,3 +218,25 @@ func (c *Unstructured) GetConnectionDetailsLastPublishedTime() *metav1.Time {
 func (c *Unstructured) SetConnectionDetailsLastPublishedTime(t *metav1.Time) {
 	_ = fieldpath.Pave(c.Object).SetValue("status.connectionDetails.lastPublishedTime", t)
 }
+
+// GetEnvironmentConfigReferences of this Composite resource.
+func (c *Unstructured) GetEnvironmentConfigReferences() []corev1.ObjectReference {
+	out := &[]corev1.ObjectReference{}
+	_ = fieldpath.Pave(c.Object).GetValueInto("spec.environmentConfigRefs", out)
+	return *out
+}
+
+// SetEnvironmentConfigReferences of this Composite resource.
+func (c *Unstructured) SetEnvironmentConfigReferences(refs []corev1.ObjectReference) {
+	empty := corev1.ObjectReference{}
+	filtered := make([]corev1.ObjectReference, 0, len(refs))
+	for _, ref := range refs {
+		// TODO(negz): Ask muvaf to explain what this is working around. :)
+		// TODO(muvaf): temporary workaround.
+		if ref.String() == empty.String() {
+			continue
+		}
+		filtered = append(filtered, ref)
+	}
+	_ = fieldpath.Pave(c.Object).SetValue("spec.resourceRefs", filtered)
+}
