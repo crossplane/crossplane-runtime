@@ -57,6 +57,13 @@ const (
 	// of a resource that indicates the last time creation of the external
 	// resource failed. Its value must be an RFC3999 timestamp.
 	AnnotationKeyExternalCreateFailed = "crossplane.io/external-create-failed"
+
+	// AnnotationKeyReconciliationPaused is the key in the annotations map
+	// of a resource that indicates that further reconciliations on the
+	// resource are paused. All create/update/delete/generic events on
+	// the resource will be filtered and thus no further reconcile requests
+	// will be queued for the resource.
+	AnnotationKeyReconciliationPaused = "crossplane.io/paused"
 )
 
 // Supported resources with all of these annotations will be fully or partially

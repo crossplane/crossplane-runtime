@@ -51,6 +51,7 @@ const (
 const (
 	ReasonReconcileSuccess ConditionReason = "ReconcileSuccess"
 	ReasonReconcileError   ConditionReason = "ReconcileError"
+	ReasonReconcilePaused  ConditionReason = "ReconcilePaused"
 )
 
 // A Condition that may apply to a resource.
@@ -248,5 +249,16 @@ func ReconcileError(err error) Condition {
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonReconcileError,
 		Message:            err.Error(),
+	}
+}
+
+// ReconcilePaused returns a condition that indicates reconciliation on
+// the managed resource is paused via the pause annotation.
+func ReconcilePaused() Condition {
+	return Condition{
+		Type:               TypeSynced,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonReconcilePaused,
 	}
 }

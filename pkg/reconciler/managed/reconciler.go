@@ -76,6 +76,8 @@ const (
 	reasonCreated event.Reason = "CreatedExternalResource"
 	reasonUpdated event.Reason = "UpdatedExternalResource"
 	reasonPending event.Reason = "PendingExternalResource"
+
+	reasonReconciliationPaused event.Reason = "ReconciliationPaused"
 )
 
 // ControllerName returns the recommended name for controllers that use this
@@ -661,6 +663,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		"version", managed.GetResourceVersion(),
 		"external-name", meta.GetExternalName(managed),
 	)
+
+	// check the pause annotation and return if it has the value "true"
+	// after logging, publishing an event and updating the SYNC status condition
+	if managed.GetAnnotations()[meta.AnnotationKeyReconciliationPaused] == "true" {
+		log.Debug("Reconciliation is paused via the pause annotation", "annotation", meta.AnnotationKeyReconciliationPaused, "value", "true")
+		record.Event(managed, event.Normal(reasonReconciliationPaused, "Reconciliation is paused via the pause annotation"))
+		managed.SetConditions(xpv1.ReconcilePaused())
+		// if the pause annotation is removed, we will have a chance to reconcile again and resume
+		// and if status update fails, we will reconcile again to retry to update the status
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+	}
 
 	// If managed resource has a deletion timestamp and and a deletion policy of
 	// Orphan, we do not need to observe the external resource before attempting
