@@ -157,6 +157,43 @@ type patch struct{ from runtime.Object }
 func (p *patch) Type() types.PatchType                { return types.MergePatchType }
 func (p *patch) Data(_ client.Object) ([]byte, error) { return json.Marshal(p.from) }
 
+// APIServerSideApplicator uses Server-Side Apply functionality of Kubernetes
+// API server to apply changes to given resource.
+type APIServerSideApplicator struct {
+	client client.Client
+	owner  string
+}
+
+// NewAPIServerSideApplicator returns a new APIServerSideApplicator.
+func NewAPIServerSideApplicator(c client.Client, owner string) *APIServerSideApplicator {
+	return &APIServerSideApplicator{client: c, owner: owner}
+}
+
+// Apply sends the object as a whole to the API server to execute a server-side
+// apply that will calculate the diff in server-side and patch the object in
+// the storage instead of client calculating the diff.
+// This is preferred over client-side apply implementations in general.
+func (a *APIServerSideApplicator) Apply(ctx context.Context, o client.Object, ao ...ApplyOption) error {
+	m, ok := o.(metav1.Object)
+	if !ok {
+		return errors.New("cannot access object metadata")
+	}
+
+	if m.GetName() == "" && m.GetGenerateName() != "" {
+		return errors.Wrap(a.client.Create(ctx, o), "cannot create object")
+	}
+	// Required by server-side apply.
+	o.SetManagedFields(nil)
+	return errors.Wrap(
+		a.client.Patch(
+			ctx,
+			o,
+			client.Apply,
+			client.ForceOwnership,
+			client.FieldOwner(a.owner),
+		), "cannot apply object")
+}
+
 // An APIUpdatingApplicator applies changes to an object by either creating or
 // updating it in a Kubernetes API server.
 type APIUpdatingApplicator struct {
