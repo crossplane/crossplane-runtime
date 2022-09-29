@@ -1320,3 +1320,43 @@ func TestAllowsPropagationTo(t *testing.T) {
 		})
 	}
 }
+
+func TestIsPaused(t *testing.T) {
+	cases := map[string]struct {
+		o    metav1.Object
+		want bool
+	}{
+		"HasPauseAnnotationSetTrue": {
+			o: func() metav1.Object {
+				p := &corev1.Pod{}
+				p.SetAnnotations(map[string]string{
+					AnnotationKeyReconciliationPaused: "true",
+				})
+				return p
+			}(),
+			want: true,
+		},
+		"NoPauseAnnotation": {
+			o:    &corev1.Pod{},
+			want: false,
+		},
+		"HasEmptyPauseAnnotation": {
+			o: func() metav1.Object {
+				p := &corev1.Pod{}
+				p.SetAnnotations(map[string]string{
+					AnnotationKeyReconciliationPaused: "",
+				})
+				return p
+			}(),
+			want: false,
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := IsPaused(tc.o)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("IsPaused(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}

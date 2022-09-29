@@ -664,9 +664,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		"external-name", meta.GetExternalName(managed),
 	)
 
-	// check the pause annotation and return if it has the value "true"
+	// Check the pause annotation and return if it has the value "true"
 	// after logging, publishing an event and updating the SYNC status condition
-	if managed.GetAnnotations()[meta.AnnotationKeyReconciliationPaused] == "true" {
+	if meta.IsPaused(managed) {
 		log.Debug("Reconciliation is paused via the pause annotation", "annotation", meta.AnnotationKeyReconciliationPaused, "value", "true")
 		record.Event(managed, event.Normal(reasonReconciliationPaused, "Reconciliation is paused via the pause annotation"))
 		managed.SetConditions(xpv1.ReconcilePaused())

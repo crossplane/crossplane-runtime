@@ -419,3 +419,9 @@ func AllowsPropagationTo(from metav1.Object) map[types.NamespacedName]bool {
 
 	return to
 }
+
+// IsPaused returns true if the object has the AnnotationKeyReconciliationPaused
+// annotation set to `true`.
+func IsPaused(o metav1.Object) bool {
+	return o.GetAnnotations()[AnnotationKeyReconciliationPaused] == "true"
+}
