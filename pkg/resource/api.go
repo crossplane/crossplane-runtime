@@ -173,17 +173,14 @@ func NewAPIServerSideApplicator(c client.Client, owner string) *APIServerSideApp
 // apply that will calculate the diff in server-side and patch the object in
 // the storage instead of client calculating the diff.
 // This is preferred over client-side apply implementations in general.
-func (a *APIServerSideApplicator) Apply(ctx context.Context, o client.Object, ao ...ApplyOption) error {
+func (a *APIServerSideApplicator) Apply(ctx context.Context, o client.Object, _ ...ApplyOption) error {
 	m, ok := o.(metav1.Object)
 	if !ok {
 		return errors.New("cannot access object metadata")
 	}
-
-	if m.GetName() == "" && m.GetGenerateName() != "" {
-		return errors.Wrap(a.client.Create(ctx, o), "cannot create object")
-	}
-	// Required by server-side apply.
-	o.SetManagedFields(nil)
+	m.SetManagedFields(nil)
+	m.SetUID("")
+	m.SetResourceVersion("")
 	return errors.Wrap(
 		a.client.Patch(
 			ctx,
