@@ -1078,6 +1078,98 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultpollInterval}},
 		},
+		"ReconciliationPausedSuccessful": {
+			reason: `If a managed resource has the pause annotation with value "true", there should be no further requeue requests.`,
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							mg := obj.(*fake.Managed)
+							mg.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
+							return nil
+						}),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+							want := &fake.Managed{}
+							want.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
+							want.SetConditions(xpv1.ReconcilePaused())
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := `If managed resource has the pause annotation with value "true", it should acquire "Synced" status condition with the status "False" and the reason "ReconcilePaused".`
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+			},
+			want: want{result: reconcile.Result{}},
+		},
+		"ReconciliationResumes": {
+			reason: `If a managed resource has the pause annotation with some value other than "true" and the Synced=False/ReconcilePaused status condition, reconciliation should resume with requeueing.`,
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							mg := obj.(*fake.Managed)
+							mg.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "false"})
+							mg.SetConditions(xpv1.ReconcilePaused())
+							return nil
+						}),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+							want := &fake.Managed{}
+							want.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "false"})
+							want.SetConditions(xpv1.ReconcileSuccess())
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := `Managed resource should acquire Synced=False/ReconcileSuccess status condition after a resume.`
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+					WithExternalConnectDisconnecter(ExternalConnectDisconnecterFns{
+						ConnectFn: func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
+							c := &ExternalClientFns{
+								ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+									return ExternalObservation{ResourceExists: true, ResourceUpToDate: true}, nil
+								},
+							}
+							return c, nil
+						},
+						DisconnectFn: func(_ context.Context) error { return errBoom },
+					}),
+					WithConnectionPublishers(),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultpollInterval}},
+		},
+		"ReconciliationPausedError": {
+			reason: `If a managed resource has the pause annotation with value "true" and the status update due to reconciliation being paused fails, error should be reported causing an exponentially backed-off requeue.`,
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							mg := obj.(*fake.Managed)
+							mg.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
+							return nil
+						}),
+						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+							return errBoom
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+			},
+			want: want{err: errors.Wrap(errBoom, errUpdateManagedStatus)},
+		},
 	}
 
 	for name, tc := range cases {

@@ -57,6 +57,13 @@ const (
 	// of a resource that indicates the last time creation of the external
 	// resource failed. Its value must be an RFC3999 timestamp.
 	AnnotationKeyExternalCreateFailed = "crossplane.io/external-create-failed"
+
+	// AnnotationKeyReconciliationPaused is the key in the annotations map
+	// of a resource that indicates that further reconciliations on the
+	// resource are paused. All create/update/delete/generic events on
+	// the resource will be filtered and thus no further reconcile requests
+	// will be queued for the resource.
+	AnnotationKeyReconciliationPaused = "crossplane.io/paused"
 )
 
 // Supported resources with all of these annotations will be fully or partially
@@ -411,4 +418,10 @@ func AllowsPropagationTo(from metav1.Object) map[types.NamespacedName]bool {
 	}
 
 	return to
+}
+
+// IsPaused returns true if the object has the AnnotationKeyReconciliationPaused
+// annotation set to `true`.
+func IsPaused(o metav1.Object) bool {
+	return o.GetAnnotations()[AnnotationKeyReconciliationPaused] == "true"
 }

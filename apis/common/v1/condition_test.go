@@ -57,6 +57,15 @@ func TestConditionEqual(t *testing.T) {
 			b:    Condition{Message: "uncool"},
 			want: false,
 		},
+		"CheckReconcilePaused": {
+			a: ReconcilePaused(),
+			b: Condition{
+				Type:   TypeSynced,
+				Status: corev1.ConditionFalse,
+				Reason: ReasonReconcilePaused,
+			},
+			want: true,
+		},
 	}
 
 	for name, tc := range cases {
