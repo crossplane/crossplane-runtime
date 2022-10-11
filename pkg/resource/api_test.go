@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -467,6 +468,132 @@ func TestAPIUpdatingApplicator(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			a := NewAPIUpdatingApplicator(tc.c)
 			err := a.Apply(tc.args.ctx, tc.args.o, tc.args.ao...)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nApply(...): -want error, +got error\n%s\n", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.o, tc.args.o); diff != "" {
+				t.Errorf("\n%s\nApply(...): -want, +got\n%s\n", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestAPIServerSideApplicator(t *testing.T) {
+	errBoom := errors.New("boom")
+	desired := &object{}
+	desired.SetName("desired")
+
+	type args struct {
+		ctx context.Context
+		o   client.Object
+		po  []client.PatchOption
+	}
+
+	type want struct {
+		o   client.Object
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		c      client.Client
+		args   args
+		want   want
+	}{
+		"PatchError": {
+			reason: "An error should be returned if we can't patch the object with SSA options",
+			c: &test.MockClient{
+				MockPatch: test.NewMockPatchFn(errBoom),
+			},
+			args: args{
+				o: &object{},
+			},
+			want: want{
+				o:   &object{},
+				err: errors.Wrap(errBoom, "cannot apply object"),
+			},
+		},
+		"PatchSuccess": {
+			reason: "No error should be returned if the patch call is successful.",
+			c: &test.MockClient{
+				MockPatch: test.NewMockPatchFn(nil),
+			},
+			args: args{
+				o: &object{},
+			},
+			want: want{
+				o: &object{},
+			},
+		},
+		"ManagedFieldsGone": {
+			reason: "Submitted object should not have UID, ManagedFields and ResourceVersion fields set.",
+			c: &test.MockClient{
+				MockPatch: func(_ context.Context, o client.Object, p client.Patch, _ ...client.PatchOption) error {
+					m, ok := o.(metav1.Object)
+					if !ok {
+						return errors.New("cannot access object metadata")
+					}
+					switch {
+					case m.GetResourceVersion() != "":
+						t.Fatal("metadata.resourceVersion should not be set")
+					case m.GetUID() != "":
+						t.Fatal("metadata.uid should not be set")
+					case len(m.GetManagedFields()) != 0:
+						t.Fatal("metadata.managedFields should not be set")
+					}
+					return nil
+				},
+			},
+			args: args{
+				o: &object{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: types.UID("some"),
+						ManagedFields: []metav1.ManagedFieldsEntry{
+							{
+								Manager: "some",
+							},
+						},
+						ResourceVersion: "1234",
+					},
+				},
+			},
+			want: want{
+				o: &object{},
+			},
+		},
+		"PatchTypeIsCorrect": {
+			reason: "Patch type should always be server-side apply.",
+			c: &test.MockClient{
+				MockPatch: func(_ context.Context, _ client.Object, p client.Patch, _ ...client.PatchOption) error {
+					if p.Type() != types.ApplyPatchType {
+						t.Fatal("patch type should be apply")
+					}
+					return nil
+				},
+			},
+			args: args{
+				o: &object{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: types.UID("some"),
+						ManagedFields: []metav1.ManagedFieldsEntry{
+							{
+								Manager: "some",
+							},
+						},
+						ResourceVersion: "1234",
+					},
+				},
+			},
+			want: want{
+				o: &object{},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			a := NewAPIServerSideApplicator(tc.c)
+			err := a.Apply(tc.args.ctx, tc.args.o, tc.args.po...)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nApply(...): -want error, +got error\n%s\n", tc.reason, diff)
 			}

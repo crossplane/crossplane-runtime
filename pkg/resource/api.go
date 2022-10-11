@@ -161,33 +161,38 @@ func (p *patch) Data(_ client.Object) ([]byte, error) { return json.Marshal(p.fr
 // API server to apply changes to given resource.
 type APIServerSideApplicator struct {
 	client client.Client
-	owner  string
 }
 
 // NewAPIServerSideApplicator returns a new APIServerSideApplicator.
-func NewAPIServerSideApplicator(c client.Client, owner string) *APIServerSideApplicator {
-	return &APIServerSideApplicator{client: c, owner: owner}
+func NewAPIServerSideApplicator(c client.Client) *APIServerSideApplicator {
+	return &APIServerSideApplicator{client: c}
 }
 
 // Apply sends the object as a whole to the API server to execute a server-side
 // apply that will calculate the diff in server-side and patch the object in
 // the storage instead of client calculating the diff.
 // This is preferred over client-side apply implementations in general.
-func (a *APIServerSideApplicator) Apply(ctx context.Context, o client.Object, _ ...ApplyOption) error {
+func (a *APIServerSideApplicator) Apply(ctx context.Context, o client.Object, opts ...client.PatchOption) error {
 	m, ok := o.(metav1.Object)
 	if !ok {
 		return errors.New("cannot access object metadata")
 	}
+	// Server-side Apply requires the submitted resource not to have the following
+	// fields set.
 	m.SetManagedFields(nil)
 	m.SetUID("")
 	m.SetResourceVersion("")
+	// We override even if the field was being managed by something else.
+	options := []client.PatchOption{
+		client.ForceOwnership,
+	}
+	options = append(options, opts...)
 	return errors.Wrap(
 		a.client.Patch(
 			ctx,
 			o,
 			client.Apply,
-			client.ForceOwnership,
-			client.FieldOwner(a.owner),
+			options...,
 		), "cannot apply object")
 }
 
