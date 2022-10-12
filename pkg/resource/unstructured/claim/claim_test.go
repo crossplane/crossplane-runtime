@@ -216,6 +216,31 @@ func TestCompositionUpdatePolicy(t *testing.T) {
 	}
 }
 
+func TestCompositeDeletePolicy(t *testing.T) {
+	p := xpv1.CompositeDeleteBackground
+	cases := map[string]struct {
+		u    *Unstructured
+		set  *xpv1.CompositeDeletePolicy
+		want *xpv1.CompositeDeletePolicy
+	}{
+		"NewRef": {
+			u:    New(),
+			set:  &p,
+			want: &p,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			tc.u.SetCompositeDeletePolicy(tc.set)
+			got := tc.u.GetCompositeDeletePolicy()
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\nu.GetCompositeDeletePolicy(): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestResourceReference(t *testing.T) {
 	ref := &corev1.ObjectReference{Namespace: "ns", Name: "cool"}
 	cases := map[string]struct {

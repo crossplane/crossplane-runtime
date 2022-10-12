@@ -204,6 +204,19 @@ func (m *CompositionUpdater) GetCompositionUpdatePolicy() *xpv1.UpdatePolicy {
 	return m.Policy
 }
 
+// CompositeResourceDeleter is a mock that implements CompositeResourceDeleter interface.
+type CompositeResourceDeleter struct{ Policy *xpv1.CompositeDeletePolicy }
+
+// SetCompositeDeletePolicy sets the CompositeDeletePolicy.
+func (m *CompositeResourceDeleter) SetCompositeDeletePolicy(p *xpv1.CompositeDeletePolicy) {
+	m.Policy = p
+}
+
+// GetCompositeDeletePolicy gets the CompositeDeletePolicy.
+func (m *CompositeResourceDeleter) GetCompositeDeletePolicy() *xpv1.CompositeDeletePolicy {
+	return m.Policy
+}
+
 // CompositeResourceReferencer is a mock that implements CompositeResourceReferencer interface.
 type CompositeResourceReferencer struct{ Ref *corev1.ObjectReference }
 
@@ -374,6 +387,7 @@ type CompositeClaim struct {
 	CompositionSelector
 	CompositionReferencer
 	CompositionRevisionReferencer
+	CompositeResourceDeleter
 	CompositionUpdater
 	CompositeResourceReferencer
 	LocalConnectionSecretWriterTo
