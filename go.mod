@@ -112,6 +112,6 @@ require (
 
 replace (
 
-        github.com/verrazzano/crossplane-runtime  => github.com/crossplane/crossplane-runtime
+        github.com/crossplane/crossplane-runtime  => github.com/verrazzano/crossplane-runtime vz7020.1
 
 )
