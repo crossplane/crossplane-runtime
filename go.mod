@@ -1,4 +1,4 @@
-module github.com/crossplane/crossplane-runtime
+module github.com/verrazzano/crossplane-runtime
 
 go 1.18
 
