@@ -249,7 +249,13 @@ func (m *EnvironmentConfigReferencer) GetEnvironmentConfigReferences() []corev1.
 
 // ConnectionDetailsLastPublishedTimer is a mock that implements the
 // ConnectionDetailsLastPublishedTimer interface.
-type ConnectionDetailsLastPublishedTimer struct{ Time *metav1.Time }
+type ConnectionDetailsLastPublishedTimer struct {
+	// NOTE: runtime.DefaultUnstructuredConverter.ToUnstructured
+	// cannot currently handle if `Time` is nil here.
+	// The `omitempty` json tag is a workaround that
+	// prevents a panic.
+	Time *metav1.Time `json:"lastPublishedTime,omitempty"`
+}
 
 // SetConnectionDetailsLastPublishedTime sets the published time.
 func (c *ConnectionDetailsLastPublishedTimer) SetConnectionDetailsLastPublishedTime(t *metav1.Time) {
