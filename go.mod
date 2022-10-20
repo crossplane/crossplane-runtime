@@ -1,6 +1,6 @@
 module github.com/verrazzano/crossplane-runtime
 
-go 1.18
+go 1.19
 
 require (
 	github.com/go-logr/logr v1.2.2
