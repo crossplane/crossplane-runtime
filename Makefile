@@ -34,6 +34,7 @@ GO_TEST_PARALLEL := $(shell echo $$(( $(NPROCS) / 2 )))
 GO_LDFLAGS += -X $(GO_PROJECT)/pkg/version.Version=$(VERSION)
 GO_SUBDIRS += pkg apis
 GO111MODULE = on
+GO_REQUIRED_VERSION = 1.19
 -include build/makelib/golang.mk
 
 # ====================================================================================
