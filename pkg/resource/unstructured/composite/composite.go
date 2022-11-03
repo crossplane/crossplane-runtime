@@ -107,6 +107,20 @@ func (c *Unstructured) SetCompositionRevisionReference(ref *corev1.ObjectReferen
 	_ = fieldpath.Pave(c.Object).SetValue("spec.compositionRevisionRef", ref)
 }
 
+// GetCompositionRevisionSelector of this resource claim.
+func (c *Unstructured) GetCompositionRevisionSelector() *metav1.LabelSelector {
+	out := &metav1.LabelSelector{}
+	if err := fieldpath.Pave(c.Object).GetValueInto("spec.compositionRevisionSelector", out); err != nil {
+		return nil
+	}
+	return out
+}
+
+// SetCompositionRevisionSelector of this resource claim.
+func (c *Unstructured) SetCompositionRevisionSelector(sel *metav1.LabelSelector) {
+	_ = fieldpath.Pave(c.Object).SetValue("spec.compositionRevisionSelector", sel)
+}
+
 // SetCompositionUpdatePolicy of this Composite resource.
 func (c *Unstructured) SetCompositionUpdatePolicy(p *xpv1.UpdatePolicy) {
 	_ = fieldpath.Pave(c.Object).SetValue("spec.compositionUpdatePolicy", p)

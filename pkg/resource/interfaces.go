@@ -123,6 +123,13 @@ type CompositionRevisionReferencer interface {
 	GetCompositionRevisionReference() *corev1.ObjectReference
 }
 
+// A CompositionRevisionSelector may reference a set of
+// composition revisions.
+type CompositionRevisionSelector interface {
+	SetCompositionRevisionSelector(selector *metav1.LabelSelector)
+	GetCompositionRevisionSelector() *metav1.LabelSelector
+}
+
 // A CompositionUpdater uses a composition, and may update which revision of
 // that composition it uses.
 type CompositionUpdater interface {
@@ -228,6 +235,7 @@ type Composite interface {
 	CompositionReferencer
 	CompositionUpdater
 	CompositionRevisionReferencer
+	CompositionRevisionSelector
 	ComposedResourcesReferencer
 	EnvironmentConfigReferencer
 	ClaimReferencer
@@ -255,6 +263,7 @@ type CompositeClaim interface {
 	CompositionReferencer
 	CompositionUpdater
 	CompositionRevisionReferencer
+	CompositionRevisionSelector
 	CompositeResourceDeleter
 	CompositeResourceReferencer
 	LocalConnectionSecretWriterTo
