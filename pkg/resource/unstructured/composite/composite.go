@@ -238,5 +238,5 @@ func (c *Unstructured) SetEnvironmentConfigReferences(refs []corev1.ObjectRefere
 		}
 		filtered = append(filtered, ref)
 	}
-	_ = fieldpath.Pave(c.Object).SetValue("spec.resourceRefs", filtered)
+	_ = fieldpath.Pave(c.Object).SetValue("spec.environmentConfigRefs", filtered)
 }
