@@ -191,6 +191,19 @@ func (m *CompositionRevisionReferencer) GetCompositionRevisionReference() *corev
 	return m.Ref
 }
 
+// CompositionRevisionSelector is a mock that implements CompositionRevisionSelector interface.
+type CompositionRevisionSelector struct{ Sel *metav1.LabelSelector }
+
+// SetCompositionRevisionReference sets the CompositionRevisionReference.
+func (m *CompositionRevisionSelector) SetCompositionRevisionSelector(ls *metav1.LabelSelector) {
+	m.Sel = ls
+}
+
+// GetCompositionRevisionSelector gets the CompositionRevisionSelector.
+func (m *CompositionRevisionSelector) GetCompositionRevisionSelector() *metav1.LabelSelector {
+	return m.Sel
+}
+
 // CompositionUpdater is a mock that implements CompositionUpdater interface.
 type CompositionUpdater struct{ Policy *xpv1.UpdatePolicy }
 
@@ -336,6 +349,7 @@ type Composite struct {
 	CompositionSelector
 	CompositionReferencer
 	CompositionRevisionReferencer
+	CompositionRevisionSelector
 	CompositionUpdater
 	ComposedResourcesReferencer
 	EnvironmentConfigReferencer
@@ -393,6 +407,7 @@ type CompositeClaim struct {
 	CompositionSelector
 	CompositionReferencer
 	CompositionRevisionReferencer
+	CompositionRevisionSelector
 	CompositeResourceDeleter
 	CompositionUpdater
 	CompositeResourceReferencer

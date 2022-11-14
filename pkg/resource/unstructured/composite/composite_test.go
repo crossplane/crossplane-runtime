@@ -190,6 +190,31 @@ func TestCompositionRevisionReference(t *testing.T) {
 	}
 }
 
+func TestCompositionRevisionSelector(t *testing.T) {
+	sel := &metav1.LabelSelector{MatchLabels: map[string]string{"cool": "very"}}
+	cases := map[string]struct {
+		u    *Unstructured
+		set  *metav1.LabelSelector
+		want *metav1.LabelSelector
+	}{
+		"NewRef": {
+			u:    New(),
+			set:  sel,
+			want: sel,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			tc.u.SetCompositionRevisionSelector(tc.set)
+			got := tc.u.GetCompositionRevisionSelector()
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\nu.GetCompositionRevisionSelector(): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestCompositionUpdatePolicy(t *testing.T) {
 	p := xpv1.UpdateManual
 	cases := map[string]struct {
