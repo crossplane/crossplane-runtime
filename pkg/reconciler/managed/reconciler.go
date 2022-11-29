@@ -678,7 +678,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// If managed resource has a deletion timestamp and and a deletion policy of
 	// Orphan, we do not need to observe the external resource before attempting
 	// to unpublish connection details and remove finalizer.
-	if meta.WasDeleted(managed) && managed.GetDeletionPolicy() == xpv1.DeletionOrphan {
+	if meta.WasDeleted(managed) && managed.GetDeletionPolicy() == xpv1.DeletionOrphan && managed.GetManagementPolicy() == xpv1.ManagementFullControl {
 		log = log.WithValues("deletion-timestamp", managed.GetDeletionTimestamp())
 
 		// Empty ConnectionDetails are passed to UnpublishConnection because we
@@ -791,6 +791,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
+	if managed.GetManagementPolicy() == xpv1.ManagementObserveOnly {
+		if !observation.ResourceExists {
+			record.Event(managed, event.Warning(reasonCannotObserve, errors.New("resource does not exist")))
+			managed.SetConditions(xpv1.ReconcileError(errors.Wrap(errors.New("resource does not exist"), errReconcileObserve)))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		}
+		log.Debug("Observed the resource and this is all we're allowed to do", "requeue-after", time.Now().Add(r.pollInterval))
+		managed.SetConditions(xpv1.ReconcileSuccess())
+		return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+	}
 	// If this resource has a non-zero creation grace period we want to wait
 	// for that period to expire before we trust that the resource really
 	// doesn't exist. This is because some external APIs are eventually

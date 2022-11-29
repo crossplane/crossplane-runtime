@@ -16,14 +16,33 @@ limitations under the License.
 
 package v1
 
+// A ManagementPolicy determines how should Crossplane controllers manage an
+// external resource.
+// +kubebuilder:validation:Enum=FullControl;ObserveOnly;OrphanOnDelete
+type ManagementPolicy string
+
+const (
+	// ManagementFullControl means the external resource is fully controlled
+	// by Crossplane controllers, including its deletion.
+	ManagementFullControl ManagementPolicy = "FullControl"
+
+	// ManagementObserveOnly means the external resource will only be observed
+	// by Crossplane controllers, but not modified or deleted.
+	ManagementObserveOnly ManagementPolicy = "ObserveOnly"
+
+	// ManagementOrphanOnDelete means the external resource will be orphaned
+	// when its managed resource is deleted.
+	ManagementOrphanOnDelete ManagementPolicy = "OrphanOnDelete"
+)
+
 // A DeletionPolicy determines what should happen to the underlying external
 // resource when a managed resource is deleted.
 // +kubebuilder:validation:Enum=Orphan;Delete
 type DeletionPolicy string
 
 const (
-	// DeletionOrphan means the external resource will orphaned when its managed
-	// resource is deleted.
+	// DeletionOrphan means the external resource will be orphaned when its
+	// managed resource is deleted.
 	DeletionOrphan DeletionPolicy = "Orphan"
 
 	// DeletionDelete means both the  external resource will be deleted when its

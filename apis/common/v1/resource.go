@@ -203,6 +203,11 @@ type ResourceSpec struct {
 	// Deprecated: Please use ProviderConfigReference, i.e. `providerConfigRef`
 	ProviderReference *Reference `json:"providerRef,omitempty"`
 
+	// ManagementPolicy specifies how this managed resource should be managed.
+	// +optional
+	// +kubebuilder:default=FullControl
+	ManagementPolicy ManagementPolicy `json:"managementPolicy,omitempty"`
+
 	// DeletionPolicy specifies what will happen to the underlying external
 	// when this managed resource is deleted - either "Delete" or "Orphan" the
 	// external resource.
