@@ -797,6 +797,34 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			managed.SetConditions(xpv1.ReconcileError(errors.Wrap(errors.New("resource does not exist"), errReconcileObserve)))
 			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 		}
+
+		if _, err := r.managed.PublishConnection(ctx, managed, observation.ConnectionDetails); err != nil {
+			// If this is the first time we encounter this issue we'll be requeued
+			// implicitly when we update our status with the new error condition. If
+			// not, we requeue explicitly, which will trigger backoff.
+			log.Debug("Cannot publish connection details", "error", err)
+			record.Event(managed, event.Warning(reasonCannotPublish, err))
+			managed.SetConditions(xpv1.ReconcileError(err))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		}
+
+		if observation.ResourceLateInitialized {
+			// Note that this update may reset any pending updates to the status of
+			// the managed resource from when it was observed above. This is because
+			// the API server replies to the update with its unchanged view of the
+			// resource's status, which is subsequently deserialized into managed.
+			// This is usually tolerable because the update will implicitly requeue
+			// an immediate reconcile which should re-observe the external resource
+			// and persist its status.
+			if err := r.client.Update(ctx, managed); err != nil {
+				log.Debug(errUpdateManaged, "error", err)
+				record.Event(managed, event.Warning(reasonCannotUpdateManaged, err))
+				managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, errUpdateManaged)))
+				return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+			}
+		}
+
+
 		log.Debug("Observed the resource and this is all we're allowed to do", "requeue-after", time.Now().Add(r.pollInterval))
 		managed.SetConditions(xpv1.ReconcileSuccess())
 		return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
