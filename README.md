@@ -46,7 +46,7 @@ crossplane-runtime is under the Apache 2.0 license.
 
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fcrossplane%2Fcrossplane-runtime.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fcrossplane%2Fcrossplane-runtime?ref=badge_large)
 
-[developer guide]: https://crossplane.io/docs/master/contributing/overview.html
+[developer guide]: https://docs.crossplane.io/latest/contributing/
 [API documentation]: https://godoc.org/github.com/crossplane/crossplane-runtime
 [contributing]: https://github.com/crossplane/crossplane/blob/master/CONTRIBUTING.md
 [issue]: https://github.com/crossplane/crossplane-runtime/issues
