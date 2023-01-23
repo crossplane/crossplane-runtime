@@ -146,3 +146,17 @@ func IsNamed(name string) PredicateFn {
 		return mo.GetName() == name
 	}
 }
+
+// DesiredStateChanged accepts objects that have changed their desired state, i.e.
+// the state that is not managed by the controller.
+// To be more specific, it accepts update events that have changes in one of the followings:
+// - `metadata.annotations`
+// - `metadata.labels`
+// - `spec`
+func DesiredStateChanged() predicate.Predicate {
+	return predicate.Or(
+		predicate.AnnotationChangedPredicate{},
+		predicate.LabelChangedPredicate{},
+		predicate.GenerationChangedPredicate{},
+	)
+}

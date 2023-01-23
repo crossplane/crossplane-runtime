@@ -24,7 +24,10 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 
+	runtimev1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
@@ -293,6 +296,114 @@ func TestIsNamed(t *testing.T) {
 			got := IsNamed(tc.name)(tc.obj)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("IsNamed(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestDesiredStateChanged(t *testing.T) {
+	type args struct {
+		old client.Object
+		new client.Object
+	}
+	type want struct {
+		desiredStateChanged bool
+	}
+	cases := map[string]struct {
+		args
+		want
+	}{
+		"NothingChanged": {
+			args: args{
+				old: func() client.Object {
+					mg := &fake.Managed{}
+					return mg
+				}(),
+				new: func() client.Object {
+					mg := &fake.Managed{}
+					return mg
+				}(),
+			},
+			want: want{
+				desiredStateChanged: false,
+			},
+		},
+		"StatusChanged": {
+			args: args{
+				old: func() client.Object {
+					mg := &fake.Managed{}
+					return mg
+				}(),
+				new: func() client.Object {
+					mg := &fake.Managed{}
+					mg.SetConditions(runtimev1.ReconcileSuccess())
+					return mg
+				}(),
+			},
+			want: want{
+				desiredStateChanged: false,
+			},
+		},
+		"AnnotationsChanged": {
+			args: args{
+				old: func() client.Object {
+					mg := &fake.Managed{}
+					return mg
+				}(),
+				new: func() client.Object {
+					mg := &fake.Managed{}
+					mg.SetAnnotations(map[string]string{"foo": "bar"})
+					return mg
+				}(),
+			},
+			want: want{
+				desiredStateChanged: true,
+			},
+		},
+		"LabelsChanged": {
+			args: args{
+				old: func() client.Object {
+					mg := &fake.Managed{}
+					return mg
+				}(),
+				new: func() client.Object {
+					mg := &fake.Managed{}
+					mg.SetLabels(map[string]string{"foo": "bar"})
+					return mg
+				}(),
+			},
+			want: want{
+				desiredStateChanged: true,
+			},
+		},
+		// This happens when spec is changed.
+		"GenerationChanged": {
+			args: args{
+				old: func() client.Object {
+					mg := &fake.Managed{}
+					mg.SetGeneration(1)
+					return mg
+				}(),
+				new: func() client.Object {
+					mg := &fake.Managed{}
+					mg.SetGeneration(2)
+					return mg
+				}(),
+			},
+			want: want{
+				desiredStateChanged: true,
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := DesiredStateChanged().Update(event.UpdateEvent{
+				ObjectOld: tc.args.old,
+				ObjectNew: tc.args.new,
+			})
+
+			if diff := cmp.Diff(tc.want.desiredStateChanged, got); diff != "" {
+				t.Errorf("DesiredStateChanged(...): -want, +got:\n%s", diff)
 			}
 		})
 	}
