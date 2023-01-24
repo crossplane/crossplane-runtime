@@ -37,6 +37,8 @@ var (
 	errUnwrapped = errors.New("unexpected Unwrapped object")
 )
 
+var _ client.Client = &WrapperClient{}
+
 type Wrapped struct{ client.Object }
 
 func (w *Wrapped) GetUnstructured() *unstructured.Unstructured {
@@ -373,7 +375,7 @@ func TestStatusUpdate(t *testing.T) {
 		want error
 	}{
 		"Unwrapped": {
-			c: &test.MockClient{MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(obj client.Object) error {
+			c: &test.MockClient{MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(obj client.Object) error {
 				if obj.(metav1.Object).GetName() != nameUnwrapped {
 					return errWrapped
 				}
@@ -382,7 +384,7 @@ func TestStatusUpdate(t *testing.T) {
 			args: args{obj: NewUnwrapped()},
 		},
 		"Wrapped": {
-			c: &test.MockClient{MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(obj client.Object) error {
+			c: &test.MockClient{MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(obj client.Object) error {
 				if obj.(metav1.Object).GetName() != nameWrapped {
 					return errUnwrapped
 				}
@@ -415,7 +417,7 @@ func TestStatusPatch(t *testing.T) {
 		want error
 	}{
 		"Unwrapped": {
-			c: &test.MockClient{MockStatusPatch: test.NewMockStatusPatchFn(nil, func(obj client.Object) error {
+			c: &test.MockClient{MockStatusPatch: test.NewMockSubResourcePatchFn(nil, func(obj client.Object) error {
 				if obj.(metav1.Object).GetName() != nameUnwrapped {
 					return errWrapped
 				}
@@ -424,7 +426,7 @@ func TestStatusPatch(t *testing.T) {
 			args: args{obj: NewUnwrapped()},
 		},
 		"Wrapped": {
-			c: &test.MockClient{MockStatusPatch: test.NewMockStatusPatchFn(nil, func(obj client.Object) error {
+			c: &test.MockClient{MockStatusPatch: test.NewMockSubResourcePatchFn(nil, func(obj client.Object) error {
 				if obj.(metav1.Object).GetName() != nameWrapped {
 					return errUnwrapped
 				}

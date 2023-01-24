@@ -94,7 +94,7 @@ func TestReconciler(t *testing.T) {
 							mg.SetDeletionPolicy(xpv1.DeletionOrphan)
 							return nil
 						}),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
 							want.SetDeletionTimestamp(&now)
 							want.SetDeletionPolicy(xpv1.DeletionOrphan)
@@ -129,7 +129,7 @@ func TestReconciler(t *testing.T) {
 							mg.SetDeletionPolicy(xpv1.DeletionOrphan)
 							return nil
 						}),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
 							want.SetDeletionTimestamp(&now)
 							want.SetDeletionPolicy(xpv1.DeletionOrphan)
@@ -180,7 +180,7 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -210,7 +210,7 @@ func TestReconciler(t *testing.T) {
 							meta.SetExternalCreatePending(obj, now.Time)
 							return nil
 						}),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
 							meta.SetExternalCreatePending(want, now.Time)
 							want.SetConditions(xpv1.Creating(), xpv1.ReconcileError(errors.New(errCreateIncomplete)))
@@ -236,7 +236,7 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -264,7 +264,7 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, got client.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, got client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileConnect)))
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
@@ -292,7 +292,7 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileSuccess())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -331,7 +331,7 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileObserve)))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -397,7 +397,7 @@ func TestReconciler(t *testing.T) {
 							mg.SetDeletionPolicy(xpv1.DeletionDelete)
 							return nil
 						}),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
 							want.SetDeletionTimestamp(&now)
 							want.SetDeletionPolicy(xpv1.DeletionDelete)
@@ -442,7 +442,7 @@ func TestReconciler(t *testing.T) {
 							mg.SetDeletionPolicy(xpv1.DeletionDelete)
 							return nil
 						}),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
 							want.SetDeletionTimestamp(&now)
 							want.SetDeletionPolicy(xpv1.DeletionDelete)
@@ -487,7 +487,7 @@ func TestReconciler(t *testing.T) {
 							mg.SetDeletionPolicy(xpv1.DeletionDelete)
 							return nil
 						}),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
 							want.SetDeletionTimestamp(&now)
 							want.SetDeletionPolicy(xpv1.DeletionDelete)
@@ -532,7 +532,7 @@ func TestReconciler(t *testing.T) {
 							mg.SetDeletionPolicy(xpv1.DeletionDelete)
 							return nil
 						}),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
 							want.SetDeletionTimestamp(&now)
 							want.SetDeletionPolicy(xpv1.DeletionDelete)
@@ -603,7 +603,7 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -635,7 +635,7 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -665,7 +665,7 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet:    test.NewMockGetFn(nil),
 						MockUpdate: test.NewMockUpdateFn(errBoom),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
 							meta.SetExternalCreatePending(want, time.Now())
 							want.SetConditions(xpv1.Creating(), xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateManaged)))
@@ -706,7 +706,7 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet:    test.NewMockGetFn(nil),
 						MockUpdate: test.NewMockUpdateFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
 							meta.SetExternalCreatePending(want, time.Now())
 							meta.SetExternalCreateFailed(want, time.Now())
@@ -752,7 +752,7 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet:    test.NewMockGetFn(nil),
 						MockUpdate: test.NewMockUpdateFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
 							meta.SetExternalCreatePending(want, time.Now())
 							meta.SetExternalCreateSucceeded(want, time.Now())
@@ -795,7 +795,7 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet:    test.NewMockGetFn(nil),
 						MockUpdate: test.NewMockUpdateFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
 							meta.SetExternalCreatePending(want, time.Now())
 							meta.SetExternalCreateSucceeded(want, time.Now())
@@ -850,7 +850,7 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet:    test.NewMockGetFn(nil),
 						MockUpdate: test.NewMockUpdateFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
 							meta.SetExternalCreatePending(want, time.Now())
 							meta.SetExternalCreateSucceeded(want, time.Now())
@@ -884,7 +884,7 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet:    test.NewMockGetFn(nil),
 						MockUpdate: test.NewMockUpdateFn(errBoom),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateManaged)))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -920,7 +920,7 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileSuccess())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -956,7 +956,7 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileUpdate)))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -995,7 +995,7 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -1045,7 +1045,7 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileSuccess())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -1088,7 +1088,7 @@ func TestReconciler(t *testing.T) {
 							mg.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
 							return nil
 						}),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
 							want.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
 							want.SetConditions(xpv1.ReconcilePaused())
@@ -1116,7 +1116,7 @@ func TestReconciler(t *testing.T) {
 							mg.SetConditions(xpv1.ReconcilePaused())
 							return nil
 						}),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
 							want.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "false"})
 							want.SetConditions(xpv1.ReconcileSuccess())
@@ -1160,7 +1160,7 @@ func TestReconciler(t *testing.T) {
 							mg.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
 							return nil
 						}),
-						MockStatusUpdate: test.MockStatusUpdateFn(func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							return errBoom
 						}),
 					},
