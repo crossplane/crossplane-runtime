@@ -26,17 +26,6 @@ import (
 
 var _ client.Client = &MockClient{}
 
-type (
-	// MockStatusWriter is kept for backward compatibility.
-	MockStatusWriter = MockSubResourceClient
-
-	// MockStatusUpdateFn is kept for backward compatibility.
-	MockStatusUpdateFn = MockSubResourceUpdateFn
-
-	// MockStatusPatchFn is kept for backward compatibility.
-	MockStatusPatchFn = MockSubResourcePatchFn
-)
-
 // A MockGetFn is used to mock client.Client's Get implementation.
 type MockGetFn func(ctx context.Context, key client.ObjectKey, obj client.Object) error
 
