@@ -14,6 +14,7 @@
  limitations under the License.
 */
 
+// Package fake is a fake Vault LogicalClient.
 package fake
 
 import (

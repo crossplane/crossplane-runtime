@@ -634,7 +634,7 @@ func NewReconciler(m manager.Manager, of resource.ManagedKind, o ...ReconcilerOp
 }
 
 // Reconcile a managed resource with an external resource.
-func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo // See note below.
 	// NOTE(negz): This method is a well over our cyclomatic complexity goal.
 	// Be wary of adding additional complexity.
 
@@ -647,7 +647,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// Govet linter has a check for lost cancel funcs but it's a false positive
 	// for child contexts as because parent's cancel is called, so we skip it
 	// for this line.
-	externalCtx, _ := context.WithTimeout(ctx, r.timeout) // nolint:govet
+	externalCtx, _ := context.WithTimeout(ctx, r.timeout) //nolint:govet // See note above.
 
 	managed := r.newManaged()
 	if err := r.client.Get(ctx, req.NamespacedName, managed); err != nil {

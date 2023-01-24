@@ -14,6 +14,7 @@
  limitations under the License.
 */
 
+// Package kv represents Vault key-value pairs.
 package kv
 
 import (

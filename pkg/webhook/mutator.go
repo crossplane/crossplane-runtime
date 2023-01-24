@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package webhook contains utilities for building Kubernetes webhooks.
 package webhook
 
 import (

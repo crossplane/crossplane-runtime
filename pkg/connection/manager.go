@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package connection provides utilities for working with connection details.
 package connection
 
 import (
@@ -142,7 +143,7 @@ func (m *DetailsManager) FetchConnection(ctx context.Context, so resource.Connec
 }
 
 // PropagateConnection propagate connection details from one resource to another.
-func (m *DetailsManager) PropagateConnection(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) { // nolint:interfacer
+func (m *DetailsManager) PropagateConnection(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) { //nolint:interfacer // See note below.
 	// NOTE(turkenh): Had to add linter exception for "interfacer" suggestion
 	// to use "store.SecretOwner" as the type of "to" parameter. We want to
 	// keep it as "resource.LocalConnectionSecretOwner" to satisfy the

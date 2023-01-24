@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package vault implements a secret store backed by HashiCorp Vault.
 package vault
 
 import (
@@ -63,7 +64,7 @@ type SecretStore struct {
 }
 
 // NewSecretStore returns a new Vault SecretStore.
-func NewSecretStore(ctx context.Context, kube client.Client, cfg v1.SecretStoreConfig) (*SecretStore, error) { // nolint: gocyclo
+func NewSecretStore(ctx context.Context, kube client.Client, cfg v1.SecretStoreConfig) (*SecretStore, error) { //nolint: gocyclo // See note below.
 	// NOTE(turkenh): Adding linter exception for gocyclo since this function
 	// went a little over the limit due to the switch statements not because of
 	// some complex logic.
@@ -136,8 +137,8 @@ func (ss *SecretStore) ReadKeyValues(_ context.Context, n store.ScopedName, s *s
 }
 
 // WriteKeyValues writes key value pairs to a given Vault Secret.
-func (ss *SecretStore) WriteKeyValues(_ context.Context, s *store.Secret, wo ...store.WriteOption) (changed bool, err error) {
-	ao := applyOptions(wo...)
+func (ss *SecretStore) WriteKeyValues(ctx context.Context, s *store.Secret, wo ...store.WriteOption) (changed bool, err error) {
+	ao := applyOptions(ctx, wo...)
 	ao = append(ao, kv.AllowUpdateIf(func(current, desired *kv.Secret) bool {
 		return !cmp.Equal(current, desired, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(kv.Secret{}))
 	}))
@@ -157,7 +158,7 @@ func (ss *SecretStore) WriteKeyValues(_ context.Context, s *store.Secret, wo ...
 // If no kv specified, the whole secret instance is deleted.
 // If kv specified, those would be deleted and secret instance will be deleted
 // only if there is no Data left.
-func (ss *SecretStore) DeleteKeyValues(_ context.Context, s *store.Secret, do ...store.DeleteOption) error {
+func (ss *SecretStore) DeleteKeyValues(ctx context.Context, s *store.Secret, do ...store.DeleteOption) error {
 	Secret := &kv.Secret{}
 	err := ss.client.Get(ss.path(s.ScopedName), Secret)
 	if kv.IsNotFound(err) {
@@ -169,7 +170,7 @@ func (ss *SecretStore) DeleteKeyValues(_ context.Context, s *store.Secret, do ..
 	}
 
 	for _, o := range do {
-		if err = o(context.Background(), s); err != nil {
+		if err = o(ctx, s); err != nil {
 			return err
 		}
 	}
@@ -194,7 +195,7 @@ func (ss *SecretStore) path(s store.ScopedName) string {
 	return filepath.Join(ss.defaultParentPath, s.Name)
 }
 
-func applyOptions(wo ...store.WriteOption) []kv.ApplyOption {
+func applyOptions(ctx context.Context, wo ...store.WriteOption) []kv.ApplyOption {
 	ao := make([]kv.ApplyOption, len(wo))
 	for i := range wo {
 		o := wo[i]
@@ -211,7 +212,7 @@ func applyOptions(wo ...store.WriteOption) []kv.ApplyOption {
 				},
 				Data: keyValuesFromData(desired.Data),
 			}
-			if err := o(context.Background(), cs, ds); err != nil {
+			if err := o(ctx, cs, ds); err != nil {
 				return err
 			}
 			desired.CustomMeta = ds.GetLabels()

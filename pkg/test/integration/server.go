@@ -18,7 +18,6 @@ package integration
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"time"
 
@@ -164,7 +163,7 @@ func New(cfg *rest.Config, o ...Option) (*Manager, error) {
 		op(c)
 	}
 
-	dir, err := ioutil.TempDir("", "")
+	dir, err := os.MkdirTemp("", "")
 	if err != nil {
 		return nil, errors.Wrap(err, errCreateTmpDir)
 	}

@@ -35,7 +35,7 @@ func downloadPath(url, path string) (string, error) {
 
 	// Subdirectory is given name of fnv hash of url.
 	hasher := fnv.New32a()
-	hasher.Write([]byte(url)) // nolint:errcheck
+	hasher.Write([]byte(url))
 	dst := filepath.Join(path, fmt.Sprintf("%x", hasher.Sum32()))
 
 	c := getter.Client{

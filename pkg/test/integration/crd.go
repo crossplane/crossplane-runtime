@@ -21,7 +21,6 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -38,9 +37,8 @@ import (
 
 func readCRDs(path string) ([]*apiextensionsv1beta1.CustomResourceDefinition, error) {
 	// Get the CRD files
-	var files []os.FileInfo
-	var err error
-	if files, err = ioutil.ReadDir(path); err != nil {
+	files, err := os.ReadDir(path)
+	if err != nil {
 		return nil, err
 	}
 
@@ -77,7 +75,7 @@ func readCRDs(path string) ([]*apiextensionsv1beta1.CustomResourceDefinition, er
 }
 
 func readDocuments(fp string) ([][]byte, error) {
-	b, err := ioutil.ReadFile(filepath.Clean(fp))
+	b, err := os.ReadFile(filepath.Clean(fp))
 	if err != nil {
 		return nil, err
 	}

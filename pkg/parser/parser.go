@@ -14,13 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package parser implements a parser for Crossplane packages.
 package parser
 
 import (
 	"bufio"
 	"context"
 	"io"
-	"io/ioutil"
 	"strings"
 	"unicode"
 
@@ -91,7 +91,7 @@ func New(meta, obj ObjectCreaterTyper) *PackageParser {
 // decode objects recognized by the meta scheme, then attempts to decode objects
 // recognized by the object scheme. Objects not recognized by either scheme
 // return an error rather than being skipped.
-func (p *PackageParser) Parse(ctx context.Context, reader io.ReadCloser) (*Package, error) { //nolint:gocyclo
+func (p *PackageParser) Parse(ctx context.Context, reader io.ReadCloser) (*Package, error) { //nolint:gocyclo // Only at 11.
 	pkg := NewPackage()
 	if reader == nil {
 		return pkg, nil
@@ -303,5 +303,5 @@ func (p *EchoBackend) Init(ctx context.Context, bo ...BackendOption) (io.ReadClo
 	for _, o := range bo {
 		o(p)
 	}
-	return ioutil.NopCloser(strings.NewReader(p.echo)), nil
+	return io.NopCloser(strings.NewReader(p.echo)), nil
 }

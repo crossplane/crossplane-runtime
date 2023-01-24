@@ -114,9 +114,7 @@ func Cause(err error) error {
 	}
 
 	for err != nil {
-		// We're ignoring errorlint telling us to use errors.As because
-		// we actually do want to check the outermost error.
-		//nolint:errorlint
+		//nolint:errorlint // We actually do want to check the outermost error.
 		w, ok := err.(wrapped)
 		if !ok {
 			return err

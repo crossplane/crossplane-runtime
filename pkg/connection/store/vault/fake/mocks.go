@@ -14,6 +14,7 @@
  limitations under the License.
 */
 
+// Package fake is a fake Vault KVClient.
 package fake
 
 import (
