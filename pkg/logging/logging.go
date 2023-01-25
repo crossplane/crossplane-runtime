@@ -82,13 +82,13 @@ type logrLogger struct {
 }
 
 func (l logrLogger) Info(msg string, keysAndValues ...any) {
-	l.log.Info(msg, keysAndValues...)
+	l.log.Info(msg, keysAndValues...) //nolint:logrlint // False positive - logrlint thinks there's an odd number of args.
 }
 
 func (l logrLogger) Debug(msg string, keysAndValues ...any) {
-	l.log.V(1).Info(msg, keysAndValues...)
+	l.log.V(1).Info(msg, keysAndValues...) //nolint:logrlint // False positive - logrlint thinks there's an odd number of args.
 }
 
 func (l logrLogger) WithValues(keysAndValues ...any) Logger {
-	return logrLogger{log: l.log.WithValues(keysAndValues...)}
+	return logrLogger{log: l.log.WithValues(keysAndValues...)} //nolint:logrlint // False positive - logrlint thinks there's an odd number of args.
 }

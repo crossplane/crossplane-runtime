@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package reference contains utilities for working with cross-resource
+// references.
 package reference
 
 import (
@@ -278,7 +280,7 @@ func (r *APIResolver) Resolve(ctx context.Context, req ResolutionRequest) (Resol
 // ResolveMultiple resolves the supplied MultiResolutionRequest. The returned
 // MultiResolutionResponse always contains valid values unless an error was
 // returned.
-func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRequest) (MultiResolutionResponse, error) { // nolint: gocyclo
+func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRequest) (MultiResolutionResponse, error) { //nolint: gocyclo // Only at 11.
 	// Return early if from is being deleted, or the request is a no-op.
 	if meta.WasDeleted(r.from) || req.IsNoOp() {
 		return MultiResolutionResponse{ResolvedValues: req.CurrentValues, ResolvedReferences: req.References}, nil

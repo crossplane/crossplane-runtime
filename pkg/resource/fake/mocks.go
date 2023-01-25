@@ -194,7 +194,7 @@ func (m *CompositionRevisionReferencer) GetCompositionRevisionReference() *corev
 // CompositionRevisionSelector is a mock that implements CompositionRevisionSelector interface.
 type CompositionRevisionSelector struct{ Sel *metav1.LabelSelector }
 
-// SetCompositionRevisionReference sets the CompositionRevisionReference.
+// SetCompositionRevisionSelector sets the CompositionRevisionSelector.
 func (m *CompositionRevisionSelector) SetCompositionRevisionSelector(ls *metav1.LabelSelector) {
 	m.Sel = ls
 }
@@ -248,6 +248,8 @@ func (m *ComposedResourcesReferencer) SetResourceReferences(r []corev1.ObjectRef
 // GetResourceReferences gets the composed references.
 func (m *ComposedResourcesReferencer) GetResourceReferences() []corev1.ObjectReference { return m.Refs }
 
+// An EnvironmentConfigReferencer is a mock that implements the
+// EnvironmentConfigReferencer interface.
 type EnvironmentConfigReferencer struct{ Refs []corev1.ObjectReference }
 
 // SetEnvironmentConfigReferences sets the EnvironmentConfig references.

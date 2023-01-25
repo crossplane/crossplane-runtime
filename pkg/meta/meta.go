@@ -384,8 +384,8 @@ func AllowPropagation(from, to metav1.Object) {
 func AnnotationKeyPropagateTo(o metav1.Object) string {
 	// Writing to a hash never returns an error.
 	h := fnv.New32a()
-	h.Write([]byte(o.GetNamespace())) // nolint:errcheck
-	h.Write([]byte(o.GetName()))      // nolint:errcheck
+	h.Write([]byte(o.GetNamespace()))
+	h.Write([]byte(o.GetName()))
 	return fmt.Sprintf("%s%x", AnnotationKeyPropagateToPrefix, h.Sum32())
 }
 

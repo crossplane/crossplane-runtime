@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package providerconfig provides a reconciler that manages the lifecycle of a
+// ProviderConfig.
 package providerconfig
 
 import (
@@ -177,7 +179,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			if err := r.client.Delete(ctx, pcu); resource.IgnoreNotFound(err) != nil {
 				log.Debug(errDeletePCU, "error", err)
 				r.record.Event(pc, event.Warning(reasonAccount, errors.Wrap(err, errDeletePCU)))
-				return reconcile.Result{RequeueAfter: shortWait}, nil
+				return reconcile.Result{RequeueAfter: shortWait}, nil //nolint:nilerr // Returning err would make us requeue instantly.
 			}
 			users--
 		}

@@ -10,93 +10,21 @@ on:
 
 env:
   # Common versions
-  GO_VERSION: '1.18'
-  GOLANGCI_VERSION: 'v1.47.1'
-  DOCKER_BUILDX_VERSION: 'v0.8.2'
-
-  # Common users. We can't run a step 'if secrets.AWS_USR != ""' but we can run
-  # a step 'if env.AWS_USR' != ""', so we copy these to succinctly test whether
-  # credentials have been provided before trying to run steps that need them.
-  DOCKER_USR: ${{ secrets.DOCKER_USR }}
-  AWS_USR: ${{ secrets.AWS_USR }}
+  GO_VERSION: '1.19.5'
+  GOLANGCI_VERSION: 'v1.50.1'
 
 jobs:
-  detect-noop:
-    runs-on: ubuntu-20.04
-    outputs:
-      noop: ${{ steps.noop.outputs.should_skip }}
-    steps:
-      - name: Detect No-op Changes
-        id: noop
-        uses: fkirc/skip-duplicate-actions@v2.0.0
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          paths_ignore: '["**.md", "**.png", "**.jpg"]'
-          do_not_skip: '["workflow_dispatch", "schedule", "push"]'
-
-
-  lint:
-    runs-on: ubuntu-20.04
-    needs: detect-noop
-    if: needs.detect-noop.outputs.noop != 'true'
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          submodules: true
-
-      - name: Find the Go Build Cache
-        id: go
-        run: echo "::set-output name=cache::$(go env GOCACHE)"
-
-      - name: Cache the Go Build Cache
-        uses: actions/cache@v2
-        with:
-          path: ${{ steps.go.outputs.cache }}
-          key: ${{ runner.os }}-build-lint-${{ hashFiles('**/go.sum') }}
-          restore-keys: ${{ runner.os }}-build-lint-
-
-      - name: Cache Go Dependencies
-        uses: actions/cache@v2
-        with:
-          path: .work/pkg
-          key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
-          restore-keys: ${{ runner.os }}-pkg-
-
-      - name: Vendor Dependencies
-        run: make vendor vendor.check
-
-      # Go version coming with golangci-lint-action may not be our desired
-      # go version. We deploy our desired go version and then skip go
-      # installation in golangci-lint-action in the next step as suggested
-      # in https://github.com/golangci/golangci-lint-action/issues/183
-      - uses: actions/setup-go@v2
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
-      # We could run 'make lint' to ensure our desired Go version, but we
-      # prefer this action because it leaves 'annotations' (i.e. it comments
-      # on PRs to point out linter violations).
-      - name: Lint
-        uses: golangci/golangci-lint-action@v2
-        with:
-          version: ${{ env.GOLANGCI_VERSION }}
-          skip-go-installation: true
-
   check-diff:
     runs-on: ubuntu-20.04
-    needs: detect-noop
-    if: needs.detect-noop.outputs.noop != 'true'
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3
         with:
           submodules: true
 
       - name: Setup Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # v3
         with:
           go-version: ${{ env.GO_VERSION }}
 
@@ -105,14 +33,14 @@ jobs:
         run: echo "::set-output name=cache::$(go env GOCACHE)"
 
       - name: Cache the Go Build Cache
-        uses: actions/cache@v2
+        uses: actions/cache@58c146cc91c5b9e778e71775dfe9bf1442ad9a12 # v3
         with:
           path: ${{ steps.go.outputs.cache }}
           key: ${{ runner.os }}-build-check-diff-${{ hashFiles('**/go.sum') }}
           restore-keys: ${{ runner.os }}-build-check-diff-
 
       - name: Cache Go Dependencies
-        uses: actions/cache@v2
+        uses: actions/cache@58c146cc91c5b9e778e71775dfe9bf1442ad9a12 # v3
         with:
           path: .work/pkg
           key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
@@ -124,22 +52,33 @@ jobs:
       - name: Check Diff
         run: make check-diff
 
-  unit-tests:
+  detect-noop:
+    runs-on: ubuntu-20.04
+    outputs:
+      noop: ${{ steps.noop.outputs.should_skip }}
+    steps:
+      - name: Detect No-op Changes
+        id: noop
+        uses: fkirc/skip-duplicate-actions@12aca0a884f6137d619d6a8a09fcc3406ced5281 # v5.3.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          paths_ignore: '["**.md", "**.png", "**.jpg"]'
+          do_not_skip: '["workflow_dispatch", "schedule", "push"]'
+          concurrent_skipping: false
+
+  lint:
     runs-on: ubuntu-20.04
     needs: detect-noop
     if: needs.detect-noop.outputs.noop != 'true'
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3
         with:
           submodules: true
 
-      - name: Fetch History
-        run: git fetch --prune --unshallow
-
       - name: Setup Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # v3
         with:
           go-version: ${{ env.GO_VERSION }}
 
@@ -148,14 +87,108 @@ jobs:
         run: echo "::set-output name=cache::$(go env GOCACHE)"
 
       - name: Cache the Go Build Cache
-        uses: actions/cache@v2
+        uses: actions/cache@58c146cc91c5b9e778e71775dfe9bf1442ad9a12 # v3
+        with:
+          path: ${{ steps.go.outputs.cache }}
+          key: ${{ runner.os }}-build-lint-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-build-lint-
+
+      - name: Cache Go Dependencies
+        uses: actions/cache@58c146cc91c5b9e778e71775dfe9bf1442ad9a12 # v3
+        with:
+          path: .work/pkg
+          key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-pkg-
+
+      - name: Vendor Dependencies
+        run: make vendor vendor.check
+
+      # We could run 'make lint' to ensure our desired Go version, but we prefer
+      # this action because it leaves 'annotations' (i.e. it comments on PRs to
+      # point out linter violations).
+      - name: Lint
+        uses: golangci/golangci-lint-action@07db5389c99593f11ad7b44463c2d4233066a9b1 # v3
+        with:
+          version: ${{ env.GOLANGCI_VERSION }}
+          skip-cache: true # We do our own caching.
+
+  codeql:
+    runs-on: ubuntu-20.04
+    needs: detect-noop
+    if: needs.detect-noop.outputs.noop != 'true'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3
+        with:
+          submodules: true
+
+      - name: Setup Go
+        uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Find the Go Build Cache
+        id: go
+        run: echo "::set-output name=cache::$(go env GOCACHE)"
+
+      - name: Cache the Go Build Cache
+        uses: actions/cache@58c146cc91c5b9e778e71775dfe9bf1442ad9a12 # v3
+        with:
+          path: ${{ steps.go.outputs.cache }}
+          key: ${{ runner.os }}-build-check-diff-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-build-check-diff-
+
+      - name: Cache Go Dependencies
+        uses: actions/cache@58c146cc91c5b9e778e71775dfe9bf1442ad9a12 # v3
+        with:
+          path: .work/pkg
+          key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-pkg-
+
+      - name: Vendor Dependencies
+        run: make vendor vendor.check
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@a34ca99b4610d924e04c68db79e503e1f79f9f02 # v2
+        with:
+          languages: go
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@a34ca99b4610d924e04c68db79e503e1f79f9f02 # v2
+
+  unit-tests:
+    runs-on: ubuntu-20.04
+    needs: detect-noop
+    if: needs.detect-noop.outputs.noop != 'true'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3
+        with:
+          submodules: true
+
+      - name: Fetch History
+        run: git fetch --prune --unshallow
+
+      - name: Setup Go
+        uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Find the Go Build Cache
+        id: go
+        run: echo "::set-output name=cache::$(go env GOCACHE)"
+
+      - name: Cache the Go Build Cache
+        uses: actions/cache@58c146cc91c5b9e778e71775dfe9bf1442ad9a12 # v3
         with:
           path: ${{ steps.go.outputs.cache }}
           key: ${{ runner.os }}-build-unit-tests-${{ hashFiles('**/go.sum') }}
           restore-keys: ${{ runner.os }}-build-unit-tests-
 
       - name: Cache Go Dependencies
-        uses: actions/cache@v2
+        uses: actions/cache@58c146cc91c5b9e778e71775dfe9bf1442ad9a12 # v3
         with:
           path: .work/pkg
           key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
@@ -168,157 +201,7 @@ jobs:
         run: make -j2 test
 
       - name: Publish Unit Test Coverage
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@d9f34f8cd5cb3b3eb79b3e4b5dae3a16df499a70 # v3
         with:
           flags: unittests
           file: _output/tests/linux_amd64/coverage.txt
-
-  e2e-tests:
-    runs-on: ubuntu-20.04
-    needs: detect-noop
-    if: needs.detect-noop.outputs.noop != 'true'
-
-    steps:
-      - name: Setup QEMU
-        uses: docker/setup-qemu-action@v1
-        with:
-          platforms: all
-
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v1
-        with:
-          version: ${{ env.DOCKER_BUILDX_VERSION }}
-          install: true
-
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          submodules: true
-
-      - name: Fetch History
-        run: git fetch --prune --unshallow
-
-      - name: Setup Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
-      - name: Find the Go Build Cache
-        id: go
-        run: echo "::set-output name=cache::$(go env GOCACHE)"
-
-      - name: Cache the Go Build Cache
-        uses: actions/cache@v2
-        with:
-          path: ${{ steps.go.outputs.cache }}
-          key: ${{ runner.os }}-build-e2e-tests-${{ hashFiles('**/go.sum') }}
-          restore-keys: ${{ runner.os }}-build-e2e-tests-
-
-      - name: Cache Go Dependencies
-        uses: actions/cache@v2
-        with:
-          path: .work/pkg
-          key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-pkg-
-
-      - name: Vendor Dependencies
-        run: make vendor vendor.check
-
-      - name: Build Helm Chart
-        run: make -j2 build
-        env:
-          # We're using docker buildx, which doesn't actually load the images it
-          # builds by default. Specifying --load does so.
-          BUILD_ARGS: "--load"
-
-      - name: Run E2E Tests
-        run: make e2e USE_HELM3=true
-
-  publish-artifacts:
-    runs-on: ubuntu-20.04
-    needs: detect-noop
-    if: needs.detect-noop.outputs.noop != 'true'
-
-    steps:
-      - name: Setup QEMU
-        uses: docker/setup-qemu-action@v1
-        with:
-          platforms: all
-
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v1
-        with:
-          version: ${{ env.DOCKER_BUILDX_VERSION }}
-          install: true
-
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          submodules: true
-
-      - name: Fetch History
-        run: git fetch --prune --unshallow
-
-      - name: Setup Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
-      - name: Find the Go Build Cache
-        id: go
-        run: echo "::set-output name=cache::$(go env GOCACHE)"
-
-      - name: Cache the Go Build Cache
-        uses: actions/cache@v2
-        with:
-          path: ${{ steps.go.outputs.cache }}
-          key: ${{ runner.os }}-build-publish-artifacts-${{ hashFiles('**/go.sum') }}
-          restore-keys: ${{ runner.os }}-build-publish-artifacts-
-
-      - name: Cache Go Dependencies
-        uses: actions/cache@v2
-        with:
-          path: .work/pkg
-          key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
-          restore-keys: ${{ runner.os }}-pkg-
-
-      - name: Vendor Dependencies
-        run: make vendor vendor.check
-
-      - name: Build Artifacts
-        run: make -j2 build.all
-        env:
-          # We're using docker buildx, which doesn't actually load the images it
-          # builds by default. Specifying --load does so.
-          BUILD_ARGS: "--load"
-
-      - name: Publish Artifacts to GitHub
-        uses: actions/upload-artifact@v2
-        with:
-          name: output
-          path: _output/**
-
-      - name: Login to Docker
-        uses: docker/login-action@v1
-        if: env.DOCKER_USR != ''
-        with:
-          username: ${{ secrets.DOCKER_USR }}
-          password: ${{ secrets.DOCKER_PSW }}
-
-      - name: Publish Artifacts to S3 and Docker Hub
-        run: make -j2 publish BRANCH_NAME=${GITHUB_REF##*/}
-        if: env.AWS_USR != '' && env.DOCKER_USR != ''
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_USR }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PSW }}
-          GIT_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Promote Artifacts in S3 and Docker Hub
-        if: github.ref == 'refs/heads/master' && env.AWS_USR != '' && env.DOCKER_USR != ''
-        run: make -j2 promote
-        env:
-          BRANCH_NAME: master
-          CHANNEL: master
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_USR }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PSW }}

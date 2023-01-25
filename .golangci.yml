@@ -27,10 +27,6 @@ linters-settings:
     # report about shadowed variables
     check-shadowing: false
 
-  revive:
-    # confidence for issues, default is 0.8
-    confidence: 0.8
-
   gofmt:
     # simplify code: gofmt with `-s` option, true by default
     simplify: true
@@ -38,7 +34,7 @@ linters-settings:
   goimports:
     # put imports beginning with prefix after 3rd-party packages;
     # it's a comma-separated list of prefixes
-    local-prefixes: github.com/crossplane/crossplane-runtime
+    local-prefixes: github.com/crossplane/crossplane
 
   gocyclo:
     # minimal code complexity to report, 30 by default (but we recommend 10-20)
@@ -102,13 +98,17 @@ linters-settings:
       rangeValCopy:
         sizeThreshold: 32
 
+  nolintlint:
+    require-explanation: true
+    require-specific: true
+
+
 linters:
   enable:
     - megacheck
     - govet
     - gocyclo
     - gocritic
-    - interfacer
     - goconst
     - goimports
     - gofmt  # We enable this as well as goimports for its simplify mode.
@@ -117,6 +117,16 @@ linters:
     - unconvert
     - misspell
     - nakedret
+    - nolintlint
+  
+  disable:
+    # These linters are all deprecated as of golangci-lint v1.49.0. We disable
+    # them explicitly to avoid the linter logging deprecation warnings.
+    - deadcode
+    - varcheck
+    - scopelint
+    - structcheck
+    - interfacer
 
   presets:
     - bugs
@@ -136,6 +146,7 @@ issues:
         - gosec
         - scopelint
         - unparam
+        - contextcheck
         - errchkjson
 
     # Ease some gocritic warnings on test files.
@@ -174,13 +185,6 @@ issues:
       linters:
       - gosec
       - gas
-
-    # The Azure AddToUserAgent method appends to the existing user agent string.
-    # It returns an error if you pass it an empty string lettinga you know the
-    # user agent did not change, making it more of a warning.
-    - text: \.AddToUserAgent
-      linters:
-      - errcheck
 
   # Independently from option `exclude` we use default exclude patterns,
   # it can be disabled by this option. To list all

@@ -89,7 +89,7 @@ type ConnectionPropagator interface {
 }
 
 // A ConnectionPropagatorFn is a function that satisfies the
-//  ConnectionPropagator interface.
+// ConnectionPropagator interface.
 type ConnectionPropagatorFn func(ctx context.Context, to LocalConnectionSecretOwner, from ConnectionSecretOwner) error
 
 // A ManagedConnectionPropagator is responsible for propagating information
@@ -247,7 +247,8 @@ func (awr *ApplicatorWithRetry) Apply(ctx context.Context, c client.Object, opts
 
 // NewApplicatorWithRetry returns an ApplicatorWithRetry for the specified
 // applicator and with the specified retry function.
-//   If backoff is nil, then retry.DefaultRetry is used as the default.
+//
+//	If backoff is nil, then retry.DefaultRetry is used as the default.
 func NewApplicatorWithRetry(applicator Applicator, shouldRetry shouldRetryFunc, backoff *wait.Backoff) *ApplicatorWithRetry {
 	result := &ApplicatorWithRetry{
 		Applicator:  applicator,

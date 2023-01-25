@@ -149,10 +149,9 @@ func (p *Paved) ExpandWildcards(path string) ([]string, error) {
 	return paths, nil
 }
 
-// Note(turkenh): Explanation for nolint:gocyclo
-// Even complexity turns out to be high, it is mostly because we have duplicate
-// logic for arrays and maps and a couple of error handling.
-func expandWildcards(data any, segments Segments) ([]Segments, error) { //nolint:gocyclo
+func expandWildcards(data any, segments Segments) ([]Segments, error) { //nolint:gocyclo // See note below.
+	// Even complexity turns out to be high, it is mostly because we have duplicate
+	// logic for arrays and maps and a couple of error handling.
 	var res []Segments
 	it := data
 	for i, current := range segments {
@@ -485,7 +484,7 @@ func (p *Paved) DeleteField(path string) error {
 	return p.delete(segments)
 }
 
-func (p *Paved) delete(segments Segments) error { // nolint:gocyclo
+func (p *Paved) delete(segments Segments) error { //nolint:gocyclo // See note below.
 	// NOTE(muvaf): I could not reduce the cyclomatic complexity
 	// more than that without disturbing the reading flow.
 	if len(segments) == 1 {

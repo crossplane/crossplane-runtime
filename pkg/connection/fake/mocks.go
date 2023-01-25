@@ -14,6 +14,7 @@
  limitations under the License.
 */
 
+// Package fake implements a fake secret store.
 package fake
 
 import (

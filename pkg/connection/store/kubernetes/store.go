@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package kubernetes implements a secret store backed by Kubernetes Secrets.
 package kubernetes
 
 import (

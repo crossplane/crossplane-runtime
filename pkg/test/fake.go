@@ -47,11 +47,17 @@ type MockUpdateFn func(ctx context.Context, obj client.Object, opts ...client.Up
 // A MockPatchFn is used to mock client.Client's Patch implementation.
 type MockPatchFn func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error
 
-// A MockStatusUpdateFn is used to mock client.Client's StatusUpdate implementation.
-type MockStatusUpdateFn func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error
+// A MockSubResourceGetFn is used to mock client.SubResourceClient's get implementation.
+type MockSubResourceGetFn func(ctx context.Context, obj, subResource client.Object, opts ...client.SubResourceGetOption) error
 
-// A MockStatusPatchFn is used to mock client.Client's StatusUpdate implementation.
-type MockStatusPatchFn func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error
+// A MockSubResourceCreateFn is used to mock client.SubResourceClient's create implementation.
+type MockSubResourceCreateFn func(ctx context.Context, obj, subResource client.Object, opts ...client.SubResourceCreateOption) error
+
+// A MockSubResourceUpdateFn is used to mock client.SubResourceClient's update implementation.
+type MockSubResourceUpdateFn func(ctx context.Context, obj client.Object, opts ...client.SubResourceUpdateOption) error
+
+// A MockSubResourcePatchFn is used to mock client.SubResourceClient's patch implementation.
+type MockSubResourcePatchFn func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.SubResourcePatchOption) error
 
 // A MockSchemeFn is used to mock client.Client's Scheme implementation.
 type MockSchemeFn func() *runtime.Scheme
@@ -148,9 +154,9 @@ func NewMockPatchFn(err error, ofn ...ObjectFn) MockPatchFn {
 	}
 }
 
-// NewMockStatusUpdateFn returns a MockStatusUpdateFn that returns the supplied error.
-func NewMockStatusUpdateFn(err error, ofn ...ObjectFn) MockStatusUpdateFn {
-	return func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
+// NewMockSubResourceCreateFn returns a MockSubResourceCreateFn that returns the supplied error.
+func NewMockSubResourceCreateFn(err error, ofn ...ObjectFn) MockSubResourceCreateFn {
+	return func(_ context.Context, obj, subResource client.Object, _ ...client.SubResourceCreateOption) error {
 		for _, fn := range ofn {
 			if err := fn(obj); err != nil {
 				return err
@@ -160,9 +166,21 @@ func NewMockStatusUpdateFn(err error, ofn ...ObjectFn) MockStatusUpdateFn {
 	}
 }
 
-// NewMockStatusPatchFn returns a MockStatusPatchFn that returns the supplied error.
-func NewMockStatusPatchFn(err error, ofn ...ObjectFn) MockStatusPatchFn {
-	return func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
+// NewMockSubResourceUpdateFn returns a MockSubResourceUpdateFn that returns the supplied error.
+func NewMockSubResourceUpdateFn(err error, ofn ...ObjectFn) MockSubResourceUpdateFn {
+	return func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
+		for _, fn := range ofn {
+			if err := fn(obj); err != nil {
+				return err
+			}
+		}
+		return err
+	}
+}
+
+// NewMockSubResourcePatchFn returns a MockSubResourcePatchFn that returns the supplied error.
+func NewMockSubResourcePatchFn(err error, ofn ...ObjectFn) MockSubResourcePatchFn {
+	return func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.SubResourcePatchOption) error {
 		for _, fn := range ofn {
 			if err := fn(obj); err != nil {
 				return err
@@ -184,15 +202,22 @@ func NewMockSchemeFn(scheme *runtime.Scheme) MockSchemeFn {
 // client, but it is has surprising side effects (e.g. silently calling
 // os.Exit(1)) and does not allow us control over the errors it returns.
 type MockClient struct {
-	MockGet          MockGetFn
-	MockList         MockListFn
-	MockCreate       MockCreateFn
-	MockDelete       MockDeleteFn
-	MockDeleteAllOf  MockDeleteAllOfFn
-	MockUpdate       MockUpdateFn
-	MockPatch        MockPatchFn
-	MockStatusUpdate MockStatusUpdateFn
-	MockStatusPatch  MockStatusPatchFn
+	MockGet         MockGetFn
+	MockList        MockListFn
+	MockCreate      MockCreateFn
+	MockDelete      MockDeleteFn
+	MockDeleteAllOf MockDeleteAllOfFn
+	MockUpdate      MockUpdateFn
+	MockPatch       MockPatchFn
+
+	MockStatusCreate MockSubResourceCreateFn
+	MockStatusUpdate MockSubResourceUpdateFn
+	MockStatusPatch  MockSubResourcePatchFn
+
+	MockSubResourceGet    MockSubResourceGetFn
+	MockSubResourceCreate MockSubResourceCreateFn
+	MockSubResourceUpdate MockSubResourceUpdateFn
+	MockSubResourcePatch  MockSubResourcePatchFn
 
 	MockScheme MockSchemeFn
 }
@@ -201,22 +226,23 @@ type MockClient struct {
 // called.
 func NewMockClient() *MockClient {
 	return &MockClient{
-		MockGet:          NewMockGetFn(nil),
-		MockList:         NewMockListFn(nil),
-		MockCreate:       NewMockCreateFn(nil),
-		MockDelete:       NewMockDeleteFn(nil),
-		MockDeleteAllOf:  NewMockDeleteAllOfFn(nil),
-		MockUpdate:       NewMockUpdateFn(nil),
-		MockPatch:        NewMockPatchFn(nil),
-		MockStatusUpdate: NewMockStatusUpdateFn(nil),
-		MockStatusPatch:  NewMockStatusPatchFn(nil),
+		MockGet:         NewMockGetFn(nil),
+		MockList:        NewMockListFn(nil),
+		MockCreate:      NewMockCreateFn(nil),
+		MockDelete:      NewMockDeleteFn(nil),
+		MockDeleteAllOf: NewMockDeleteAllOfFn(nil),
+		MockUpdate:      NewMockUpdateFn(nil),
+		MockPatch:       NewMockPatchFn(nil),
+
+		MockStatusUpdate: NewMockSubResourceUpdateFn(nil),
+		MockStatusPatch:  NewMockSubResourcePatchFn(nil),
 
 		MockScheme: NewMockSchemeFn(nil),
 	}
 }
 
 // Get calls MockClient's MockGet function.
-func (c *MockClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+func (c *MockClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 	return c.MockGet(ctx, key, obj)
 }
 
@@ -251,10 +277,21 @@ func (c *MockClient) Patch(ctx context.Context, obj client.Object, patch client.
 }
 
 // Status returns status writer for status sub-resource
-func (c *MockClient) Status() client.StatusWriter {
-	return &MockStatusWriter{
+func (c *MockClient) Status() client.SubResourceWriter {
+	return &MockSubResourceClient{
+		MockCreate: c.MockStatusCreate,
 		MockUpdate: c.MockStatusUpdate,
 		MockPatch:  c.MockStatusPatch,
+	}
+}
+
+// SubResource is unimplemented. It panics if called.
+func (c *MockClient) SubResource(subResource string) client.SubResourceClient {
+	return &MockSubResourceClient{
+		MockGet:    c.MockSubResourceGet,
+		MockCreate: c.MockSubResourceCreate,
+		MockUpdate: c.MockSubResourceUpdate,
+		MockPatch:  c.MockSubResourcePatch,
 	}
 }
 
@@ -268,18 +305,30 @@ func (c *MockClient) Scheme() *runtime.Scheme {
 	return c.MockScheme()
 }
 
-// MockStatusWriter provides mock functionality for status sub-resource
-type MockStatusWriter struct {
-	MockUpdate MockStatusUpdateFn
-	MockPatch  MockStatusPatchFn
+// MockSubResourceClient provides mock functionality for status sub-resource
+type MockSubResourceClient struct {
+	MockGet    MockSubResourceGetFn
+	MockCreate MockSubResourceCreateFn
+	MockUpdate MockSubResourceUpdateFn
+	MockPatch  MockSubResourcePatchFn
 }
 
-// Update status sub-resource
-func (m *MockStatusWriter) Update(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+// Get a sub-resource
+func (m *MockSubResourceClient) Get(ctx context.Context, obj, subResource client.Object, opts ...client.SubResourceGetOption) error {
+	return m.MockGet(ctx, obj, subResource, opts...)
+}
+
+// Create a sub-resource
+func (m *MockSubResourceClient) Create(ctx context.Context, obj, subResource client.Object, opts ...client.SubResourceCreateOption) error {
+	return m.MockCreate(ctx, obj, subResource, opts...)
+}
+
+// Update a sub-resource
+func (m *MockSubResourceClient) Update(ctx context.Context, obj client.Object, opts ...client.SubResourceUpdateOption) error {
 	return m.MockUpdate(ctx, obj, opts...)
 }
 
-// Patch mocks the patch method
-func (m *MockStatusWriter) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+// Patch a sub-resource
+func (m *MockSubResourceClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.SubResourcePatchOption) error {
 	return m.MockPatch(ctx, obj, patch, opts...)
 }

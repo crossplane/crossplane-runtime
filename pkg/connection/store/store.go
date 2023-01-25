@@ -14,6 +14,7 @@
  limitations under the License.
 */
 
+// Package store implements secret stores.
 package store
 
 import (
