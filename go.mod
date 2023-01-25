@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/go-logr/logr v1.2.0
 	github.com/google/go-cmp v0.5.6
-	github.com/hashicorp/go-getter v1.5.11
+	github.com/hashicorp/go-getter v1.6.1
 	github.com/hashicorp/vault/api v1.5.0
 	github.com/imdario/mergo v0.3.12
 	github.com/spf13/afero v1.8.0
@@ -101,7 +101,7 @@ require (
 	golang.org/x/mod v0.4.2 // indirect
 	golang.org/x/net v0.0.0-20210825183410-e898025ed96a // indirect
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f // indirect
-	golang.org/x/sys v0.0.0-20211029165221-6e7872819dc8 // indirect
+	golang.org/x/sys v0.0.0-20220517195934-5e4e11fc645e // indirect
 	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/tools v0.1.6-0.20210820212750-d4cc65f0b2ff // indirect
