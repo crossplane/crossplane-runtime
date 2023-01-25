@@ -56,9 +56,9 @@ type WrapperClient struct {
 // returned by the Server.
 func (c *WrapperClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 	if u, ok := obj.(Wrapper); ok {
-		return c.kube.Get(ctx, key, u.GetUnstructured())
+		return c.kube.Get(ctx, key, u.GetUnstructured(), opts...)
 	}
-	return c.kube.Get(ctx, key, obj)
+	return c.kube.Get(ctx, key, obj, opts...)
 }
 
 // List retrieves list of objects for a given namespace and list options. On a
