@@ -144,6 +144,7 @@ type wrapperStatusClient struct {
 // given obj. obj must be a struct pointer so that obj can be updated
 // with the content returned by the Server.
 func (c *wrapperStatusClient) Create(ctx context.Context, obj, subResource client.Object, opts ...client.SubResourceCreateOption) error {
+	// TODO(negz): Could subResource be wrapped?
 	if u, ok := obj.(Wrapper); ok {
 		return c.kube.Create(ctx, u.GetUnstructured(), subResource, opts...)
 	}

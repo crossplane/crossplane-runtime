@@ -154,6 +154,18 @@ func NewMockPatchFn(err error, ofn ...ObjectFn) MockPatchFn {
 	}
 }
 
+// NewMockSubResourceCreateFn returns a MockSubResourceCreateFn that returns the supplied error.
+func NewMockSubResourceCreateFn(err error, ofn ...ObjectFn) MockSubResourceCreateFn {
+	return func(_ context.Context, obj, subResource client.Object, _ ...client.SubResourceCreateOption) error {
+		for _, fn := range ofn {
+			if err := fn(obj); err != nil {
+				return err
+			}
+		}
+		return err
+	}
+}
+
 // NewMockSubResourceUpdateFn returns a MockSubResourceUpdateFn that returns the supplied error.
 func NewMockSubResourceUpdateFn(err error, ofn ...ObjectFn) MockSubResourceUpdateFn {
 	return func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {

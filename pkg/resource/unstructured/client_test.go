@@ -364,6 +364,48 @@ func TestDeleteAllOf(t *testing.T) {
 	}
 }
 
+func TestStatusCreate(t *testing.T) {
+	type args struct {
+		ctx context.Context
+		obj client.Object
+		sub client.Object
+	}
+	cases := map[string]struct {
+		c    client.Client
+		args args
+		want error
+	}{
+		"Unwrapped": {
+			c: &test.MockClient{MockStatusCreate: test.NewMockSubResourceCreateFn(nil, func(obj client.Object) error {
+				if obj.(metav1.Object).GetName() != nameUnwrapped {
+					return errWrapped
+				}
+				return nil
+			})},
+			args: args{obj: NewUnwrapped()},
+		},
+		"Wrapped": {
+			c: &test.MockClient{MockStatusCreate: test.NewMockSubResourceCreateFn(nil, func(obj client.Object) error {
+				if obj.(metav1.Object).GetName() != nameWrapped {
+					return errUnwrapped
+				}
+				return nil
+			})},
+			args: args{obj: NewWrapped()},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			c := NewClient(tc.c)
+			got := c.Status().Create(tc.args.ctx, tc.args.obj, tc.args.sub)
+			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
+				t.Errorf("\nc.Status().Create(...): -want error, +got error:\n %s", diff)
+			}
+		})
+	}
+}
+
 func TestStatusUpdate(t *testing.T) {
 	type args struct {
 		ctx context.Context
