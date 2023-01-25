@@ -191,7 +191,8 @@ func TestReconciler(t *testing.T) {
 							}
 							return nil
 						}),
-						MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+						MockStatusUpdate:      test.NewMockStatusUpdateFn(nil),
+						MockUpdateSubResource: test.NewMockUpdateSubResourceFn(nil),
 					},
 					Scheme: fake.SchemeWith(&fake.ProviderConfig{}, &ProviderConfigUsageList{}),
 				},
@@ -280,7 +281,10 @@ func TestReconciler(t *testing.T) {
 						MockGet:          test.NewMockGetFn(nil),
 						MockList:         test.NewMockListFn(nil),
 						MockUpdate:       test.NewMockUpdateFn(nil),
-						MockStatusUpdate: test.NewMockStatusUpdateFn(errBoom),
+						MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+						MockUpdateSubResource: test.MockUpdateSubResourceFn(func(ctx context.Context, obj client.Object, opts ...client.SubResourceUpdateOption) error {
+							return errBoom
+						}),
 					},
 					Scheme: fake.SchemeWith(&fake.ProviderConfig{}, &ProviderConfigUsageList{}),
 				},
@@ -299,10 +303,11 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet:          test.NewMockGetFn(nil),
-						MockList:         test.NewMockListFn(nil),
-						MockUpdate:       test.NewMockUpdateFn(nil),
-						MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+						MockGet:               test.NewMockGetFn(nil),
+						MockList:              test.NewMockListFn(nil),
+						MockUpdate:            test.NewMockUpdateFn(nil),
+						MockStatusUpdate:      test.NewMockStatusUpdateFn(nil),
+						MockUpdateSubResource: test.NewMockUpdateSubResourceFn(nil),
 					},
 					Scheme: fake.SchemeWith(&fake.ProviderConfig{}, &ProviderConfigUsageList{}),
 				},

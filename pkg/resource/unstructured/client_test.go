@@ -373,21 +373,37 @@ func TestStatusUpdate(t *testing.T) {
 		want error
 	}{
 		"Unwrapped": {
-			c: &test.MockClient{MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(obj client.Object) error {
-				if obj.(metav1.Object).GetName() != nameUnwrapped {
-					return errWrapped
-				}
-				return nil
-			})},
+			c: &test.MockClient{
+				MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(obj client.Object) error {
+					if obj.(metav1.Object).GetName() != nameUnwrapped {
+						return errWrapped
+					}
+					return nil
+				}),
+				MockUpdateSubResource: test.NewMockUpdateSubResourceFn(nil, func(obj client.Object) error {
+					if obj.(metav1.Object).GetName() != nameUnwrapped {
+						return errWrapped
+					}
+					return nil
+				}),
+			},
 			args: args{obj: NewUnwrapped()},
 		},
 		"Wrapped": {
-			c: &test.MockClient{MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(obj client.Object) error {
-				if obj.(metav1.Object).GetName() != nameWrapped {
-					return errUnwrapped
-				}
-				return nil
-			})},
+			c: &test.MockClient{
+				MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(obj client.Object) error {
+					if obj.(metav1.Object).GetName() != nameWrapped {
+						return errUnwrapped
+					}
+					return nil
+				}),
+				MockUpdateSubResource: test.NewMockUpdateSubResourceFn(nil, func(obj client.Object) error {
+					if obj.(metav1.Object).GetName() != nameWrapped {
+						return errUnwrapped
+					}
+					return nil
+				}),
+			},
 			args: args{obj: NewWrapped()},
 		},
 	}
@@ -415,21 +431,37 @@ func TestStatusPatch(t *testing.T) {
 		want error
 	}{
 		"Unwrapped": {
-			c: &test.MockClient{MockStatusPatch: test.NewMockStatusPatchFn(nil, func(obj client.Object) error {
-				if obj.(metav1.Object).GetName() != nameUnwrapped {
-					return errWrapped
-				}
-				return nil
-			})},
+			c: &test.MockClient{
+				MockStatusPatch: test.NewMockStatusPatchFn(nil, func(obj client.Object) error {
+					if obj.(metav1.Object).GetName() != nameUnwrapped {
+						return errWrapped
+					}
+					return nil
+				}),
+				MockPatchSubResource: test.NewMockPatchSubResourceFn(nil, func(obj client.Object) error {
+					if obj.(metav1.Object).GetName() != nameUnwrapped {
+						return errWrapped
+					}
+					return nil
+				}),
+			},
 			args: args{obj: NewUnwrapped()},
 		},
 		"Wrapped": {
-			c: &test.MockClient{MockStatusPatch: test.NewMockStatusPatchFn(nil, func(obj client.Object) error {
-				if obj.(metav1.Object).GetName() != nameWrapped {
-					return errUnwrapped
-				}
-				return nil
-			})},
+			c: &test.MockClient{
+				MockStatusPatch: test.NewMockStatusPatchFn(nil, func(obj client.Object) error {
+					if obj.(metav1.Object).GetName() != nameWrapped {
+						return errUnwrapped
+					}
+					return nil
+				}),
+				MockPatchSubResource: test.NewMockPatchSubResourceFn(nil, func(obj client.Object) error {
+					if obj.(metav1.Object).GetName() != nameWrapped {
+						return errUnwrapped
+					}
+					return nil
+				}),
+			},
 			args: args{obj: NewWrapped()},
 		},
 	}
