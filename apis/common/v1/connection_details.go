@@ -84,6 +84,7 @@ func (in *ConnectionSecretMetadata) GetOwnerUID() string {
 }
 
 // SecretStoreType represents a secret store type.
+// +kubebuilder:validation:Enum=Kubernetes;Vault
 type SecretStoreType string
 
 const (
