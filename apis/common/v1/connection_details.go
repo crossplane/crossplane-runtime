@@ -133,7 +133,7 @@ type SecretStoreConfig struct {
 
 // ExternalStoreConfig represents configuration of an External Secret Store.
 type ExternalStoreConfig struct {
-	// Endpoint is the endpoint of external secret store.
+	// Endpoint is the endpoint of the gRPC server.
 	// +optional
 	Endpoint string `json:"endpoint"`
 	// ConfigRef contains store config reference info.
@@ -141,9 +141,10 @@ type ExternalStoreConfig struct {
 	ConfigRef *Config `json:"configRef,omitempty"`
 }
 
+// Config contains store config reference info.
 type Config struct {
-	// ApiVersion of the referenced config.
-	ApiVersion string `json:"apiVersion"`
+	// APIVersion of the referenced config.
+	APIVersion string `json:"apiVersion"`
 	// Kind of the referenced config.
 	Kind string `json:"kind"`
 	// Name of the referenced config.
