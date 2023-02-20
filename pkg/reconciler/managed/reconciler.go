@@ -808,22 +808,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 		}
 
-		if observation.ResourceLateInitialized {
-			// Note that this update may reset any pending updates to the status of
-			// the managed resource from when it was observed above. This is because
-			// the API server replies to the update with its unchanged view of the
-			// resource's status, which is subsequently deserialized into managed.
-			// This is usually tolerable because the update will implicitly requeue
-			// an immediate reconcile which should re-observe the external resource
-			// and persist its status.
-			if err := r.client.Update(ctx, managed); err != nil {
-				log.Debug(errUpdateManaged, "error", err)
-				record.Event(managed, event.Warning(reasonCannotUpdateManaged, err))
-				managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, errUpdateManaged)))
-				return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
-			}
-		}
-
+		// If we're in ObserveOnly mode, we don't want to update the spec of the managed resource for any reason
+		// including the late initialization of fields. So, we ignore `observation.ResourceLateInitialized` and
+		// do not make an `Update` call on the managed resource.
 
 		log.Debug("Observed the resource and this is all we're allowed to do", "requeue-after", time.Now().Add(r.pollInterval))
 		managed.SetConditions(xpv1.ReconcileSuccess())
