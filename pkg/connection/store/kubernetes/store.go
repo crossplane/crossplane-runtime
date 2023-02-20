@@ -211,6 +211,19 @@ func applyOptions(wo ...store.WriteOption) []resource.ApplyOption {
 				},
 				Data: currentSecret.Data,
 			}
+
+			// NOTE(turkenh): With External Secret Stores, we are using a special label/tag with key
+			// "secret.crossplane.io/owner-uid" to track the owner of the connection secret. However, different from
+			// other Secret Store implementations, Kubernetes Store uses metadata.OwnerReferences for this purpose and
+			// we don't want it to appear in the labels of the secret additionally.
+			// Here we are adding the owner label to the internal representation of the current secret as part of
+			// converting store.WriteOption's to k8s resource.ApplyOption's, so that our generic store.WriteOptions
+			// checking secret owner could work as expected.
+			// Fixes: https://github.com/crossplane/crossplane/issues/3520
+			if len(currentSecret.GetOwnerReferences()) > 0 {
+				cs.Metadata.SetOwnerUID(currentSecret.GetOwnerReferences()[0].UID)
+			}
+
 			ds := &store.Secret{
 				ScopedName: store.ScopedName{
 					Name:  desiredSecret.Name,
