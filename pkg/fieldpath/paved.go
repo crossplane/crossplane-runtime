@@ -25,6 +25,9 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
+// DefaultMaxFieldPathIndex is the max allowed index in a field path.
+const DefaultMaxFieldPathIndex = 1024
+
 type errNotFound struct {
 	error
 }
@@ -46,19 +49,39 @@ func IsNotFound(err error) bool {
 
 // A Paved JSON object supports getting and setting values by their field path.
 type Paved struct {
-	object map[string]interface{}
+	object            map[string]interface{}
+	maxFieldPathIndex uint
 }
+
+type PavedOption func(paved *Paved)
 
 // PaveObject paves a runtime.Object, making it possible to get and set values
 // by field path. o must be a non-nil pointer to an object.
-func PaveObject(o runtime.Object) (*Paved, error) {
+func PaveObject(o runtime.Object, opts ...PavedOption) (*Paved, error) {
 	u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(o)
-	return Pave(u), errors.Wrap(err, "cannot convert object to unstructured data")
+	return Pave(u, opts...), errors.Wrap(err, "cannot convert object to unstructured data")
 }
 
 // Pave a JSON object, making it possible to get and set values by field path.
-func Pave(object map[string]interface{}) *Paved {
-	return &Paved{object: object}
+func Pave(object map[string]interface{}, opts ...PavedOption) *Paved {
+	p := &Paved{object: object, maxFieldPathIndex: DefaultMaxFieldPathIndex}
+
+	for _, opt := range opts {
+		opt(p)
+	}
+
+	return p
+}
+
+// WithMaxFieldPathIndex returns a PavedOption that sets the max allowed index for field paths, 0 means no limit.
+func WithMaxFieldPathIndex(max uint) PavedOption {
+	return func(paved *Paved) {
+		paved.maxFieldPathIndex = max
+	}
+}
+
+func (p *Paved) maxFieldPathIndexEnabled() bool {
+	return p.maxFieldPathIndex > 0
 }
 
 // MarshalJSON to the underlying object.
@@ -357,6 +380,10 @@ func (p *Paved) setValue(s Segments, value interface{}) error {
 			array, ok := in.([]interface{})
 			if !ok {
 				return errors.Errorf("%s is not an array", s[:i])
+			}
+
+			if p.maxFieldPathIndexEnabled() && current.Index > p.maxFieldPathIndex {
+				return errors.Errorf("index %d is greater than max allowed index %d", current.Index, p.maxFieldPathIndex)
 			}
 
 			if final {
