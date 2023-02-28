@@ -20,6 +20,7 @@ package reference
 
 import (
 	"context"
+	"strconv"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 
@@ -52,12 +53,32 @@ func FromPtrValue(v *string) string {
 	return *v
 }
 
+// FromFloatPtrValue adapts a float pointer field for use as a CurrentValue.
+func FromFloatPtrValue(v *float64) string {
+	if v == nil {
+		return ""
+	}
+	return strconv.FormatFloat(*v, 'f', 0, 64)
+}
+
 // ToPtrValue adapts a ResolvedValue for use as a string pointer field.
 func ToPtrValue(v string) *string {
 	if v == "" {
 		return nil
 	}
 	return &v
+}
+
+// ToFloatPtrValue adapts a ResolvedValue for use as a float64 pointer field.
+func ToFloatPtrValue(v string) *float64 {
+	if v == "" {
+		return nil
+	}
+	vParsed, err := strconv.ParseFloat(v, 64)
+	if err != nil {
+		return nil
+	}
+	return &vParsed
 }
 
 // FromPtrValues adapts a slice of string pointer fields for use as CurrentValues.
@@ -73,6 +94,15 @@ func FromPtrValues(v []*string) []string {
 	return res
 }
 
+// FromFloatPtrValues adapts a slice of float64 pointer fields for use as CurrentValues.
+func FromFloatPtrValues(v []*float64) []string {
+	var res = make([]string, len(v))
+	for i := 0; i < len(v); i++ {
+		res[i] = FromFloatPtrValue(v[i])
+	}
+	return res
+}
+
 // ToPtrValues adapts ResolvedValues for use as a slice of string pointer fields.
 // NOTE: Do not use this utility function unless you have to.
 // Using pointer slices does not adhere to our current API practices.
@@ -82,6 +112,15 @@ func ToPtrValues(v []string) []*string {
 	var res = make([]*string, len(v))
 	for i := 0; i < len(v); i++ {
 		res[i] = ToPtrValue(v[i])
+	}
+	return res
+}
+
+// ToFloatPtrValues adapts ResolvedValues for use as a slice of float64 pointer fields.
+func ToFloatPtrValues(v []string) []*float64 {
+	var res = make([]*float64, len(v))
+	for i := 0; i < len(v); i++ {
+		res[i] = ToFloatPtrValue(v[i])
 	}
 	return res
 }
