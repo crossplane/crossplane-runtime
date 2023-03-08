@@ -25,6 +25,9 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
+// DefaultMaxFieldPathIndex is the max allowed index in a field path.
+const DefaultMaxFieldPathIndex = 1024
+
 type errNotFound struct {
 	error
 }
@@ -46,19 +49,40 @@ func IsNotFound(err error) bool {
 
 // A Paved JSON object supports getting and setting values by their field path.
 type Paved struct {
-	object map[string]any
+	object            map[string]any
+	maxFieldPathIndex uint
 }
+
+// PavedOption can be used to configure a Paved behavior.
+type PavedOption func(paved *Paved)
 
 // PaveObject paves a runtime.Object, making it possible to get and set values
 // by field path. o must be a non-nil pointer to an object.
-func PaveObject(o runtime.Object) (*Paved, error) {
+func PaveObject(o runtime.Object, opts ...PavedOption) (*Paved, error) {
 	u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(o)
-	return Pave(u), errors.Wrap(err, "cannot convert object to unstructured data")
+	return Pave(u, opts...), errors.Wrap(err, "cannot convert object to unstructured data")
 }
 
 // Pave a JSON object, making it possible to get and set values by field path.
-func Pave(object map[string]any) *Paved {
-	return &Paved{object: object}
+func Pave(object map[string]any, opts ...PavedOption) *Paved {
+	p := &Paved{object: object, maxFieldPathIndex: DefaultMaxFieldPathIndex}
+
+	for _, opt := range opts {
+		opt(p)
+	}
+
+	return p
+}
+
+// WithMaxFieldPathIndex returns a PavedOption that sets the max allowed index for field paths, 0 means no limit.
+func WithMaxFieldPathIndex(max uint) PavedOption {
+	return func(paved *Paved) {
+		paved.maxFieldPathIndex = max
+	}
+}
+
+func (p *Paved) maxFieldPathIndexEnabled() bool {
+	return p.maxFieldPathIndex > 0
 }
 
 // MarshalJSON to the underlying object.
@@ -338,13 +362,13 @@ func (p *Paved) setValue(s Segments, value any) error {
 	// any per https://golang.org/pkg/encoding/json/#Unmarshal. We
 	// marshal our value to JSON and unmarshal it into an any to ensure
 	// it meets these criteria before setting it within p.object.
-	var v any
-	j, err := json.Marshal(value)
+	v, err := toValidJSON(value)
 	if err != nil {
-		return errors.Wrap(err, "cannot marshal value to JSON")
+		return err
 	}
-	if err := json.Unmarshal(j, &v); err != nil {
-		return errors.Wrap(err, "cannot unmarshal value from JSON")
+
+	if err := p.validateSegments(s); err != nil {
+		return err
 	}
 
 	var in any = p.object
@@ -383,6 +407,18 @@ func (p *Paved) setValue(s Segments, value any) error {
 	}
 
 	return nil
+}
+
+func toValidJSON(value any) (any, error) {
+	var v any
+	j, err := json.Marshal(value)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot marshal value to JSON")
+	}
+	if err := json.Unmarshal(j, &v); err != nil {
+		return nil, errors.Wrap(err, "cannot unmarshal value from JSON")
+	}
+	return v, nil
 }
 
 func prepareElement(array []any, current, next Segment) {
@@ -454,6 +490,18 @@ func (p *Paved) SetValue(path string, value any) error {
 		return errors.Wrapf(err, "cannot parse path %q", path)
 	}
 	return p.setValue(segments, value)
+}
+
+func (p *Paved) validateSegments(s Segments) error {
+	if !p.maxFieldPathIndexEnabled() {
+		return nil
+	}
+	for _, segment := range s {
+		if segment.Type == SegmentIndex && segment.Index > p.maxFieldPathIndex {
+			return errors.Errorf("index %v is greater than max allowed index %d", segment.Index, p.maxFieldPathIndex)
+		}
+	}
+	return nil
 }
 
 // SetString value at the supplied field path.
