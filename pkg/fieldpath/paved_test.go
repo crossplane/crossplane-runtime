@@ -743,30 +743,30 @@ func TestSetValue(t *testing.T) {
 			reason: "Paths having indexes above the maximum default value are rejected",
 			data:   []byte(`{"data":["a"]}`),
 			args: args{
-				path:  fmt.Sprintf("data[%v]", MaxFieldPathIndex+1),
+				path:  fmt.Sprintf("data[%v]", DefaultMaxFieldPathIndex+1),
 				value: "c",
 			},
 			want: want{
 				object: map[string]interface{}{
 					"data": []interface{}{"a"}},
-				err: errors.Wrap(errors.Errorf("found index above max (%[1]v > %[2]v): data[%[1]v]",
-					MaxFieldPathIndex+1, MaxFieldPathIndex), "invalid segments"),
+				err: errors.Errorf("index %v is greater than max allowed index %v",
+					DefaultMaxFieldPathIndex+1, DefaultMaxFieldPathIndex),
 			},
 		},
 		"NotRejectsHighIndexesIfNoDefaultOptions": {
 			reason: "Paths having indexes above the maximum default value are not rejected if default disabled",
 			data:   []byte(`{"data":["a"]}`),
 			args: args{
-				path:  fmt.Sprintf("data[%v]", MaxFieldPathIndex+1),
+				path:  fmt.Sprintf("data[%v]", DefaultMaxFieldPathIndex+1),
 				value: "c",
-				opts:  []PavedOption{},
+				opts:  []PavedOption{WithMaxFieldPathIndex(0)},
 			},
 			want: want{
 				object: map[string]interface{}{
 					"data": func() []interface{} {
-						res := make([]interface{}, MaxFieldPathIndex+2)
+						res := make([]interface{}, DefaultMaxFieldPathIndex+2)
 						res[0] = "a"
-						res[MaxFieldPathIndex+1] = "c"
+						res[DefaultMaxFieldPathIndex+1] = "c"
 						return res
 					}()},
 			},
