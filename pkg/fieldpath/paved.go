@@ -53,6 +53,7 @@ type Paved struct {
 	maxFieldPathIndex uint
 }
 
+// PavedOption can be used to configure a Paved behavior.
 type PavedOption func(paved *Paved)
 
 // PaveObject paves a runtime.Object, making it possible to get and set values
@@ -361,13 +362,13 @@ func (p *Paved) setValue(s Segments, value any) error {
 	// any per https://golang.org/pkg/encoding/json/#Unmarshal. We
 	// marshal our value to JSON and unmarshal it into an any to ensure
 	// it meets these criteria before setting it within p.object.
-	var v any
-	j, err := json.Marshal(value)
+	v, err := toValidJSON(value)
 	if err != nil {
-		return errors.Wrap(err, "cannot marshal value to JSON")
+		return err
 	}
-	if err := json.Unmarshal(j, &v); err != nil {
-		return errors.Wrap(err, "cannot unmarshal value from JSON")
+
+	if err := p.validateSegments(s); err != nil {
+		return err
 	}
 
 	var in any = p.object
@@ -379,10 +380,6 @@ func (p *Paved) setValue(s Segments, value any) error {
 			array, ok := in.([]any)
 			if !ok {
 				return errors.Errorf("%s is not an array", s[:i])
-			}
-
-			if p.maxFieldPathIndexEnabled() && current.Index > p.maxFieldPathIndex {
-				return errors.Errorf("index %d is greater than max allowed index %d", current.Index, p.maxFieldPathIndex)
 			}
 
 			if final {
@@ -410,6 +407,18 @@ func (p *Paved) setValue(s Segments, value any) error {
 	}
 
 	return nil
+}
+
+func toValidJSON(value any) (any, error) {
+	var v any
+	j, err := json.Marshal(value)
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot marshal value to JSON")
+	}
+	if err := json.Unmarshal(j, &v); err != nil {
+		return nil, errors.Wrap(err, "cannot unmarshal value from JSON")
+	}
+	return v, nil
 }
 
 func prepareElement(array []any, current, next Segment) {
@@ -481,6 +490,18 @@ func (p *Paved) SetValue(path string, value any) error {
 		return errors.Wrapf(err, "cannot parse path %q", path)
 	}
 	return p.setValue(segments, value)
+}
+
+func (p *Paved) validateSegments(s Segments) error {
+	if !p.maxFieldPathIndexEnabled() {
+		return nil
+	}
+	for _, segment := range s {
+		if segment.Type == SegmentIndex && segment.Index > p.maxFieldPathIndex {
+			return errors.Errorf("index %v is greater than max allowed index %d", segment.Index, p.maxFieldPathIndex)
+		}
+	}
+	return nil
 }
 
 // SetString value at the supplied field path.
