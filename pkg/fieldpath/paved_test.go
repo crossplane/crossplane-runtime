@@ -17,6 +17,7 @@ limitations under the License.
 package fieldpath
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -593,6 +594,7 @@ func TestSetValue(t *testing.T) {
 	type args struct {
 		path  string
 		value any
+		opts  []PavedOption
 	}
 	type want struct {
 		object map[string]any
@@ -737,6 +739,38 @@ func TestSetValue(t *testing.T) {
 				},
 			},
 		},
+		"RejectsHighIndexes": {
+			reason: "Paths having indexes above the maximum default value are rejected",
+			data:   []byte(`{"data":["a"]}`),
+			args: args{
+				path:  fmt.Sprintf("data[%v]", MaxFieldPathIndex+1),
+				value: "c",
+			},
+			want: want{
+				object: map[string]any{
+					"data": []any{"a"}},
+				err: errors.Wrap(errors.Errorf("found index above max (%[1]v > %[2]v): data[%[1]v]",
+					MaxFieldPathIndex+1, MaxFieldPathIndex), "invalid segments"),
+			},
+		},
+		"NotRejectsHighIndexesIfNoDefaultOptions": {
+			reason: "Paths having indexes above the maximum default value are not rejected if default disabled",
+			data:   []byte(`{"data":["a"]}`),
+			args: args{
+				path:  fmt.Sprintf("data[%v]", MaxFieldPathIndex+1),
+				value: "c",
+				opts:  []PavedOption{},
+			},
+			want: want{
+				object: map[string]any{
+					"data": func() []any {
+						res := make([]any, MaxFieldPathIndex+2)
+						res[0] = "a"
+						res[MaxFieldPathIndex+1] = "c"
+						return res
+					}()},
+			},
+		},
 		"MapStringString": {
 			reason: "A map of string to string should be converted to a map of string to any",
 			data:   []byte(`{"metadata":{}}`),
@@ -817,7 +851,7 @@ func TestSetValue(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			in := make(map[string]any)
 			_ = json.Unmarshal(tc.data, &in)
-			p := Pave(in)
+			p := Pave(in, tc.args.opts...)
 
 			err := p.SetValue(tc.args.path, tc.args.value)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
