@@ -19,6 +19,7 @@ package connection
 
 import (
 	"context"
+	"crypto/tls"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -46,7 +47,7 @@ const (
 
 // StoreBuilderFn is a function that builds and returns a Store with a given
 // store config.
-type StoreBuilderFn func(ctx context.Context, local client.Client, cfg v1.SecretStoreConfig) (Store, error)
+type StoreBuilderFn func(ctx context.Context, local client.Client, tlsConfig *tls.Config, cfg v1.SecretStoreConfig) (Store, error)
 
 // A DetailsManagerOption configures a DetailsManager.
 type DetailsManagerOption func(*DetailsManager)
@@ -65,10 +66,11 @@ type DetailsManager struct {
 	client       client.Client
 	newConfig    func() StoreConfig
 	storeBuilder StoreBuilderFn
+	tlsConfig    *tls.Config
 }
 
 // NewDetailsManager returns a new connection DetailsManager.
-func NewDetailsManager(c client.Client, of schema.GroupVersionKind, o ...DetailsManagerOption) *DetailsManager {
+func NewDetailsManager(c client.Client, of schema.GroupVersionKind, tlsConfig *tls.Config, o ...DetailsManagerOption) *DetailsManager {
 	nc := func() StoreConfig {
 		return resource.MustCreateObject(of, c.Scheme()).(StoreConfig)
 	}
@@ -81,6 +83,7 @@ func NewDetailsManager(c client.Client, of schema.GroupVersionKind, o ...Details
 		client:       c,
 		newConfig:    nc,
 		storeBuilder: RuntimeStoreBuilder,
+		tlsConfig:    tlsConfig,
 	}
 
 	for _, mo := range o {
@@ -184,7 +187,7 @@ func (m *DetailsManager) connectStore(ctx context.Context, p *v1.PublishConnecti
 		return nil, errors.Wrap(err, errGetStoreConfig)
 	}
 
-	return m.storeBuilder(ctx, m.client, sc.GetStoreConfig())
+	return m.storeBuilder(ctx, m.client, m.tlsConfig, sc.GetStoreConfig())
 }
 
 // SecretToWriteMustBeOwnedBy requires that the current object is a

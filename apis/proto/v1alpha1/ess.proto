@@ -13,49 +13,70 @@ limitations under the License.
 
 syntax = "proto3";
 
-option go_package = "ess-grpc-2/proto/ess";
+package ess.proto.v1alpha1;
 
-// This service defines the APIs for an External Secret Store plugin.
+option go_package = "github.com/crossplane/crossplane-runtime/apis/proto/v1alpha1";
+
+// ExternalSecretStoreService defines the APIs for an External Secret Store plugin.
 service ExternalSecretStoreService {
   rpc GetSecret(GetSecretRequest) returns (GetSecretResponse) {}
   rpc ApplySecret(ApplySecretRequest) returns (ApplySecretResponse) {}
   rpc DeleteKeys(DeleteKeysRequest) returns (DeleteKeysResponse) {}
 }
 
+// ConfigReference is used to refer a StoreConfig object.
 message ConfigReference {
   string api_version = 1;
   string kind = 2;
   string name = 3;
 }
+
+// Secret defines the structure of a secret.
 message Secret {
   string scoped_name = 1;
   map<string, string> metadata = 2;
   map<string, bytes> data = 3;
 }
+
+// GetSecretRequest requests secret from the secret store.
 message GetSecretRequest {
   ConfigReference config = 1;
   Secret secret = 2;
   GetOptions options = 3;
 }
+
+// GetSecretResponse returns the secret from the secret store.
 message GetSecretResponse {
   Secret secret = 1;
 }
+
+// ApplySecretRequest applies the secret data update to the secret store.
 message ApplySecretRequest {
   ConfigReference config = 1;
   Secret secret = 2;
   ApplyOptions options = 3;
 }
+
+// ApplySecretResponse returns if the secret is changed or not.
 message ApplySecretResponse {
   bool changed = 1;
 }
+
+// DeleteKeysRequest deletes the secret from the secret store.
 message DeleteKeysRequest {
   ConfigReference config = 1;
   Secret secret = 2;
   DeleteOptions options = 3;
 }
+
+// DeleteKeysResponse is returned if the secret is deleted.
 message DeleteKeysResponse {}
+
+// GetOptions will be defined in the future.
 message GetOptions {}
+
+// ApplyOptions will be defined in the future.
 message ApplyOptions {}
-message DeleteOptions {
-  bool keep_empty_secret = 1;
-}
+
+// DeleteOptions will be defined in the future.
+message DeleteOptions {}

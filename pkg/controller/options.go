@@ -17,6 +17,7 @@ limitations under the License.
 package controller
 
 import (
+	"crypto/tls"
 	"time"
 
 	"k8s.io/client-go/util/workqueue"
@@ -57,6 +58,9 @@ type Options struct {
 
 	// Features that should be enabled.
 	Features *feature.Flags
+
+	// TLSConfig for controllers to support External Secret Stores
+	TLSConfig *tls.Config
 }
 
 // ForControllerRuntime extracts options for controller-runtime.

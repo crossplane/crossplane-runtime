@@ -18,6 +18,7 @@ package connection
 
 import (
 	"context"
+	"crypto/tls"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -99,7 +100,7 @@ func TestManagerConnectStore(t *testing.T) {
 					},
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
-				sb: func(ctx context.Context, local client.Client, cfg v1.SecretStoreConfig) (Store, error) {
+				sb: func(ctx context.Context, local client.Client, tlsConfig *tls.Config, cfg v1.SecretStoreConfig) (Store, error) {
 					return nil, errors.New(errBuildStore)
 				},
 				p: &v1.PublishConnectionDetailsTo{
@@ -143,7 +144,8 @@ func TestManagerConnectStore(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			m := NewDetailsManager(tc.args.c, resourcefake.GVK(&fake.StoreConfig{}), WithStoreBuilder(tc.args.sb))
+			tlsConfig := &tls.Config{}
+			m := NewDetailsManager(tc.args.c, resourcefake.GVK(&fake.StoreConfig{}), tlsConfig, WithStoreBuilder(tc.args.sb))
 
 			_, err := m.connectStore(context.Background(), tc.args.p)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -288,7 +290,8 @@ func TestManagerPublishConnection(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			m := NewDetailsManager(tc.args.c, resourcefake.GVK(&fake.StoreConfig{}), WithStoreBuilder(tc.args.sb))
+			tlsConfig := &tls.Config{}
+			m := NewDetailsManager(tc.args.c, resourcefake.GVK(&fake.StoreConfig{}), tlsConfig, WithStoreBuilder(tc.args.sb))
 
 			published, err := m.PublishConnection(context.Background(), tc.args.so, tc.args.conn)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -488,7 +491,8 @@ func TestManagerUnpublishConnection(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			m := NewDetailsManager(tc.args.c, resourcefake.GVK(&fake.StoreConfig{}), WithStoreBuilder(tc.args.sb))
+			tlsConfig := &tls.Config{}
+			m := NewDetailsManager(tc.args.c, resourcefake.GVK(&fake.StoreConfig{}), tlsConfig, WithStoreBuilder(tc.args.sb))
 
 			err := m.UnpublishConnection(context.Background(), tc.args.so, tc.args.conn)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -631,7 +635,8 @@ func TestManagerFetchConnection(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			m := NewDetailsManager(tc.args.c, resourcefake.GVK(&fake.StoreConfig{}), WithStoreBuilder(tc.args.sb))
+			tlsConfig := &tls.Config{}
+			m := NewDetailsManager(tc.args.c, resourcefake.GVK(&fake.StoreConfig{}), tlsConfig, WithStoreBuilder(tc.args.sb))
 
 			got, err := m.FetchConnection(context.Background(), tc.args.so)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -1212,7 +1217,8 @@ func TestManagerPropagateConnection(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			m := NewDetailsManager(tc.args.c, resourcefake.GVK(&fake.StoreConfig{}), WithStoreBuilder(tc.args.sb))
+			tlsConfig := &tls.Config{}
+			m := NewDetailsManager(tc.args.c, resourcefake.GVK(&fake.StoreConfig{}), tlsConfig, WithStoreBuilder(tc.args.sb))
 
 			got, err := m.PropagateConnection(context.Background(), tc.args.to, tc.args.from)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -1226,7 +1232,7 @@ func TestManagerPropagateConnection(t *testing.T) {
 }
 
 func fakeStoreBuilderFn(ss fake.SecretStore) StoreBuilderFn {
-	return func(_ context.Context, _ client.Client, cfg v1.SecretStoreConfig) (Store, error) {
+	return func(_ context.Context, _ client.Client, tlsConfig *tls.Config, cfg v1.SecretStoreConfig) (Store, error) {
 		if *cfg.Type == fakeStore {
 			return &ss, nil
 		}

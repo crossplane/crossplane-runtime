@@ -84,7 +84,7 @@ func (in *ConnectionSecretMetadata) GetOwnerUID() string {
 }
 
 // SecretStoreType represents a secret store type.
-// +kubebuilder:validation:Enum=Kubernetes;Vault
+// +kubebuilder:validation:Enum=Kubernetes;Vault;Plugin
 type SecretStoreType string
 
 const (
@@ -96,8 +96,8 @@ const (
 	// SecretStoreVault indicates that secret store type is Vault.
 	SecretStoreVault SecretStoreType = "Vault"
 
-	// SecretStoreExternal indicates that secret store type is External and will be used with plugins.
-	SecretStoreExternal SecretStoreType = "External"
+	// SecretStorePlugin indicates that secret store type is Plugin and will be used with external secret stores.
+	SecretStorePlugin SecretStoreType = "Plugin"
 )
 
 // SecretStoreConfig represents configuration of a Secret Store.
@@ -126,16 +126,16 @@ type SecretStoreConfig struct {
 	// +optional
 	Vault *VaultSecretStoreConfig `json:"vault,omitempty"`
 
-	// External configures External secret store as a plugin.
+	// Plugin configures External secret store as a plugin.
 	// +optional
-	External *ExternalStoreConfig `json:"external,omitempty"`
+	Plugin *ExternalStoreConfig `json:"plugin,omitempty"`
 }
 
 // ExternalStoreConfig represents configuration of an External Secret Store.
 type ExternalStoreConfig struct {
 	// Endpoint is the endpoint of the gRPC server.
 	// +optional
-	Endpoint string `json:"endpoint"`
+	Endpoint *string `json:"endpoint,omitempty"`
 	// ConfigRef contains store config reference info.
 	// +optional
 	ConfigRef *Config `json:"configRef,omitempty"`
