@@ -776,7 +776,7 @@ users:
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			_, err := NewSecretStore(context.Background(), tc.args.client, tc.args.cfg)
+			_, err := NewSecretStore(context.Background(), tc.args.client, nil, tc.args.cfg)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nNewSecretStore(...): -want error, +got error:\n%s", tc.reason, diff)
 			}

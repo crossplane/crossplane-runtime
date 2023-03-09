@@ -20,9 +20,8 @@ package external
 import (
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"fmt"
-	"os"
+	"path/filepath"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -36,81 +35,43 @@ import (
 
 // Error strings.
 const (
-	errLoadCert  = "cannot load client certificates"
-	errLoadCA    = "cannot load CA certificate"
-	errInvalidCA = "invalid CA certificate"
-
 	errGet    = "cannot get secret"
 	errApply  = "cannot apply secret"
 	errDelete = "cannot delete secret"
-)
-
-var (
-	certsPathFmt = "/certs/%s"
-	caCertFile   = "ca.crt"
-	tlsCertFile  = "tls.crt"
-	tlsKeyFile   = "tls.key"
 )
 
 // SecretStore is an External Secret Store.
 type SecretStore struct {
 	client     ess.ExternalSecretStoreServiceClient
 	kubeClient client.Client
-	ctx        context.Context
 	config     *v1.Config
 }
 
-// loadKeyPair loads CA and client certificates.
-func loadKeyPair() (credentials.TransportCredentials, error) {
-	certificate, err := tls.LoadX509KeyPair(fmt.Sprintf(certsPathFmt, tlsCertFile), fmt.Sprintf(certsPathFmt, tlsKeyFile))
-	if err != nil {
-		return nil, errors.Wrap(err, errLoadCert)
-	}
-
-	ca, err := os.ReadFile(fmt.Sprintf(certsPathFmt, caCertFile))
-	if err != nil {
-		return nil, errors.Wrap(err, errLoadCA)
-	}
-
-	pool := x509.NewCertPool()
-	if !pool.AppendCertsFromPEM(ca) {
-		return nil, errors.New(errInvalidCA)
-	}
-
-	tlsConfig := &tls.Config{
-		MinVersion:   tls.VersionTLS12,
-		Certificates: []tls.Certificate{certificate},
-		RootCAs:      pool,
-	}
-
-	return credentials.NewTLS(tlsConfig), nil
-}
-
 // NewSecretStore returns a new External SecretStore.
-func NewSecretStore(ctx context.Context, kube client.Client, cfg v1.SecretStoreConfig) (*SecretStore, error) {
-	kp, err := loadKeyPair()
-	if err != nil {
-		return nil, errors.Wrap(err, errLoadCert)
+func NewSecretStore(ctx context.Context, kube client.Client, tlsConfig *tls.Config, cfg v1.SecretStoreConfig) (*SecretStore, error) {
+	if cfg.Plugin.Endpoint == nil {
+		return nil, errors.New("endpoint is not provided")
 	}
 
-	conn, err := grpc.Dial(cfg.External.Endpoint, grpc.WithTransportCredentials(kp))
+	creds := credentials.NewTLS(tlsConfig)
+	conn, err := grpc.Dial(*(cfg.Plugin.Endpoint), grpc.WithTransportCredentials(creds))
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("cannot dial to the endpoint: %s", cfg.External.Endpoint))
+		return nil, errors.Wrap(err, fmt.Sprintf("cannot dial to the endpoint: %s", *cfg.Plugin.Endpoint))
 	}
 
 	cl := ess.NewExternalSecretStoreServiceClient(conn)
+
 	return &SecretStore{
-		ctx:        ctx,
 		kubeClient: kube,
 		client:     cl,
-		config:     cfg.External.ConfigRef,
+		config:     cfg.Plugin.ConfigRef,
 	}, nil
 }
 
 // ReadKeyValues reads and returns key value pairs for a given Secret.
 func (ss *SecretStore) ReadKeyValues(ctx context.Context, n store.ScopedName, s *store.Secret) error {
 	sec := new(ess.Secret)
-	sec.ScopedName = n.Name
+	sec.ScopedName = filepath.Join(n.Scope, n.Name)
 
 	cfg := ss.getConfigReference()
 
@@ -119,15 +80,16 @@ func (ss *SecretStore) ReadKeyValues(ctx context.Context, n store.ScopedName, s 
 		return errors.Wrap(err, errGet)
 	}
 
+	s.ScopedName = n
 	s.Data = make(map[string][]byte, len(res.Secret.Data))
 	for d := range res.Secret.Data {
-		res.Secret.Data[d] = s.Data[d]
+		s.Data[d] = res.Secret.Data[d]
 	}
-
-	if res.Secret.Metadata != nil {
+	if res.Secret != nil && len(res.Secret.Metadata) != 0 {
+		s.Metadata = new(v1.ConnectionSecretMetadata)
 		s.Metadata.Labels = make(map[string]string, len(res.Secret.Metadata))
-		for m := range res.Secret.Metadata {
-			res.Secret.Metadata[m] = s.Metadata.Labels[m]
+		for k, v := range res.Secret.Metadata {
+			s.Metadata.Labels[k] = v
 		}
 	}
 
@@ -137,21 +99,20 @@ func (ss *SecretStore) ReadKeyValues(ctx context.Context, n store.ScopedName, s 
 // WriteKeyValues writes key value pairs to a given Secret.
 func (ss *SecretStore) WriteKeyValues(ctx context.Context, s *store.Secret, wo ...store.WriteOption) (changed bool, err error) {
 	sec := new(ess.Secret)
-	sec.ScopedName = s.Name
-
-	cfg := ss.getConfigReference()
-
+	sec.ScopedName = filepath.Join(s.Scope, s.Name)
 	sec.Data = make(map[string][]byte, len(s.Data))
-	for d := range s.Data {
-		sec.Data[d] = s.Data[d]
+	for k, v := range s.Data {
+		sec.Data[k] = v
 	}
 
-	if sec.Metadata != nil {
+	if s.Metadata != nil && len(s.Metadata.Labels) != 0 {
 		sec.Metadata = make(map[string]string, len(s.Metadata.Labels))
-		for m := range s.Metadata.Labels {
-			sec.Metadata[m] = s.Metadata.Labels[m]
+		for k, v := range s.Metadata.Labels {
+			sec.Metadata[k] = v
 		}
 	}
+
+	cfg := ss.getConfigReference()
 
 	res, err := ss.client.ApplySecret(ctx, &ess.ApplySecretRequest{Secret: sec, Config: cfg})
 	if err != nil {
@@ -164,7 +125,7 @@ func (ss *SecretStore) WriteKeyValues(ctx context.Context, s *store.Secret, wo .
 // DeleteKeyValues delete key value pairs from a given Secret.
 func (ss *SecretStore) DeleteKeyValues(ctx context.Context, s *store.Secret, do ...store.DeleteOption) error {
 	sec := new(ess.Secret)
-	sec.ScopedName = s.Name
+	sec.ScopedName = filepath.Join(s.Scope, s.Name)
 
 	cfg := ss.getConfigReference()
 
