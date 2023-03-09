@@ -39,7 +39,7 @@ const (
 )
 
 // Load loads TLS certificates in the given folder assuming certificate names are constant.
-func Load(certsFolderPath string, requireClientCert bool) (*tls.Config, error) {
+func Load(certsFolderPath string, isServer bool) (*tls.Config, error) {
 	tlsCertFilePath := filepath.Join(certsFolderPath, tlsCertFileName)
 	tlsKeyFilePath := filepath.Join(certsFolderPath, tlsKeyFileName)
 	certificate, err := tls.LoadX509KeyPair(tlsCertFilePath, tlsKeyFilePath)
@@ -61,11 +61,13 @@ func Load(certsFolderPath string, requireClientCert bool) (*tls.Config, error) {
 	tlsConfig := &tls.Config{
 		MinVersion:   tls.VersionTLS12,
 		Certificates: []tls.Certificate{certificate},
-		RootCAs:      pool,
 	}
 
-	if requireClientCert {
+	if isServer {
+		tlsConfig.ClientCAs = pool
 		tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
+	} else {
+		tlsConfig.RootCAs = pool
 	}
 
 	return tlsConfig, nil
