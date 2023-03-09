@@ -53,6 +53,10 @@ const (
 	// external resource exists.
 	AnnotationKeyExternalCreateSucceeded = "crossplane.io/external-create-succeeded"
 
+	// AnnotationKeyExternalCreateEventStatus is the key in the annotations
+	// map of a resource that indicates if a create event was sent or in a pending state.
+	AnnotationKeyExternalCreateEventStatus = "crossplane.io/external-create-event-status"
+
 	// AnnotationKeyExternalCreateFailed is the key in the annotations map
 	// of a resource that indicates the last time creation of the external
 	// resource failed. Its value must be an RFC3999 timestamp.
@@ -309,6 +313,11 @@ func GetExternalCreateSucceeded(o metav1.Object) time.Time {
 // most recently created to the supplied time.
 func SetExternalCreateSucceeded(o metav1.Object, t time.Time) {
 	AddAnnotations(o, map[string]string{AnnotationKeyExternalCreateSucceeded: t.Format(time.RFC3339)})
+}
+
+// SetExternalCreateEventStatus sets the status of a creation notification event.
+func SetExternalCreateEventStatus(o metav1.Object, s string) {
+	AddAnnotations(o, map[string]string{AnnotationKeyExternalCreateEventStatus: s})
 }
 
 // GetExternalCreateFailed returns the time at which the external resource

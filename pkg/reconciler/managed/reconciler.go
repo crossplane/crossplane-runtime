@@ -18,9 +18,11 @@ package managed
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -44,6 +46,9 @@ const (
 
 	defaultpollInterval = 1 * time.Minute
 	defaultGracePeriod  = 30 * time.Second
+
+	eventEmitPending  = "pending"
+	eventEmitComplete = "complete"
 )
 
 // Error strings.
@@ -943,6 +948,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// Create implementations are advised not to alter status, but
 		// we may revisit this in future.
 		meta.SetExternalCreateSucceeded(managed, time.Now())
+		// We add an annotation to track if an event has been sent once
+		// the resource is "Available to use".
+		meta.SetExternalCreateEventStatus(managed, eventEmitPending)
 		if err := r.managed.UpdateCriticalAnnotations(ctx, managed); err != nil {
 			log.Debug(errUpdateManagedAnnotations, "error", err)
 			record.Event(managed, event.Warning(reasonCannotUpdateManaged, errors.Wrap(err, errUpdateManagedAnnotations)))
@@ -996,6 +1004,33 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug("External resource is up to date", "requeue-after", time.Now().Add(r.pollInterval))
 		managed.SetConditions(xpv1.ReconcileSuccess())
 		return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+	}
+
+	availableCondition := managed.GetCondition(xpv1.Available().Type)
+
+	// This has been added so we can send an event notifying that a resource has finished creating
+	// and is available to use.  We check that the status is available then check if we have sent an event
+	// using the annotation added in external.Create.
+	if availableCondition.Equal(xpv1.Condition{
+		Type:   xpv1.TypeReady,
+		Status: corev1.ConditionTrue,
+		Reason: xpv1.ReasonAvailable,
+	}) {
+
+		a := managed.GetAnnotations()
+
+		createEventStatus, ok := a[meta.AnnotationKeyExternalCreateEventStatus]
+
+		if ok && createEventStatus == eventEmitPending {
+			meta.SetExternalCreateEventStatus(managed, createEventStatus)
+			if err := r.client.Update(ctx, managed); err != nil {
+				log.Debug(fmt.Sprintf("%s: %s", errUpdateManagedAnnotations, meta.AnnotationKeyExternalCreateEventStatus), "error", err)
+				record.Event(managed, event.Warning(reasonCannotUpdateManaged, errors.Wrap(err, errUpdateManagedAnnotations)))
+			} else {
+				resourceName := managed.GetName()
+				record.Event(managed, event.Normal(reasonCreated, fmt.Sprintf("Successfully created external resource: %s", resourceName)))
+			}
+		}
 	}
 
 	if observation.Diff != "" {
