@@ -817,7 +817,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if r.managementPoliciesEnabled && managed.GetManagementPolicy() == xpv1.ManagementObserveOnly {
-		// In the observe-only mode, observation.ResourceExists will be an error
+		// In the observe-only mode, !observation.ResourceExists will be an error
 		// case, and we will explicitly return this information to the user.
 		if !observation.ResourceExists {
 			record.Event(managed, event.Warning(reasonCannotObserve, errors.New(errExternalResourceNotExist)))

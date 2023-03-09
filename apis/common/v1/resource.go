@@ -203,7 +203,15 @@ type ResourceSpec struct {
 	// Deprecated: Please use ProviderConfigReference, i.e. `providerConfigRef`
 	ProviderReference *Reference `json:"providerRef,omitempty"`
 
-	// ManagementPolicy specifies how this managed resource should be managed.
+	// THIS IS AN ALPHA FIELD. Do not use it in production. It is not honored
+	// unless the relevant Crossplane feature flag is enabled, and may be
+	// changed or removed without notice.
+	// ManagementPolicy specifies the level of control Crossplane has over the
+	// managed external resource.
+	// This field is planned to replace the DeletionPolicy field in a future
+	// release. Currently, both could be set independently and non-default
+	// values would be honored if the feature flag is enabled.
+	// See the design doc for more information: https://github.com/crossplane/crossplane/blob/master/design/design-doc-observe-only-resources.md#deprecation-of-deletionpolicy
 	// +optional
 	// +kubebuilder:default=FullControl
 	ManagementPolicy ManagementPolicy `json:"managementPolicy,omitempty"`
@@ -211,6 +219,10 @@ type ResourceSpec struct {
 	// DeletionPolicy specifies what will happen to the underlying external
 	// when this managed resource is deleted - either "Delete" or "Orphan" the
 	// external resource.
+	// This field is planned to be deprecated in favor of the ManagementPolicy
+	// field in a future release. Currently, both could be set independently and
+	// non-default values would be honored if the feature flag is enabled.
+	// See the design doc for more information: https://github.com/crossplane/crossplane/blob/master/design/design-doc-observe-only-resources.md#deprecation-of-deletionpolicy
 	// +optional
 	// +kubebuilder:default=Delete
 	DeletionPolicy DeletionPolicy `json:"deletionPolicy,omitempty"`
