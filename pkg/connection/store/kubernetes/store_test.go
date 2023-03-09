@@ -25,6 +25,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -39,6 +40,7 @@ var (
 
 	fakeSecretName      = "fake"
 	fakeSecretNamespace = "fake-namespace"
+	fakeOwnerID         = "00000000-0000-0000-0000-000000000000"
 
 	storeTypeKubernetes = v1.SecretStoreKubernetes
 )
@@ -292,6 +294,46 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 						"existing-key": []byte("new-value"),
 					}),
 				},
+			},
+			want: want{
+				changed: true,
+			},
+		},
+		"SecretHasExpectedOwner": {
+			reason: "Should correctly check the owner of the secret.",
+			args: args{
+				client: resource.ClientApplicator{
+					Applicator: resource.ApplyFn(func(ctx context.Context, obj client.Object, option ...resource.ApplyOption) error {
+						if diff := cmp.Diff(fakeConnectionSecret(withData(map[string][]byte{
+							"existing-key": []byte("new-value"),
+						})), obj.(*corev1.Secret)); diff != "" {
+							t.Errorf("r: -want, +got:\n%s", diff)
+						}
+						for _, fn := range option {
+							if err := fn(ctx, fakeConnectionSecret(withData(map[string][]byte{
+								"existing-key": []byte("old-value"),
+							}), withOwnerID(fakeOwnerID)), obj); err != nil {
+								return err
+							}
+						}
+						return nil
+					}),
+				},
+				secret: &store.Secret{
+					ScopedName: store.ScopedName{
+						Name:  fakeSecretName,
+						Scope: fakeSecretNamespace,
+					},
+					Data: store.KeyValues(map[string][]byte{
+						"existing-key": []byte("new-value"),
+					}),
+				},
+				wo: []store.WriteOption{func(ctx context.Context, current, desired *store.Secret) error {
+					if current.Metadata == nil || current.Metadata.GetOwnerUID() != fakeOwnerID {
+						return errors.Errorf("secret not owned by %s", fakeOwnerID)
+					}
+					return nil
+				}},
 			},
 			want: want{
 				changed: true,
@@ -809,6 +851,17 @@ func withAnnotations(a map[string]string) secretOption {
 		s.Annotations = a
 	}
 }
+
+func withOwnerID(id string) secretOption {
+	return func(s *corev1.Secret) {
+		s.SetOwnerReferences([]metav1.OwnerReference{
+			{
+				UID: types.UID(id),
+			},
+		})
+	}
+}
+
 func fakeConnectionSecret(opts ...secretOption) *corev1.Secret {
 	s := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
