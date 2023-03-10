@@ -42,7 +42,6 @@ message Secret {
 message GetSecretRequest {
   ConfigReference config = 1;
   Secret secret = 2;
-  GetOptions options = 3;
 }
 
 // GetSecretResponse returns the secret from the secret store.
@@ -54,7 +53,6 @@ message GetSecretResponse {
 message ApplySecretRequest {
   ConfigReference config = 1;
   Secret secret = 2;
-  ApplyOptions options = 3;
 }
 
 // ApplySecretResponse returns if the secret is changed or not.
@@ -66,17 +64,7 @@ message ApplySecretResponse {
 message DeleteKeysRequest {
   ConfigReference config = 1;
   Secret secret = 2;
-  DeleteOptions options = 3;
 }
 
 // DeleteKeysResponse is returned if the secret is deleted.
 message DeleteKeysResponse {}
-
-// GetOptions will be defined in the future.
-message GetOptions {}
-
-// ApplyOptions will be defined in the future.
-message ApplyOptions {}
-
-// DeleteOptions will be defined in the future.
-message DeleteOptions {}
