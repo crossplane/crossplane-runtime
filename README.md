@@ -1,4 +1,5 @@
-# crossplane-runtime [![Godoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/github.com/crossplane/crossplane-runtime)
+# crossplane-runtime
+[![CI](https://github.com/crossplane/crossplane-runtime/actions/workflows/ci.yml/badge.svg)](https://github.com/crossplane/crossplane-runtime/actions/workflows/ci.yml) ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/crossplane/crossplane-runtime) [![Godoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/github.com/crossplane/crossplane-runtime)
 
 ## Overview
 
