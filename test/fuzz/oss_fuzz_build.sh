@@ -1,5 +1,11 @@
 #!/bin/bash -eu
 #
+# IMPORTANT: Fuzz* test cases should be in a dedicated file, conventionally
+# called `fuzz_test.go`, but that's not a requirement. Otherwise once the file
+# name is changed to have the _test_fuzz.go termination instead of _test.go as
+# required by oss-fuzz, the code won't compile as other Test* test cases might
+# not find some requirements given that they are not in a _test.go file.
+#
 # DO NOT DELETE: this script is used from oss-fuzz. You can find more details
 # in the official documentation:
 # https://google.github.io/oss-fuzz/getting-started/new-project-guide/go-lang/
