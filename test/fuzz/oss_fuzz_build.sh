@@ -44,5 +44,5 @@ grep --line-buffered --include '*_test_fuzz.go' -Pr 'func Fuzz.*\(.* \*testing\.
   file="$(echo "{}" | cut -d: -f1)"
   folder="$(dirname $file)"
   func="Fuzz$(echo "{}" | cut -d: -f2)"
-  compile_native_go_fuzzer github.com/crossplane-runtime/$folder $func $func
+  compile_native_go_fuzzer github.com/crossplane/crossplane-runtime/$folder $func $func
 '
