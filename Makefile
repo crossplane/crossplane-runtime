@@ -31,11 +31,10 @@ NPROCS ?= 1
 # to half the number of CPU cores.
 GO_TEST_PARALLEL := $(shell echo $$(( $(NPROCS) / 2 )))
 
-GO_REQUIRED_VERSION = 1.19
 GO_LDFLAGS += -X $(GO_PROJECT)/pkg/version.Version=$(VERSION)
 GO_SUBDIRS += pkg apis
 GO111MODULE = on
-GOLANGCILINT_VERSION = 1.49.0
+GOLANGCILINT_VERSION = 1.51.2
 -include build/makelib/golang.mk
 
 # ====================================================================================
@@ -51,6 +50,16 @@ GOLANGCILINT_VERSION = 1.49.0
 fallthrough: submodules
 	@echo Initial setup complete. Running make again . . .
 	@make
+
+
+# NOTE(hasheddan): the build submodule currently overrides XDG_CACHE_HOME in
+# order to force the Helm 3 to use the .work/helm directory. This causes Go on
+# Linux machines to use that directory as the build cache as well. We should
+# adjust this behavior in the build submodule because it is also causing Linux
+# users to duplicate their build cache, but for now we just make it easier to
+# identify its location in CI so that we cache between builds.
+go.cachedir:
+	@go env GOCACHE
 
 # Generate a coverage report for cobertura applying exclusions on
 # - generated file
