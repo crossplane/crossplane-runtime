@@ -38,10 +38,10 @@ const (
 	errInvalidCA = "invalid CA certificate"
 )
 
-// Load loads TLS certificates in the given folder assuming certificate names are constant.
-func Load(certsFolderPath string, isServer bool) (*tls.Config, error) {
-	tlsCertFilePath := filepath.Join(certsFolderPath, tlsCertFileName)
-	tlsKeyFilePath := filepath.Join(certsFolderPath, tlsKeyFileName)
+// LoadMTLSConfig loads TLS certificates in the given folder using well-defined filenames for certificates in a Kubernetes environment.
+func LoadMTLSConfig(certsFolderPath string, isServer bool) (*tls.Config, error) {
+	tlsCertFilePath := filepath.Clean(filepath.Join(certsFolderPath, tlsCertFileName))
+	tlsKeyFilePath := filepath.Clean(filepath.Join(certsFolderPath, tlsKeyFileName))
 	certificate, err := tls.LoadX509KeyPair(tlsCertFilePath, tlsKeyFilePath)
 	if err != nil {
 		return nil, errors.Wrap(err, errLoadCert)

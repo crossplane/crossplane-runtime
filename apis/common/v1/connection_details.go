@@ -96,7 +96,7 @@ const (
 	// SecretStoreVault indicates that secret store type is Vault.
 	SecretStoreVault SecretStoreType = "Vault"
 
-	// SecretStorePlugin indicates that secret store type is Plugin and will be used with external secret stores.
+	// SecretStorePlugin indicates that secret store type is Plugin.
 	SecretStorePlugin SecretStoreType = "Plugin"
 )
 
@@ -128,17 +128,15 @@ type SecretStoreConfig struct {
 
 	// Plugin configures External secret store as a plugin.
 	// +optional
-	Plugin *ExternalStoreConfig `json:"plugin,omitempty"`
+	Plugin *PluginStoreConfig `json:"plugin,omitempty"`
 }
 
-// ExternalStoreConfig represents configuration of an External Secret Store.
-type ExternalStoreConfig struct {
+// PluginStoreConfig represents configuration of an External Secret Store Plugin
+type PluginStoreConfig struct {
 	// Endpoint is the endpoint of the gRPC server.
-	// +optional
-	Endpoint *string `json:"endpoint,omitempty"`
+	Endpoint string `json:"endpoint"`
 	// ConfigRef contains store config reference info.
-	// +optional
-	ConfigRef *Config `json:"configRef,omitempty"`
+	ConfigRef Config `json:"configRef,omitempty"`
 }
 
 // Config contains store config reference info.

@@ -17,8 +17,8 @@ package ess.proto.v1alpha1;
 
 option go_package = "github.com/crossplane/crossplane-runtime/apis/proto/v1alpha1";
 
-// ExternalSecretStoreService defines the APIs for an External Secret Store plugin.
-service ExternalSecretStoreService {
+// ExternalSecretStorePluginService defines the APIs for an External Secret Store plugin.
+service ExternalSecretStorePluginService {
   rpc GetSecret(GetSecretRequest) returns (GetSecretResponse) {}
   rpc ApplySecret(ApplySecretRequest) returns (ApplySecretResponse) {}
   rpc DeleteKeys(DeleteKeysRequest) returns (DeleteKeysResponse) {}

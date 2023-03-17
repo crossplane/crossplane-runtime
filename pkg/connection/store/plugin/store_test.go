@@ -14,7 +14,7 @@
  limitations under the License.
 */
 
-package external
+package plugin
 
 import (
 	"context"
@@ -27,7 +27,7 @@ import (
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	ess "github.com/crossplane/crossplane-runtime/apis/proto/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store"
-	"github.com/crossplane/crossplane-runtime/pkg/connection/store/external/fake"
+	"github.com/crossplane/crossplane-runtime/pkg/connection/store/plugin/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
@@ -44,7 +44,7 @@ var (
 func TestReadKeyValues(t *testing.T) {
 	type args struct {
 		sn     store.ScopedName
-		client ess.ExternalSecretStoreServiceClient
+		client ess.ExternalSecretStorePluginServiceClient
 	}
 	type want struct {
 		out *store.Secret
@@ -58,7 +58,7 @@ func TestReadKeyValues(t *testing.T) {
 		"ErrorWhileGetting": {
 			reason: "Should return a proper error if secret cannot be obtained",
 			args: args{
-				client: &fake.ExternalSecretStoreServiceClient{
+				client: &fake.ExternalSecretStorePluginServiceClient{
 					GetSecretFn: func(ctx context.Context, req *ess.GetSecretRequest, opts ...grpc.CallOption) (*ess.GetSecretResponse, error) {
 						return nil, errBoom
 					},
@@ -66,7 +66,7 @@ func TestReadKeyValues(t *testing.T) {
 			},
 			want: want{
 				out: &store.Secret{},
-				err: errors.Wrap(errBoom, "cannot get secret"),
+				err: errors.Wrap(errBoom, errGet),
 			},
 		},
 		"SuccessfulGet": {
@@ -76,7 +76,7 @@ func TestReadKeyValues(t *testing.T) {
 					Name:  secretName,
 					Scope: parentPath,
 				},
-				client: &fake.ExternalSecretStoreServiceClient{
+				client: &fake.ExternalSecretStorePluginServiceClient{
 					GetSecretFn: func(ctx context.Context, req *ess.GetSecretRequest, opts ...grpc.CallOption) (*ess.GetSecretResponse, error) {
 						if diff := cmp.Diff(filepath.Join(parentPath, secretName), req.Secret.ScopedName); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
@@ -149,7 +149,7 @@ func TestReadKeyValues(t *testing.T) {
 
 func TestWriteKeyValues(t *testing.T) {
 	type args struct {
-		client ess.ExternalSecretStoreServiceClient
+		client ess.ExternalSecretStorePluginServiceClient
 	}
 	type want struct {
 		isChanged bool
@@ -163,7 +163,7 @@ func TestWriteKeyValues(t *testing.T) {
 		"ErrorWhileWriting": {
 			reason: "Should return a proper error if secret cannot be applied",
 			args: args{
-				client: &fake.ExternalSecretStoreServiceClient{
+				client: &fake.ExternalSecretStorePluginServiceClient{
 					ApplySecretFn: func(ctx context.Context, req *ess.ApplySecretRequest, opts ...grpc.CallOption) (*ess.ApplySecretResponse, error) {
 						return nil, errBoom
 					},
@@ -171,13 +171,13 @@ func TestWriteKeyValues(t *testing.T) {
 			},
 			want: want{
 				isChanged: false,
-				err:       errors.Wrap(errBoom, "cannot apply secret"),
+				err:       errors.Wrap(errBoom, errApply),
 			},
 		},
 		"SuccessfulWrite": {
 			reason: "Should return isChanged true",
 			args: args{
-				client: &fake.ExternalSecretStoreServiceClient{
+				client: &fake.ExternalSecretStorePluginServiceClient{
 					ApplySecretFn: func(ctx context.Context, req *ess.ApplySecretRequest, opts ...grpc.CallOption) (*ess.ApplySecretResponse, error) {
 						resp := &ess.ApplySecretResponse{
 							Changed: true,
@@ -221,7 +221,7 @@ func TestWriteKeyValues(t *testing.T) {
 
 func TestDeleteKeyValues(t *testing.T) {
 	type args struct {
-		client ess.ExternalSecretStoreServiceClient
+		client ess.ExternalSecretStorePluginServiceClient
 	}
 	type want struct {
 		err error
@@ -234,20 +234,19 @@ func TestDeleteKeyValues(t *testing.T) {
 		"ErrorWhileDeleting": {
 			reason: "Should return a proper error if key values cannot be deleted",
 			args: args{
-				client: &fake.ExternalSecretStoreServiceClient{
+				client: &fake.ExternalSecretStorePluginServiceClient{
 					DeleteKeysFn: func(ctx context.Context, req *ess.DeleteKeysRequest, opts ...grpc.CallOption) (*ess.DeleteKeysResponse, error) {
 						return nil, errBoom
-					},
-				},
+					}},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, "cannot delete secret"),
+				err: errors.Wrap(errBoom, errDelete),
 			},
 		},
 		"SuccessfulDelete": {
 			reason: "Should not return error",
 			args: args{
-				client: &fake.ExternalSecretStoreServiceClient{
+				client: &fake.ExternalSecretStorePluginServiceClient{
 					DeleteKeysFn: func(ctx context.Context, req *ess.DeleteKeysRequest, opts ...grpc.CallOption) (*ess.DeleteKeysResponse, error) {
 						return nil, nil
 					},

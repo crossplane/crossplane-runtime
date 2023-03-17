@@ -88,7 +88,7 @@ func TestLoad(t *testing.T) {
 			certsFolderPath := tc.args.certsFolderPath
 			requireClient := tc.args.requireClientValidation
 
-			cfg, err := Load(certsFolderPath, requireClient)
+			cfg, err := LoadMTLSConfig(certsFolderPath, requireClient)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nLoad(...): -want error, +got error:\n%s", tc.reason, diff)
 			}

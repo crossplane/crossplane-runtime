@@ -59,8 +59,8 @@ type Options struct {
 	// Features that should be enabled.
 	Features *feature.Flags
 
-	// TLSConfig for controllers to support External Secret Stores
-	TLSConfig *tls.Config
+	// ESSOptions for External Secret Stores.
+	ESSOptions *ESSOptions
 }
 
 // ForControllerRuntime extracts options for controller-runtime.
@@ -69,4 +69,9 @@ func (o Options) ForControllerRuntime() controller.Options {
 		MaxConcurrentReconciles: o.MaxConcurrentReconciles,
 		RateLimiter:             ratelimiter.NewController(),
 	}
+}
+
+// ESSOptions for External Secret Stores.
+type ESSOptions struct {
+	TLSConfig *tls.Config
 }
