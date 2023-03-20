@@ -27,10 +27,14 @@ import (
 )
 
 // A PredicateFn returns true if the supplied object should be reconciled.
+// Deprecated: This type will be removed soon. Please use
+// controller-runtime's predicate.NewPredicateFuncs instead.
 type PredicateFn func(obj runtime.Object) bool
 
 // NewPredicates returns a set of Funcs that are all satisfied by the supplied
 // PredicateFn. The PredicateFn is run against the new object during updates.
+// Deprecated: This function will be removed soon. Please use
+// controller-runtime's predicate.NewPredicateFuncs instead.
 func NewPredicates(fn PredicateFn) predicate.Funcs {
 	return predicate.Funcs{
 		CreateFunc:  func(e event.CreateEvent) bool { return fn(e.Object) },
@@ -41,6 +45,8 @@ func NewPredicates(fn PredicateFn) predicate.Funcs {
 }
 
 // AnyOf accepts objects that pass any of the supplied predicate functions.
+// Deprecated: This function will be removed soon. Please use
+// controller-runtime's predicate.Or instead.
 func AnyOf(fn ...PredicateFn) PredicateFn {
 	return func(obj runtime.Object) bool {
 		for _, f := range fn {
@@ -53,6 +59,8 @@ func AnyOf(fn ...PredicateFn) PredicateFn {
 }
 
 // AllOf accepts objects that pass all of the supplied predicate functions.
+// Deprecated: This function will be removed soon. Please use
+// controller-runtime's predicate.And instead.
 func AllOf(fn ...PredicateFn) PredicateFn {
 	return func(obj runtime.Object) bool {
 		for _, f := range fn {
@@ -66,6 +74,7 @@ func AllOf(fn ...PredicateFn) PredicateFn {
 
 // HasManagedResourceReferenceKind accepts objects that reference the supplied
 // managed resource kind.
+// Deprecated: This function will be removed soon.
 func HasManagedResourceReferenceKind(k ManagedKind) PredicateFn {
 	return func(obj runtime.Object) bool {
 		r, ok := obj.(ManagedResourceReferencer)
@@ -82,6 +91,7 @@ func HasManagedResourceReferenceKind(k ManagedKind) PredicateFn {
 }
 
 // IsManagedKind accepts objects that are of the supplied managed resource kind.
+// Deprecated: This function will be removed soon.
 func IsManagedKind(k ManagedKind, ot runtime.ObjectTyper) PredicateFn {
 	return func(obj runtime.Object) bool {
 		gvk, err := GetKind(obj, ot)
@@ -94,6 +104,7 @@ func IsManagedKind(k ManagedKind, ot runtime.ObjectTyper) PredicateFn {
 
 // IsControlledByKind accepts objects that are controlled by a resource of the
 // supplied kind.
+// Deprecated: This function will be removed soon.
 func IsControlledByKind(k schema.GroupVersionKind) PredicateFn {
 	return func(obj runtime.Object) bool {
 		mo, ok := obj.(metav1.Object)
@@ -112,6 +123,7 @@ func IsControlledByKind(k schema.GroupVersionKind) PredicateFn {
 
 // IsPropagator accepts objects that request to be partially or fully propagated
 // to another object of the same kind.
+// Deprecated: This function will be removed soon.
 func IsPropagator() PredicateFn {
 	return func(obj runtime.Object) bool {
 		from, ok := obj.(metav1.Object)
@@ -125,6 +137,7 @@ func IsPropagator() PredicateFn {
 
 // IsPropagated accepts objects that consent to be partially or fully propagated
 // from another object of the same kind.
+// Deprecated: This function will be removed soon.
 func IsPropagated() PredicateFn {
 	return func(obj runtime.Object) bool {
 		to, ok := obj.(metav1.Object)
@@ -137,6 +150,7 @@ func IsPropagated() PredicateFn {
 }
 
 // IsNamed accepts objects that is named as the given name.
+// Deprecated: This function will be removed soon.
 func IsNamed(name string) PredicateFn {
 	return func(obj runtime.Object) bool {
 		mo, ok := obj.(metav1.Object)
@@ -145,4 +159,18 @@ func IsNamed(name string) PredicateFn {
 		}
 		return mo.GetName() == name
 	}
+}
+
+// DesiredStateChanged accepts objects that have changed their desired state, i.e.
+// the state that is not managed by the controller.
+// To be more specific, it accepts update events that have changes in one of the followings:
+// - `metadata.annotations`
+// - `metadata.labels`
+// - `spec`
+func DesiredStateChanged() predicate.Predicate {
+	return predicate.Or(
+		predicate.AnnotationChangedPredicate{},
+		predicate.LabelChangedPredicate{},
+		predicate.GenerationChangedPredicate{},
+	)
 }
