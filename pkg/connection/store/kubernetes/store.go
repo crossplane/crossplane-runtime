@@ -57,7 +57,7 @@ type SecretStore struct {
 }
 
 // NewSecretStore returns a new Kubernetes SecretStore.
-func NewSecretStore(ctx context.Context, local client.Client, tcfg *tls.Config, cfg v1.SecretStoreConfig) (*SecretStore, error) {
+func NewSecretStore(ctx context.Context, local client.Client, _ *tls.Config, cfg v1.SecretStoreConfig) (*SecretStore, error) {
 	kube, err := buildClient(ctx, local, cfg)
 	if err != nil {
 		return nil, errors.Wrap(err, errBuildClient)

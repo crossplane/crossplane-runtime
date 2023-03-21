@@ -12,7 +12,13 @@ import (
 
 var (
 	errNoSuchFile = errors.New("open invalid/path/tls.crt: no such file or directory")
-	errNoCAFile   = errors.New("open fake/no-ca/ca.crt: no such file or directory")
+	errNoCAFile   = errors.New("open test-data/no-ca/ca.crt: no such file or directory")
+)
+
+const (
+	caCertFileName  = "ca.crt"
+	tlsCertFileName = "tls.crt"
+	tlsKeyFileName  = "tls.key"
 )
 
 func TestLoad(t *testing.T) {
@@ -42,7 +48,7 @@ func TestLoad(t *testing.T) {
 		"LoadCAError": {
 			reason: "Should return a proper error if CA certificate does not exist.",
 			args: args{
-				certsFolderPath: "fake/no-ca",
+				certsFolderPath: "test-data/no-ca",
 			},
 			want: want{
 				err: errors.Wrap(errNoCAFile, errLoadCA),
@@ -52,7 +58,7 @@ func TestLoad(t *testing.T) {
 		"InvalidCAError": {
 			reason: "Should return a proper error if CA certificate is not valid.",
 			args: args{
-				certsFolderPath: "fake/invalid-certs/",
+				certsFolderPath: "test-data/invalid-certs/",
 			},
 			want: want{
 				err: errors.New(errInvalidCA),
@@ -62,7 +68,7 @@ func TestLoad(t *testing.T) {
 		"NoError": {
 			reason: "Should not return an error after loading certificates.",
 			args: args{
-				certsFolderPath: "fake/certs/",
+				certsFolderPath: "test-data/certs/",
 			},
 			want: want{
 				err: nil,
@@ -72,7 +78,7 @@ func TestLoad(t *testing.T) {
 		"NoErrorWithClientValidation": {
 			reason: "Should not return an error after loading certificates.",
 			args: args{
-				certsFolderPath:         "fake/certs/",
+				certsFolderPath:         "test-data/certs/",
 				requireClientValidation: true,
 			},
 			want: want{
@@ -88,7 +94,7 @@ func TestLoad(t *testing.T) {
 			certsFolderPath := tc.args.certsFolderPath
 			requireClient := tc.args.requireClientValidation
 
-			cfg, err := LoadMTLSConfig(certsFolderPath, requireClient)
+			cfg, err := LoadMTLSConfig(certsFolderPath, caCertFileName, tlsCertFileName, tlsKeyFileName, requireClient)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nLoad(...): -want error, +got error:\n%s", tc.reason, diff)
 			}

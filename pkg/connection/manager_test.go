@@ -100,7 +100,7 @@ func TestManagerConnectStore(t *testing.T) {
 					},
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
-				sb: func(ctx context.Context, local client.Client, tlsConfig *tls.Config, cfg v1.SecretStoreConfig) (Store, error) {
+				sb: func(ctx context.Context, local client.Client, tCfg *tls.Config, cfg v1.SecretStoreConfig) (Store, error) {
 					return nil, errors.New(errBuildStore)
 				},
 				p: &v1.PublishConnectionDetailsTo{
