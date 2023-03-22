@@ -2,6 +2,7 @@ package certificates
 
 import (
 	"crypto/tls"
+	"path/filepath"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -94,7 +95,7 @@ func TestLoad(t *testing.T) {
 			certsFolderPath := tc.args.certsFolderPath
 			requireClient := tc.args.requireClientValidation
 
-			cfg, err := LoadMTLSConfig(certsFolderPath, caCertFileName, tlsCertFileName, tlsKeyFileName, requireClient)
+			cfg, err := LoadMTLSConfig(filepath.Join(certsFolderPath, caCertFileName), filepath.Join(certsFolderPath, tlsCertFileName), filepath.Join(certsFolderPath, tlsKeyFileName), requireClient)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nLoad(...): -want error, +got error:\n%s", tc.reason, diff)
 			}

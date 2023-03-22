@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	ess "github.com/crossplane/crossplane-runtime/apis/proto/v1alpha1"
+	essproto "github.com/crossplane/crossplane-runtime/apis/proto/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
@@ -43,7 +43,7 @@ const (
 
 // SecretStore is an External Secret Store.
 type SecretStore struct {
-	client     ess.ExternalSecretStorePluginServiceClient
+	client     essproto.ExternalSecretStorePluginServiceClient
 	kubeClient client.Client
 	config     *v1.Config
 
@@ -60,38 +60,28 @@ func NewSecretStore(ctx context.Context, kube client.Client, tcfg *tls.Config, c
 
 	return &SecretStore{
 		kubeClient:   kube,
-		client:       ess.NewExternalSecretStorePluginServiceClient(conn),
+		client:       essproto.NewExternalSecretStorePluginServiceClient(conn),
 		config:       &cfg.Plugin.ConfigRef,
 		defaultScope: cfg.DefaultScope,
 	}, nil
 }
 
-func (ss *SecretStore) getScopedName(n store.ScopedName) string {
-	if n.Scope == "" {
-		n.Scope = ss.defaultScope
-	}
-	return filepath.Join(n.Scope, n.Name)
-}
-
 // ReadKeyValues reads and returns key value pairs for a given Secret.
 func (ss *SecretStore) ReadKeyValues(ctx context.Context, n store.ScopedName, s *store.Secret) error {
-	sec := &ess.Secret{}
-	sec.ScopedName = ss.getScopedName(n)
-
-	res, err := ss.client.GetSecret(ctx, &ess.GetSecretRequest{Secret: sec, Config: ss.getConfigReference()})
+	resp, err := ss.client.GetSecret(ctx, &essproto.GetSecretRequest{Secret: &essproto.Secret{ScopedName: ss.getScopedName(n)}, Config: ss.getConfigReference()})
 	if err != nil {
 		return errors.Wrap(err, errGet)
 	}
 
 	s.ScopedName = n
-	s.Data = make(map[string][]byte, len(res.Secret.Data))
-	for d := range res.Secret.Data {
-		s.Data[d] = res.Secret.Data[d]
+	s.Data = make(map[string][]byte, len(resp.Secret.Data))
+	for d := range resp.Secret.Data {
+		s.Data[d] = resp.Secret.Data[d]
 	}
-	if res.Secret != nil && len(res.Secret.Metadata) != 0 {
+	if resp.Secret != nil && len(resp.Secret.Metadata) != 0 {
 		s.Metadata = new(v1.ConnectionSecretMetadata)
-		s.Metadata.Labels = make(map[string]string, len(res.Secret.Metadata))
-		for k, v := range res.Secret.Metadata {
+		s.Metadata.Labels = make(map[string]string, len(resp.Secret.Metadata))
+		for k, v := range resp.Secret.Metadata {
 			s.Metadata.Labels[k] = v
 		}
 	}
@@ -101,7 +91,7 @@ func (ss *SecretStore) ReadKeyValues(ctx context.Context, n store.ScopedName, s 
 
 // WriteKeyValues writes key value pairs to a given Secret.
 func (ss *SecretStore) WriteKeyValues(ctx context.Context, s *store.Secret, wo ...store.WriteOption) (changed bool, err error) {
-	sec := new(ess.Secret)
+	sec := &essproto.Secret{}
 	sec.ScopedName = ss.getScopedName(s.ScopedName)
 	sec.Data = make(map[string][]byte, len(s.Data))
 	for k, v := range s.Data {
@@ -115,33 +105,32 @@ func (ss *SecretStore) WriteKeyValues(ctx context.Context, s *store.Secret, wo .
 		}
 	}
 
-	cfg := ss.getConfigReference()
-
-	res, err := ss.client.ApplySecret(ctx, &ess.ApplySecretRequest{Secret: sec, Config: cfg})
+	resp, err := ss.client.ApplySecret(ctx, &essproto.ApplySecretRequest{Secret: sec, Config: ss.getConfigReference()})
 	if err != nil {
 		return false, errors.Wrap(err, errApply)
 	}
 
-	return res.Changed, nil
+	return resp.Changed, nil
 }
 
 // DeleteKeyValues delete key value pairs from a given Secret.
 func (ss *SecretStore) DeleteKeyValues(ctx context.Context, s *store.Secret, do ...store.DeleteOption) error {
-	sec := new(ess.Secret)
-	sec.ScopedName = ss.getScopedName(s.ScopedName)
-
-	cfg := ss.getConfigReference()
-
-	_, err := ss.client.DeleteKeys(ctx, &ess.DeleteKeysRequest{Secret: sec, Config: cfg})
+	_, err := ss.client.DeleteKeys(ctx, &essproto.DeleteKeysRequest{Secret: &essproto.Secret{ScopedName: ss.getScopedName(s.ScopedName)}, Config: ss.getConfigReference()})
 
 	return errors.Wrap(err, errDelete)
 }
 
-func (ss *SecretStore) getConfigReference() *ess.ConfigReference {
-	cfg := new(ess.ConfigReference)
-	cfg.ApiVersion = ss.config.APIVersion
-	cfg.Kind = ss.config.Kind
-	cfg.Name = ss.config.Name
+func (ss *SecretStore) getConfigReference() *essproto.ConfigReference {
+	return &essproto.ConfigReference{
+		ApiVersion: ss.config.APIVersion,
+		Kind:       ss.config.Kind,
+		Name:       ss.config.Name,
+	}
+}
 
-	return cfg
+func (ss *SecretStore) getScopedName(n store.ScopedName) string {
+	if n.Scope == "" {
+		n.Scope = ss.defaultScope
+	}
+	return filepath.Join(n.Scope, n.Name)
 }

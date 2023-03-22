@@ -33,15 +33,15 @@ const (
 )
 
 // LoadMTLSConfig loads TLS certificates in the given folder using well-defined filenames for certificates in a Kubernetes environment.
-func LoadMTLSConfig(certsFolderPath, caCertFileName, tlsCertFileName, tlsKeyFileName string, isServer bool) (*tls.Config, error) {
-	tlsCertFilePath := filepath.Clean(filepath.Join(certsFolderPath, tlsCertFileName))
-	tlsKeyFilePath := filepath.Clean(filepath.Join(certsFolderPath, tlsKeyFileName))
+func LoadMTLSConfig(caPath, certPath, keyPath string, isServer bool) (*tls.Config, error) {
+	tlsCertFilePath := filepath.Clean(certPath)
+	tlsKeyFilePath := filepath.Clean(keyPath)
 	certificate, err := tls.LoadX509KeyPair(tlsCertFilePath, tlsKeyFilePath)
 	if err != nil {
 		return nil, errors.Wrap(err, errLoadCert)
 	}
 
-	caCertFilePath := filepath.Clean(filepath.Join(certsFolderPath, caCertFileName))
+	caCertFilePath := filepath.Clean(caPath)
 	ca, err := os.ReadFile(caCertFilePath)
 	if err != nil {
 		return nil, errors.Wrap(err, errLoadCA)

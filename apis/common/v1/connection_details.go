@@ -128,11 +128,11 @@ type SecretStoreConfig struct {
 
 	// Plugin configures External secret store as a plugin.
 	// +optional
-	Plugin *ExternalStoreConfig `json:"plugin,omitempty"`
+	Plugin *PluginStoreConfig `json:"plugin,omitempty"`
 }
 
-// ExternalStoreConfig represents configuration of an External Secret Store.
-type ExternalStoreConfig struct {
+// PluginStoreConfig represents configuration of an External Secret Store.
+type PluginStoreConfig struct {
 	// Endpoint is the endpoint of the gRPC server.
 	Endpoint string `json:"endpoint,omitempty"`
 	// ConfigRef contains store config reference info.
