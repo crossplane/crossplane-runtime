@@ -73,5 +73,6 @@ func (o Options) ForControllerRuntime() controller.Options {
 
 // ESSOptions for External Secret Stores.
 type ESSOptions struct {
-	TLSConfig *tls.Config
+	TLSConfig     *tls.Config
+	TLSSecretName *string
 }
