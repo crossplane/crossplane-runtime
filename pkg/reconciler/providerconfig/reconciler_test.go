@@ -39,7 +39,7 @@ import (
 
 // This can't live in fake, because it would cause an import cycle due to
 // GetItems returning managed.ProviderConfigUsage.
-type ProviderConfigUsageList struct {
+type ProviderConfigUsageList struct { //nolint:musttag // This is a fake implementation to be used in unit tests only.
 	client.ObjectList
 	Items []resource.ProviderConfigUsage
 }

@@ -52,7 +52,7 @@ func (ss *SecretStore) DeleteKeyValues(ctx context.Context, s *store.Secret, do 
 }
 
 // StoreConfig is a mock implementation of the StoreConfig interface.
-type StoreConfig struct {
+type StoreConfig struct { //nolint:musttag // This is a fake implementation to be used in unit tests only.
 	metav1.ObjectMeta
 
 	Config v1.SecretStoreConfig

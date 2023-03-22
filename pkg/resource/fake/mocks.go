@@ -63,7 +63,7 @@ func (m *ManagedResourceReferencer) SetResourceReference(r *corev1.ObjectReferen
 func (m *ManagedResourceReferencer) GetResourceReference() *corev1.ObjectReference { return m.Ref }
 
 // ProviderReferencer is a mock that implements ProviderReferencer interface.
-type ProviderReferencer struct{ Ref *xpv1.Reference }
+type ProviderReferencer struct{ Ref *xpv1.Reference } //nolint:musttag // This is a fake implementation to be used in unit tests only.
 
 // SetProviderReference sets the ProviderReference.
 func (m *ProviderReferencer) SetProviderReference(p *xpv1.Reference) { m.Ref = p }
@@ -82,7 +82,7 @@ func (m *ProviderConfigReferencer) GetProviderConfigReference() *xpv1.Reference 
 
 // RequiredProviderConfigReferencer is a mock that implements the
 // RequiredProviderConfigReferencer interface.
-type RequiredProviderConfigReferencer struct{ Ref xpv1.Reference }
+type RequiredProviderConfigReferencer struct{ Ref xpv1.Reference } //nolint:musttag // This is a fake implementation to be used in unit tests only.
 
 // SetProviderConfigReference sets the ProviderConfigReference.
 func (m *RequiredProviderConfigReferencer) SetProviderConfigReference(p xpv1.Reference) {
@@ -124,7 +124,7 @@ func (m *LocalConnectionSecretWriterTo) GetWriteConnectionSecretToReference() *x
 }
 
 // ConnectionSecretWriterTo is a mock that implements ConnectionSecretWriterTo interface.
-type ConnectionSecretWriterTo struct{ Ref *xpv1.SecretReference }
+type ConnectionSecretWriterTo struct{ Ref *xpv1.SecretReference } //nolint:musttag // This is a fake implementation to be used in unit tests only.
 
 // SetWriteConnectionSecretToReference sets the WriteConnectionSecretToReference.
 func (m *ConnectionSecretWriterTo) SetWriteConnectionSecretToReference(r *xpv1.SecretReference) {
@@ -170,7 +170,7 @@ func (m *CompositionReferencer) SetCompositionReference(r *corev1.ObjectReferenc
 func (m *CompositionReferencer) GetCompositionReference() *corev1.ObjectReference { return m.Ref }
 
 // CompositionSelector is a mock that implements CompositionSelector interface.
-type CompositionSelector struct{ Sel *metav1.LabelSelector }
+type CompositionSelector struct{ Sel *metav1.LabelSelector } //nolint:musttag // This is a fake implementation to be used in unit tests only.
 
 // SetCompositionSelector sets the CompositionSelector.
 func (m *CompositionSelector) SetCompositionSelector(s *metav1.LabelSelector) { m.Sel = s }
@@ -284,7 +284,7 @@ func (c *ConnectionDetailsLastPublishedTimer) GetConnectionDetailsLastPublishedT
 
 // UserCounter is a mock that satisfies UserCounter
 // interface.
-type UserCounter struct{ Users int64 }
+type UserCounter struct{ Users int64 } //nolint:musttag // This is a fake implementation to be used in unit tests only.
 
 // SetUsers sets the count of users.
 func (m *UserCounter) SetUsers(i int64) {
@@ -482,7 +482,7 @@ func SchemeWith(o ...runtime.Object) *runtime.Scheme {
 
 // MockConnectionSecretOwner is a mock object that satisfies ConnectionSecretOwner
 // interface.
-type MockConnectionSecretOwner struct {
+type MockConnectionSecretOwner struct { //nolint:musttag // This is a fake implementation to be used in unit tests only.
 	runtime.Object
 	metav1.ObjectMeta
 
@@ -528,7 +528,7 @@ func (m *MockConnectionSecretOwner) DeepCopyObject() runtime.Object {
 
 // MockLocalConnectionSecretOwner is a mock object that satisfies LocalConnectionSecretOwner
 // interface.
-type MockLocalConnectionSecretOwner struct {
+type MockLocalConnectionSecretOwner struct { //nolint:musttag // This is a fake implementation to be used in unit tests only.
 	runtime.Object
 	metav1.ObjectMeta
 
