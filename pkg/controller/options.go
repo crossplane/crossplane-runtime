@@ -17,6 +17,7 @@ limitations under the License.
 package controller
 
 import (
+	"crypto/tls"
 	"time"
 
 	"k8s.io/client-go/util/workqueue"
@@ -57,6 +58,9 @@ type Options struct {
 
 	// Features that should be enabled.
 	Features *feature.Flags
+
+	// ESSOptions for External Secret Stores.
+	ESSOptions *ESSOptions
 }
 
 // ForControllerRuntime extracts options for controller-runtime.
@@ -65,4 +69,9 @@ func (o Options) ForControllerRuntime() controller.Options {
 		MaxConcurrentReconciles: o.MaxConcurrentReconciles,
 		RateLimiter:             ratelimiter.NewController(),
 	}
+}
+
+// ESSOptions for External Secret Stores.
+type ESSOptions struct {
+	TLSConfig *tls.Config
 }

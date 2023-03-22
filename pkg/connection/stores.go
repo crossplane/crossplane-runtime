@@ -18,11 +18,13 @@ package connection
 
 import (
 	"context"
+	"crypto/tls"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store/kubernetes"
+	"github.com/crossplane/crossplane-runtime/pkg/connection/store/plugin"
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store/vault"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
@@ -35,12 +37,14 @@ const (
 // in a given config.
 //
 // All in-tree connection Store implementations needs to be registered here.
-func RuntimeStoreBuilder(ctx context.Context, local client.Client, cfg v1.SecretStoreConfig) (Store, error) {
+func RuntimeStoreBuilder(ctx context.Context, local client.Client, tcfg *tls.Config, cfg v1.SecretStoreConfig) (Store, error) {
 	switch *cfg.Type {
 	case v1.SecretStoreKubernetes:
-		return kubernetes.NewSecretStore(ctx, local, cfg)
+		return kubernetes.NewSecretStore(ctx, local, nil, cfg)
 	case v1.SecretStoreVault:
-		return vault.NewSecretStore(ctx, local, cfg)
+		return vault.NewSecretStore(ctx, local, nil, cfg)
+	case v1.SecretStorePlugin:
+		return plugin.NewSecretStore(ctx, local, tcfg, cfg)
 	}
 	return nil, errors.Errorf(errFmtUnknownSecretStore, *cfg.Type)
 }
