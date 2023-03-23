@@ -18,6 +18,8 @@ limitations under the License.
 package composed
 
 import (
+	"encoding/json"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -45,6 +47,12 @@ func WithConditions(c ...xpv1.Condition) Option {
 	return func(cr *Unstructured) {
 		cr.SetConditions(c...)
 	}
+}
+
+// ParseToUnstructured parses the supplied raw bytes into an unstructured composed resource.
+func ParseToUnstructured(raw []byte) (*Unstructured, error) {
+	cd := New()
+	return cd, json.Unmarshal(raw, cd)
 }
 
 // New returns a new unstructured composed resource.
