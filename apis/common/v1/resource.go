@@ -211,7 +211,7 @@ type ResourceSpec struct {
 	// This field is planned to replace the DeletionPolicy field in a future
 	// release. Currently, both could be set independently and non-default
 	// values would be honored if the feature flag is enabled.
-	// See the design doc for more information: https://github.com/crossplane/crossplane/blob/master/design/design-doc-observe-only-resources.md#deprecation-of-deletionpolicy
+	// See the design doc for more information: https://github.com/crossplane/crossplane/blob/499895a25d1a1a0ba1604944ef98ac7a1a71f197/design/design-doc-observe-only-resources.md?plain=1#L223
 	// +optional
 	// +kubebuilder:default=FullControl
 	ManagementPolicy ManagementPolicy `json:"managementPolicy,omitempty"`
@@ -222,7 +222,7 @@ type ResourceSpec struct {
 	// This field is planned to be deprecated in favor of the ManagementPolicy
 	// field in a future release. Currently, both could be set independently and
 	// non-default values would be honored if the feature flag is enabled.
-	// See the design doc for more information: https://github.com/crossplane/crossplane/blob/master/design/design-doc-observe-only-resources.md#deprecation-of-deletionpolicy
+	// See the design doc for more information: https://github.com/crossplane/crossplane/blob/499895a25d1a1a0ba1604944ef98ac7a1a71f197/design/design-doc-observe-only-resources.md?plain=1#L223
 	// +optional
 	// +kubebuilder:default=Delete
 	DeletionPolicy DeletionPolicy `json:"deletionPolicy,omitempty"`
