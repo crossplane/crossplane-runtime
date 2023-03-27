@@ -56,21 +56,24 @@ const (
 	errReconcileCreate          = "create failed"
 	errReconcileUpdate          = "update failed"
 	errReconcileDelete          = "delete failed"
+	errManagementPolicy         = "managementPolicy is set to a non-default value but the feature is not enabled."
+	errExternalResourceNotExist = "external resource does not exist"
 )
 
 // Event reasons.
 const (
-	reasonCannotConnect       event.Reason = "CannotConnectToProvider"
-	reasonCannotDisconnect    event.Reason = "CannotDisconnectFromProvider"
-	reasonCannotInitialize    event.Reason = "CannotInitializeManagedResource"
-	reasonCannotResolveRefs   event.Reason = "CannotResolveResourceReferences"
-	reasonCannotObserve       event.Reason = "CannotObserveExternalResource"
-	reasonCannotCreate        event.Reason = "CannotCreateExternalResource"
-	reasonCannotDelete        event.Reason = "CannotDeleteExternalResource"
-	reasonCannotPublish       event.Reason = "CannotPublishConnectionDetails"
-	reasonCannotUnpublish     event.Reason = "CannotUnpublishConnectionDetails"
-	reasonCannotUpdate        event.Reason = "CannotUpdateExternalResource"
-	reasonCannotUpdateManaged event.Reason = "CannotUpdateManagedResource"
+	reasonCannotConnect              event.Reason = "CannotConnectToProvider"
+	reasonCannotDisconnect           event.Reason = "CannotDisconnectFromProvider"
+	reasonCannotInitialize           event.Reason = "CannotInitializeManagedResource"
+	reasonCannotResolveRefs          event.Reason = "CannotResolveResourceReferences"
+	reasonCannotObserve              event.Reason = "CannotObserveExternalResource"
+	reasonCannotCreate               event.Reason = "CannotCreateExternalResource"
+	reasonCannotDelete               event.Reason = "CannotDeleteExternalResource"
+	reasonCannotPublish              event.Reason = "CannotPublishConnectionDetails"
+	reasonCannotUnpublish            event.Reason = "CannotUnpublishConnectionDetails"
+	reasonCannotUpdate               event.Reason = "CannotUpdateExternalResource"
+	reasonCannotUpdateManaged        event.Reason = "CannotUpdateManagedResource"
+	reasonManagementPolicyNotEnabled event.Reason = "CannotUseManagementPolicy"
 
 	reasonDeleted event.Reason = "DeletedExternalResource"
 	reasonCreated event.Reason = "CreatedExternalResource"
@@ -445,9 +448,10 @@ type Reconciler struct {
 	client     client.Client
 	newManaged func() resource.Managed
 
-	pollInterval        time.Duration
-	timeout             time.Duration
-	creationGracePeriod time.Duration
+	pollInterval              time.Duration
+	timeout                   time.Duration
+	creationGracePeriod       time.Duration
+	managementPoliciesEnabled bool
 
 	// The below structs embed the set of interfaces used to implement the
 	// managed resource reconciler. We do this primarily for readability, so
@@ -598,6 +602,13 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 	}
 }
 
+// WithManagementPolicies enables support for management policies.
+func WithManagementPolicies() ReconcilerOption {
+	return func(r *Reconciler) {
+		r.managementPoliciesEnabled = true
+	}
+}
+
 // NewReconciler returns a Reconciler that reconciles managed resources of the
 // supplied ManagedKind with resources in an external system such as a cloud
 // provider API. It panics if asked to reconcile a managed resource kind that is
@@ -675,10 +686,24 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
-	// If managed resource has a deletion timestamp and and a deletion policy of
+	// Check if the ManagementPolicy is set to a non-default value while the
+	// feature is not enabled. This is a safety check to let users know that
+	// they need to enable the feature flag before using the feature. For
+	// example, we wouldn't want someone to set the policy to ObserveOnly but
+	// not realize that the controller is still trying to reconcile
+	// (and modify or delete) the resource since they forgot to enable the
+	// feature flag.
+	if !r.managementPoliciesEnabled && (managed.GetManagementPolicy() == xpv1.ManagementObserveOnly || managed.GetManagementPolicy() == xpv1.ManagementOrphanOnDelete) {
+		log.Debug(errManagementPolicy, "policy", managed.GetManagementPolicy())
+		record.Event(managed, event.Warning(reasonManagementPolicyNotEnabled, errors.New(errManagementPolicy)))
+		managed.SetConditions(xpv1.ReconcileError(errors.New(errManagementPolicy)))
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+	}
+
+	// If managed resource has a deletion timestamp and a deletion policy of
 	// Orphan, we do not need to observe the external resource before attempting
 	// to unpublish connection details and remove finalizer.
-	if meta.WasDeleted(managed) && managed.GetDeletionPolicy() == xpv1.DeletionOrphan {
+	if meta.WasDeleted(managed) && shouldOrphan(r.managementPoliciesEnabled, managed) {
 		log = log.WithValues("deletion-timestamp", managed.GetDeletionTimestamp())
 
 		// Empty ConnectionDetails are passed to UnpublishConnection because we
@@ -791,6 +816,41 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
+	if r.managementPoliciesEnabled && managed.GetManagementPolicy() == xpv1.ManagementObserveOnly {
+		// In the observe-only mode, !observation.ResourceExists will be an error
+		// case, and we will explicitly return this information to the user.
+		if !observation.ResourceExists {
+			record.Event(managed, event.Warning(reasonCannotObserve, errors.New(errExternalResourceNotExist)))
+			managed.SetConditions(xpv1.ReconcileError(errors.Wrap(errors.New(errExternalResourceNotExist), errReconcileObserve)))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		}
+
+		// It is a valid use case to Observe a resource to get its connection
+		// details, so we publish them here.
+		if _, err := r.managed.PublishConnection(ctx, managed, observation.ConnectionDetails); err != nil {
+			// If this is the first time we encounter this issue we'll be
+			// requeued implicitly when we update our status with the new error
+			// condition. If not, we requeue explicitly, which will trigger
+			// backoff.
+			log.Debug("Cannot publish connection details", "error", err)
+			record.Event(managed, event.Warning(reasonCannotPublish, err))
+			managed.SetConditions(xpv1.ReconcileError(err))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		}
+
+		// Since we're in the ObserveOnly mode, we don't want to update the spec
+		// of the managed resource for any reason including the late
+		// initialization of fields. So, we ignore `observation.ResourceLateInitialized`
+		// and do not make an `Update` call on the managed resource ensuring any
+		// spec change is ignored.
+
+		// We are returning a ReconcileSuccess here because we have observed the
+		// resource successfully, and we don't need any further action in this
+		// reconcile.
+		log.Debug("Observed the resource successfully with management policy ObserveOnly", "requeue-after", time.Now().Add(r.pollInterval))
+		managed.SetConditions(xpv1.ReconcileSuccess())
+		return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+	}
 	// If this resource has a non-zero creation grace period we want to wait
 	// for that period to expire before we trust that the resource really
 	// doesn't exist. This is because some external APIs are eventually
@@ -1034,4 +1094,30 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	record.Event(managed, event.Normal(reasonUpdated, "Successfully requested update of external resource"))
 	managed.SetConditions(xpv1.ReconcileSuccess())
 	return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+}
+
+// We need to be careful until we completely remove the deletionPolicy in favor
+// of managementPolicies which conflicts with the managementPolicy regarding
+// orphaning of the external resource. This function implement the proposal in
+// the Observe Only design doc under the "Deprecation of `deletionPolicy`"
+// section by triggering external resource deletion only when the deletionPolicy
+// is set to "Delete" and the managementPolicy is set to "FullControl".
+func shouldOrphan(managementPoliciesEnabled bool, managed resource.Managed) bool {
+	if !managementPoliciesEnabled {
+		return managed.GetDeletionPolicy() == xpv1.DeletionOrphan
+	}
+	if managed.GetDeletionPolicy() == xpv1.DeletionDelete && managed.GetManagementPolicy() == xpv1.ManagementFullControl {
+		// This is the only case where we should delete the external resource,
+		// so do not orphan it.
+		return false
+	}
+	// For all other cases, we should orphan the external resource.
+	// Obvious cases:
+	// DeletionOrphan && ManagementOrphanOnDelete
+	// DeletionOrphan && ManagementObserveOnly
+	// Conflicting cases:
+	// DeletionOrphan && ManagementFullControl (obeys non-default configuration)
+	// DeletionDelete && ManagementObserveOnly (obeys non-default configuration)
+	// DeletionDelete && ManagementOrphanOnDelete (obeys non-default configuration)
+	return true
 }

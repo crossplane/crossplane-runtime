@@ -151,6 +151,15 @@ func (m *ConnectionDetailsPublisherTo) GetPublishConnectionDetailsTo() *xpv1.Pub
 	return m.To
 }
 
+// Manageable implements the Manageable interface.
+type Manageable struct{ Policy xpv1.ManagementPolicy }
+
+// SetManagementPolicy sets the ManagementPolicy.
+func (m *Manageable) SetManagementPolicy(p xpv1.ManagementPolicy) { m.Policy = p }
+
+// GetManagementPolicy gets the ManagementPolicy.
+func (m *Manageable) GetManagementPolicy() xpv1.ManagementPolicy { return m.Policy }
+
 // Orphanable implements the Orphanable interface.
 type Orphanable struct{ Policy xpv1.DeletionPolicy }
 
@@ -325,6 +334,7 @@ type Managed struct {
 	ProviderConfigReferencer
 	ConnectionSecretWriterTo
 	ConnectionDetailsPublisherTo
+	Manageable
 	Orphanable
 	xpv1.ConditionedStatus
 }
