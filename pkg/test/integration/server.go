@@ -28,11 +28,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	// Allow auth to cloud providers
-	_ "k8s.io/client-go/plugin/pkg/client/auth"
-
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+
+	// Allow auth to cloud providers
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
 const (
