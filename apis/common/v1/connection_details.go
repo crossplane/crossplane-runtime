@@ -123,6 +123,9 @@ type SecretStoreConfig struct {
 	Kubernetes *KubernetesSecretStoreConfig `json:"kubernetes,omitempty"`
 
 	// Vault configures a Vault secret store.
+	// Deprecated: This API is scheduled to be removed in a future release.
+	// Vault should be used as a plugin going forward. See
+	// https://github.com/crossplane-contrib/ess-plugin-vault for more information.
 	// +optional
 	Vault *VaultSecretStoreConfig `json:"vault,omitempty"`
 
