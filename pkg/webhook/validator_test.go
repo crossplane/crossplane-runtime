@@ -20,10 +20,9 @@ import (
 	"context"
 	"testing"
 
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
-
 	"github.com/google/go-cmp/cmp"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/test"

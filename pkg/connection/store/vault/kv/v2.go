@@ -20,11 +20,10 @@ import (
 	"encoding/json"
 	"path/filepath"
 
-	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
-
 	"github.com/hashicorp/vault/api"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
