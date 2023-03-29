@@ -17,6 +17,8 @@ limitations under the License.
 package resource
 
 import (
+	"reflect"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -164,13 +166,64 @@ func IsNamed(name string) PredicateFn {
 // DesiredStateChanged accepts objects that have changed their desired state, i.e.
 // the state that is not managed by the controller.
 // To be more specific, it accepts update events that have changes in one of the followings:
-// - `metadata.annotations`
+// - `metadata.annotations` (except for certain annotations)
 // - `metadata.labels`
 // - `spec`
 func DesiredStateChanged() predicate.Predicate {
 	return predicate.Or(
-		predicate.AnnotationChangedPredicate{},
+		AnnotationChangedPredicate{
+			ignored: []string{
+				// These annotations are managed by the controller and should
+				// not be considered as a change in desired state. The managed
+				// reconciler explicitly requests a new reconcile already after
+				// updating these annotations.
+				meta.AnnotationKeyExternalCreateFailed,
+				meta.AnnotationKeyExternalCreatePending,
+			},
+		},
 		predicate.LabelChangedPredicate{},
 		predicate.GenerationChangedPredicate{},
 	)
+}
+
+// AnnotationChangedPredicate implements a default update predicate function on
+// annotation change by ignoring the given annotation keys, if any.
+//
+// This predicate extends controller-runtime's AnnotationChangedPredicate by
+// being able to ignore certain annotations.
+type AnnotationChangedPredicate struct {
+	predicate.Funcs
+	ignored []string
+}
+
+// Update implements default UpdateEvent filter for validating annotation change.
+func (a AnnotationChangedPredicate) Update(e event.UpdateEvent) bool {
+	if e.ObjectOld == nil {
+		// Update event has no old object to update
+		return false
+	}
+	if e.ObjectNew == nil {
+		// Update event has no new object for update
+		return false
+	}
+
+	na := e.ObjectNew.GetAnnotations()
+	oa := e.ObjectOld.GetAnnotations()
+
+	for _, k := range a.ignored {
+		delete(na, k)
+		delete(oa, k)
+	}
+
+	// reflect.DeepEqual treats nil and empty map as not equal, so we set both
+	// to nil to ensure they are equal.
+	// https://github.com/golang/go/issues/16531
+	if len(na) == 0 {
+		na = nil
+	}
+	if len(oa) == 0 {
+		oa = nil
+	}
+
+	return !reflect.DeepEqual(na, oa)
 }
