@@ -51,7 +51,7 @@ type SecretStore struct {
 }
 
 // NewSecretStore returns a new External SecretStore.
-func NewSecretStore(ctx context.Context, kube client.Client, tcfg *tls.Config, cfg v1.SecretStoreConfig) (*SecretStore, error) {
+func NewSecretStore(_ context.Context, kube client.Client, tcfg *tls.Config, cfg v1.SecretStoreConfig) (*SecretStore, error) {
 	creds := credentials.NewTLS(tcfg)
 	conn, err := grpc.Dial(cfg.Plugin.Endpoint, grpc.WithTransportCredentials(creds))
 	if err != nil {
@@ -90,7 +90,7 @@ func (ss *SecretStore) ReadKeyValues(ctx context.Context, n store.ScopedName, s 
 }
 
 // WriteKeyValues writes key value pairs to a given Secret.
-func (ss *SecretStore) WriteKeyValues(ctx context.Context, s *store.Secret, wo ...store.WriteOption) (changed bool, err error) {
+func (ss *SecretStore) WriteKeyValues(ctx context.Context, s *store.Secret, _ ...store.WriteOption) (changed bool, err error) {
 	sec := &essproto.Secret{}
 	sec.ScopedName = ss.getScopedName(s.ScopedName)
 	sec.Data = make(map[string][]byte, len(s.Data))
@@ -114,7 +114,7 @@ func (ss *SecretStore) WriteKeyValues(ctx context.Context, s *store.Secret, wo .
 }
 
 // DeleteKeyValues delete key value pairs from a given Secret.
-func (ss *SecretStore) DeleteKeyValues(ctx context.Context, s *store.Secret, do ...store.DeleteOption) error {
+func (ss *SecretStore) DeleteKeyValues(ctx context.Context, s *store.Secret, _ ...store.DeleteOption) error {
 	_, err := ss.client.DeleteKeys(ctx, &essproto.DeleteKeysRequest{Secret: &essproto.Secret{ScopedName: ss.getScopedName(s.ScopedName)}, Config: ss.getConfigReference()})
 
 	return errors.Wrap(err, errDelete)

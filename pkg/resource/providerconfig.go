@@ -59,7 +59,7 @@ func IsMissingReference(err error) bool {
 type EnvLookupFn func(string) string
 
 // ExtractEnv extracts credentials from an environment variable.
-func ExtractEnv(ctx context.Context, e EnvLookupFn, s xpv1.CommonCredentialSelectors) ([]byte, error) {
+func ExtractEnv(_ context.Context, e EnvLookupFn, s xpv1.CommonCredentialSelectors) ([]byte, error) {
 	if s.Env == nil {
 		return nil, errors.New(errExtractEnv)
 	}
@@ -67,7 +67,7 @@ func ExtractEnv(ctx context.Context, e EnvLookupFn, s xpv1.CommonCredentialSelec
 }
 
 // ExtractFs extracts credentials from the filesystem.
-func ExtractFs(ctx context.Context, fs afero.Fs, s xpv1.CommonCredentialSelectors) ([]byte, error) {
+func ExtractFs(_ context.Context, fs afero.Fs, s xpv1.CommonCredentialSelectors) ([]byte, error) {
 	if s.Fs == nil {
 		return nil, errors.New(errExtractFs)
 	}

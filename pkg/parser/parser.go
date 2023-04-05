@@ -91,7 +91,7 @@ func New(meta, obj ObjectCreaterTyper) *PackageParser {
 // decode objects recognized by the meta scheme, then attempts to decode objects
 // recognized by the object scheme. Objects not recognized by either scheme
 // return an error rather than being skipped.
-func (p *PackageParser) Parse(ctx context.Context, reader io.ReadCloser) (*Package, error) { //nolint:gocyclo // Only at 11.
+func (p *PackageParser) Parse(_ context.Context, reader io.ReadCloser) (*Package, error) { //nolint:gocyclo // Only at 11.
 	pkg := NewPackage()
 	if reader == nil {
 		return pkg, nil
@@ -234,7 +234,7 @@ func NewNopBackend(...BackendOption) *NopBackend {
 }
 
 // Init initializes a NopBackend.
-func (p *NopBackend) Init(ctx context.Context, bo ...BackendOption) (io.ReadCloser, error) {
+func (p *NopBackend) Init(_ context.Context, _ ...BackendOption) (io.ReadCloser, error) {
 	return nil, nil
 }
 
@@ -257,7 +257,7 @@ func NewFsBackend(fs afero.Fs, bo ...BackendOption) *FsBackend {
 }
 
 // Init initializes an FsBackend.
-func (p *FsBackend) Init(ctx context.Context, bo ...BackendOption) (io.ReadCloser, error) {
+func (p *FsBackend) Init(_ context.Context, bo ...BackendOption) (io.ReadCloser, error) {
 	for _, o := range bo {
 		o(p)
 	}
@@ -299,7 +299,7 @@ func NewEchoBackend(echo string) Backend {
 }
 
 // Init initializes an EchoBackend.
-func (p *EchoBackend) Init(ctx context.Context, bo ...BackendOption) (io.ReadCloser, error) {
+func (p *EchoBackend) Init(_ context.Context, bo ...BackendOption) (io.ReadCloser, error) {
 	for _, o := range bo {
 		o(p)
 	}

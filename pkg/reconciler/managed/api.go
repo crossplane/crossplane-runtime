@@ -132,7 +132,7 @@ func (a *APISecretPublisher) PublishConnection(ctx context.Context, o resource.C
 // UnpublishConnection is no-op since PublishConnection only creates resources
 // that will be garbage collected by Kubernetes when the managed resource is
 // deleted.
-func (a *APISecretPublisher) UnpublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) error {
+func (a *APISecretPublisher) UnpublishConnection(_ context.Context, _ resource.ConnectionSecretOwner, _ ConnectionDetails) error {
 	return nil
 }
 

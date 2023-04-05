@@ -152,10 +152,7 @@ func (c *V2Client) parseAsKVSecret(s *api.Secret, kv *Secret) error {
 	if err := parseSecretData(paved, kv); err != nil {
 		return err
 	}
-	if err := parseSecretMeta(paved, kv); err != nil {
-		return err
-	}
-	return nil
+	return parseSecretMeta(paved, kv)
 }
 
 func parseSecretData(payload *fieldpath.Paved, kv *Secret) error {
