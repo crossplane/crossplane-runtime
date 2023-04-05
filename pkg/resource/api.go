@@ -215,10 +215,10 @@ func NewNopFinalizer() Finalizer { return nopFinalizer{} }
 
 type nopFinalizer struct{}
 
-func (f nopFinalizer) AddFinalizer(ctx context.Context, obj Object) error {
+func (f nopFinalizer) AddFinalizer(_ context.Context, _ Object) error {
 	return nil
 }
-func (f nopFinalizer) RemoveFinalizer(ctx context.Context, obj Object) error {
+func (f nopFinalizer) RemoveFinalizer(_ context.Context, _ Object) error {
 	return nil
 }
 

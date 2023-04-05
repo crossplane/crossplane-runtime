@@ -347,22 +347,22 @@ func (c *NopConnecter) Connect(_ context.Context, _ resource.Managed) (ExternalC
 type NopClient struct{}
 
 // Observe does nothing. It returns an empty ExternalObservation and no error.
-func (c *NopClient) Observe(ctx context.Context, mg resource.Managed) (ExternalObservation, error) {
+func (c *NopClient) Observe(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
 	return ExternalObservation{}, nil
 }
 
 // Create does nothing. It returns an empty ExternalCreation and no error.
-func (c *NopClient) Create(ctx context.Context, mg resource.Managed) (ExternalCreation, error) {
+func (c *NopClient) Create(_ context.Context, _ resource.Managed) (ExternalCreation, error) {
 	return ExternalCreation{}, nil
 }
 
 // Update does nothing. It returns an empty ExternalUpdate and no error.
-func (c *NopClient) Update(ctx context.Context, mg resource.Managed) (ExternalUpdate, error) {
+func (c *NopClient) Update(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
 	return ExternalUpdate{}, nil
 }
 
 // Delete does nothing. It never returns an error.
-func (c *NopClient) Delete(ctx context.Context, mg resource.Managed) error { return nil }
+func (c *NopClient) Delete(_ context.Context, _ resource.Managed) error { return nil }
 
 // An ExternalObservation is the result of an observation of an external
 // resource.

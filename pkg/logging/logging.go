@@ -66,9 +66,9 @@ func NewNopLogger() Logger { return nopLogger{} }
 
 type nopLogger struct{}
 
-func (l nopLogger) Info(msg string, keysAndValues ...any)  {}
-func (l nopLogger) Debug(msg string, keysAndValues ...any) {}
-func (l nopLogger) WithValues(keysAndValues ...any) Logger { return nopLogger{} }
+func (l nopLogger) Info(_ string, _ ...any)    {}
+func (l nopLogger) Debug(_ string, _ ...any)   {}
+func (l nopLogger) WithValues(_ ...any) Logger { return nopLogger{} }
 
 // NewLogrLogger returns a Logger that is satisfied by the supplied logr.Logger,
 // which may be satisfied in turn by various logging implementations (Zap, klog,

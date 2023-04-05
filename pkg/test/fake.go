@@ -242,7 +242,7 @@ func NewMockClient() *MockClient {
 }
 
 // Get calls MockClient's MockGet function.
-func (c *MockClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+func (c *MockClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object, _ ...client.GetOption) error {
 	return c.MockGet(ctx, key, obj)
 }
 
@@ -286,7 +286,7 @@ func (c *MockClient) Status() client.SubResourceWriter {
 }
 
 // SubResource is unimplemented. It panics if called.
-func (c *MockClient) SubResource(subResource string) client.SubResourceClient {
+func (c *MockClient) SubResource(_ string) client.SubResourceClient {
 	return &MockSubResourceClient{
 		MockGet:    c.MockSubResourceGet,
 		MockCreate: c.MockSubResourceCreate,

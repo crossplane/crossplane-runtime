@@ -31,16 +31,16 @@ type ExternalSecretStorePluginServiceClient struct {
 }
 
 // GetSecret returns the secret.
-func (e *ExternalSecretStorePluginServiceClient) GetSecret(ctx context.Context, req *ess.GetSecretRequest, opts ...grpc.CallOption) (*ess.GetSecretResponse, error) {
+func (e *ExternalSecretStorePluginServiceClient) GetSecret(ctx context.Context, req *ess.GetSecretRequest, _ ...grpc.CallOption) (*ess.GetSecretResponse, error) {
 	return e.GetSecretFn(ctx, req)
 }
 
 // ApplySecret applies the secret.
-func (e *ExternalSecretStorePluginServiceClient) ApplySecret(ctx context.Context, req *ess.ApplySecretRequest, opts ...grpc.CallOption) (*ess.ApplySecretResponse, error) {
+func (e *ExternalSecretStorePluginServiceClient) ApplySecret(ctx context.Context, req *ess.ApplySecretRequest, _ ...grpc.CallOption) (*ess.ApplySecretResponse, error) {
 	return e.ApplySecretFn(ctx, req)
 }
 
 // DeleteKeys deletes the secret keys.
-func (e *ExternalSecretStorePluginServiceClient) DeleteKeys(ctx context.Context, req *ess.DeleteKeysRequest, opts ...grpc.CallOption) (*ess.DeleteKeysResponse, error) {
+func (e *ExternalSecretStorePluginServiceClient) DeleteKeys(ctx context.Context, req *ess.DeleteKeysRequest, _ ...grpc.CallOption) (*ess.DeleteKeysResponse, error) {
 	return e.DeleteKeysFn(ctx, req)
 }
