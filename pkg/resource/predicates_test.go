@@ -18,6 +18,7 @@ package resource
 
 import (
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
@@ -337,6 +338,22 @@ func TestDesiredStateChanged(t *testing.T) {
 				new: func() client.Object {
 					mg := &fake.Managed{}
 					mg.SetConditions(runtimev1.ReconcileSuccess())
+					return mg
+				}(),
+			},
+			want: want{
+				desiredStateChanged: false,
+			},
+		},
+		"IgnoredAnnotationsChanged": {
+			args: args{
+				old: func() client.Object {
+					mg := &fake.Managed{}
+					return mg
+				}(),
+				new: func() client.Object {
+					mg := &fake.Managed{}
+					mg.SetAnnotations(map[string]string{meta.AnnotationKeyExternalCreatePending: time.Now().String()})
 					return mg
 				}(),
 			},
