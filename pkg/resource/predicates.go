@@ -17,8 +17,6 @@ limitations under the License.
 package resource
 
 import (
-	"reflect"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -215,15 +213,20 @@ func (a AnnotationChangedPredicate) Update(e event.UpdateEvent) bool {
 		delete(oa, k)
 	}
 
-	// reflect.DeepEqual treats nil and empty map as not equal, so we set both
-	// to nil to ensure they are equal.
-	// https://github.com/golang/go/issues/16531
-	if len(na) == 0 {
-		na = nil
-	}
-	if len(oa) == 0 {
-		oa = nil
+	// Below is the same as controller-runtime's AnnotationChangedPredicate
+	// implementation but optimized to avoid using reflect.DeepEqual.
+	if len(na) != len(oa) {
+		// annotation length changed
+		return true
 	}
 
-	return !reflect.DeepEqual(na, oa)
+	for k, v := range na {
+		if oa[k] != v {
+			// annotation value changed
+			return true
+		}
+	}
+
+	// annotations unchanged.
+	return false
 }
