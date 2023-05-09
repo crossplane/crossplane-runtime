@@ -274,6 +274,9 @@ type VaultSecretStoreConfig struct {
 	// Server is the url of the Vault server, e.g. "https://vault.acme.org"
 	Server string `json:"server"`
 
+	// Namesoace is the Namespace of vault on which to operate
+	Namespace string `json:"namespace,omitempty"`
+
 	// MountPath is the mount path of the KV secrets engine.
 	MountPath string `json:"mountPath"`
 

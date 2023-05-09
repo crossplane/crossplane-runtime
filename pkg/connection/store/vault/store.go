@@ -96,6 +96,10 @@ func NewSecretStore(ctx context.Context, kube client.Client, _ *tls.Config, cfg 
 		return nil, errors.Wrap(err, errNewClient)
 	}
 
+	if cfg.Vault.Namespace != "" {
+		c.SetNamespace(cfg.Vault.Namespace)
+	}
+
 	switch cfg.Vault.Auth.Method {
 	case v1.VaultAuthToken:
 		if cfg.Vault.Auth.Token == nil {
