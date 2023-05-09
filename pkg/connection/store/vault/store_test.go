@@ -18,10 +18,14 @@ package vault
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/hashicorp/vault/api"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -717,6 +721,17 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 
 func TestNewSecretStore(t *testing.T) {
 	kvv2 := v1.VaultKVVersionV2
+
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		payload := api.Secret{
+			Auth: &api.SecretAuth{
+				ClientToken: "some-token",
+			},
+		}
+		json.NewEncoder(w).Encode(payload)
+	}))
+	defer testServer.Close()
+
 	type args struct {
 		kube client.Client
 		cfg  v1.SecretStoreConfig
@@ -743,6 +758,40 @@ func TestNewSecretStore(t *testing.T) {
 			},
 			want: want{
 				err: errors.New(errNoTokenProvided),
+			},
+		},
+		"InvalidKubernetesAuthConfig": {
+			reason: "Should return a proper error if vault auth configuration is not valid.",
+			args: args{
+				cfg: v1.SecretStoreConfig{
+					Vault: &v1.VaultSecretStoreConfig{
+						Auth: v1.VaultAuthConfig{
+							Method:     v1.VaultAuthKubernetes,
+							Kubernetes: nil,
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.New(errNoRoleProvided),
+			},
+		},
+		"NoKubernetesRoleProvided": {
+			reason: "Should return a proper error if vault kubernetes auth configuration does not contain a role.",
+			args: args{
+				cfg: v1.SecretStoreConfig{
+					Vault: &v1.VaultSecretStoreConfig{
+						Auth: v1.VaultAuthConfig{
+							Method: v1.VaultAuthKubernetes,
+							Kubernetes: &v1.VaultAuthKubernetesConfig{
+								Role: "",
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errors.New("no role name was provided"), errSetupKubernetesAuth),
 			},
 		},
 		"NoTokenSecret": {
@@ -777,6 +826,41 @@ func TestNewSecretStore(t *testing.T) {
 				err: errors.Wrap(errors.Wrap(kerrors.NewNotFound(schema.GroupResource{}, "vault-token"), "cannot get credentials secret"), errExtractToken),
 			},
 		},
+		"NoServiceAccountTokenSecret": {
+			reason: "Should return a proper error if configured vault serviec account token secret does not exist.",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						return kerrors.NewNotFound(schema.GroupResource{}, "service-account-token")
+					}),
+				},
+				cfg: v1.SecretStoreConfig{
+					Vault: &v1.VaultSecretStoreConfig{
+						Auth: v1.VaultAuthConfig{
+							Method: v1.VaultAuthKubernetes,
+							Kubernetes: &v1.VaultAuthKubernetesConfig{
+								Role: "some-role",
+								ServiceAccountTokenSource: &v1.ServiceAccountTokenSourceConfig{
+									Source: v1.CredentialsSourceSecret,
+									CommonCredentialSelectors: v1.CommonCredentialSelectors{
+										SecretRef: &v1.SecretKeySelector{
+											SecretReference: v1.SecretReference{
+												Name:      "service-account-token",
+												Namespace: "crossplane-system",
+											},
+											Key: "token",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errors.Wrap(kerrors.NewNotFound(schema.GroupResource{}, "service-account-token"), "cannot get credentials secret"), errExtractToken),
+			},
+		},
 		"SuccessfulStore": {
 			reason: "Should return no error after building store successfully.",
 			args: args{
@@ -804,6 +888,48 @@ func TestNewSecretStore(t *testing.T) {
 											Namespace: "crossplane-system",
 										},
 										Key: "token",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: nil,
+			},
+		},
+		"SuccessfulKubernetesStore": {
+			reason: "Should return no error after building store successfully.",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						*obj.(*corev1.Secret) = corev1.Secret{
+							Data: map[string][]byte{
+								"token": []byte("t0ps3cr3t"),
+							},
+						}
+						return nil
+					}),
+				},
+				cfg: v1.SecretStoreConfig{
+					Vault: &v1.VaultSecretStoreConfig{
+						Server:  testServer.URL,
+						Version: &kvv2,
+						Auth: v1.VaultAuthConfig{
+							Method: v1.VaultAuthKubernetes,
+							Kubernetes: &v1.VaultAuthKubernetesConfig{
+								Role: "some-role",
+								ServiceAccountTokenSource: &v1.ServiceAccountTokenSourceConfig{
+									Source: v1.CredentialsSourceSecret,
+									CommonCredentialSelectors: v1.CommonCredentialSelectors{
+										SecretRef: &v1.SecretKeySelector{
+											SecretReference: v1.SecretReference{
+												Name:      "service-account-token",
+												Namespace: "crossplane-system",
+											},
+											Key: "token",
+										},
 									},
 								},
 							},

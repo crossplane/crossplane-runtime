@@ -183,6 +183,10 @@ const (
 	// authenticate to Vault.
 	// https://www.vaultproject.io/docs/auth/token
 	VaultAuthToken VaultAuthMethod = "Token"
+	// VaultAuthKubernetes indicates that "Kubernetes Auth" will be used to
+	// authenticate to Vault.
+	// https://developer.hashicorp.com/vault/docs/auth/kubernetes
+	VaultAuthKubernetes VaultAuthMethod = "Kubernetes"
 )
 
 // VaultAuthTokenConfig represents configuration for Vault Token Auth Method.
@@ -197,6 +201,36 @@ type VaultAuthTokenConfig struct {
 	CommonCredentialSelectors `json:",inline"`
 }
 
+// ServiceAccountTokenSourceConfig represents configuration to retrieve a
+// Service Account Token
+type ServiceAccountTokenSourceConfig struct {
+	// Source of the credentials.
+	// +kubebuilder:validation:Enum=None;Secret;Environment;Filesystem
+	Source CredentialsSource `json:"source"`
+
+	// CommonCredentialSelectors provides common selectors for extracting
+	// credentials.
+	CommonCredentialSelectors `json:",inline"`
+}
+
+// VaultAuthKubernetesConfig represents configuration for Vault Token Auth Method.
+// https://developer.hashicorp.com/vault/docs/auth/kubernetes
+type VaultAuthKubernetesConfig struct {
+	// Role should be the name of the role in Vault that was created with
+	// this app's Kubernetes service account bound to it
+	Role string `json:"role"`
+
+	// MountPath of the kubernetes secret engine in Vault
+	// +optional
+	MountPath string `json:"mountPath,omitempty"`
+
+	// ServiceAccountTokenSource allows to specify from where to retrieve the
+	// ServiceAccount Token in case it is not mounted under the default path
+	// `/var/run/secrets/kubernetes.io/serviceaccount/token`
+	// +optional
+	ServiceAccountTokenSource *ServiceAccountTokenSourceConfig `json:"serviceAccountTokenSource,omitempty"`
+}
+
 // VaultAuthConfig required to authenticate to a Vault API.
 type VaultAuthConfig struct {
 	// Method configures which auth method will be used.
@@ -204,6 +238,9 @@ type VaultAuthConfig struct {
 	// Token configures Token Auth for Vault.
 	// +optional
 	Token *VaultAuthTokenConfig `json:"token,omitempty"`
+	// Kubernetes configes Kubernetes Auth for Vault
+	// +optional
+	Kubernetes *VaultAuthKubernetesConfig `json:"kubernetes,omitempty"`
 }
 
 // VaultCABundleConfig represents configuration for configuring a CA bundle.

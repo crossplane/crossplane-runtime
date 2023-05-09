@@ -27,6 +27,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/vault/api"
+	"github.com/hashicorp/vault/api/auth/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -38,12 +39,15 @@ import (
 
 // Error strings.
 const (
-	errNoConfig        = "no Vault config provided"
-	errNewClient       = "cannot create new client"
-	errExtractCABundle = "cannot extract ca bundle"
-	errAppendCABundle  = "cannot append ca bundle"
-	errExtractToken    = "cannot extract token"
-	errNoTokenProvided = "token auth configured but no token provided"
+	errNoConfig            = "no Vault config provided"
+	errNewClient           = "cannot create new client"
+	errExtractCABundle     = "cannot extract ca bundle"
+	errAppendCABundle      = "cannot append ca bundle"
+	errExtractToken        = "cannot extract token"
+	errSetupKubernetesAuth = "cannot setup kubernetes auth"
+	errLoginKubernetesAuth = "cannot logging in with kubernetes auth"
+	errNoTokenProvided     = "token auth configured but no token provided"
+	errNoRoleProvided      = "kubernetes auth configured but no role provided"
 
 	errGet    = "cannot get secret"
 	errApply  = "cannot apply secret"
@@ -102,6 +106,33 @@ func NewSecretStore(ctx context.Context, kube client.Client, _ *tls.Config, cfg 
 			return nil, errors.Wrap(err, errExtractToken)
 		}
 		c.SetToken(string(t))
+	case v1.VaultAuthKubernetes:
+		if cfg.Vault.Auth.Kubernetes == nil {
+			return nil, errors.New(errNoRoleProvided)
+		}
+
+		var loginOpts []kubernetes.LoginOption
+		if cfg.Vault.Auth.Kubernetes.MountPath != "" {
+			loginOpts = append(loginOpts, kubernetes.WithMountPath(cfg.Vault.Auth.Kubernetes.MountPath))
+		}
+
+		if cfg.Vault.Auth.Kubernetes.ServiceAccountTokenSource != nil {
+			t, err := resource.CommonCredentialExtractor(ctx, cfg.Vault.Auth.Kubernetes.ServiceAccountTokenSource.Source, kube, cfg.Vault.Auth.Kubernetes.ServiceAccountTokenSource.CommonCredentialSelectors)
+			if err != nil {
+				return nil, errors.Wrap(err, errExtractToken)
+			}
+			loginOpts = append(loginOpts, kubernetes.WithServiceAccountToken(string(t)))
+		}
+
+		auth, err := kubernetes.NewKubernetesAuth(cfg.Vault.Auth.Kubernetes.Role, loginOpts...)
+		if err != nil {
+			return nil, errors.Wrap(err, errSetupKubernetesAuth)
+		}
+
+		_, err = c.Auth().Login(ctx, auth)
+		if err != nil {
+			return nil, errors.Wrap(err, errLoginKubernetesAuth)
+		}
 	default:
 		return nil, errors.Errorf("%q is not supported as an auth method", cfg.Vault.Auth.Method)
 	}
