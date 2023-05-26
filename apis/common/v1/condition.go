@@ -45,6 +45,7 @@ const (
 	ReasonUnavailable ConditionReason = "Unavailable"
 	ReasonCreating    ConditionReason = "Creating"
 	ReasonDeleting    ConditionReason = "Deleting"
+	ReasonWaiting     ConditionReason = "Waiting"
 )
 
 // Reasons a resource is or is not synced.
