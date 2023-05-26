@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // WithValidateCreationFns initializes the Validator with given set of creation
@@ -50,13 +51,13 @@ func WithValidateDeletionFns(fns ...ValidateDeleteFn) ValidatorOption {
 type ValidatorOption func(*Validator)
 
 // ValidateCreateFn is function type for creation validation.
-type ValidateCreateFn func(ctx context.Context, obj runtime.Object) error
+type ValidateCreateFn func(ctx context.Context, obj runtime.Object) (admission.Warnings, error)
 
 // ValidateUpdateFn is function type for update validation.
-type ValidateUpdateFn func(ctx context.Context, oldObj, newObj runtime.Object) error
+type ValidateUpdateFn func(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error)
 
 // ValidateDeleteFn is function type for deletion validation.
-type ValidateDeleteFn func(ctx context.Context, obj runtime.Object) error
+type ValidateDeleteFn func(ctx context.Context, obj runtime.Object) (admission.Warnings, error)
 
 // NewValidator returns a new Validator with no-op defaults.
 func NewValidator(opts ...ValidatorOption) *Validator {
@@ -79,31 +80,40 @@ type Validator struct {
 }
 
 // ValidateCreate runs functions in creation chain in order.
-func (vc *Validator) ValidateCreate(ctx context.Context, obj runtime.Object) error {
+func (vc *Validator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
+	warnings := []string{}
 	for _, f := range vc.CreationChain {
-		if err := f(ctx, obj); err != nil {
-			return err
+		warns, err := f(ctx, obj)
+		if err != nil {
+			return append(warnings, warns...), err
 		}
+		warnings = append(warnings, warns...)
 	}
-	return nil
+	return warnings, nil
 }
 
 // ValidateUpdate runs functions in update chain in order.
-func (vc *Validator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) error {
+func (vc *Validator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
+	warnings := []string{}
 	for _, f := range vc.UpdateChain {
-		if err := f(ctx, oldObj, newObj); err != nil {
-			return err
+		warns, err := f(ctx, oldObj, newObj)
+		if err != nil {
+			return append(warnings, warns...), err
 		}
+		warnings = append(warnings, warns...)
 	}
-	return nil
+	return warnings, nil
 }
 
 // ValidateDelete runs functions in deletion chain in order.
-func (vc *Validator) ValidateDelete(ctx context.Context, obj runtime.Object) error {
+func (vc *Validator) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
+	warnings := []string{}
 	for _, f := range vc.DeletionChain {
-		if err := f(ctx, obj); err != nil {
-			return err
+		warns, err := f(ctx, obj)
+		if err != nil {
+			return append(warnings, warns...), err
 		}
+		warnings = append(warnings, warns...)
 	}
-	return nil
+	return warnings, nil
 }

@@ -191,7 +191,7 @@ func (e *Engine) Start(name string, o controller.Options, w ...Watch) error {
 	}
 
 	for _, wt := range w {
-		if err := ctrl.Watch(source.NewKindWithCache(wt.kind, ca), wt.handler, wt.predicates...); err != nil {
+		if err := ctrl.Watch(source.Kind(ca, wt.kind), wt.handler, wt.predicates...); err != nil {
 			return errors.Wrap(err, errWatch)
 		}
 	}

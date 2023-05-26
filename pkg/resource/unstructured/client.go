@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -134,6 +135,22 @@ func (c *WrapperClient) Scheme() *runtime.Scheme {
 // RESTMapper returns the rest this client is using.
 func (c *WrapperClient) RESTMapper() meta.RESTMapper {
 	return c.kube.RESTMapper()
+}
+
+// GroupVersionKindFor returns the GVK for the given obj.
+func (c *WrapperClient) GroupVersionKindFor(obj runtime.Object) (schema.GroupVersionKind, error) {
+	if u, ok := obj.(Wrapper); ok {
+		return c.kube.GroupVersionKindFor(u.GetUnstructured())
+	}
+	return c.kube.GroupVersionKindFor(obj)
+}
+
+// IsObjectNamespaced checks whether the object is namespaced.
+func (c *WrapperClient) IsObjectNamespaced(obj runtime.Object) (bool, error) {
+	if u, ok := obj.(Wrapper); ok {
+		return c.kube.IsObjectNamespaced(u.GetUnstructured())
+	}
+	return c.kube.IsObjectNamespaced(obj)
 }
 
 type wrapperStatusClient struct {
