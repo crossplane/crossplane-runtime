@@ -24,7 +24,7 @@ jobs:
           submodules: true
 
       - name: Setup Go
-        uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4
+        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4
         with:
           go-version: ${{ env.GO_VERSION }}
 
@@ -78,7 +78,7 @@ jobs:
           submodules: true
 
       - name: Setup Go
-        uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4
+        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4
         with:
           go-version: ${{ env.GO_VERSION }}
 
@@ -124,7 +124,7 @@ jobs:
           submodules: true
 
       - name: Setup Go
-        uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4
+        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4
         with:
           go-version: ${{ env.GO_VERSION }}
 
@@ -150,12 +150,12 @@ jobs:
         run: make vendor vendor.check
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@29b1f65c5e92e24fe6b6647da1eaabe529cec70f # v2
+        uses: github/codeql-action/init@0225834cc549ee0ca93cb085b92954821a145866 # v2
         with:
           languages: go
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@29b1f65c5e92e24fe6b6647da1eaabe529cec70f # v2
+        uses: github/codeql-action/analyze@0225834cc549ee0ca93cb085b92954821a145866 # v2
 
   trivy-scan-fs:
     runs-on: ubuntu-22.04
@@ -192,7 +192,7 @@ jobs:
         run: git fetch --prune --unshallow
 
       - name: Setup Go
-        uses: actions/setup-go@4d34df0c2316fe8122ab82dc22947d607c0c91f9 # v4
+        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4
         with:
           go-version: ${{ env.GO_VERSION }}
 
@@ -221,7 +221,7 @@ jobs:
         run: make -j2 test
 
       - name: Publish Unit Test Coverage
-        uses: codecov/codecov-action@894ff025c7b54547a9a2a1e9f228beae737ad3c2 # v3
+        uses: codecov/codecov-action@eaaf4bedf32dbdc6b720b63067d99c4d77d6047d # v3
         with:
           flags: unittests
           file: _output/tests/linux_amd64/coverage.txt
