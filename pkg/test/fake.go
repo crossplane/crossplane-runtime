@@ -21,6 +21,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -62,9 +63,19 @@ type MockSubResourcePatchFn func(ctx context.Context, obj client.Object, patch c
 // A MockSchemeFn is used to mock client.Client's Scheme implementation.
 type MockSchemeFn func() *runtime.Scheme
 
+// A MockGroupVersionKindForFn is used to mock client.Client's GroupVersionKindFor implementation.
+type MockGroupVersionKindForFn func(runtime.Object) (schema.GroupVersionKind, error)
+
+// A MockIsObjectNamespacedFn is used to mock client.Client's IsObjectNamespaced implementation.
+type MockIsObjectNamespacedFn func(runtime.Object) (bool, error)
+
 // An ObjectFn operates on the supplied Object. You might use an ObjectFn to
 // test or update the contents of an Object.
 type ObjectFn func(obj client.Object) error
+
+// An RuntimeObjectFn operates on the supplied Object. You might use an RuntimeObjectFn to
+// test or update the contents of an runtime.Object.
+type RuntimeObjectFn func(obj runtime.Object) error
 
 // An ObjectListFn operates on the supplied ObjectList. You might use an
 // ObjectListFn to test or update the contents of an ObjectList.
@@ -197,6 +208,30 @@ func NewMockSchemeFn(scheme *runtime.Scheme) MockSchemeFn {
 	}
 }
 
+// NewMockGroupVersionKindForFn returns a MockGroupVersionKindForFn that returns the supplied GVK and error.
+func NewMockGroupVersionKindForFn(err error, gvk schema.GroupVersionKind, rofn ...RuntimeObjectFn) MockGroupVersionKindForFn {
+	return func(obj runtime.Object) (schema.GroupVersionKind, error) {
+		for _, fn := range rofn {
+			if err := fn(obj); err != nil {
+				return gvk, err
+			}
+		}
+		return gvk, err
+	}
+}
+
+// NewMockIsObjectNamespacedFn returns a MockGroupVersionKindForFn that returns the supplied GVK and error.
+func NewMockIsObjectNamespacedFn(err error, isNamespaced bool, rofn ...RuntimeObjectFn) MockIsObjectNamespacedFn {
+	return func(obj runtime.Object) (bool, error) {
+		for _, fn := range rofn {
+			if err := fn(obj); err != nil {
+				return isNamespaced, err
+			}
+		}
+		return isNamespaced, err
+	}
+}
+
 // MockClient implements controller-runtime's Client interface, allowing each
 // method to be overridden for testing. The controller-runtime provides a fake
 // client, but it is has surprising side effects (e.g. silently calling
@@ -219,7 +254,9 @@ type MockClient struct {
 	MockSubResourceUpdate MockSubResourceUpdateFn
 	MockSubResourcePatch  MockSubResourcePatchFn
 
-	MockScheme MockSchemeFn
+	MockScheme              MockSchemeFn
+	MockGroupVersionKindFor MockGroupVersionKindForFn
+	MockIsObjectNamespaced  MockIsObjectNamespacedFn
 }
 
 // NewMockClient returns a MockClient that does nothing when its methods are
@@ -237,7 +274,9 @@ func NewMockClient() *MockClient {
 		MockStatusUpdate: NewMockSubResourceUpdateFn(nil),
 		MockStatusPatch:  NewMockSubResourcePatchFn(nil),
 
-		MockScheme: NewMockSchemeFn(nil),
+		MockScheme:              NewMockSchemeFn(nil),
+		MockGroupVersionKindFor: NewMockGroupVersionKindForFn(nil, schema.GroupVersionKind{}),
+		MockIsObjectNamespaced:  NewMockIsObjectNamespacedFn(nil, false),
 	}
 }
 
@@ -303,6 +342,16 @@ func (c *MockClient) RESTMapper() meta.RESTMapper {
 // Scheme calls MockClient's MockScheme function
 func (c *MockClient) Scheme() *runtime.Scheme {
 	return c.MockScheme()
+}
+
+// GroupVersionKindFor calls MockClient's MockGroupVersionKindFor function
+func (c *MockClient) GroupVersionKindFor(obj runtime.Object) (schema.GroupVersionKind, error) {
+	return c.MockGroupVersionKindFor(obj)
+}
+
+// IsObjectNamespaced calls MockClient's MockIsObjectNamespaced function
+func (c *MockClient) IsObjectNamespaced(obj runtime.Object) (bool, error) {
+	return c.MockIsObjectNamespaced(obj)
 }
 
 // MockSubResourceClient provides mock functionality for status sub-resource

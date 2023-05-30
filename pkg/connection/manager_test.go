@@ -639,7 +639,7 @@ func TestManagerFetchConnection(t *testing.T) {
 				t.Errorf("\nReason: %s\nm.FetchConnection(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.conn, got); diff != "" {
-				t.Errorf("\nReason: %s\nm.FetchConnection(...): -want error, +got error:\n%s", tc.reason, diff)
+				t.Errorf("\nReason: %s\nm.FetchConnection(...): -want connDetails, +got connDetails:\n%s", tc.reason, diff)
 			}
 		})
 	}

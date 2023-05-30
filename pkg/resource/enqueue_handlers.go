@@ -17,6 +17,8 @@ limitations under the License.
 package resource
 
 import (
+	"context"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
@@ -34,26 +36,26 @@ type EnqueueRequestForProviderConfig struct{}
 
 // Create adds a NamespacedName for the supplied CreateEvent if its Object is a
 // ProviderConfigReferencer.
-func (e *EnqueueRequestForProviderConfig) Create(evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForProviderConfig) Create(_ context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
 	addProviderConfig(evt.Object, q)
 }
 
 // Update adds a NamespacedName for the supplied UpdateEvent if its Objects are
 // a ProviderConfigReferencer.
-func (e *EnqueueRequestForProviderConfig) Update(evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForProviderConfig) Update(_ context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
 	addProviderConfig(evt.ObjectOld, q)
 	addProviderConfig(evt.ObjectNew, q)
 }
 
 // Delete adds a NamespacedName for the supplied DeleteEvent if its Object is a
 // ProviderConfigReferencer.
-func (e *EnqueueRequestForProviderConfig) Delete(evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForProviderConfig) Delete(_ context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
 	addProviderConfig(evt.Object, q)
 }
 
 // Generic adds a NamespacedName for the supplied GenericEvent if its Object is
 // a ProviderConfigReferencer.
-func (e *EnqueueRequestForProviderConfig) Generic(evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForProviderConfig) Generic(_ context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
 	addProviderConfig(evt.Object, q)
 }
 
