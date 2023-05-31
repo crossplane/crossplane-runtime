@@ -67,10 +67,10 @@ type ConnectionDetailsPublisherTo interface {
 	GetPublishConnectionDetailsTo() *xpv1.PublishConnectionDetailsTo
 }
 
-// A Manageable resource may specify a ManagementPolicy.
+// A Manageable resource may specify a ManagementPolicies.
 type Manageable interface {
-	SetManagementPolicy(p xpv1.ManagementPolicy)
-	GetManagementPolicy() xpv1.ManagementPolicy
+	SetManagementPolicies(p xpv1.ManagementPolicies)
+	GetManagementPolicies() xpv1.ManagementPolicies
 }
 
 // An Orphanable resource may specify a DeletionPolicy.

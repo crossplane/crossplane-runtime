@@ -18,6 +18,7 @@ package managed
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -26,6 +27,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -1104,6 +1106,39 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{}},
 		},
+		"ManagementPolicyReconciliationPausedSuccessful": {
+			reason: `If a managed resource has the pause annotation with value "true", there should be no further requeue requests.`,
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							mg := obj.(*fake.Managed)
+							mg.SetManagementPolicies(xpv1.ManagementPolicies{})
+							return nil
+						}),
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
+							want := &fake.Managed{}
+							want.SetManagementPolicies(xpv1.ManagementPolicies{})
+							want.SetConditions(xpv1.ReconcilePaused())
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := `If managed resource has the pause annotation with value "true", it should acquire "Synced" status condition with the status "False" and the reason "ReconcilePaused".`
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithManagementPolicies(),
+					WithInitializers(),
+					WithConnectionPublishers(),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
+			},
+			want: want{result: reconcile.Result{}},
+		},
 		"ReconciliationResumes": {
 			reason: `If a managed resource has the pause annotation with some value other than "true" and the Synced=False/ReconcilePaused status condition, reconciliation should resume with requeueing.`,
 			args: args{
@@ -1176,13 +1211,13 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := obj.(*fake.Managed)
-							mg.SetManagementPolicy(xpv1.ManagementObserveOnly)
+							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionCreate})
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
-							want.SetManagementPolicy(xpv1.ManagementObserveOnly)
-							want.SetConditions(xpv1.ReconcileError(errors.New(errManagementPolicy)))
+							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionCreate})
+							want.SetConditions(xpv1.ReconcileError(fmt.Errorf(errFmtManagementPolicyNonDefault, xpv1.ManagementPolicies{xpv1.ManagementActionCreate})))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := `If managed resource has a non default management policy but feature not enabled, it should return a proper error.`
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
@@ -1196,19 +1231,80 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{}},
 		},
-		"ObserveOnlyResourceDoesNotExist": {
-			reason: "With ObserveOnly, observing a resource that does not exist should be reported as a conditioned status error.",
+		"ManagementPoliciyNotSupported": {
+			reason: `If an unsupported management policy is used, we should throw an error.`,
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := obj.(*fake.Managed)
-							mg.SetManagementPolicy(xpv1.ManagementObserveOnly)
+							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionCreate})
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
-							want.SetManagementPolicy(xpv1.ManagementObserveOnly)
+							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionCreate})
+							want.SetConditions(xpv1.ReconcileError(fmt.Errorf(errFmtManagementPolicyNotSupported, xpv1.ManagementPolicies{xpv1.ManagementActionCreate})))
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := `If managed resource has non supported management policy, it should return a proper error.`
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithManagementPolicies(),
+				},
+			},
+			want: want{result: reconcile.Result{}},
+		},
+		"CustomManagementPoliciyNotSupported": {
+			reason: `If a custom unsupported management policy is used, we should throw an error.`,
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							mg := obj.(*fake.Managed)
+							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
+							return nil
+						}),
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
+							want := &fake.Managed{}
+							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
+							want.SetConditions(xpv1.ReconcileError(fmt.Errorf(errFmtManagementPolicyNotSupported, xpv1.ManagementPolicies{xpv1.ManagementActionAll})))
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := `If managed resource has non supported management policy, it should return a proper error.`
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithManagementPolicies(),
+					WithReconcilerSupportedManagementPolicies([]sets.Set[xpv1.ManagementAction]{sets.New(xpv1.ManagementActionObserve)}),
+				},
+			},
+			want: want{result: reconcile.Result{}},
+		},
+		"ObserveOnlyResourceDoesNotExist": {
+			reason: "With only Observe management action, observing a resource that does not exist should be reported as a conditioned status error.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							mg := obj.(*fake.Managed)
+							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
+							return nil
+						}),
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
+							want := &fake.Managed{}
+							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errors.New(errExternalResourceNotExist), errReconcileObserve)))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Resource does not exist should be reported as a conditioned status when ObserveOnly."
@@ -1236,18 +1332,18 @@ func TestReconciler(t *testing.T) {
 			want: want{result: reconcile.Result{Requeue: true}},
 		},
 		"ObserveOnlyPublishConnectionDetailsError": {
-			reason: "With ObserveOnly, errors publishing connection details after observation should trigger a requeue after a short wait.",
+			reason: "With Observe, errors publishing connection details after observation should trigger a requeue after a short wait.",
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := obj.(*fake.Managed)
-							mg.SetManagementPolicy(xpv1.ManagementObserveOnly)
+							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
-							want.SetManagementPolicy(xpv1.ManagementObserveOnly)
+							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
 							want.SetConditions(xpv1.ReconcileError(errBoom))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors publishing connection details after observation should be reported as a conditioned status."
@@ -1280,18 +1376,18 @@ func TestReconciler(t *testing.T) {
 			want: want{result: reconcile.Result{Requeue: true}},
 		},
 		"ObserveOnlySuccessfulObserve": {
-			reason: "With ObserveOnly, a successful managed resource observe should trigger a requeue after a long wait.",
+			reason: "With Observe, a successful managed resource observe should trigger a requeue after a long wait.",
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := obj.(*fake.Managed)
-							mg.SetManagementPolicy(xpv1.ManagementObserveOnly)
+							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
-							want.SetManagementPolicy(xpv1.ManagementObserveOnly)
+							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
 							want.SetConditions(xpv1.ReconcileSuccess())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "With ObserveOnly, a successful managed resource observation should be reported as a conditioned status."
@@ -1319,6 +1415,266 @@ func TestReconciler(t *testing.T) {
 							return false, nil
 						},
 					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultpollInterval}},
+		},
+		"ManagementPolicyAllCreateSuccessful": {
+			reason: "Successful managed resource creation using management policy all should trigger a requeue after a short wait.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							mg := obj.(*fake.Managed)
+							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
+							want := &fake.Managed{}
+							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
+							meta.SetExternalCreatePending(want, time.Now())
+							meta.SetExternalCreateSucceeded(want, time.Now())
+							want.SetConditions(xpv1.ReconcileSuccess())
+							want.SetConditions(xpv1.Creating())
+							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
+								reason := "Successful managed resource creation should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithManagementPolicies(),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+					WithExternalConnecter(&NopConnecter{}),
+					WithCriticalAnnotationUpdater(CriticalAnnotationUpdateFn(func(ctx context.Context, o client.Object) error { return nil })),
+					WithConnectionPublishers(),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
+			},
+			want: want{result: reconcile.Result{Requeue: true}},
+		},
+		"ManagementPolicyCreateCreateSuccessful": {
+			reason: "Successful managed resource creation using management policy Create should trigger a requeue after a short wait.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							mg := obj.(*fake.Managed)
+							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
+							want := &fake.Managed{}
+							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
+							meta.SetExternalCreatePending(want, time.Now())
+							meta.SetExternalCreateSucceeded(want, time.Now())
+							want.SetConditions(xpv1.ReconcileSuccess())
+							want.SetConditions(xpv1.Creating())
+							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
+								reason := "Successful managed resource creation should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithManagementPolicies(),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+					WithExternalConnecter(&NopConnecter{}),
+					WithCriticalAnnotationUpdater(CriticalAnnotationUpdateFn(func(ctx context.Context, o client.Object) error { return nil })),
+					WithConnectionPublishers(),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
+			},
+			want: want{result: reconcile.Result{Requeue: true}},
+		},
+		"ManagementPolicyImmutable": {
+			reason: "Successful reconciliation skipping update should trigger a requeue after a long wait.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							mg := obj.(*fake.Managed)
+							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionLateInitialize, xpv1.ManagementActionCreate, xpv1.ManagementActionDelete})
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(errBoom),
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
+							want := &fake.Managed{}
+							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionLateInitialize, xpv1.ManagementActionCreate, xpv1.ManagementActionDelete})
+							want.SetConditions(xpv1.ReconcileSuccess())
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := `Managed resource should acquire Synced=False/ReconcileSuccess status condition.`
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithManagementPolicies(),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false}, nil
+							},
+							UpdateFn: func(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
+								return ExternalUpdate{}, errBoom
+							},
+						}
+						return c, nil
+					})),
+					WithConnectionPublishers(),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultpollInterval}},
+		},
+		"ManagementPolicyAllUpdateSuccessful": {
+			reason: "A successful managed resource update using management policies should trigger a requeue after a long wait.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							mg := obj.(*fake.Managed)
+							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
+							return nil
+						}),
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
+							want := &fake.Managed{}
+							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
+							want.SetConditions(xpv1.ReconcileSuccess())
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := "A successful managed resource update should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithManagementPolicies(),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false}, nil
+							},
+							UpdateFn: func(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
+								return ExternalUpdate{}, nil
+							},
+						}
+						return c, nil
+					})),
+					WithConnectionPublishers(),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultpollInterval}},
+		},
+		"ManagementPolicyUpdateUpdateSuccessful": {
+			reason: "A successful managed resource update using management policies should trigger a requeue after a long wait.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							mg := obj.(*fake.Managed)
+							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
+							return nil
+						}),
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
+							want := &fake.Managed{}
+							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
+							want.SetConditions(xpv1.ReconcileSuccess())
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := "A successful managed resource update should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithManagementPolicies(),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false}, nil
+							},
+							UpdateFn: func(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
+								return ExternalUpdate{}, nil
+							},
+						}
+						return c, nil
+					})),
+					WithConnectionPublishers(),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultpollInterval}},
+		},
+		"ManagementPolicySkipLateInitialize": {
+			reason: "Should skip updating a managed resource to persist late initialized fields and should trigger a requeue after a long wait.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							mg := obj.(*fake.Managed)
+							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionUpdate, xpv1.ManagementActionCreate, xpv1.ManagementActionDelete})
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(errBoom),
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
+							want := &fake.Managed{}
+							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionUpdate, xpv1.ManagementActionCreate, xpv1.ManagementActionDelete})
+							want.SetConditions(xpv1.ReconcileSuccess())
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := "Errors updating a managed resource should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithManagementPolicies(),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+								return ExternalObservation{ResourceExists: true, ResourceUpToDate: true, ResourceLateInitialized: true}, nil
+							},
+						}
+						return c, nil
+					})),
+					WithConnectionPublishers(),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultpollInterval}},
@@ -1341,13 +1697,319 @@ func TestReconciler(t *testing.T) {
 	}
 }
 
-func TestShouldOrphan(t *testing.T) {
+func TestTestManagementPoliciesResolverIsPaused(t *testing.T) {
+	type args struct {
+		enabled bool
+		policy  xpv1.ManagementPolicies
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   bool
+	}{
+		"Disabled": {
+			reason: "Should return false if management policies are disabled",
+			args: args{
+				enabled: false,
+				policy:  xpv1.ManagementPolicies{},
+			},
+			want: false,
+		},
+		"EnabledEmptyPolicies": {
+			reason: "Should return true if the management policies are enabled and empty",
+			args: args{
+				enabled: true,
+				policy:  xpv1.ManagementPolicies{},
+			},
+			want: true,
+		},
+		"EnabledNonEmptyPolicies": {
+			reason: "Should return true if the management policies are enabled and non empty",
+			args: args{
+				enabled: true,
+				policy:  xpv1.ManagementPolicies{xpv1.ManagementActionAll},
+			},
+			want: false,
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			r := NewManagementPoliciesResolver(tc.args.enabled, tc.args.policy, xpv1.DeletionDelete)
+			if diff := cmp.Diff(tc.want, r.IsPaused()); diff != "" {
+				t.Errorf("\nReason: %s\nIsPaused(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestManagementPoliciesResolverValidate(t *testing.T) {
+	type args struct {
+		enabled bool
+		policy  xpv1.ManagementPolicies
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   error
+	}{
+		"Enabled": {
+			reason: "Should return nil if the management policy is enabled.",
+			args: args{
+				enabled: true,
+				policy:  xpv1.ManagementPolicies{},
+			},
+			want: nil,
+		},
+		"DisabledNonDefault": {
+			reason: "Should return error if the management policy is non-default and disabled.",
+			args: args{
+				enabled: false,
+				policy:  xpv1.ManagementPolicies{xpv1.ManagementActionCreate},
+			},
+			want: fmt.Errorf(errFmtManagementPolicyNonDefault, []xpv1.ManagementAction{xpv1.ManagementActionCreate}),
+		},
+		"DisabledDefault": {
+			reason: "Should return nil if the management policy is default and disabled.",
+			args: args{
+				enabled: false,
+				policy:  xpv1.ManagementPolicies{xpv1.ManagementActionAll},
+			},
+			want: nil,
+		},
+		"EnabledSupported": {
+			reason: "Should return nil if the management policy is supported.",
+			args: args{
+				enabled: true,
+				policy:  xpv1.ManagementPolicies{xpv1.ManagementActionAll},
+			},
+			want: nil,
+		},
+		"EnabledNotSupported": {
+			reason: "Should return err if the management policy is not supported.",
+			args: args{
+				enabled: true,
+				policy:  xpv1.ManagementPolicies{xpv1.ManagementActionDelete},
+			},
+			want: fmt.Errorf(errFmtManagementPolicyNotSupported, []xpv1.ManagementAction{xpv1.ManagementActionDelete}),
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			r := NewManagementPoliciesResolver(tc.args.enabled, tc.args.policy, xpv1.DeletionDelete)
+			if diff := cmp.Diff(tc.want, r.Validate(), test.EquateErrors()); diff != "" {
+				t.Errorf("\nReason: %s\nIsNonDefault(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestManagementPoliciesResolverShouldCreate(t *testing.T) {
+	type args struct {
+		managementPoliciesEnabled bool
+		policy                    xpv1.ManagementPolicies
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   bool
+	}{
+		"ManagementPoliciesDisabled": {
+			reason: "Should return true if management policies are disabled",
+			args: args{
+				managementPoliciesEnabled: false,
+			},
+			want: true,
+		},
+		"ManagementPoliciesEnabledHasCreate": {
+			reason: "Should return true if management policies are enabled and managementPolicies has action Create",
+			args: args{
+				managementPoliciesEnabled: true,
+				policy:                    xpv1.ManagementPolicies{xpv1.ManagementActionCreate},
+			},
+			want: true,
+		},
+		"ManagementPoliciesEnabledHasCreateAll": {
+			reason: "Should return true if management policies are enabled and managementPolicies has action All",
+			args: args{
+				managementPoliciesEnabled: true,
+				policy:                    xpv1.ManagementPolicies{xpv1.ManagementActionAll},
+			},
+			want: true,
+		},
+		"ManagementPoliciesEnabledActionNotAllowed": {
+			reason: "Should return false if management policies are enabled and managementPolicies does not have Create",
+			args: args{
+				managementPoliciesEnabled: true,
+				policy:                    xpv1.ManagementPolicies{xpv1.ManagementActionObserve},
+			},
+			want: false,
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			r := NewManagementPoliciesResolver(tc.args.managementPoliciesEnabled, tc.args.policy, xpv1.DeletionOrphan)
+			if diff := cmp.Diff(tc.want, r.ShouldCreate()); diff != "" {
+				t.Errorf("\nReason: %s\nShouldCreate(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestManagementPoliciesResolverShouldUpdate(t *testing.T) {
+	type args struct {
+		managementPoliciesEnabled bool
+		policy                    xpv1.ManagementPolicies
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   bool
+	}{
+		"ManagementPoliciesDisabled": {
+			reason: "Should return true if management policies are disabled",
+			args: args{
+				managementPoliciesEnabled: false,
+			},
+			want: true,
+		},
+		"ManagementPoliciesEnabledHasUpdate": {
+			reason: "Should return true if management policies are enabled and managementPolicies has action Update",
+			args: args{
+				managementPoliciesEnabled: true,
+				policy:                    xpv1.ManagementPolicies{xpv1.ManagementActionUpdate},
+			},
+			want: true,
+		},
+		"ManagementPoliciesEnabledHasUpdateAll": {
+			reason: "Should return true if management policies are enabled and managementPolicies has action All",
+			args: args{
+				managementPoliciesEnabled: true,
+				policy:                    xpv1.ManagementPolicies{xpv1.ManagementActionAll},
+			},
+			want: true,
+		},
+		"ManagementPoliciesEnabledActionNotAllowed": {
+			reason: "Should return false if management policies are enabled and managementPolicies does not have Update",
+			args: args{
+				managementPoliciesEnabled: true,
+				policy:                    xpv1.ManagementPolicies{xpv1.ManagementActionObserve},
+			},
+			want: false,
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			r := NewManagementPoliciesResolver(tc.args.managementPoliciesEnabled, tc.args.policy, xpv1.DeletionOrphan)
+			if diff := cmp.Diff(tc.want, r.ShouldUpdate()); diff != "" {
+				t.Errorf("\nReason: %s\nShouldUpdate(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestManagementPoliciesResolverShouldLateInitialize(t *testing.T) {
+	type args struct {
+		managementPoliciesEnabled bool
+		policy                    xpv1.ManagementPolicies
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   bool
+	}{
+		"ManagementPoliciesDisabled": {
+			reason: "Should return true if management policies are disabled",
+			args: args{
+				managementPoliciesEnabled: false,
+			},
+			want: true,
+		},
+		"ManagementPoliciesEnabledHasLateInitialize": {
+			reason: "Should return true if management policies are enabled and managementPolicies has action LateInitialize",
+			args: args{
+				managementPoliciesEnabled: true,
+				policy:                    xpv1.ManagementPolicies{xpv1.ManagementActionLateInitialize},
+			},
+			want: true,
+		},
+		"ManagementPoliciesEnabledHasLateInitializeAll": {
+			reason: "Should return true if management policies are enabled and managementPolicies has action All",
+			args: args{
+				managementPoliciesEnabled: true,
+				policy:                    xpv1.ManagementPolicies{xpv1.ManagementActionAll},
+			},
+			want: true,
+		},
+		"ManagementPoliciesEnabledActionNotAllowed": {
+			reason: "Should return false if management policies are enabled and managementPolicies does not have LateInitialize",
+			args: args{
+				managementPoliciesEnabled: true,
+				policy:                    xpv1.ManagementPolicies{xpv1.ManagementActionObserve},
+			},
+			want: false,
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			r := NewManagementPoliciesResolver(tc.args.managementPoliciesEnabled, tc.args.policy, xpv1.DeletionOrphan)
+			if diff := cmp.Diff(tc.want, r.ShouldLateInitialize()); diff != "" {
+				t.Errorf("\nReason: %s\nShouldLateInitialize(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestManagementPoliciesResolverOnlyObserve(t *testing.T) {
+	type args struct {
+		managementPoliciesEnabled bool
+		policy                    xpv1.ManagementPolicies
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   bool
+	}{
+		"ManagementPoliciesDisabled": {
+			reason: "Should return false if management policies are disabled",
+			args: args{
+				managementPoliciesEnabled: false,
+			},
+			want: false,
+		},
+		"ManagementPoliciesEnabledHasOnlyObserve": {
+			reason: "Should return true if management policies are enabled and managementPolicies has action LateInitialize",
+			args: args{
+				managementPoliciesEnabled: true,
+				policy:                    xpv1.ManagementPolicies{xpv1.ManagementActionObserve},
+			},
+			want: true,
+		},
+		"ManagementPoliciesEnabledHasMultipleActions": {
+			reason: "Should return false if management policies are enabled and managementPolicies has multiple actions",
+			args: args{
+				managementPoliciesEnabled: true,
+				policy:                    xpv1.ManagementPolicies{xpv1.ManagementActionLateInitialize, xpv1.ManagementActionObserve},
+			},
+			want: false,
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			r := NewManagementPoliciesResolver(tc.args.managementPoliciesEnabled, tc.args.policy, xpv1.DeletionOrphan)
+			if diff := cmp.Diff(tc.want, r.ShouldOnlyObserve()); diff != "" {
+				t.Errorf("\nReason: %s\nShouldOnlyObserve(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestShouldDelete(t *testing.T) {
 	type args struct {
 		managementPoliciesEnabled bool
 		managed                   resource.Managed
 	}
 	type want struct {
-		orphan bool
+		delete bool
 	}
 	cases := map[string]struct {
 		reason string
@@ -1364,10 +2026,10 @@ func TestShouldOrphan(t *testing.T) {
 					},
 				},
 			},
-			want: want{orphan: true},
+			want: want{delete: false},
 		},
 		"DeletionDelete": {
-			reason: "Should not orphan if management policies are disabled and deletion policy is set to Delete.",
+			reason: "Should delete if management policies are disabled and deletion policy is set to Delete.",
 			args: args{
 				managementPoliciesEnabled: false,
 				managed: &fake.Managed{
@@ -1376,10 +2038,10 @@ func TestShouldOrphan(t *testing.T) {
 					},
 				},
 			},
-			want: want{orphan: false},
+			want: want{delete: true},
 		},
-		"DeletionDeleteManagementFullControl": {
-			reason: "Should not orphan if management policies are enabled and deletion policy is set to Delete and management policy is set to FullControl.",
+		"DeletionDeleteManagementActionAll": {
+			reason: "Should delete if management policies are enabled and deletion policy is set to Delete and management policy is set to All.",
 			args: args{
 				managementPoliciesEnabled: true,
 				managed: &fake.Managed{
@@ -1387,14 +2049,14 @@ func TestShouldOrphan(t *testing.T) {
 						Policy: xpv1.DeletionDelete,
 					},
 					Manageable: fake.Manageable{
-						Policy: xpv1.ManagementFullControl,
+						Policy: xpv1.ManagementPolicies{xpv1.ManagementActionAll},
 					},
 				},
 			},
-			want: want{orphan: false},
+			want: want{delete: true},
 		},
-		"DeletionOrphanManagementOrphanOnDelete": {
-			reason: "Should orphan if management policies are enabled and deletion policy is set to Orphan and management policy is set to OrphanOnDelete.",
+		"DeletionOrphanManagementActionAll": {
+			reason: "Should orphan if management policies are enabled and deletion policy is set to Orphan and management policy is set to All.",
 			args: args{
 				managementPoliciesEnabled: true,
 				managed: &fake.Managed{
@@ -1402,44 +2064,14 @@ func TestShouldOrphan(t *testing.T) {
 						Policy: xpv1.DeletionOrphan,
 					},
 					Manageable: fake.Manageable{
-						Policy: xpv1.ManagementOrphanOnDelete,
+						Policy: xpv1.ManagementPolicies{xpv1.ManagementActionAll},
 					},
 				},
 			},
-			want: want{orphan: true},
+			want: want{delete: false},
 		},
-		"DeletionOrphanManagementObserveOnly": {
-			reason: "Should orphan if management policies are enabled and deletion policy is set to Orphan and management policy is set to ObserveOnly.",
-			args: args{
-				managementPoliciesEnabled: true,
-				managed: &fake.Managed{
-					Orphanable: fake.Orphanable{
-						Policy: xpv1.DeletionOrphan,
-					},
-					Manageable: fake.Manageable{
-						Policy: xpv1.ManagementObserveOnly,
-					},
-				},
-			},
-			want: want{orphan: true},
-		},
-		"DeletionOrphanManagementFullControl": {
-			reason: "Should orphan if management policies are enabled and deletion policy is set to Orphan and management policy is set to FullControl.",
-			args: args{
-				managementPoliciesEnabled: true,
-				managed: &fake.Managed{
-					Orphanable: fake.Orphanable{
-						Policy: xpv1.DeletionOrphan,
-					},
-					Manageable: fake.Manageable{
-						Policy: xpv1.ManagementFullControl,
-					},
-				},
-			},
-			want: want{orphan: true},
-		},
-		"DeletionDeleteManagementObserveOnly": {
-			reason: "Should orphan if management policies are enabled and deletion policy is set to Delete and management policy is set to ObserveOnly.",
+		"DeletionDeleteManagementActionDelete": {
+			reason: "Should delete if management policies are enabled and deletion policy is set to Delete and management policy has action Delete.",
 			args: args{
 				managementPoliciesEnabled: true,
 				managed: &fake.Managed{
@@ -1447,14 +2079,29 @@ func TestShouldOrphan(t *testing.T) {
 						Policy: xpv1.DeletionDelete,
 					},
 					Manageable: fake.Manageable{
-						Policy: xpv1.ManagementObserveOnly,
+						Policy: xpv1.ManagementPolicies{xpv1.ManagementActionDelete},
 					},
 				},
 			},
-			want: want{orphan: true},
+			want: want{delete: true},
 		},
-		"DeletionDeleteManagementOrphanOnDelete": {
-			reason: "Should orphan if management policies are enabled and deletion policy is set to Delete and management policy is set to OrphanOnDelete.",
+		"DeletionOrphanManagementActionDelete": {
+			reason: "Should delete if management policies are enabled and deletion policy is set to Orphan and management policy has action Delete.",
+			args: args{
+				managementPoliciesEnabled: true,
+				managed: &fake.Managed{
+					Orphanable: fake.Orphanable{
+						Policy: xpv1.DeletionOrphan,
+					},
+					Manageable: fake.Manageable{
+						Policy: xpv1.ManagementPolicies{xpv1.ManagementActionDelete},
+					},
+				},
+			},
+			want: want{delete: true},
+		},
+		"DeletionDeleteManagementActionNoDelete": {
+			reason: "Should orphan if management policies are enabled and deletion policy is set to Delete and management policy does not have action Delete.",
 			args: args{
 				managementPoliciesEnabled: true,
 				managed: &fake.Managed{
@@ -1462,17 +2109,18 @@ func TestShouldOrphan(t *testing.T) {
 						Policy: xpv1.DeletionDelete,
 					},
 					Manageable: fake.Manageable{
-						Policy: xpv1.ManagementOrphanOnDelete,
+						Policy: xpv1.ManagementPolicies{xpv1.ManagementActionObserve},
 					},
 				},
 			},
-			want: want{orphan: true},
+			want: want{delete: false},
 		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			if diff := cmp.Diff(tc.want.orphan, shouldOrphan(tc.args.managementPoliciesEnabled, tc.args.managed)); diff != "" {
-				t.Errorf("\nReason: %s\nshouldOrphan(...): -want, +got:\n%s", tc.reason, diff)
+			r := NewManagementPoliciesResolver(tc.args.managementPoliciesEnabled, tc.args.managed.GetManagementPolicies(), tc.args.managed.GetDeletionPolicy())
+			if diff := cmp.Diff(tc.want.delete, r.ShouldDelete()); diff != "" {
+				t.Errorf("\nReason: %s\nShouldDelete(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
