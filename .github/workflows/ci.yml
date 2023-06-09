@@ -107,7 +107,7 @@ jobs:
       # this action because it leaves 'annotations' (i.e. it comments on PRs to
       # point out linter violations).
       - name: Lint
-        uses: golangci/golangci-lint-action@08e2f20817b15149a52b5b3ebe7de50aff2ba8c5 # v3
+        uses: golangci/golangci-lint-action@5f1fec7010f6ae3b84ea4f7b2129beb8639b564f # v3
         with:
           version: ${{ env.GOLANGCI_VERSION }}
           skip-cache: true # We do our own caching.
@@ -150,12 +150,12 @@ jobs:
         run: make vendor vendor.check
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@0225834cc549ee0ca93cb085b92954821a145866 # v2
+        uses: github/codeql-action/init@83f0fe6c4988d98a455712a27f0255212bba9bd4 # v2
         with:
           languages: go
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@0225834cc549ee0ca93cb085b92954821a145866 # v2
+        uses: github/codeql-action/analyze@83f0fe6c4988d98a455712a27f0255212bba9bd4 # v2
 
   trivy-scan-fs:
     runs-on: ubuntu-22.04
@@ -168,7 +168,7 @@ jobs:
           submodules: true
 
       - name: Run Trivy vulnerability scanner in fs mode
-        uses: aquasecurity/trivy-action@e5f43133f6e8736992c9f3c1b3296e24b37e17f2 # 0.10.0
+        uses: aquasecurity/trivy-action@b43daad0c3c96202fc5800b511dfae8e6ecce864 # 0.11.0
         with:
           scan-type: 'fs'
           ignore-unfixed: true
