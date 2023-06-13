@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"reflect"
 
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -454,6 +455,7 @@ type Manager struct {
 	Scheme     *runtime.Scheme
 	Config     *rest.Config
 	RESTMapper meta.RESTMapper
+	Logger     logr.Logger
 }
 
 // Elected returns a closed channel.
@@ -474,6 +476,9 @@ func (m *Manager) GetConfig() *rest.Config { return m.Config }
 
 // GetRESTMapper returns the REST mapper.
 func (m *Manager) GetRESTMapper() meta.RESTMapper { return m.RESTMapper }
+
+// GetLogger returns the logger.
+func (m *Manager) GetLogger() logr.Logger { return m.Logger }
 
 // GV returns a mock schema.GroupVersion.
 var GV = schema.GroupVersion{Group: "g", Version: "v"}
