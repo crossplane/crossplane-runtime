@@ -8,7 +8,7 @@ require (
 	github.com/google/go-cmp v0.5.9
 	github.com/hashicorp/go-getter v1.7.1
 	github.com/hashicorp/vault/api v1.9.2
-	github.com/imdario/mergo v0.3.16
+	github.com/imdario/mergo v1.0.0
 	github.com/spf13/afero v1.9.5
 	golang.org/x/time v0.3.0
 	google.golang.org/grpc v1.56.1
