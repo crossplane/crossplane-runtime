@@ -11,7 +11,7 @@ require (
 	github.com/spf13/afero v1.9.5
 	golang.org/x/time v0.3.0
 	google.golang.org/grpc v1.56.1
-	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.2.0
+	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.3.0
 	google.golang.org/protobuf v1.30.0
 	k8s.io/api v0.27.3
 	k8s.io/apiextensions-apiserver v0.27.3
