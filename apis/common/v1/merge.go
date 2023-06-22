@@ -17,7 +17,7 @@ limitations under the License.
 package v1
 
 import (
-	"github.com/imdario/mergo"
+	"dario.cat/mergo"
 )
 
 // MergeOptions Specifies merge options on a field path

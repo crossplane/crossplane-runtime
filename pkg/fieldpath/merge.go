@@ -19,7 +19,7 @@ package fieldpath
 import (
 	"reflect"
 
-	"github.com/imdario/mergo"
+	"dario.cat/mergo"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"

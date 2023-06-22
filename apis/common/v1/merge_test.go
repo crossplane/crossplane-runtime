@@ -22,8 +22,8 @@ import (
 	"sort"
 	"testing"
 
+	"dario.cat/mergo"
 	"github.com/google/go-cmp/cmp"
-	"github.com/imdario/mergo"
 )
 
 type mergoOptArr []func(*mergo.Config)

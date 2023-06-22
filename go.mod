@@ -3,11 +3,11 @@ module github.com/crossplane/crossplane-runtime
 go 1.18
 
 require (
+	dario.cat/mergo v1.0.0
 	github.com/bufbuild/buf v1.21.0
 	github.com/go-logr/logr v1.2.4
 	github.com/google/go-cmp v0.5.9
 	github.com/hashicorp/vault/api v1.9.2
-	github.com/imdario/mergo v0.3.16
 	github.com/spf13/afero v1.9.5
 	golang.org/x/time v0.3.0
 	google.golang.org/grpc v1.56.1
@@ -69,6 +69,7 @@ require (
 	github.com/hashicorp/go-secure-stdlib/strutil v0.1.2 // indirect
 	github.com/hashicorp/go-sockaddr v1.0.2 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
+	github.com/imdario/mergo v0.3.16 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jdxcode/netrc v0.0.0-20221124155335-4616370d1a84 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
