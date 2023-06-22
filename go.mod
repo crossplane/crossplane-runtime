@@ -9,7 +9,7 @@ require (
 	github.com/hashicorp/go-getter v1.7.1
 	github.com/hashicorp/vault/api v1.5.0
 	github.com/imdario/mergo v0.3.16
-	github.com/spf13/afero v1.8.0
+	github.com/spf13/afero v1.9.5
 	golang.org/x/time v0.3.0
 	google.golang.org/grpc v1.56.1
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.2.0
