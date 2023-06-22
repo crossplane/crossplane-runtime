@@ -6,7 +6,7 @@ require (
 	github.com/bufbuild/buf v1.20.0
 	github.com/go-logr/logr v1.2.4
 	github.com/google/go-cmp v0.5.9
-	github.com/hashicorp/go-getter v1.7.0
+	github.com/hashicorp/go-getter v1.7.1
 	github.com/hashicorp/vault/api v1.5.0
 	github.com/imdario/mergo v0.3.15
 	github.com/spf13/afero v1.8.0
