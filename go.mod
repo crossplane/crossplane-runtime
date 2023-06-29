@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	dario.cat/mergo v1.0.0
-	github.com/bufbuild/buf v1.22.0
+	github.com/bufbuild/buf v1.23.0
 	github.com/go-logr/logr v1.2.4
 	github.com/google/go-cmp v0.5.9
 	github.com/hashicorp/vault/api v1.9.2
