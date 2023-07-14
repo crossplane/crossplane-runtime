@@ -22,6 +22,8 @@ package errors
 import (
 	"errors"
 	"fmt"
+
+	kerrors "k8s.io/apimachinery/pkg/util/errors"
 )
 
 // New returns an error that formats as the given text. Each call to New returns
@@ -123,4 +125,38 @@ func Cause(err error) error {
 	}
 
 	return err
+}
+
+// MultiError is an error that wraps multiple errors.
+type MultiError interface {
+	error
+	Unwrap() []error
+}
+
+// Join returns an error that wraps the given errors. Any nil error values are
+// discarded. Join returns nil if errs contains no non-nil values. The error
+// formats as the concatenation of the strings obtained by calling the Error
+// method of each element of errs and formatting like:
+//
+//	[first error, second error, third error]
+//
+// Note: aggregating errors should not be the default. Usually, return only the
+// first error, and only aggregate if there is clear value to the user.
+func Join(errs ...error) MultiError {
+	err := kerrors.NewAggregate(errs)
+	if err == nil {
+		return nil
+	}
+	return multiError{aggregate: err}
+}
+
+type multiError struct {
+	aggregate kerrors.Aggregate
+}
+
+func (m multiError) Error() string {
+	return m.aggregate.Error()
+}
+func (m multiError) Unwrap() []error {
+	return m.aggregate.Errors()
 }
