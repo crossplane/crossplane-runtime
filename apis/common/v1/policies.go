@@ -16,23 +16,39 @@ limitations under the License.
 
 package v1
 
-// A ManagementPolicy determines how should Crossplane controllers manage an
-// external resource.
-// +kubebuilder:validation:Enum=FullControl;ObserveOnly;OrphanOnDelete
-type ManagementPolicy string
+// ManagementPolicies determine how should Crossplane controllers manage an
+// external resource through an array of ManagementActions.
+type ManagementPolicies []ManagementAction
+
+// A ManagementAction represents an action that the Crossplane controllers
+// can take on an external resource.
+// +kubebuilder:validation:Enum=Observe;Create;Update;Delete;LateInitialize;*
+type ManagementAction string
 
 const (
-	// ManagementFullControl means the external resource is fully controlled
-	// by Crossplane controllers, including its deletion.
-	ManagementFullControl ManagementPolicy = "FullControl"
+	// ManagementActionObserve means that the managed resource status.atProvider
+	// will be updated with the external resource state.
+	ManagementActionObserve ManagementAction = "Observe"
 
-	// ManagementObserveOnly means the external resource will only be observed
-	// by Crossplane controllers, but not modified or deleted.
-	ManagementObserveOnly ManagementPolicy = "ObserveOnly"
+	// ManagementActionCreate means that the external resource will be created
+	// using the managed resource spec.initProvider and spec.forProvider.
+	ManagementActionCreate ManagementAction = "Create"
 
-	// ManagementOrphanOnDelete means the external resource will be orphaned
-	// when its managed resource is deleted.
-	ManagementOrphanOnDelete ManagementPolicy = "OrphanOnDelete"
+	// ManagementActionUpdate means that the external resource will be updated
+	// using the managed resource spec.forProvider.
+	ManagementActionUpdate ManagementAction = "Update"
+
+	// ManagementActionDelete means that the external resource will be deleted
+	// when the managed resource is deleted.
+	ManagementActionDelete ManagementAction = "Delete"
+
+	// ManagementActionLateInitialize means that unspecified fields of the managed
+	// resource spec.forProvider will be updated with the external resource state.
+	ManagementActionLateInitialize ManagementAction = "LateInitialize"
+
+	// ManagementActionAll means that all of the above actions will be taken
+	// by the Crossplane controllers.
+	ManagementActionAll ManagementAction = "*"
 )
 
 // A DeletionPolicy determines what should happen to the underlying external
