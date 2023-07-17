@@ -759,6 +759,7 @@ func TestReconciler(t *testing.T) {
 							meta.SetExternalCreateSucceeded(want, time.Now())
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateManagedAnnotations)))
 							want.SetConditions(xpv1.Creating())
+							meta.SetExternalCreateEventStatus(want, eventEmitPending)
 							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
 								reason := "Errors updating critical annotations after creation should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
@@ -802,6 +803,7 @@ func TestReconciler(t *testing.T) {
 							meta.SetExternalCreateSucceeded(want, time.Now())
 							want.SetConditions(xpv1.ReconcileError(errBoom))
 							want.SetConditions(xpv1.Creating())
+							meta.SetExternalCreateEventStatus(want, eventEmitPending)
 							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
 								reason := "Errors publishing connection details after creation should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
@@ -857,6 +859,7 @@ func TestReconciler(t *testing.T) {
 							meta.SetExternalCreateSucceeded(want, time.Now())
 							want.SetConditions(xpv1.ReconcileSuccess())
 							want.SetConditions(xpv1.Creating())
+							meta.SetExternalCreateEventStatus(want, eventEmitPending)
 							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
 								reason := "Successful managed resource creation should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
@@ -1039,6 +1042,56 @@ func TestReconciler(t *testing.T) {
 				},
 			},
 			want: want{result: reconcile.Result{Requeue: true}},
+		},
+		"SendCreateEventIsSuccessful": {
+			reason: "A successful managed resource update should trigger a requeue after a long wait.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							mg := obj.(*fake.Managed)
+							mg.SetConditions(xpv1.Available())
+							mg.SetName("external-resource-name")
+							meta.SetExternalCreatePending(obj, now.Time)
+							meta.SetExternalCreateSucceeded(obj, time.Now())
+							meta.SetExternalCreateEventStatus(obj, eventEmitPending)
+
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
+							want := &fake.Managed{}
+							meta.SetExternalCreateEventStatus(want, eventEmitComplete)
+							want.SetConditions(xpv1.ReconcileSuccess())
+							if diff := cmp.Diff(want.GetAnnotations()[meta.AnnotationKeyExternalCreateEventStatus], eventEmitComplete, test.EquateConditions()); diff != "" {
+								reason := "A successful managed resource creation should update annotation when condition."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false}, nil
+							},
+							UpdateFn: func(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
+								return ExternalUpdate{}, nil
+							},
+						}
+						return c, nil
+					})),
+					WithConnectionPublishers(),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultpollInterval}},
 		},
 		"UpdateSuccessful": {
 			reason: "A successful managed resource update should trigger a requeue after a long wait.",
