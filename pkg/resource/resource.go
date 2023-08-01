@@ -190,6 +190,13 @@ func IsAPIErrorWrapped(err error) bool {
 	return IsAPIError(errors.Cause(err))
 }
 
+// IsNonConflictAPIErrorWrapped returns true if err is a non-conflict K8s API
+// error, or recursively wraps a K8s API error
+func IsNonConflictAPIErrorWrapped(err error) bool {
+	cause := errors.Cause(err)
+	return IsAPIError(cause) && !kerrors.IsConflict(cause)
+}
+
 // IsConditionTrue returns if condition status is true
 func IsConditionTrue(c xpv1.Condition) bool {
 	return c.Status == corev1.ConditionTrue

@@ -127,9 +127,6 @@ func (a *APIUpdatingApplicator) Apply(ctx context.Context, o client.Object, ao .
 		}
 	}
 
-	// NOTE(hasheddan): we must set the resource version of the desired object
-	// to that of the current or the update will always fail.
-	m.SetResourceVersion(current.(metav1.Object).GetResourceVersion())
 	return errors.Wrap(a.client.Update(ctx, m), "cannot update object")
 }
 
