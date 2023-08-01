@@ -25,6 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -395,8 +396,9 @@ func TestIsConditionTrue(t *testing.T) {
 }
 
 type object struct {
-	runtime.Object
-	metav1.ObjectMeta
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              string `json:"spec"`
 }
 
 func (o *object) DeepCopyObject() runtime.Object {
@@ -872,6 +874,126 @@ func TestUpdate(t *testing.T) {
 
 			if diff := cmp.Diff(tt.want, tt.args.current); diff != "" {
 				t.Errorf("UpdateFn updated object mismatch: -want, +got: %s", diff)
+			}
+		})
+	}
+}
+
+func TestHumanReadableReference(t *testing.T) {
+	type args struct {
+		c client.Client
+		o client.Object
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "simple",
+			args: args{
+				c: &test.MockClient{
+					MockGroupVersionKindFor: func(r runtime.Object) (schema.GroupVersionKind, error) {
+						return schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Pod"}, nil
+					},
+				},
+				o: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "foo",
+						Namespace: "default",
+					},
+				},
+			},
+			want: "pod default/foo",
+		},
+		{
+			name: "unstructured",
+			args: args{
+				c: &test.MockClient{
+					MockGroupVersionKindFor: func(r runtime.Object) (schema.GroupVersionKind, error) {
+						return schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Pod"}, nil
+					},
+				},
+				o: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "v1",
+						"kind":       "Pod",
+						"metadata": map[string]interface{}{
+							"name":      "foo",
+							"namespace": "default",
+						},
+					},
+				},
+			},
+			want: "pod default/foo",
+		},
+		{
+			name: "unknown",
+			args: args{
+				c: &test.MockClient{
+					MockGroupVersionKindFor: func(r runtime.Object) (schema.GroupVersionKind, error) {
+						return schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Pod"}, nil
+					},
+				},
+				o: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "v1",
+						"kind":       "Pod",
+						"metadata": map[string]interface{}{
+							"name":      "foo",
+							"namespace": "default",
+						},
+					},
+				},
+			},
+			want: "pod default/foo",
+		},
+		{
+			name: "no namespace",
+			args: args{
+				c: &test.MockClient{
+					MockGroupVersionKindFor: func(r runtime.Object) (schema.GroupVersionKind, error) {
+						return schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Node"}, nil
+					},
+				},
+				o: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "v1",
+						"kind":       "Node",
+						"metadata": map[string]interface{}{
+							"name": "foo",
+						},
+					},
+				},
+			},
+			want: "node \"foo\"",
+		},
+		{
+			name: "generate name",
+			args: args{
+				c: &test.MockClient{
+					MockGroupVersionKindFor: func(r runtime.Object) (schema.GroupVersionKind, error) {
+						return schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Pod"}, nil
+					},
+				},
+				o: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "v1",
+						"kind":       "Pod",
+						"metadata": map[string]interface{}{
+							"generateName": "foo-",
+							"namespace":    "default",
+						},
+					},
+				},
+			},
+			want: "pod with generated name default/foo-",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := HumanReadableReference(tt.args.c, tt.args.o); got != tt.want {
+				t.Errorf("HumanReadableReference() = %v, want %v", got, tt.want)
 			}
 		})
 	}
