@@ -1,6 +1,6 @@
 module github.com/crossplane/crossplane-runtime
 
-go 1.18
+go 1.20
 
 require (
 	dario.cat/mergo v1.0.0
