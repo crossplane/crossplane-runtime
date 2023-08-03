@@ -476,6 +476,8 @@ type Reconciler struct {
 
 	features feature.Flags
 
+	driftRecorder driftRecorder
+
 	// The below structs embed the set of interfaces used to implement the
 	// managed resource reconciler. We do this primarily for readability, so
 	// that the reconciler logic reads r.external.Connect(),
@@ -697,6 +699,7 @@ func NewReconciler(m manager.Manager, of resource.ManagedKind, o ...ReconcilerOp
 		creationGracePeriod:         defaultGracePeriod,
 		timeout:                     reconcileTimeout,
 		managed:                     defaultMRManaged(m),
+		driftRecorder:               driftRecorder{cluster: m},
 		external:                    defaultMRExternal(),
 		supportedManagementPolicies: defaultSupportedManagementPolicies(),
 		log:                         logging.NewNopLogger(),
@@ -705,6 +708,11 @@ func NewReconciler(m manager.Manager, of resource.ManagedKind, o ...ReconcilerOp
 
 	for _, ro := range o {
 		ro(r)
+	}
+
+	if err := m.Add(&r.driftRecorder); err != nil {
+		r.log.Info("unable to register drift recorder with controller manager", "error", err)
+		// no way to recover from this
 	}
 
 	return r
@@ -1150,6 +1158,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		reconcileAfter := r.pollIntervalHook(managed, r.pollInterval)
 		log.Debug("External resource is up to date", "requeue-after", time.Now().Add(reconcileAfter))
 		managed.SetConditions(xpv1.ReconcileSuccess())
+
+		// record that we intentionally did not update the managed resource
+		// because no drift was detected. We call this so late in the reconcile
+		// because all the cases above could contribute (for different reasons)
+		// that the external object would not have been updated.
+		r.driftRecorder.recordUnchanged(managed.GetName())
+
 		return reconcile.Result{RequeueAfter: reconcileAfter}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
@@ -1177,6 +1192,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, errReconcileUpdate)))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
+
+	// record the drift after the successful update.
+	r.driftRecorder.recordUpdate(managed.GetName())
 
 	if _, err := r.managed.PublishConnection(ctx, managed, update.ConnectionDetails); err != nil {
 		// If this is the first time we encounter this issue we'll be requeued
