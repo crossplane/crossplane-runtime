@@ -22,7 +22,6 @@ import (
 	"context"
 	"io"
 	"strings"
-	"unicode"
 
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
@@ -91,7 +90,7 @@ func New(meta, obj ObjectCreaterTyper) *PackageParser {
 // decode objects recognized by the meta scheme, then attempts to decode objects
 // recognized by the object scheme. Objects not recognized by either scheme
 // return an error rather than being skipped.
-func (p *PackageParser) Parse(_ context.Context, reader io.ReadCloser) (*Package, error) { //nolint:gocyclo // Only at 11.
+func (p *PackageParser) Parse(_ context.Context, reader io.ReadCloser) (*Package, error) {
 	pkg := NewPackage()
 	if reader == nil {
 		return pkg, nil
@@ -101,27 +100,25 @@ func (p *PackageParser) Parse(_ context.Context, reader io.ReadCloser) (*Package
 	dm := json.NewSerializerWithOptions(json.DefaultMetaFactory, p.metaScheme, p.metaScheme, json.SerializerOptions{Yaml: true})
 	do := json.NewSerializerWithOptions(json.DefaultMetaFactory, p.objScheme, p.objScheme, json.SerializerOptions{Yaml: true})
 	for {
-		bytes, err := yr.Read()
+		content, err := yr.Read()
 		if err != nil && !errors.Is(err, io.EOF) {
 			return pkg, err
 		}
 		if errors.Is(err, io.EOF) {
 			break
 		}
-		if len(bytes) == 0 {
+		content = cleanYAML(content)
+		if len(content) == 0 {
 			continue
 		}
-		if isWhiteSpace(bytes) {
-			continue
-		}
-		m, _, err := dm.Decode(bytes, nil, nil)
+		m, _, err := dm.Decode(content, nil, nil)
 		if err != nil {
 			// NOTE(hasheddan): we only try to decode with object scheme if the
 			// error is due the object not being registered in the meta scheme.
 			if !runtime.IsNotRegisteredError(err) {
 				return pkg, annotateErr(err, reader)
 			}
-			o, _, err := do.Decode(bytes, nil, nil)
+			o, _, err := do.Decode(content, nil, nil)
 			if err != nil {
 				return pkg, annotateErr(err, reader)
 			}
@@ -133,17 +130,27 @@ func (p *PackageParser) Parse(_ context.Context, reader io.ReadCloser) (*Package
 	return pkg, nil
 }
 
-// isWhiteSpace determines whether the passed in bytes are all unicode white
-// space.
-func isWhiteSpace(bytes []byte) bool {
+// cleanYAML cleans up YAML by removing empty and commented out lines which
+// cause issues with decoding.
+func cleanYAML(y []byte) []byte {
+	lines := []string{}
 	empty := true
-	for _, b := range bytes {
-		if !unicode.IsSpace(rune(b)) {
-			empty = false
-			break
+	for _, line := range strings.Split(string(y), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
 		}
+		// We don't want to return an empty document with only separators that
+		// have nothing in-between.
+		if empty && trimmed != "---" && trimmed != "..." {
+			empty = false
+		}
+		lines = append(lines, line)
 	}
-	return empty
+	if empty {
+		return nil
+	}
+	return []byte(strings.Join(lines, "\n"))
 }
 
 // annotateErr annotates an error if the reader is an AnnotatedReadCloser.
