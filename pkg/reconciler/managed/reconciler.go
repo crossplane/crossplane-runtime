@@ -18,6 +18,7 @@ package managed
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -87,6 +88,30 @@ const (
 
 	reasonReconciliationPaused event.Reason = "ReconciliationPaused"
 )
+
+// RetryAfterError is returned by a reconciler when it is unable to complete
+// the actions, and the reconciler should retry after the specified duration.
+type RetryAfterError struct {
+	retryAfter time.Duration
+}
+
+// NewRetryAfterError creates a new ErrRetryAfter with the given retry-after duration.
+func NewRetryAfterError(retryAfter time.Duration) RetryAfterError {
+	return RetryAfterError{retryAfter: retryAfter}
+}
+
+// DefaultRetryAfter is the default retry-after duration for ErrRetryAfter.
+const DefaultRetryAfter = 30 * time.Second
+
+// Error implements the error interface.
+func (e RetryAfterError) Error() string {
+	return fmt.Sprintf("retry after %v", e.retryAfter)
+}
+
+// RetryAfter returns the duration after which the reconciler should retry.
+func (e RetryAfterError) RetryAfter() time.Duration {
+	return e.retryAfter
+}
 
 // ControllerName returns the recommended name for controllers that use this
 // package to reconcile a particular kind of managed resource.
@@ -318,15 +343,27 @@ type ExternalClient interface {
 	// external resource does not exist. Create implementations may update
 	// managed resource annotations, and those updates will be persisted.
 	// All other updates will be discarded.
+	//
+	// This can return RetryAfterError to indicate that the resource cannot
+	// be created at this time, and that the controller should retry after
+	// the given duration.
 	Create(ctx context.Context, mg resource.Managed) (ExternalCreation, error)
 
 	// Update the external resource represented by the supplied Managed
 	// resource, if necessary. Called unless Observe reports that the
 	// associated external resource is up to date.
+	//
+	// This can return RetryAfterError to indicate that the resource cannot
+	// be updated at this time, and that the controller should retry after
+	// the given duration.
 	Update(ctx context.Context, mg resource.Managed) (ExternalUpdate, error)
 
 	// Delete the external resource upon deletion of its associated Managed
 	// resource. Called when the managed resource has been deleted.
+	//
+	// This can return RetryAfterError to indicate that the resource cannot
+	// be deleted at this time, and that the controller should retry after
+	// the given duration.
 	Delete(ctx context.Context, mg resource.Managed) error
 }
 
@@ -481,6 +518,8 @@ type Reconciler struct {
 	creationGracePeriod time.Duration
 
 	features feature.Flags
+
+	driftRecorder driftRecorder
 
 	// The below structs embed the set of interfaces used to implement the
 	// managed resource reconciler. We do this primarily for readability, so
@@ -671,6 +710,7 @@ func NewReconciler(m manager.Manager, of resource.ManagedKind, o ...ReconcilerOp
 		creationGracePeriod:         defaultGracePeriod,
 		timeout:                     reconcileTimeout,
 		managed:                     defaultMRManaged(m),
+		driftRecorder:               driftRecorder{cluster: m},
 		external:                    defaultMRExternal(),
 		supportedManagementPolicies: defaultSupportedManagementPolicies(),
 		log:                         logging.NewNopLogger(),
@@ -679,6 +719,11 @@ func NewReconciler(m manager.Manager, of resource.ManagedKind, o ...ReconcilerOp
 
 	for _, ro := range o {
 		ro(r)
+	}
+
+	if err := m.Add(&r.driftRecorder); err != nil {
+		r.log.Info("unable to register drift recorder with controller manager", "error", err)
+		// no way to recover from this
 	}
 
 	return r
@@ -892,7 +937,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log = log.WithValues("deletion-timestamp", managed.GetDeletionTimestamp())
 
 		if observation.ResourceExists && policy.ShouldDelete() {
-			if err := external.Delete(externalCtx, managed); err != nil {
+			err := external.Delete(externalCtx, managed)
+			var retryAfterErr RetryAfterError
+			if errors.As(err, &retryAfterErr) {
+				log.Debug("External resource cannot be deleted now", "requeue-after", time.Now().Add(retryAfterErr.RetryAfter()))
+				return reconcile.Result{RequeueAfter: retryAfterErr.RetryAfter()}, nil
+			}
+			if err != nil {
 				// We'll hit this condition if we can't delete our external
 				// resource, for example if our provider credentials don't have
 				// access to delete it. If this is the first time we encounter
@@ -981,6 +1032,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		creation, err := external.Create(externalCtx, managed)
+		var retryAfterErr RetryAfterError
+		if errors.As(err, &retryAfterErr) {
+			log.Debug("External resource cannot be created now", "requeue-after", time.Now().Add(retryAfterErr.RetryAfter()))
+			return reconcile.Result{RequeueAfter: retryAfterErr.RetryAfter()}, nil
+		}
 		if err != nil {
 			// We'll hit this condition if we can't create our external
 			// resource, for example if our provider credentials don't have
@@ -1079,6 +1135,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// https://github.com/crossplane/crossplane/issues/289
 		log.Debug("External resource is up to date", "requeue-after", time.Now().Add(r.pollInterval))
 		managed.SetConditions(xpv1.ReconcileSuccess())
+
+		// record that we intentionally did not update the managed resource
+		// because no drift was detected. We call this so late in the reconcile
+		// because all the cases above could contribute (for different reasons)
+		// that the external object would not have been updated.
+		r.driftRecorder.recordUnchanged(managed.GetName())
+
 		return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
@@ -1094,6 +1157,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	update, err := external.Update(externalCtx, managed)
+	var retryAfterErr RetryAfterError
+	if errors.As(err, &retryAfterErr) {
+		log.Debug("External resource cannot be updated now", "requeue-after", time.Now().Add(retryAfterErr.RetryAfter()))
+		return reconcile.Result{RequeueAfter: retryAfterErr.RetryAfter()}, nil
+	}
 	if err != nil {
 		// We'll hit this condition if we can't update our external resource,
 		// for example if our provider credentials don't have access to update
@@ -1105,6 +1173,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, errReconcileUpdate)))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
+
+	// record the drift after the successful update.
+	r.driftRecorder.recordUpdate(managed.GetName())
 
 	if _, err := r.managed.PublishConnection(ctx, managed, update.ConnectionDetails); err != nil {
 		// If this is the first time we encounter this issue we'll be requeued
