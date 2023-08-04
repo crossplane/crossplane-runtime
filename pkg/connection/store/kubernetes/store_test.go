@@ -102,20 +102,37 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 			args: args{
 				client: resource.ClientApplicator{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+							if key.Name != fakeSecretName || key.Namespace != fakeSecretNamespace {
+								return errors.New("unexpected secret name or namespace to get the secret")
+							}
 							*obj.(*corev1.Secret) = corev1.Secret{
 								Data: fakeKV(),
 							}
 							return nil
-						}),
+						},
 					},
 				},
 				n: store.ScopedName{
-					Name: fakeSecretName,
+					Name:  fakeSecretName,
+					Scope: fakeSecretNamespace,
 				},
 			},
 			want: want{
 				result: store.KeyValues(fakeKV()),
+			},
+		},
+		"SecretNotFound": {
+			reason: "Should return nil as an error if secret is not found",
+			args: args{
+				client: resource.ClientApplicator{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					},
+				},
+			},
+			want: want{
+				err: nil,
 			},
 		},
 	}
@@ -126,6 +143,7 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 			}
 
 			s := &store.Secret{}
+			s.ScopedName = tc.args.n
 			err := ss.ReadKeyValues(context.Background(), tc.args.n, s)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nss.ReadKeyValues(...): -want error, +got error:\n%s", tc.reason, diff)
