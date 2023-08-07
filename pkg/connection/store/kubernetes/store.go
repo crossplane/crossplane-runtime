@@ -93,7 +93,7 @@ func buildClient(ctx context.Context, local client.Client, cfg v1.SecretStoreCon
 // ReadKeyValues reads and returns key value pairs for a given Kubernetes Secret.
 func (ss *SecretStore) ReadKeyValues(ctx context.Context, n store.ScopedName, s *store.Secret) error {
 	ks := &corev1.Secret{}
-	if err := ss.client.Get(ctx, types.NamespacedName{Name: n.Name, Namespace: ss.namespaceForSecret(n)}, ks); err != nil {
+	if err := ss.client.Get(ctx, types.NamespacedName{Name: n.Name, Namespace: ss.namespaceForSecret(n)}, ks); resource.IgnoreNotFound(err) != nil {
 		return errors.Wrap(err, errGetSecret)
 	}
 	s.Data = ks.Data
