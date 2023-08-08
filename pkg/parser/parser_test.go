@@ -58,6 +58,17 @@ kind: Deployment
 metadata:
   name: test`)
 
+	commentedOutBytes = []byte(`# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: test`)
+	manifestWithComments = []byte(`
+apiVersion: apiextensions.k8s.io/v1beta1
+# Some Comment
+kind: CustomResourceDefinition
+metadata:
+  name: test`)
+
 	crd    = &apiextensions.CustomResourceDefinition{}
 	_      = yaml.Unmarshal(crdBytes, crd)
 	deploy = &appsv1.Deployment{}
@@ -79,6 +90,9 @@ func TestParser(t *testing.T) {
 	emptyFs := afero.NewMemMapFs()
 	_ = afero.WriteFile(emptyFs, "empty.yaml", []byte(""), 0o644)
 	_ = afero.WriteFile(emptyFs, "bad.yam", []byte("definitely not yaml"), 0o644)
+	commentedFs := afero.NewMemMapFs()
+	_ = afero.WriteFile(commentedFs, "commented.yaml", commentedOutBytes, 0o644)
+	_ = afero.WriteFile(commentedFs, ".crossplane/realmanifest.yaml", manifestWithComments, 0o644)
 	objScheme := runtime.NewScheme()
 	_ = apiextensions.AddToScheme(objScheme)
 	metaScheme := runtime.NewScheme()
@@ -126,6 +140,24 @@ func TestParser(t *testing.T) {
 			pkg: &Package{
 				meta:    []runtime.Object{deploy},
 				objects: []runtime.Object{crd, crd, crd, crd},
+			},
+		},
+		"FsBackendCommentedOut": {
+			reason:  "should parse filesystem successfully even if all the files are commented out",
+			parser:  New(metaScheme, objScheme),
+			backend: NewFsBackend(commentedFs, FsDir("."), FsFilters(SkipDirs(), SkipNotYAML(), SkipPath(".crossplane/*"))),
+			pkg: &Package{
+				meta:    nil,
+				objects: nil,
+			},
+		},
+		"FsBackendWithComments": {
+			reason:  "should parse filesystem successfully when some of the manifests contain comments",
+			parser:  New(metaScheme, objScheme),
+			backend: NewFsBackend(commentedFs, FsDir("."), FsFilters(SkipDirs(), SkipNotYAML())),
+			pkg: &Package{
+				meta:    nil,
+				objects: []runtime.Object{crd},
 			},
 		},
 		"FsBackendAll": {
