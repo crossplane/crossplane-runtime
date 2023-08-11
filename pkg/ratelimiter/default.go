@@ -26,14 +26,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/ratelimiter"
 )
 
-const (
-	// DefaultProviderRPS is the recommended default average requeues per
-	// second tolerated by a Crossplane provider.
-	//
-	// Deprecated: Use a flag
-	DefaultProviderRPS = 1
-)
-
 // NewGlobal returns a token bucket rate limiter meant for limiting the number
 // of average total requeues per second for all controllers registered with a
 // controller manager. The bucket size (i.e. allowed burst) is rps * 10.
@@ -46,28 +38,6 @@ func NewGlobal(rps int) *workqueue.BucketRateLimiter {
 // exponential backoff limiter has a base delay of 1s and a maximum of 60s.
 func NewController() ratelimiter.RateLimiter {
 	return workqueue.NewItemExponentialFailureRateLimiter(1*time.Second, 60*time.Second)
-}
-
-// NewDefaultProviderRateLimiter returns a token bucket rate limiter meant for
-// limiting the number of average total requeues per second for all controllers
-// registered with a controller manager. The bucket size is a linear function of
-// the requeues per second.
-//
-// Deprecated: Use NewGlobal.
-func NewDefaultProviderRateLimiter(rps int) *workqueue.BucketRateLimiter {
-	return NewGlobal(rps)
-}
-
-// NewDefaultManagedRateLimiter returns a rate limiter that takes the maximum
-// delay between the passed provider and a per-item exponential backoff limiter.
-// The exponential backoff limiter has a base delay of 1s and a maximum of 60s.
-//
-// Deprecated: Use NewController.
-func NewDefaultManagedRateLimiter(provider ratelimiter.RateLimiter) ratelimiter.RateLimiter {
-	return workqueue.NewMaxOfRateLimiter(
-		workqueue.NewItemExponentialFailureRateLimiter(1*time.Second, 60*time.Second),
-		provider,
-	)
 }
 
 // LimitRESTConfig returns a copy of the supplied REST config with rate limits

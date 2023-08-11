@@ -27,7 +27,6 @@ import (
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -58,26 +57,6 @@ func (a *NameAsExternalName) Initialize(ctx context.Context, mg resource.Managed
 		return nil
 	}
 	meta.SetExternalName(mg, mg.GetName())
-	return errors.Wrap(a.client.Update(ctx, mg), errUpdateManaged)
-}
-
-// DefaultProviderConfig fills the ProviderConfigRef with `default` if it's left
-// empty.
-// Deprecated: Use OpenAPI schema defaulting instead.
-type DefaultProviderConfig struct{ client client.Client }
-
-// NewDefaultProviderConfig returns a new DefaultProviderConfig.
-// Deprecated: Use OpenAPI schema defaulting instead.
-func NewDefaultProviderConfig(c client.Client) *DefaultProviderConfig {
-	return &DefaultProviderConfig{client: c}
-}
-
-// Initialize the given managed resource.
-func (a *DefaultProviderConfig) Initialize(ctx context.Context, mg resource.Managed) error {
-	if mg.GetProviderConfigReference() != nil {
-		return nil
-	}
-	mg.SetProviderConfigReference(&xpv1.Reference{Name: "default"})
 	return errors.Wrap(a.client.Update(ctx, mg), errUpdateManaged)
 }
 

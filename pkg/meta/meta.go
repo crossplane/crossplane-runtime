@@ -18,9 +18,6 @@ limitations under the License.
 package meta
 
 import (
-	"fmt"
-	"hash/fnv"
-	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -64,17 +61,6 @@ const (
 	// the resource will be filtered and thus no further reconcile requests
 	// will be queued for the resource.
 	AnnotationKeyReconciliationPaused = "crossplane.io/paused"
-)
-
-// Supported resources with all of these annotations will be fully or partially
-// propagated to the named resource of the same kind, assuming it exists and
-// consents to propagation.
-const (
-	AnnotationKeyPropagateToPrefix = "to.propagate.crossplane.io/"
-
-	// Deprecated: This functionality will be removed soon.
-	AnnotationKeyPropagateFromNamespace = "from.propagate.crossplane.io/namespace"
-	AnnotationKeyPropagateFromName      = "from.propagate.crossplane.io/name"
 )
 
 // ReferenceTo returns an object reference to the supplied object, presumed to
@@ -359,66 +345,6 @@ func ExternalCreateSucceededDuring(o metav1.Object, d time.Duration) bool {
 		return false
 	}
 	return time.Since(t) < d
-}
-
-// AllowPropagation from one object to another by adding consenting annotations
-// to both.
-// Deprecated: This functionality will be removed soon.
-func AllowPropagation(from, to metav1.Object) {
-	AddAnnotations(to, map[string]string{
-		AnnotationKeyPropagateFromNamespace: from.GetNamespace(),
-		AnnotationKeyPropagateFromName:      from.GetName(),
-	})
-
-	AddAnnotations(from, map[string]string{
-		AnnotationKeyPropagateTo(to): to.GetNamespace() + "/" + to.GetName(),
-	})
-}
-
-// AnnotationKeyPropagateTo returns an annotation key whose presence indicates
-// that the annotated object consents to propagation from the supplied object.
-// The annotation name (which follows the prefix) can be anything that doesn't
-// collide with another annotation. to.propagation.crossplane.io/example would
-// be valid. This function uses a hash of the supplied object's namespace and
-// name in order to avoid collisions and keep the suffix relatively short.
-func AnnotationKeyPropagateTo(o metav1.Object) string {
-	// Writing to a hash never returns an error.
-	h := fnv.New32a()
-	h.Write([]byte(o.GetNamespace()))
-	h.Write([]byte(o.GetName()))
-	return fmt.Sprintf("%s%x", AnnotationKeyPropagateToPrefix, h.Sum32())
-}
-
-// AllowsPropagationFrom returns the NamespacedName of the object the supplied
-// object should be propagated from.
-func AllowsPropagationFrom(to metav1.Object) types.NamespacedName {
-	return types.NamespacedName{
-		Namespace: to.GetAnnotations()[AnnotationKeyPropagateFromNamespace],
-		Name:      to.GetAnnotations()[AnnotationKeyPropagateFromName],
-	}
-}
-
-// AllowsPropagationTo returns the set of NamespacedNames that the supplied
-// object may be propagated to.
-func AllowsPropagationTo(from metav1.Object) map[types.NamespacedName]bool {
-	to := make(map[types.NamespacedName]bool)
-
-	for k, v := range from.GetAnnotations() {
-		nn := strings.Split(v, "/")
-		switch {
-		case !strings.HasPrefix(k, AnnotationKeyPropagateToPrefix):
-			continue
-		case len(nn) != 2:
-			continue
-		case nn[0] == "":
-			continue
-		case nn[1] == "":
-			continue
-		}
-		to[types.NamespacedName{Namespace: nn[0], Name: nn[1]}] = true
-	}
-
-	return to
 }
 
 // IsPaused returns true if the object has the AnnotationKeyReconciliationPaused
