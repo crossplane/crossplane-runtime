@@ -440,16 +440,6 @@ type ExternalObservation struct {
 
 // An ExternalCreation is the result of the creation of an external resource.
 type ExternalCreation struct {
-	// ExternalNameAssigned should be true if the Create operation resulted
-	// in a change in the resource's external name. This is typically only
-	// needed for external resource's with unpredictable external names that
-	// are returned from the API at create time.
-	//
-	// Deprecated: The managed.Reconciler no longer needs to be informed
-	// when an external name is assigned by the Create operation. It will
-	// automatically detect and handle external name assignment.
-	ExternalNameAssigned bool
-
 	// ConnectionDetails required to connect to this resource. These details
 	// are a set that is collated throughout the managed resource's lifecycle -
 	// i.e. returning new connection details will have no affect on old details
