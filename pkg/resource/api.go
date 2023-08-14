@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 
-	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -33,78 +32,8 @@ import (
 
 // Error strings.
 const (
-	errGetSecret            = "cannot get managed resource's connection secret"
-	errSecretConflict       = "cannot establish control of existing connection secret"
-	errUpdateSecret         = "cannot update connection secret"
-	errCreateOrUpdateSecret = "cannot create or update connection secret"
-
 	errUpdateObject = "cannot update object"
 )
-
-// An APIManagedConnectionPropagator propagates connection details by reading
-// them from and writing them to a Kubernetes API server.
-// Deprecated: This functionality will be removed soon.
-type APIManagedConnectionPropagator struct {
-	Propagator ConnectionPropagator
-}
-
-// PropagateConnection details from the supplied resource.
-func (a *APIManagedConnectionPropagator) PropagateConnection(ctx context.Context, to LocalConnectionSecretOwner, mg Managed) error {
-	return a.Propagator.PropagateConnection(ctx, to, mg)
-}
-
-// An APIConnectionPropagator propagates connection details by reading
-// them from and writing them to a Kubernetes API server.
-// Deprecated: This functionality will be removed soon.
-type APIConnectionPropagator struct {
-	client ClientApplicator
-	typer  runtime.ObjectTyper
-}
-
-// NewAPIConnectionPropagator returns a new APIConnectionPropagator.
-// Deprecated: This functionality will be removed soon.
-func NewAPIConnectionPropagator(c client.Client, t runtime.ObjectTyper) *APIConnectionPropagator {
-	return &APIConnectionPropagator{
-		client: ClientApplicator{Client: c, Applicator: NewAPIUpdatingApplicator(c)},
-		typer:  t,
-	}
-}
-
-// PropagateConnection details from the supplied resource.
-func (a *APIConnectionPropagator) PropagateConnection(ctx context.Context, to LocalConnectionSecretOwner, from ConnectionSecretOwner) error {
-	// Either from does not expose a connection secret, or to does not want one.
-	if from.GetWriteConnectionSecretToReference() == nil || to.GetWriteConnectionSecretToReference() == nil {
-		return nil
-	}
-
-	n := types.NamespacedName{
-		Namespace: from.GetWriteConnectionSecretToReference().Namespace,
-		Name:      from.GetWriteConnectionSecretToReference().Name,
-	}
-	fs := &corev1.Secret{}
-	if err := a.client.Get(ctx, n, fs); err != nil {
-		return errors.Wrap(err, errGetSecret)
-	}
-
-	// Make sure the managed resource is the controller of the connection secret
-	// it references before we propagate it. This ensures a managed resource
-	// cannot use Crossplane to circumvent RBAC by propagating a secret it does
-	// not own.
-	if c := metav1.GetControllerOf(fs); c == nil || c.UID != from.GetUID() {
-		return errors.New(errSecretConflict)
-	}
-
-	ts := LocalConnectionSecretFor(to, MustGetKind(to, a.typer))
-	ts.Data = fs.Data
-
-	meta.AllowPropagation(fs, ts)
-
-	if err := a.client.Apply(ctx, ts, ConnectionSecretMustBeControllableBy(to.GetUID())); err != nil {
-		return errors.Wrap(err, errCreateOrUpdateSecret)
-	}
-
-	return errors.Wrap(a.client.Update(ctx, fs), errUpdateSecret)
-}
 
 // An APIPatchingApplicator applies changes to an object by either creating or
 // patching it in a Kubernetes API server.
