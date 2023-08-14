@@ -81,35 +81,6 @@ type LocalConnectionSecretOwner interface {
 	ConnectionDetailsPublisherTo
 }
 
-// A ConnectionPropagator is responsible for propagating information required to
-// connect to a resource.
-// Deprecated: This functionality will be removed soon.
-type ConnectionPropagator interface {
-	PropagateConnection(ctx context.Context, to LocalConnectionSecretOwner, from ConnectionSecretOwner) error
-}
-
-// A ConnectionPropagatorFn is a function that satisfies the
-// ConnectionPropagator interface.
-type ConnectionPropagatorFn func(ctx context.Context, to LocalConnectionSecretOwner, from ConnectionSecretOwner) error
-
-// A ManagedConnectionPropagator is responsible for propagating information
-// required to connect to a managed resource (for example the connection secret)
-// from the managed resource to a target.
-// Deprecated: This functionality will be removed soon.
-type ManagedConnectionPropagator interface {
-	PropagateConnection(ctx context.Context, o LocalConnectionSecretOwner, mg Managed) error
-}
-
-// A ManagedConnectionPropagatorFn is a function that satisfies the
-// ManagedConnectionPropagator interface.
-type ManagedConnectionPropagatorFn func(ctx context.Context, o LocalConnectionSecretOwner, mg Managed) error
-
-// PropagateConnection information from the supplied managed resource to the
-// supplied resource claim.
-func (fn ManagedConnectionPropagatorFn) PropagateConnection(ctx context.Context, o LocalConnectionSecretOwner, mg Managed) error {
-	return fn(ctx, o, mg)
-}
-
 // LocalConnectionSecretFor creates a connection secret in the namespace of the
 // supplied LocalConnectionSecretOwner, assumed to be of the supplied kind.
 func LocalConnectionSecretFor(o LocalConnectionSecretOwner, kind schema.GroupVersionKind) *corev1.Secret {
@@ -388,14 +359,6 @@ func AllowUpdateIf(fn func(current, desired runtime.Object) bool) ApplyOption {
 		}
 		return errNotAllowed{errors.New("update not allowed")}
 	}
-}
-
-// Apply changes to the supplied object. The object will be created if it does
-// not exist, or patched if it does.
-//
-// Deprecated: use APIPatchingApplicator instead.
-func Apply(ctx context.Context, c client.Client, o client.Object, ao ...ApplyOption) error {
-	return NewAPIPatchingApplicator(c).Apply(ctx, o, ao...)
 }
 
 // GetExternalTags returns the identifying tags to be used to tag the external
