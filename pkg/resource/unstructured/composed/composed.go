@@ -20,6 +20,7 @@ package composed
 import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/types"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
@@ -111,4 +112,56 @@ func (cr *Unstructured) GetPublishConnectionDetailsTo() *xpv1.PublishConnectionD
 // SetPublishConnectionDetailsTo of this Composed resource.
 func (cr *Unstructured) SetPublishConnectionDetailsTo(ref *xpv1.PublishConnectionDetailsTo) {
 	_ = fieldpath.Pave(cr.Object).SetValue("spec.publishConnectionDetailsTo", ref)
+}
+
+// OwnedBy returns true if the supplied UID is an owner of the composed
+func (cr *Unstructured) OwnedBy(u types.UID) bool {
+	for _, owner := range cr.GetOwnerReferences() {
+		if owner.UID == u {
+			return true
+		}
+	}
+	return false
+}
+
+// RemoveOwnerRef removes the supplied UID from the composed resource's owner
+func (cr *Unstructured) RemoveOwnerRef(u types.UID) {
+	refs := cr.GetOwnerReferences()
+	for i := range refs {
+		if refs[i].UID == u {
+			cr.SetOwnerReferences(append(refs[:i], refs[i+1:]...))
+			return
+		}
+	}
+}
+
+// An ListOption modifies an unstructured list of composed resource.
+type ListOption func(*UnstructuredList)
+
+// FromReferenceToList returns a ListOption that propagates the metadata in the
+// supplied reference to an unstructured list composed resource.
+func FromReferenceToList(ref corev1.ObjectReference) ListOption {
+	return func(list *UnstructuredList) {
+		list.SetAPIVersion(ref.APIVersion)
+		list.SetKind(ref.Kind + "List")
+	}
+}
+
+// NewList returns a new unstructured list of composed resources.
+func NewList(opts ...ListOption) *UnstructuredList {
+	cr := &UnstructuredList{unstructured.UnstructuredList{Object: make(map[string]any)}}
+	for _, f := range opts {
+		f(cr)
+	}
+	return cr
+}
+
+// An UnstructuredList of composed resources.
+type UnstructuredList struct {
+	unstructured.UnstructuredList
+}
+
+// GetUnstructuredList returns the underlying *unstructured.Unstructured.
+func (cr *UnstructuredList) GetUnstructuredList() *unstructured.UnstructuredList {
+	return &cr.UnstructuredList
 }
