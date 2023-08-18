@@ -18,6 +18,7 @@ package managed
 
 import (
 	"context"
+	"math/rand"
 	"strings"
 	"time"
 
@@ -45,7 +46,8 @@ const (
 	reconcileGracePeriod = 30 * time.Second
 	reconcileTimeout     = 1 * time.Minute
 
-	defaultpollInterval = 1 * time.Minute
+	defaultPollInterval = 1 * time.Minute
+	defaultPollJitter   = 0 * time.Second
 	defaultGracePeriod  = 30 * time.Second
 )
 
@@ -468,6 +470,7 @@ type Reconciler struct {
 	newManaged func() resource.Managed
 
 	pollInterval        time.Duration
+	pollJitter          time.Duration
 	timeout             time.Duration
 	creationGracePeriod time.Duration
 
@@ -538,6 +541,17 @@ func WithTimeout(duration time.Duration) ReconcilerOption {
 func WithPollInterval(after time.Duration) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.pollInterval = after
+	}
+}
+
+// WithPollJitter specifies how much random jitter is added to the poll interval
+// used when queuing a new reconciliation after a successful reconcile. See also
+// WithPollInterval. If the jitter is configured to be a non-zero J, the actual
+// interval between polls will be the configured poll interval plus a random
+// duration between -J and +J.
+func WithPollJitter(jitter time.Duration) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.pollJitter = jitter
 	}
 }
 
@@ -658,7 +672,7 @@ func NewReconciler(m manager.Manager, of resource.ManagedKind, o ...ReconcilerOp
 	r := &Reconciler{
 		client:                      m.GetClient(),
 		newManaged:                  nm,
-		pollInterval:                defaultpollInterval,
+		pollInterval:                defaultPollInterval,
 		creationGracePeriod:         defaultGracePeriod,
 		timeout:                     reconcileTimeout,
 		managed:                     defaultMRManaged(m),
@@ -1073,6 +1087,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		}
 	}
 
+	reconcileAfter := r.pollInterval + time.Duration((rand.Float64()-0.5)*2*float64(r.pollJitter)) //#nosec G404 -- no need for secure randomness
+
 	if observation.ResourceUpToDate {
 		// We did not need to create, update, or delete our external resource.
 		// Per the below issue nothing will notify us if and when the external
@@ -1080,9 +1096,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		// after the specified poll interval in order to observe it and react
 		// accordingly.
 		// https://github.com/crossplane/crossplane/issues/289
-		log.Debug("External resource is up to date", "requeue-after", time.Now().Add(r.pollInterval))
+		log.Debug("External resource is up to date", "requeue-after", time.Now().Add(reconcileAfter))
 		managed.SetConditions(xpv1.ReconcileSuccess())
-		return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		return reconcile.Result{RequeueAfter: reconcileAfter}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
 	if observation.Diff != "" {
@@ -1091,9 +1107,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 
 	// skip the update if the management policy is set to ignore updates
 	if !policy.ShouldUpdate() {
-		log.Debug("Skipping update due to managementPolicies. Reconciliation succeeded", "requeue-after", time.Now().Add(r.pollInterval))
+		log.Debug("Skipping update due to managementPolicies. Reconciliation succeeded", "requeue-after", time.Now().Add(reconcileAfter))
 		managed.SetConditions(xpv1.ReconcileSuccess())
-		return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		return reconcile.Result{RequeueAfter: reconcileAfter}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
 	update, err := external.Update(externalCtx, managed)
@@ -1124,8 +1140,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 	// changes, so we requeue a speculative reconcile after the specified poll
 	// interval in order to observe it and react accordingly.
 	// https://github.com/crossplane/crossplane/issues/289
-	log.Debug("Successfully requested update of external resource", "requeue-after", time.Now().Add(r.pollInterval))
+	log.Debug("Successfully requested update of external resource", "requeue-after", time.Now().Add(reconcileAfter))
 	record.Event(managed, event.Normal(reasonUpdated, "Successfully requested update of external resource"))
 	managed.SetConditions(xpv1.ReconcileSuccess())
-	return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+	return reconcile.Result{RequeueAfter: reconcileAfter}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 }
