@@ -33,6 +33,8 @@ import (
 // This differs from cmpopts.EquateErrors, which does not test for error strings
 // and instead returns whether one error 'is' (in the errors.Is sense) the
 // other.
+//
+// Deprecated: Use cmpopts.EquateErrors instead.
 func EquateErrors() cmp.Option {
 	return cmp.Comparer(func(a, b error) bool {
 		if a == nil || b == nil {
