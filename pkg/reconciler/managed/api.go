@@ -32,15 +32,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
-// Error strings.
-const (
-	errCreateOrUpdateSecret      = "cannot create or update connection secret"
-	errUpdateManaged             = "cannot update managed resource"
-	errUpdateManagedStatus       = "cannot update managed resource status"
-	errResolveReferences         = "cannot resolve references"
-	errUpdateCriticalAnnotations = "cannot update critical annotations"
-)
-
 // NameAsExternalName writes the name of the managed resource to
 // the external name annotation field in order to be used as name of
 // the external resource in provider.
@@ -57,7 +48,7 @@ func (a *NameAsExternalName) Initialize(ctx context.Context, mg resource.Managed
 		return nil
 	}
 	meta.SetExternalName(mg, mg.GetName())
-	return errors.Wrap(a.client.Update(ctx, mg), errUpdateManaged)
+	return errors.Wrap(a.client.Update(ctx, mg), "cannot update managed resource")
 }
 
 // An APISecretPublisher publishes ConnectionDetails by submitting a Secret to a
@@ -102,7 +93,7 @@ func (a *APISecretPublisher) PublishConnection(ctx context.Context, o resource.C
 		return false, nil
 	}
 	if err != nil {
-		return false, errors.Wrap(err, errCreateOrUpdateSecret)
+		return false, errors.Wrap(err, "cannot create or update connection secret")
 	}
 
 	return true, nil
@@ -142,7 +133,7 @@ func (a *APISimpleReferenceResolver) ResolveReferences(ctx context.Context, mg r
 
 	existing := mg.DeepCopyObject()
 	if err := rr.ResolveReferences(ctx, a.client); err != nil {
-		return errors.Wrap(err, errResolveReferences)
+		return errors.Wrap(err, "cannot resolve references")
 	}
 
 	if cmp.Equal(existing, mg) {
@@ -150,7 +141,7 @@ func (a *APISimpleReferenceResolver) ResolveReferences(ctx context.Context, mg r
 		return nil
 	}
 
-	return errors.Wrap(a.client.Update(ctx, mg), errUpdateManaged)
+	return errors.Wrap(a.client.Update(ctx, mg), "cannot update managed resource")
 }
 
 // A RetryingCriticalAnnotationUpdater is a CriticalAnnotationUpdater that
@@ -180,5 +171,5 @@ func (u *RetryingCriticalAnnotationUpdater) UpdateCriticalAnnotations(ctx contex
 		meta.AddAnnotations(o, a)
 		return u.client.Update(ctx, o)
 	})
-	return errors.Wrap(err, errUpdateCriticalAnnotations)
+	return errors.Wrap(err, "cannot update critical annotations")
 }

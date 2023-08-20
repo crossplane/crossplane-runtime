@@ -21,10 +21,9 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
-
-	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
 // Mutator has to satisfy CustomDefaulter interface so that it can be used by
@@ -72,7 +71,7 @@ func TestDefault(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			v := NewMutator(WithMutationFns(tc.fns...))
 			err := v.Default(context.TODO(), tc.args.obj)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nDefault(...): -want, +got\n%s\n", tc.reason, diff)
 			}
 		})

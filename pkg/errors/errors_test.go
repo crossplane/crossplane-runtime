@@ -20,11 +20,12 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-
-	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestWrap(t *testing.T) {
+	errBoom := New("boom")
+
 	type args struct {
 		err     error
 		message string
@@ -42,17 +43,17 @@ func TestWrap(t *testing.T) {
 		},
 		"NonNilError": {
 			args: args{
-				err:     New("boom"),
+				err:     errBoom,
 				message: "very useful context",
 			},
-			want: Errorf("very useful context: %w", New("boom")),
+			want: errBoom,
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			got := Wrap(tc.args.err, tc.args.message)
-			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want, got, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("Wrap(...): -want, +got:\n%s", diff)
 			}
 		})
@@ -60,6 +61,8 @@ func TestWrap(t *testing.T) {
 }
 
 func TestWrapf(t *testing.T) {
+	errBoom := New("boom")
+
 	type args struct {
 		err     error
 		message string
@@ -78,18 +81,18 @@ func TestWrapf(t *testing.T) {
 		},
 		"NonNilError": {
 			args: args{
-				err:     New("boom"),
+				err:     errBoom,
 				message: "very useful context about %s",
 				args:    []any{"ducks"},
 			},
-			want: Errorf("very useful context about %s: %w", "ducks", New("boom")),
+			want: errBoom,
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			got := Wrapf(tc.args.err, tc.args.message, tc.args.args...)
-			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want, got, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("Wrapf(...): -want, +got:\n%s", diff)
 			}
 		})
@@ -97,6 +100,8 @@ func TestWrapf(t *testing.T) {
 }
 
 func TestCause(t *testing.T) {
+	errBoom := New("boom")
+
 	cases := map[string]struct {
 		err  error
 		want error
@@ -106,19 +111,19 @@ func TestCause(t *testing.T) {
 			want: nil,
 		},
 		"BareError": {
-			err:  New("boom"),
-			want: New("boom"),
+			err:  errBoom,
+			want: errBoom,
 		},
 		"WrappedError": {
-			err:  Wrap(Wrap(New("boom"), "interstitial context"), "very important context"),
-			want: New("boom"),
+			err:  Wrap(Wrap(errBoom, "interstitial context"), "very important context"),
+			want: errBoom,
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			got := Cause(tc.err)
-			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want, got, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("Cause(...): -want, +got:\n%s", diff)
 			}
 		})

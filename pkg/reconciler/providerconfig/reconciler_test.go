@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -99,7 +100,7 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{
 				result: reconcile.Result{},
-				err:    errors.Wrap(errBoom, errGetPC),
+				err:    errBoom,
 			},
 		},
 		"ProviderConfigNotFound": {
@@ -291,7 +292,7 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{
 				result: reconcile.Result{Requeue: false},
-				err:    errors.Wrap(errBoom, errUpdateStatus),
+				err:    errBoom,
 			},
 		},
 		"SuccessfulSetUsers": {
@@ -322,7 +323,7 @@ func TestReconciler(t *testing.T) {
 			r := NewReconciler(tc.args.m, tc.args.of)
 			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 

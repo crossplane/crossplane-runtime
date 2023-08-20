@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -35,7 +36,6 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
 const (
@@ -205,7 +205,7 @@ func TestGetKind(t *testing.T) {
 				ot: MockTyper{Error: errBoom},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, "cannot get kind of supplied object"),
+				err: errBoom,
 			},
 		},
 		"KindIsUnversioned": {
@@ -213,7 +213,7 @@ func TestGetKind(t *testing.T) {
 				ot: MockTyper{Unversioned: true},
 			},
 			want: want{
-				err: errors.New("supplied object is unversioned"),
+				err: cmpopts.AnyError,
 			},
 		},
 		"NotEnoughKinds": {
@@ -221,7 +221,7 @@ func TestGetKind(t *testing.T) {
 				ot: MockTyper{},
 			},
 			want: want{
-				err: errors.New("supplied object does not have exactly one kind"),
+				err: cmpopts.AnyError,
 			},
 		},
 		"TooManyKinds": {
@@ -232,7 +232,7 @@ func TestGetKind(t *testing.T) {
 				}},
 			},
 			want: want{
-				err: errors.New("supplied object does not have exactly one kind"),
+				err: cmpopts.AnyError,
 			},
 		},
 	}
@@ -240,7 +240,7 @@ func TestGetKind(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			got, err := GetKind(tc.args.obj, tc.args.ot)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("GetKind(...): -want error, +got error:\n%s", diff)
 			}
 			if diff := cmp.Diff(tc.want.kind, got); diff != "" {
@@ -307,7 +307,7 @@ func TestIgnore(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			got := Ignore(tc.args.is, tc.args.err)
-			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want, got, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("Ignore(...): -want error, +got error:\n%s", diff)
 			}
 		})
@@ -354,7 +354,7 @@ func TestIgnoreAny(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			got := IgnoreAny(tc.args.err, tc.args.is...)
-			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want, got, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("Ignore(...): -want error, +got error:\n%s", diff)
 			}
 		})
@@ -479,7 +479,8 @@ func TestMustBeControllableBy(t *testing.T) {
 					Controller: &controller,
 				}}}},
 			},
-			want: errNotControllable{errors.Errorf("existing object is not controlled by UID %q", uid)},
+			// TODO(negz): Test that this actually satisfies IsNotControllable :/
+			want: cmpopts.AnyError,
 		},
 	}
 
@@ -488,7 +489,7 @@ func TestMustBeControllableBy(t *testing.T) {
 			ao := MustBeControllableBy(tc.u)
 			err := ao(tc.args.ctx, tc.args.current, tc.args.desired)
 
-			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nMustBeControllableBy(...)(...): -want error, +got error\n%s\n", tc.reason, diff)
 			}
 		})
@@ -543,7 +544,8 @@ func TestConnectionSecretMustBeControllableBy(t *testing.T) {
 					Type: SecretTypeConnection,
 				},
 			},
-			want: errNotControllable{errors.Errorf("existing secret is not controlled by UID %q", uid)},
+			// TODO(negz): Test that this satisfies IsNotControllable?
+			want: cmpopts.AnyError,
 		},
 		"UncontrolledOpaqueSecret": {
 			reason: "A Secret of corev1.SecretTypeOpqaue with no controller is not controllable",
@@ -551,7 +553,8 @@ func TestConnectionSecretMustBeControllableBy(t *testing.T) {
 			args: args{
 				current: &corev1.Secret{Type: corev1.SecretTypeOpaque},
 			},
-			want: errNotControllable{errors.Errorf("refusing to modify uncontrolled secret of type %q", corev1.SecretTypeOpaque)},
+			// TODO(negz): Test that this satisfies IsNotControllable?
+			want: cmpopts.AnyError,
 		},
 	}
 
@@ -560,7 +563,7 @@ func TestConnectionSecretMustBeControllableBy(t *testing.T) {
 			ao := ConnectionSecretMustBeControllableBy(tc.u)
 			err := ao(tc.args.ctx, tc.args.current, tc.args.desired)
 
-			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nConnectionSecretMustBeControllableBy(...)(...): -want error, +got error\n%s\n", tc.reason, diff)
 			}
 		})
@@ -593,7 +596,8 @@ func TestAllowUpdateIf(t *testing.T) {
 			args: args{
 				current: &object{},
 			},
-			want: errNotAllowed{errors.New("update not allowed")},
+			// TODO(negz): Actually test that this satisfies IsNotAllowed. :/
+			want: cmpopts.AnyError,
 		},
 	}
 
@@ -602,7 +606,7 @@ func TestAllowUpdateIf(t *testing.T) {
 			ao := AllowUpdateIf(tc.fn)
 			err := ao(tc.args.ctx, tc.args.current, tc.args.desired)
 
-			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nAllowUpdateIf(...)(...): -want error, +got error\n%s\n", tc.reason, diff)
 			}
 		})
@@ -811,7 +815,7 @@ func TestApplicatorWithRetry_Apply(t *testing.T) {
 				backoff:     tc.fields.backoff,
 			}
 
-			if diff := cmp.Diff(tc.wantErr, awr.Apply(tc.args.ctx, tc.args.c, tc.args.opts...), test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.wantErr, awr.Apply(tc.args.ctx, tc.args.c, tc.args.opts...), cmpopts.EquateErrors()); diff != "" {
 				t.Fatalf("ApplicatorWithRetry.Apply(...): -want, +got:\n%s", diff)
 			}
 

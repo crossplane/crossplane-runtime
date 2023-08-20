@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -32,7 +33,6 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
 type MockCache struct {
@@ -87,7 +87,7 @@ func TestEngine(t *testing.T) {
 				name: "coolcontroller",
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errCreateCache),
+				err: errBoom,
 			},
 		},
 		"NewControllerError": {
@@ -100,7 +100,7 @@ func TestEngine(t *testing.T) {
 				name: "coolcontroller",
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errCreateController),
+				err: errBoom,
 			},
 		},
 		"WatchError": {
@@ -117,7 +117,7 @@ func TestEngine(t *testing.T) {
 				w:    []Watch{For(&fake.Managed{}, nil)},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errWatch),
+				err: errBoom,
 			},
 		},
 		"CacheCrashError": {
@@ -138,7 +138,7 @@ func TestEngine(t *testing.T) {
 				name: "coolcontroller",
 			},
 			want: want{
-				crash: errors.Wrap(errBoom, errCrashCache),
+				crash: errBoom,
 			},
 		},
 		"ControllerCrashError": {
@@ -161,7 +161,7 @@ func TestEngine(t *testing.T) {
 				name: "coolcontroller",
 			},
 			want: want{
-				crash: errors.Wrap(errBoom, errCrashController),
+				crash: errBoom,
 			},
 		},
 	}
@@ -169,7 +169,7 @@ func TestEngine(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := tc.e.Start(tc.args.name, tc.args.o, tc.args.w...)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ne.Start(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
@@ -178,7 +178,7 @@ func TestEngine(t *testing.T) {
 			time.Sleep(100 * time.Millisecond)
 
 			tc.e.Stop(tc.args.name)
-			if diff := cmp.Diff(tc.want.crash, tc.e.Err(tc.args.name), test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.crash, tc.e.Err(tc.args.name), cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ne.Err(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})

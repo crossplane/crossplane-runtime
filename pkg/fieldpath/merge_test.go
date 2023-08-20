@@ -26,7 +26,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/json"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
 func TestMergeValue(t *testing.T) {
@@ -200,7 +199,7 @@ func TestMergeValue(t *testing.T) {
 				object: tc.fields.object,
 			}
 			err := p.MergeValue(tc.args.path, tc.args.value, tc.args.mo)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, EquateErrorStrings()); diff != "" {
 				t.Fatalf("\np.MergeValue(%s, %v): %s: -want error, +got error:\n%s",
 					tc.args.path, tc.args.value, tc.reason, diff)
 			}

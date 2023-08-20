@@ -33,18 +33,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
-// Error strings.
-const (
-	errConnectStore    = "cannot connect to secret store"
-	errWriteStore      = "cannot write to secret store"
-	errReadStore       = "cannot read from secret store"
-	errDeleteFromStore = "cannot delete from secret store"
-	errGetStoreConfig  = "cannot get store config"
-	errSecretConflict  = "cannot establish control of existing connection secret"
-
-	errFmtNotOwnedBy = "existing secret is not owned by UID %q"
-)
-
 // StoreBuilderFn is a function that builds and returns a Store with a given
 // store config.
 type StoreBuilderFn func(ctx context.Context, local client.Client, tcfg *tls.Config, cfg v1.SecretStoreConfig) (Store, error)
@@ -110,11 +98,11 @@ func (m *DetailsManager) PublishConnection(ctx context.Context, so resource.Conn
 
 	ss, err := m.connectStore(ctx, p)
 	if err != nil {
-		return false, errors.Wrap(err, errConnectStore)
+		return false, errors.Wrap(err, "cannot connect to secret store")
 	}
 
 	changed, err := ss.WriteKeyValues(ctx, store.NewSecret(so, store.KeyValues(conn)), SecretToWriteMustBeOwnedBy(so))
-	return changed, errors.Wrap(err, errWriteStore)
+	return changed, errors.Wrap(err, "cannot write to secret store")
 }
 
 // UnpublishConnection deletes connection details secret to the configured
@@ -128,10 +116,10 @@ func (m *DetailsManager) UnpublishConnection(ctx context.Context, so resource.Co
 
 	ss, err := m.connectStore(ctx, p)
 	if err != nil {
-		return errors.Wrap(err, errConnectStore)
+		return errors.Wrap(err, "cannot connect to secret store")
 	}
 
-	return errors.Wrap(ss.DeleteKeyValues(ctx, store.NewSecret(so, store.KeyValues(conn)), SecretToDeleteMustBeOwnedBy(so)), errDeleteFromStore)
+	return errors.Wrap(ss.DeleteKeyValues(ctx, store.NewSecret(so, store.KeyValues(conn)), SecretToDeleteMustBeOwnedBy(so)), "cannot delete from secret store")
 }
 
 // FetchConnection fetches connection details of a given ConnectionSecretOwner.
@@ -144,11 +132,11 @@ func (m *DetailsManager) FetchConnection(ctx context.Context, so resource.Connec
 
 	ss, err := m.connectStore(ctx, p)
 	if err != nil {
-		return nil, errors.Wrap(err, errConnectStore)
+		return nil, errors.Wrap(err, "cannot connect to secret store")
 	}
 
 	s := &store.Secret{}
-	return managed.ConnectionDetails(s.Data), errors.Wrap(ss.ReadKeyValues(ctx, store.ScopedName{Name: p.Name, Scope: so.GetNamespace()}, s), errReadStore)
+	return managed.ConnectionDetails(s.Data), errors.Wrap(ss.ReadKeyValues(ctx, store.ScopedName{Name: p.Name, Scope: so.GetNamespace()}, s), "cannot read from secret store")
 }
 
 // PropagateConnection propagate connection details from one resource to another.
@@ -160,7 +148,7 @@ func (m *DetailsManager) PropagateConnection(ctx context.Context, to resource.Lo
 
 	ssFrom, err := m.connectStore(ctx, from.GetPublishConnectionDetailsTo())
 	if err != nil {
-		return false, errors.Wrap(err, errConnectStore)
+		return false, errors.Wrap(err, "cannot connect to secret store")
 	}
 
 	sFrom := &store.Secret{}
@@ -168,29 +156,29 @@ func (m *DetailsManager) PropagateConnection(ctx context.Context, to resource.Lo
 		Name:  from.GetPublishConnectionDetailsTo().Name,
 		Scope: from.GetNamespace(),
 	}, sFrom); err != nil {
-		return false, errors.Wrap(err, errReadStore)
+		return false, errors.Wrap(err, "cannot read from secret store")
 	}
 
 	// Make sure 'from' is the controller of the connection secret it references
 	// before we propagate it. This ensures a resource cannot use Crossplane to
 	// circumvent RBAC by propagating a secret it does not own.
 	if sFrom.GetOwner() != string(from.GetUID()) {
-		return false, errors.New(errSecretConflict)
+		return false, errors.New("cannot establish control of existing connection secret")
 	}
 
 	ssTo, err := m.connectStore(ctx, to.GetPublishConnectionDetailsTo())
 	if err != nil {
-		return false, errors.Wrap(err, errConnectStore)
+		return false, errors.Wrap(err, "cannot connect to secret store")
 	}
 
 	changed, err := ssTo.WriteKeyValues(ctx, store.NewSecret(to, sFrom.Data), SecretToWriteMustBeOwnedBy(to))
-	return changed, errors.Wrap(err, errWriteStore)
+	return changed, errors.Wrap(err, "cannot write to secret store")
 }
 
 func (m *DetailsManager) connectStore(ctx context.Context, p *v1.PublishConnectionDetailsTo) (Store, error) {
 	sc := m.newConfig()
 	if err := m.client.Get(ctx, types.NamespacedName{Name: p.SecretStoreConfigRef.Name}, sc); err != nil {
-		return nil, errors.Wrap(err, errGetStoreConfig)
+		return nil, errors.Wrap(err, "cannot get store config")
 	}
 
 	return m.storeBuilder(ctx, m.client, m.tcfg, sc.GetStoreConfig())
@@ -214,7 +202,7 @@ func SecretToDeleteMustBeOwnedBy(so metav1.Object) store.DeleteOption {
 
 func secretMustBeOwnedBy(so metav1.Object, secret *store.Secret) error {
 	if secret.Metadata == nil || secret.Metadata.GetOwnerUID() != string(so.GetUID()) {
-		return errors.Errorf(errFmtNotOwnedBy, string(so.GetUID()))
+		return errors.Errorf("existing secret is not woned by UID %q", string(so.GetUID()))
 	}
 	return nil
 }

@@ -37,18 +37,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
-// Error strings.
-const (
-	errGetSecret    = "cannot get secret"
-	errDeleteSecret = "cannot delete secret"
-	errUpdateSecret = "cannot update secret"
-	errApplySecret  = "cannot apply secret"
-
-	errExtractKubernetesAuthCreds = "cannot extract kubernetes auth credentials"
-	errBuildRestConfig            = "cannot build rest config kubeconfig"
-	errBuildClient                = "cannot build Kubernetes client"
-)
-
 // SecretStore is a Kubernetes Secret Store.
 type SecretStore struct {
 	client resource.ClientApplicator
@@ -60,7 +48,7 @@ type SecretStore struct {
 func NewSecretStore(ctx context.Context, local client.Client, _ *tls.Config, cfg v1.SecretStoreConfig) (*SecretStore, error) {
 	kube, err := buildClient(ctx, local, cfg)
 	if err != nil {
-		return nil, errors.Wrap(err, errBuildClient)
+		return nil, errors.Wrap(err, "cannot build Kubernetes client")
 	}
 
 	return &SecretStore{
@@ -81,11 +69,11 @@ func buildClient(ctx context.Context, local client.Client, cfg v1.SecretStoreCon
 	// Configure client for an external API server with a given Kubeconfig.
 	kfg, err := resource.CommonCredentialExtractor(ctx, cfg.Kubernetes.Auth.Source, local, cfg.Kubernetes.Auth.CommonCredentialSelectors)
 	if err != nil {
-		return nil, errors.Wrap(err, errExtractKubernetesAuthCreds)
+		return nil, errors.Wrap(err, "cannot extract Kubernetes auth credentials")
 	}
 	config, err := clientcmd.RESTConfigFromKubeConfig(kfg)
 	if err != nil {
-		return nil, errors.Wrap(err, errBuildRestConfig)
+		return nil, errors.Wrap(err, "cannot build REST config kubeconfig")
 	}
 	return client.New(config, client.Options{})
 }
@@ -94,7 +82,7 @@ func buildClient(ctx context.Context, local client.Client, cfg v1.SecretStoreCon
 func (ss *SecretStore) ReadKeyValues(ctx context.Context, n store.ScopedName, s *store.Secret) error {
 	ks := &corev1.Secret{}
 	if err := ss.client.Get(ctx, types.NamespacedName{Name: n.Name, Namespace: ss.namespaceForSecret(n)}, ks); resource.IgnoreNotFound(err) != nil {
-		return errors.Wrap(err, errGetSecret)
+		return errors.Wrap(err, "cannot get secret")
 	}
 	s.Data = ks.Data
 	s.Metadata = &v1.ConnectionSecretMetadata{
@@ -137,7 +125,7 @@ func (ss *SecretStore) WriteKeyValues(ctx context.Context, s *store.Secret, wo .
 		return false, nil
 	}
 	if err != nil {
-		return false, errors.Wrap(err, errApplySecret)
+		return false, errors.Wrap(err, "cannot apply secret")
 	}
 	return true, nil
 }
@@ -162,7 +150,7 @@ func (ss *SecretStore) DeleteKeyValues(ctx context.Context, s *store.Secret, do 
 		return nil
 	}
 	if err != nil {
-		return errors.Wrap(err, errGetSecret)
+		return errors.Wrap(err, "cannot get secret")
 	}
 
 	for _, o := range do {
@@ -179,10 +167,10 @@ func (ss *SecretStore) DeleteKeyValues(ctx context.Context, s *store.Secret, do 
 		// Secret is deleted only if:
 		// - No kv to delete specified as input
 		// - No data left in the secret
-		return errors.Wrapf(ss.client.Delete(ctx, ks), errDeleteSecret)
+		return errors.Wrapf(ss.client.Delete(ctx, ks), "cannot delete secret")
 	}
 	// If there are still keys left, update the secret with the remaining.
-	return errors.Wrapf(ss.client.Update(ctx, ks), errUpdateSecret)
+	return errors.Wrapf(ss.client.Update(ctx, ks), "cannot update secret")
 }
 
 func (ss *SecretStore) namespaceForSecret(n store.ScopedName) string {

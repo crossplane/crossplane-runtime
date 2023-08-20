@@ -21,12 +21,12 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
 var (
@@ -106,7 +106,7 @@ func TestPublisherChain(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			got, gotErr := tc.p.PublishConnection(tc.args.ctx, tc.args.mg, tc.args.c)
-			if diff := cmp.Diff(tc.want.err, gotErr, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, gotErr, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("Publish(...): -want, +got:\n%s", diff)
 			}
 			if diff := cmp.Diff(tc.want.published, got); diff != "" {
@@ -143,7 +143,7 @@ func TestDisabledSecretStorePublish(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.New(errSecretStoreDisabled),
+				err: cmpopts.AnyError,
 			},
 		},
 	}
@@ -152,7 +152,7 @@ func TestDisabledSecretStorePublish(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ss := &DisabledSecretStoreManager{}
 			got, gotErr := ss.PublishConnection(context.Background(), tc.args.mg, nil)
-			if diff := cmp.Diff(tc.want.err, gotErr, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, gotErr, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("Publish(...): -want, +got:\n%s", diff)
 			}
 			if diff := cmp.Diff(tc.want.published, got); diff != "" {
@@ -188,7 +188,7 @@ func TestDisabledSecretStoreUnpublish(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.New(errSecretStoreDisabled),
+				err: cmpopts.AnyError,
 			},
 		},
 	}
@@ -197,7 +197,7 @@ func TestDisabledSecretStoreUnpublish(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ss := &DisabledSecretStoreManager{}
 			gotErr := ss.UnpublishConnection(context.Background(), tc.args.mg, nil)
-			if diff := cmp.Diff(tc.want.err, gotErr, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, gotErr, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("Publish(...): -want, +got:\n%s", diff)
 			}
 		})

@@ -32,16 +32,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 )
 
-const (
-	errExtractEnv            = "cannot extract from environment variable when none specified"
-	errExtractFs             = "cannot extract from filesystem when no path specified"
-	errExtractSecretKey      = "cannot extract from secret key when none specified"
-	errGetCredentialsSecret  = "cannot get credentials secret"
-	errNoHandlerForSourceFmt = "no extraction handler registered for source: %s"
-	errMissingPCRef          = "managed resource does not reference a ProviderConfig"
-	errApplyPCU              = "cannot apply ProviderConfigUsage"
-)
-
 type errMissingRef struct{ error }
 
 func (m errMissingRef) MissingReference() bool { return true }
@@ -61,7 +51,7 @@ type EnvLookupFn func(string) string
 // ExtractEnv extracts credentials from an environment variable.
 func ExtractEnv(_ context.Context, e EnvLookupFn, s xpv1.CommonCredentialSelectors) ([]byte, error) {
 	if s.Env == nil {
-		return nil, errors.New(errExtractEnv)
+		return nil, errors.New("cannot extract from environment variable when none specified")
 	}
 	return []byte(e(s.Env.Name)), nil
 }
@@ -69,7 +59,7 @@ func ExtractEnv(_ context.Context, e EnvLookupFn, s xpv1.CommonCredentialSelecto
 // ExtractFs extracts credentials from the filesystem.
 func ExtractFs(_ context.Context, fs afero.Fs, s xpv1.CommonCredentialSelectors) ([]byte, error) {
 	if s.Fs == nil {
-		return nil, errors.New(errExtractFs)
+		return nil, errors.New("cannot extract from filesystem when no path specified")
 	}
 	return afero.ReadFile(fs, s.Fs.Path)
 }
@@ -77,11 +67,11 @@ func ExtractFs(_ context.Context, fs afero.Fs, s xpv1.CommonCredentialSelectors)
 // ExtractSecret extracts credentials from a Kubernetes secret.
 func ExtractSecret(ctx context.Context, client client.Client, s xpv1.CommonCredentialSelectors) ([]byte, error) {
 	if s.SecretRef == nil {
-		return nil, errors.New(errExtractSecretKey)
+		return nil, errors.New("cannot extract from secret key when none specified")
 	}
 	secret := &corev1.Secret{}
 	if err := client.Get(ctx, types.NamespacedName{Namespace: s.SecretRef.Namespace, Name: s.SecretRef.Name}, secret); err != nil {
-		return nil, errors.Wrap(err, errGetCredentialsSecret)
+		return nil, errors.Wrap(err, "cannot get credentials secret")
 	}
 	return secret.Data[s.SecretRef.Key], nil
 }
@@ -102,7 +92,7 @@ func CommonCredentialExtractor(ctx context.Context, source xpv1.CredentialsSourc
 		// implement their own.
 		fallthrough
 	default:
-		return nil, errors.Errorf(errNoHandlerForSourceFmt, source)
+		return nil, errors.Errorf("no extraction handler registered for source: %s", source)
 	}
 }
 
@@ -142,7 +132,7 @@ func (u *ProviderConfigUsageTracker) Track(ctx context.Context, mg Managed) erro
 	gvk := mg.GetObjectKind().GroupVersionKind()
 	ref := mg.GetProviderConfigReference()
 	if ref == nil {
-		return errMissingRef{errors.New(errMissingPCRef)}
+		return errMissingRef{errors.New("managed resource does not reference a ProviderConfig")}
 	}
 
 	pcu.SetName(string(mg.GetUID()))
@@ -161,5 +151,5 @@ func (u *ProviderConfigUsageTracker) Track(ctx context.Context, mg Managed) erro
 			return current.(ProviderConfigUsage).GetProviderConfigReference() != pcu.GetProviderConfigReference()
 		}),
 	)
-	return errors.Wrap(Ignore(IsNotAllowed, err), errApplyPCU)
+	return errors.Wrap(Ignore(IsNotAllowed, err), "cannot apply ProviderConfigUsage")
 }

@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -64,7 +65,7 @@ func TestNameAsExternalName(t *testing.T) {
 				mg:  &fake.Managed{ObjectMeta: metav1.ObjectMeta{Name: testExternalName}},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errUpdateManaged),
+				err: errBoom,
 				mg: &fake.Managed{ObjectMeta: metav1.ObjectMeta{
 					Name:        testExternalName,
 					Annotations: map[string]string{meta.AnnotationKeyExternalName: testExternalName},
@@ -107,7 +108,7 @@ func TestNameAsExternalName(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			api := NewNameAsExternalName(tc.client)
 			err := api.Initialize(tc.args.ctx, tc.args.mg)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("api.Initialize(...): -want error, +got error:\n%s", diff)
 			}
 			if diff := cmp.Diff(tc.want.mg, tc.args.mg, test.EquateConditions()); diff != "" {
@@ -168,7 +169,7 @@ func TestAPISecretPublisher(t *testing.T) {
 				mg:  mg,
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errCreateOrUpdateSecret),
+				err: errBoom,
 			},
 		},
 		"AlreadyPublished": {
@@ -224,7 +225,7 @@ func TestAPISecretPublisher(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			a := &APISecretPublisher{tc.fields.secret, tc.fields.typer}
 			got, gotErr := a.PublishConnection(tc.args.ctx, tc.args.mg, tc.args.c)
-			if diff := cmp.Diff(tc.want.err, gotErr, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, gotErr, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nPublish(...): -wantErr, +gotErr:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.published, got); diff != "" {
@@ -290,7 +291,7 @@ func TestResolveReferences(t *testing.T) {
 					},
 				},
 			},
-			want: errors.Wrap(errBoom, errResolveReferences),
+			want: errBoom,
 		},
 		"SuccessfulNoop": {
 			reason: "Should return without error when resolution does not change the managed resource.",
@@ -340,7 +341,7 @@ func TestResolveReferences(t *testing.T) {
 					},
 				},
 			},
-			want: errors.Wrap(errBoom, errUpdateManaged),
+			want: errBoom,
 		},
 	}
 
@@ -348,7 +349,7 @@ func TestResolveReferences(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			r := NewAPISimpleReferenceResolver(tc.c)
 			got := r.ResolveReferences(tc.args.ctx, tc.args.mg)
-			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want, got, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.ResolveReferences(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
@@ -378,7 +379,7 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 			args: args{
 				o: &fake.Managed{},
 			},
-			want: errors.Wrap(errBoom, errUpdateCriticalAnnotations),
+			want: errBoom,
 		},
 		"UpdateError": {
 			reason: "We should return any error we encounter updating the supplied object",
@@ -389,7 +390,7 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 			args: args{
 				o: &fake.Managed{},
 			},
-			want: errors.Wrap(errBoom, errUpdateCriticalAnnotations),
+			want: errBoom,
 		},
 		"Success": {
 			reason: "We should return without error if we successfully update our annotations",
@@ -400,7 +401,7 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 			args: args{
 				o: &fake.Managed{},
 			},
-			want: errors.Wrap(errBoom, errUpdateCriticalAnnotations),
+			want: errBoom,
 		},
 	}
 
@@ -408,7 +409,7 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			u := NewRetryingCriticalAnnotationUpdater(tc.c)
 			got := u.UpdateCriticalAnnotations(tc.args.ctx, tc.args.o)
-			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want, got, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nu.UpdateCriticalAnnotations(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})

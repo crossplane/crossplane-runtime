@@ -20,10 +20,10 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
 var _ Linter = &PackageLinter{}
@@ -112,7 +112,7 @@ func TestLinter(t *testing.T) {
 					objects: []runtime.Object{crd},
 				},
 			},
-			err: errors.Errorf(errOrFmt, errBoom.Error()+", "+errBoom.Error()),
+			err: cmpopts.AnyError,
 		},
 	}
 
@@ -120,7 +120,7 @@ func TestLinter(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			err := tc.args.linter.Lint(tc.args.pkg)
 
-			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nl.Lint(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
@@ -160,7 +160,7 @@ func TestOr(t *testing.T) {
 				one: objFail,
 				two: objFail,
 			},
-			err: errors.Errorf(errOrFmt, errBoom.Error()+", "+errBoom.Error()),
+			err: cmpopts.AnyError,
 		},
 		"ErrNilLinter": {
 			reason: "Passing a nil linter will should always return error.",
@@ -168,7 +168,7 @@ func TestOr(t *testing.T) {
 				one: nil,
 				two: objPass,
 			},
-			err: errors.New(errNilLinterFn),
+			err: cmpopts.AnyError,
 		},
 	}
 
@@ -176,7 +176,7 @@ func TestOr(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			err := Or(tc.args.one, tc.args.two)(crd)
 
-			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nOr(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})

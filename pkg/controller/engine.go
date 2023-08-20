@@ -33,15 +33,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
-// Error strings
-const (
-	errCreateCache      = "cannot create new cache"
-	errCreateController = "cannot create new controller"
-	errCrashCache       = "cache error"
-	errCrashController  = "controller error"
-	errWatch            = "cannot setup watch"
-)
-
 // A NewCacheFn creates a new controller-runtime cache.
 type NewCacheFn func(cfg *rest.Config, o cache.Options) (cache.Cache, error)
 
@@ -182,27 +173,27 @@ func (e *Engine) Start(name string, o controller.Options, w ...Watch) error {
 	// work around this by stopping the entire cache.
 	ca, err := e.newCache(e.mgr.GetConfig(), cache.Options{Scheme: e.mgr.GetScheme(), Mapper: e.mgr.GetRESTMapper()})
 	if err != nil {
-		return errors.Wrap(err, errCreateCache)
+		return errors.Wrap(err, "cannot create new cache")
 	}
 
 	ctrl, err := e.newCtrl(name, e.mgr, o)
 	if err != nil {
-		return errors.Wrap(err, errCreateController)
+		return errors.Wrap(err, "cannot create new controller")
 	}
 
 	for _, wt := range w {
 		if err := ctrl.Watch(source.Kind(ca, wt.kind), wt.handler, wt.predicates...); err != nil {
-			return errors.Wrap(err, errWatch)
+			return errors.Wrap(err, "cannot setup watch")
 		}
 	}
 
 	go func() {
 		<-e.mgr.Elected()
-		e.done(name, errors.Wrap(ca.Start(ctx), errCrashCache))
+		e.done(name, errors.Wrap(ca.Start(ctx), "cache error"))
 	}()
 	go func() {
 		<-e.mgr.Elected()
-		e.done(name, errors.Wrap(ctrl.Start(ctx), errCrashController))
+		e.done(name, errors.Wrap(ctrl.Start(ctx), "controller error"))
 	}()
 
 	return nil

@@ -49,23 +49,6 @@ const (
 	defaultGracePeriod  = 30 * time.Second
 )
 
-// Error strings.
-const (
-	errFmtManagementPolicyNonDefault   = "`spec.managementPolicies` is set to a non-default value but the feature is not enabled: %s"
-	errFmtManagementPolicyNotSupported = "`spec.managementPolicies` is set to a value(%s) which is not supported. Check docs for supported policies"
-
-	errGetManaged               = "cannot get managed resource"
-	errUpdateManagedAnnotations = "cannot update managed resource annotations"
-	errCreateIncomplete         = "cannot determine creation result - remove the " + meta.AnnotationKeyExternalCreatePending + " annotation if it is safe to proceed"
-	errReconcileConnect         = "connect failed"
-	errReconcileObserve         = "observe failed"
-	errReconcileCreate          = "create failed"
-	errReconcileUpdate          = "update failed"
-	errReconcileDelete          = "delete failed"
-
-	errExternalResourceNotExist = "external resource does not exist"
-)
-
 // Event reasons.
 const (
 	reasonCannotConnect           event.Reason = "CannotConnectToProvider"
@@ -708,7 +691,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		// There's no need to requeue if we no longer exist. Otherwise we'll be
 		// requeued implicitly because we return an error.
 		log.Debug("Cannot get managed resource", "error", err)
-		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetManaged)
+		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), "cannot get managed resource")
 	}
 
 	record := r.record.WithAnnotations("external-name", meta.GetExternalName(managed))
@@ -738,7 +721,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		managed.SetConditions(xpv1.ReconcilePaused())
 		// if the pause annotation is removed or the management policies changed, we will have a chance to reconcile
 		// again and resume and if status update fails, we will reconcile again to retry to update the status
-		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, managed), "cannot update managed resource status")
 	}
 
 	// Check if the ManagementPolicies is set to a non-default value while the
@@ -753,7 +736,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		log.Debug(err.Error())
 		record.Event(managed, event.Warning(reasonManagementPolicyInvalid, err))
 		managed.SetConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, managed), "cannot update managed resource status")
 	}
 
 	// If managed resource has a deletion timestamp and a deletion policy of
@@ -775,7 +758,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 			log.Debug("Cannot unpublish connection details", "error", err)
 			record.Event(managed, event.Warning(reasonCannotUnpublish, err))
 			managed.SetConditions(xpv1.Deleting(), xpv1.ReconcileError(err))
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), "cannot update managed resource status")
 		}
 		if err := r.managed.RemoveFinalizer(ctx, managed); err != nil {
 			// If this is the first time we encounter this issue we'll be
@@ -784,7 +767,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 			// backoff.
 			log.Debug("Cannot remove managed resource finalizer", "error", err)
 			managed.SetConditions(xpv1.Deleting(), xpv1.ReconcileError(err))
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), "cannot update managed resource status")
 		}
 
 		// We've successfully unpublished our managed resource's connection
@@ -802,7 +785,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		log.Debug("Cannot initialize managed resource", "error", err)
 		record.Event(managed, event.Warning(reasonCannotInitialize, err))
 		managed.SetConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), "cannot update managed resource status")
 	}
 
 	// If we started but never completed creation of an external resource we
@@ -810,10 +793,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 	// an updated external name we've leaked a resource. The safest thing to
 	// do is to refuse to proceed.
 	if meta.ExternalCreateIncomplete(managed) {
-		log.Debug(errCreateIncomplete)
-		record.Event(managed, event.Warning(reasonCannotInitialize, errors.New(errCreateIncomplete)))
-		managed.SetConditions(xpv1.Creating(), xpv1.ReconcileError(errors.New(errCreateIncomplete)))
-		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		msg := "cannot determine creation result - remove the " + meta.AnnotationKeyExternalCreatePending + " annotation if it is safe to proceed"
+		log.Debug(msg)
+		record.Event(managed, event.Warning(reasonCannotInitialize, errors.New(msg)))
+		managed.SetConditions(xpv1.Creating(), xpv1.ReconcileError(errors.New(msg)))
+		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, managed), "cannot update managed resource status")
 	}
 
 	// We resolve any references before observing our external resource because
@@ -835,7 +819,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 			log.Debug("Cannot resolve managed resource references", "error", err)
 			record.Event(managed, event.Warning(reasonCannotResolveRefs, err))
 			managed.SetConditions(xpv1.ReconcileError(err))
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), "cannot update managed resource status")
 		}
 	}
 
@@ -848,8 +832,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		// backoff.
 		log.Debug("Cannot connect to provider", "error", err)
 		record.Event(managed, event.Warning(reasonCannotConnect, err))
-		managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, errReconcileConnect)))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, "connect failed")))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), "cannot update managed resource status")
 	}
 	defer func() {
 		if err := r.external.Disconnect(ctx); err != nil {
@@ -868,16 +852,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		// trigger backoff.
 		log.Debug("Cannot observe external resource", "error", err)
 		record.Event(managed, event.Warning(reasonCannotObserve, err))
-		managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, errReconcileObserve)))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, "observe failed")))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), "cannot update managed resource status")
 	}
 
 	// In the observe-only mode, !observation.ResourceExists will be an error
 	// case, and we will explicitly return this information to the user.
 	if !observation.ResourceExists && policy.ShouldOnlyObserve() {
-		record.Event(managed, event.Warning(reasonCannotObserve, errors.New(errExternalResourceNotExist)))
-		managed.SetConditions(xpv1.ReconcileError(errors.Wrap(errors.New(errExternalResourceNotExist), errReconcileObserve)))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		record.Event(managed, event.Warning(reasonCannotObserve, errors.New("external resource does not exist")))
+		managed.SetConditions(xpv1.ReconcileError(errors.New("observe failed: external resource does not exist")))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), "cannot update managed resource status")
 	}
 
 	// If this resource has a non-zero creation grace period we want to wait
@@ -904,8 +888,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 				// explicitly, which will trigger backoff.
 				log.Debug("Cannot delete external resource", "error", err)
 				record.Event(managed, event.Warning(reasonCannotDelete, err))
-				managed.SetConditions(xpv1.Deleting(), xpv1.ReconcileError(errors.Wrap(err, errReconcileDelete)))
-				return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+				managed.SetConditions(xpv1.Deleting(), xpv1.ReconcileError(errors.Wrap(err, "delete failed")))
+				return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), "cannot update managed resource status")
 			}
 
 			// We've successfully requested deletion of our external resource.
@@ -918,7 +902,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 			log.Debug("Successfully requested deletion of external resource")
 			record.Event(managed, event.Normal(reasonDeleted, "Successfully requested deletion of external resource"))
 			managed.SetConditions(xpv1.Deleting(), xpv1.ReconcileSuccess())
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), "cannot update managed resource status")
 		}
 		if err := r.managed.UnpublishConnection(ctx, managed, observation.ConnectionDetails); err != nil {
 			// If this is the first time we encounter this issue we'll be
@@ -928,7 +912,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 			log.Debug("Cannot unpublish connection details", "error", err)
 			record.Event(managed, event.Warning(reasonCannotUnpublish, err))
 			managed.SetConditions(xpv1.Deleting(), xpv1.ReconcileError(err))
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), "cannot update managed resource status")
 		}
 		if err := r.managed.RemoveFinalizer(ctx, managed); err != nil {
 			// If this is the first time we encounter this issue we'll be
@@ -937,7 +921,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 			// backoff.
 			log.Debug("Cannot remove managed resource finalizer", "error", err)
 			managed.SetConditions(xpv1.Deleting(), xpv1.ReconcileError(err))
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), "cannot update managed resource status")
 		}
 
 		// We've successfully deleted our external resource (if necessary) and
@@ -955,7 +939,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		log.Debug("Cannot publish connection details", "error", err)
 		record.Event(managed, event.Warning(reasonCannotPublish, err))
 		managed.SetConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), "cannot update managed resource status")
 	}
 
 	if err := r.managed.AddFinalizer(ctx, managed); err != nil {
@@ -964,7 +948,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		// not, we requeue explicitly, which will trigger backoff.
 		log.Debug("Cannot add finalizer", "error", err)
 		managed.SetConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), "cannot update managed resource status")
 	}
 
 	if !observation.ResourceExists && policy.ShouldCreate() {
@@ -977,10 +961,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		// update to fail if we get a 409 due to a stale version.
 		meta.SetExternalCreatePending(managed, time.Now())
 		if err := r.client.Update(ctx, managed); err != nil {
-			log.Debug(errUpdateManaged, "error", err)
-			record.Event(managed, event.Warning(reasonCannotUpdateManaged, errors.Wrap(err, errUpdateManaged)))
-			managed.SetConditions(xpv1.Creating(), xpv1.ReconcileError(errors.Wrap(err, errUpdateManaged)))
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+			log.Debug("cannot update managed resource", "error", err)
+			record.Event(managed, event.Warning(reasonCannotUpdateManaged, errors.Wrap(err, "cannot update managed resource")))
+			managed.SetConditions(xpv1.Creating(), xpv1.ReconcileError(errors.Wrap(err, "cannot update managed resource")))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), "cannot update managed resource status")
 		}
 
 		creation, err := external.Create(externalCtx, managed)
@@ -1001,8 +985,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 			// resource.
 			meta.SetExternalCreateFailed(managed, time.Now())
 			if err := r.managed.UpdateCriticalAnnotations(ctx, managed); err != nil {
-				log.Debug(errUpdateManagedAnnotations, "error", err)
-				record.Event(managed, event.Warning(reasonCannotUpdateManaged, errors.Wrap(err, errUpdateManagedAnnotations)))
+				log.Debug("cannot update managed resource annotations", "error", err)
+				record.Event(managed, event.Warning(reasonCannotUpdateManaged, errors.Wrap(err, "cannot update managed resource annotations")))
 
 				// We only log and emit an event here rather
 				// than setting a status condition and returning
@@ -1011,8 +995,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 				// create failed.
 			}
 
-			managed.SetConditions(xpv1.Creating(), xpv1.ReconcileError(errors.Wrap(err, errReconcileCreate)))
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+			managed.SetConditions(xpv1.Creating(), xpv1.ReconcileError(errors.Wrap(err, "create failed")))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), "cannot update managed resource status")
 		}
 
 		// In some cases our external-name may be set by Create above.
@@ -1031,10 +1015,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		// we may revisit this in future.
 		meta.SetExternalCreateSucceeded(managed, time.Now())
 		if err := r.managed.UpdateCriticalAnnotations(ctx, managed); err != nil {
-			log.Debug(errUpdateManagedAnnotations, "error", err)
-			record.Event(managed, event.Warning(reasonCannotUpdateManaged, errors.Wrap(err, errUpdateManagedAnnotations)))
-			managed.SetConditions(xpv1.Creating(), xpv1.ReconcileError(errors.Wrap(err, errUpdateManagedAnnotations)))
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+			log.Debug("cannot update managed resource annotations", "error", err)
+			record.Event(managed, event.Warning(reasonCannotUpdateManaged, errors.Wrap(err, "cannot update managed resource annotations")))
+			managed.SetConditions(xpv1.Creating(), xpv1.ReconcileError(errors.Wrap(err, "cannot update managed resource annotations")))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), "cannot update managed resource status")
 		}
 
 		if _, err := r.managed.PublishConnection(ctx, managed, creation.ConnectionDetails); err != nil {
@@ -1044,7 +1028,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 			log.Debug("Cannot publish connection details", "error", err)
 			record.Event(managed, event.Warning(reasonCannotPublish, err))
 			managed.SetConditions(xpv1.Creating(), xpv1.ReconcileError(err))
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), "cannot update managed resource status")
 		}
 
 		// We've successfully created our external resource. In many cases the
@@ -1054,7 +1038,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		log.Debug("Successfully requested creation of external resource")
 		record.Event(managed, event.Normal(reasonCreated, "Successfully requested creation of external resource"))
 		managed.SetConditions(xpv1.Creating(), xpv1.ReconcileSuccess())
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), "cannot update managed resource status")
 	}
 
 	if observation.ResourceLateInitialized && policy.ShouldLateInitialize() {
@@ -1066,10 +1050,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		// an immediate reconcile which should re-observe the external resource
 		// and persist its status.
 		if err := r.client.Update(ctx, managed); err != nil {
-			log.Debug(errUpdateManaged, "error", err)
+			log.Debug("cannot update managed resource", "error", err)
 			record.Event(managed, event.Warning(reasonCannotUpdateManaged, err))
-			managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, errUpdateManaged)))
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+			managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, "cannot update managed resource")))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), "cannot update managed resource status")
 		}
 	}
 
@@ -1082,7 +1066,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		// https://github.com/crossplane/crossplane/issues/289
 		log.Debug("External resource is up to date", "requeue-after", time.Now().Add(r.pollInterval))
 		managed.SetConditions(xpv1.ReconcileSuccess())
-		return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, managed), "cannot update managed resource status")
 	}
 
 	if observation.Diff != "" {
@@ -1093,7 +1077,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 	if !policy.ShouldUpdate() {
 		log.Debug("Skipping update due to managementPolicies. Reconciliation succeeded", "requeue-after", time.Now().Add(r.pollInterval))
 		managed.SetConditions(xpv1.ReconcileSuccess())
-		return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, managed), "cannot update managed resource status")
 	}
 
 	update, err := external.Update(externalCtx, managed)
@@ -1105,8 +1089,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		// condition. If not, we requeue explicitly, which will trigger backoff.
 		log.Debug("Cannot update external resource")
 		record.Event(managed, event.Warning(reasonCannotUpdate, err))
-		managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, errReconcileUpdate)))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, "update failed")))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), "cannot update managed resource status")
 	}
 
 	if _, err := r.managed.PublishConnection(ctx, managed, update.ConnectionDetails); err != nil {
@@ -1116,7 +1100,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		log.Debug("Cannot publish connection details", "error", err)
 		record.Event(managed, event.Warning(reasonCannotPublish, err))
 		managed.SetConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), "cannot update managed resource status")
 	}
 
 	// We've successfully updated our external resource. Per the below issue
@@ -1127,5 +1111,5 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 	log.Debug("Successfully requested update of external resource", "requeue-after", time.Now().Add(r.pollInterval))
 	record.Event(managed, event.Normal(reasonUpdated, "Successfully requested update of external resource"))
 	managed.SetConditions(xpv1.ReconcileSuccess())
-	return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+	return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, managed), "cannot update managed resource status")
 }

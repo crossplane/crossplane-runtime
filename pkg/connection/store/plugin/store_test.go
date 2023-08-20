@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/grpc"
 
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -29,7 +30,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store"
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store/plugin/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
 const (
@@ -66,7 +66,7 @@ func TestReadKeyValues(t *testing.T) {
 			},
 			want: want{
 				out: &store.Secret{},
-				err: errors.Wrap(errBoom, errGet),
+				err: errBoom,
 			},
 		},
 		"SuccessfulGet": {
@@ -136,7 +136,7 @@ func TestReadKeyValues(t *testing.T) {
 
 			err := ss.ReadKeyValues(ctx, tc.args.sn, s)
 
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nss.ReadKeyValues(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
@@ -171,7 +171,7 @@ func TestWriteKeyValues(t *testing.T) {
 			},
 			want: want{
 				isChanged: false,
-				err:       errors.Wrap(errBoom, errApply),
+				err:       errBoom,
 			},
 		},
 		"SuccessfulWrite": {
@@ -208,7 +208,7 @@ func TestWriteKeyValues(t *testing.T) {
 
 			isChanged, err := ss.WriteKeyValues(ctx, s)
 
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nss.WriteKeyValues(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
@@ -240,7 +240,7 @@ func TestDeleteKeyValues(t *testing.T) {
 					}},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errDelete),
+				err: errBoom,
 			},
 		},
 		"SuccessfulDelete": {
@@ -272,7 +272,7 @@ func TestDeleteKeyValues(t *testing.T) {
 
 			err := ss.DeleteKeyValues(ctx, s)
 
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nss.DeletKeyValues(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
