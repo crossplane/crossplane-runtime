@@ -197,11 +197,6 @@ type ResourceSpec struct {
 	// +kubebuilder:default={"name": "default"}
 	ProviderConfigReference *Reference `json:"providerConfigRef,omitempty"`
 
-	// ProviderReference specifies the provider that will be used to create,
-	// observe, update, and delete this managed resource.
-	// Deprecated: Please use ProviderConfigReference, i.e. `providerConfigRef`
-	ProviderReference *Reference `json:"providerRef,omitempty"`
-
 	// THIS IS AN ALPHA FIELD. Do not use it in production. It is not honored
 	// unless the relevant Crossplane feature flag is enabled, and may be
 	// changed or removed without notice.

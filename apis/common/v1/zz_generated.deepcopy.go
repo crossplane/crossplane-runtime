@@ -399,11 +399,6 @@ func (in *ResourceSpec) DeepCopyInto(out *ResourceSpec) {
 		*out = new(Reference)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.ProviderReference != nil {
-		in, out := &in.ProviderReference, &out.ProviderReference
-		*out = new(Reference)
-		(*in).DeepCopyInto(*out)
-	}
 	if in.ManagementPolicies != nil {
 		in, out := &in.ManagementPolicies, &out.ManagementPolicies
 		*out = make(ManagementPolicies, len(*in))
