@@ -22,6 +22,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
@@ -167,18 +168,19 @@ func NewRetryingCriticalAnnotationUpdater(c client.Client) *RetryingCriticalAnno
 
 // UpdateCriticalAnnotations updates (i.e. persists) the annotations of the
 // supplied Object. It retries in the face of any API server error several times
-// in order to ensure annotations that contain critical state are persisted. Any
-// pending changes to the supplied Object's spec, status, or other metadata are
-// reset to their current state according to the API server.
+// in order to ensure annotations that contain critical state are persisted.
+// Pending changes to the supplied Object's spec, status, or other metadata
+// might get reset to their current state according to the API server, e.g. in
+// case of a conflict error.
 func (u *RetryingCriticalAnnotationUpdater) UpdateCriticalAnnotations(ctx context.Context, o client.Object) error {
 	a := o.GetAnnotations()
 	err := retry.OnError(retry.DefaultRetry, resource.IsAPIError, func() error {
-		nn := types.NamespacedName{Name: o.GetName()}
-		if err := u.client.Get(ctx, nn, o); err != nil {
-			return err
+		err := u.client.Update(ctx, o)
+		if kerrors.IsConflict(err) {
+			err = u.client.Get(ctx, types.NamespacedName{Name: o.GetName()}, o)
+			meta.AddAnnotations(o, a)
 		}
-		meta.AddAnnotations(o, a)
-		return u.client.Update(ctx, o)
+		return err
 	})
 	return errors.Wrap(err, errUpdateCriticalAnnotations)
 }

@@ -21,8 +21,10 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -356,51 +358,74 @@ func TestResolveReferences(t *testing.T) {
 }
 
 func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
-
 	errBoom := errors.New("boom")
 
 	type args struct {
 		ctx context.Context
 		o   client.Object
 	}
+	type want struct {
+		err error
+		o   client.Object
+	}
+
+	setLabels := func(obj client.Object) error {
+		obj.SetLabels(map[string]string{"getcalled": "true"})
+		return nil
+	}
+	objectReturnedByGet := &fake.Managed{}
+	setLabels(objectReturnedByGet)
 
 	cases := map[string]struct {
 		reason string
-		c      client.Client
+		c      *test.MockClient
 		args   args
-		want   error
+		want   want
 	}{
-		"GetError": {
+		"UpdateConflictGetError": {
 			reason: "We should return any error we encounter getting the supplied object",
 			c: &test.MockClient{
-				MockGet: test.NewMockGetFn(errBoom),
+				MockGet: test.NewMockGetFn(errBoom, setLabels),
+				MockUpdate: test.NewMockUpdateFn(kerrors.NewConflict(schema.GroupResource{
+					Group:    "foo.com",
+					Resource: "bars",
+				}, "abc", errBoom)),
 			},
 			args: args{
 				o: &fake.Managed{},
 			},
-			want: errors.Wrap(errBoom, errUpdateCriticalAnnotations),
+			want: want{
+				err: errors.Wrap(errBoom, errUpdateCriticalAnnotations),
+				o:   objectReturnedByGet,
+			},
 		},
 		"UpdateError": {
 			reason: "We should return any error we encounter updating the supplied object",
 			c: &test.MockClient{
-				MockGet:    test.NewMockGetFn(nil),
+				MockGet:    test.NewMockGetFn(nil, setLabels),
 				MockUpdate: test.NewMockUpdateFn(errBoom),
 			},
 			args: args{
 				o: &fake.Managed{},
 			},
-			want: errors.Wrap(errBoom, errUpdateCriticalAnnotations),
+			want: want{
+				err: errors.Wrap(errBoom, errUpdateCriticalAnnotations),
+				o:   &fake.Managed{},
+			},
 		},
 		"Success": {
 			reason: "We should return without error if we successfully update our annotations",
 			c: &test.MockClient{
-				MockGet:    test.NewMockGetFn(nil),
+				MockGet:    test.NewMockGetFn(nil, setLabels),
 				MockUpdate: test.NewMockUpdateFn(errBoom),
 			},
 			args: args{
 				o: &fake.Managed{},
 			},
-			want: errors.Wrap(errBoom, errUpdateCriticalAnnotations),
+			want: want{
+				err: errors.Wrap(errBoom, errUpdateCriticalAnnotations),
+				o:   &fake.Managed{},
+			},
 		},
 	}
 
@@ -408,7 +433,10 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			u := NewRetryingCriticalAnnotationUpdater(tc.c)
 			got := u.UpdateCriticalAnnotations(tc.args.ctx, tc.args.o)
-			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, got, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nu.UpdateCriticalAnnotations(...): -want, +got:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.o, tc.args.o); diff != "" {
 				t.Errorf("\n%s\nu.UpdateCriticalAnnotations(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
