@@ -63,17 +63,8 @@ func (m *ManagedResourceReferencer) SetResourceReference(r *corev1.ObjectReferen
 // GetResourceReference gets the ResourceReference.
 func (m *ManagedResourceReferencer) GetResourceReference() *corev1.ObjectReference { return m.Ref }
 
-// ProviderReferencer is a mock that implements ProviderReferencer interface.
-type ProviderReferencer struct{ Ref *xpv1.Reference } //nolint:musttag // This is a fake implementation to be used in unit tests only.
-
-// SetProviderReference sets the ProviderReference.
-func (m *ProviderReferencer) SetProviderReference(p *xpv1.Reference) { m.Ref = p }
-
-// GetProviderReference gets the ProviderReference.
-func (m *ProviderReferencer) GetProviderReference() *xpv1.Reference { return m.Ref }
-
 // ProviderConfigReferencer is a mock that implements ProviderConfigReferencer interface.
-type ProviderConfigReferencer struct{ Ref *xpv1.Reference }
+type ProviderConfigReferencer struct{ Ref *xpv1.Reference } //nolint:musttag // This is a fake implementation to be used in unit tests only.
 
 // SetProviderConfigReference sets the ProviderConfigReference.
 func (m *ProviderConfigReferencer) SetProviderConfigReference(p *xpv1.Reference) { m.Ref = p }
@@ -331,7 +322,6 @@ func (o *Object) DeepCopyObject() runtime.Object {
 // Managed is a mock that implements Managed interface.
 type Managed struct {
 	metav1.ObjectMeta
-	ProviderReferencer
 	ProviderConfigReferencer
 	ConnectionSecretWriterTo
 	ConnectionDetailsPublisherTo
