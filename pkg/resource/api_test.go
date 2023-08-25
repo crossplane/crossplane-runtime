@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -62,7 +63,7 @@ func TestAPIPatchingApplicator(t *testing.T) {
 			},
 			want: want{
 				o:   &object{},
-				err: errors.Wrap(errBoom, "cannot get object"),
+				err: errBoom,
 			},
 		},
 		"CreateError": {
@@ -76,7 +77,7 @@ func TestAPIPatchingApplicator(t *testing.T) {
 			},
 			want: want{
 				o:   &object{},
-				err: errors.Wrap(errBoom, "cannot create object"),
+				err: errBoom,
 			},
 		},
 		"ApplyOptionError": {
@@ -102,7 +103,7 @@ func TestAPIPatchingApplicator(t *testing.T) {
 			},
 			want: want{
 				o:   &object{},
-				err: errors.Wrap(errBoom, "cannot patch object"),
+				err: errBoom,
 			},
 		},
 		"Created": {
@@ -143,7 +144,7 @@ func TestAPIPatchingApplicator(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			a := NewAPIPatchingApplicator(tc.c)
 			err := a.Apply(tc.args.ctx, tc.args.o, tc.args.ao...)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nApply(...): -want error, +got error\n%s\n", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.o, tc.args.o); diff != "" {
@@ -185,7 +186,7 @@ func TestAPIUpdatingApplicator(t *testing.T) {
 			},
 			want: want{
 				o:   &object{},
-				err: errors.Wrap(errBoom, "cannot get object"),
+				err: errBoom,
 			},
 		},
 		"CreateError": {
@@ -199,7 +200,7 @@ func TestAPIUpdatingApplicator(t *testing.T) {
 			},
 			want: want{
 				o:   &object{},
-				err: errors.Wrap(errBoom, "cannot create object"),
+				err: errBoom,
 			},
 		},
 		"ApplyOptionError": {
@@ -225,7 +226,7 @@ func TestAPIUpdatingApplicator(t *testing.T) {
 			},
 			want: want{
 				o:   &object{},
-				err: errors.Wrap(errBoom, "cannot update object"),
+				err: errBoom,
 			},
 		},
 		"Created": {
@@ -271,7 +272,7 @@ func TestAPIUpdatingApplicator(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			a := NewAPIUpdatingApplicator(tc.c)
 			err := a.Apply(tc.args.ctx, tc.args.o, tc.args.ao...)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nApply(...): -want error, +got error\n%s\n", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.o, tc.args.o); diff != "" {
@@ -308,7 +309,7 @@ func TestManagedRemoveFinalizer(t *testing.T) {
 				obj: &fake.Object{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errUpdateObject),
+				err: errBoom,
 				obj: &fake.Object{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{}}},
 			},
 		},
@@ -329,7 +330,7 @@ func TestManagedRemoveFinalizer(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			api := NewAPIFinalizer(tc.client, finalizer)
 			err := api.RemoveFinalizer(tc.args.ctx, tc.args.obj)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("api.RemoveFinalizer(...): -want error, +got error:\n%s", diff)
 			}
 			if diff := cmp.Diff(tc.want.obj, tc.args.obj, test.EquateConditions()); diff != "" {
@@ -366,7 +367,7 @@ func TestAPIFinalizerAdder(t *testing.T) {
 				obj: &fake.Object{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{}}},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errUpdateObject),
+				err: errBoom,
 				obj: &fake.Object{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
 			},
 		},
@@ -387,7 +388,7 @@ func TestAPIFinalizerAdder(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			api := NewAPIFinalizer(tc.client, finalizer)
 			err := api.AddFinalizer(tc.args.ctx, tc.args.obj)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("api.Initialize(...): -want error, +got error:\n%s", diff)
 			}
 			if diff := cmp.Diff(tc.want.obj, tc.args.obj, test.EquateConditions()); diff != "" {

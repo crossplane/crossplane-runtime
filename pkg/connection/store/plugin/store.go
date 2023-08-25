@@ -32,15 +32,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
-// Error strings.
-const (
-	errGet    = "cannot get secret"
-	errApply  = "cannot apply secret"
-	errDelete = "cannot delete secret"
-
-	errFmtCannotDial = "cannot dial to the endpoint: %s"
-)
-
 // SecretStore is an External Secret Store.
 type SecretStore struct {
 	client     essproto.ExternalSecretStorePluginServiceClient
@@ -55,7 +46,7 @@ func NewSecretStore(_ context.Context, kube client.Client, tcfg *tls.Config, cfg
 	creds := credentials.NewTLS(tcfg)
 	conn, err := grpc.Dial(cfg.Plugin.Endpoint, grpc.WithTransportCredentials(creds))
 	if err != nil {
-		return nil, errors.Wrapf(err, errFmtCannotDial, cfg.Plugin.Endpoint)
+		return nil, errors.Wrapf(err, "cannot dial to the endpoint: %s", cfg.Plugin.Endpoint)
 	}
 
 	return &SecretStore{
@@ -70,7 +61,7 @@ func NewSecretStore(_ context.Context, kube client.Client, tcfg *tls.Config, cfg
 func (ss *SecretStore) ReadKeyValues(ctx context.Context, n store.ScopedName, s *store.Secret) error {
 	resp, err := ss.client.GetSecret(ctx, &essproto.GetSecretRequest{Secret: &essproto.Secret{ScopedName: ss.getScopedName(n)}, Config: ss.getConfigReference()})
 	if err != nil {
-		return errors.Wrap(err, errGet)
+		return errors.Wrap(err, "cannot get secret")
 	}
 
 	s.ScopedName = n
@@ -107,7 +98,7 @@ func (ss *SecretStore) WriteKeyValues(ctx context.Context, s *store.Secret, _ ..
 
 	resp, err := ss.client.ApplySecret(ctx, &essproto.ApplySecretRequest{Secret: sec, Config: ss.getConfigReference()})
 	if err != nil {
-		return false, errors.Wrap(err, errApply)
+		return false, errors.Wrap(err, "cannot apply secret")
 	}
 
 	return resp.Changed, nil
@@ -117,7 +108,7 @@ func (ss *SecretStore) WriteKeyValues(ctx context.Context, s *store.Secret, _ ..
 func (ss *SecretStore) DeleteKeyValues(ctx context.Context, s *store.Secret, _ ...store.DeleteOption) error {
 	_, err := ss.client.DeleteKeys(ctx, &essproto.DeleteKeysRequest{Secret: &essproto.Secret{ScopedName: ss.getScopedName(s.ScopedName)}, Config: ss.getConfigReference()})
 
-	return errors.Wrap(err, errDelete)
+	return errors.Wrap(err, "cannot delete secret")
 }
 
 func (ss *SecretStore) getConfigReference() *essproto.ConfigReference {

@@ -24,8 +24,27 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
+
+// EquateErrorStrings() returns true if the supplied errors produce identical
+// strings.
+//
+// This differs from cmpopts.EquateErrorStrings(), which does not test for error strings
+// and instead returns whether one error 'is' (in the errors.Is sense) the
+// other.
+//
+// In the case of this package we do really care about error strings, since
+// they're being used to provide feedback for humans about where a syntax error
+// occurred.
+func EquateErrorStrings() cmp.Option {
+	return cmp.Comparer(func(a, b error) bool {
+		if a == nil || b == nil {
+			return a == nil && b == nil
+		}
+
+		return a.Error() == b.Error()
+	})
+}
 
 func TestSegments(t *testing.T) {
 	cases := map[string]struct {
@@ -297,7 +316,7 @@ func TestParse(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			got, err := Parse(tc.path)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, EquateErrorStrings()); diff != "" {
 				t.Fatalf("\nParse(%s): %s: -want error, +got error:\n%s", tc.path, tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.s, got); diff != "" {

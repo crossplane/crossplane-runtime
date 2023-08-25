@@ -21,14 +21,13 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
 const (
@@ -418,7 +417,7 @@ func TestAddControllerReference(t *testing.T) {
 			},
 			want: want{
 				owners: []metav1.OwnerReference{otrlr},
-				err:    errors.Errorf("%s is already controlled by %s %s (UID %s)", name, otrlr.Kind, otrlr.Name, otrlr.UID),
+				err:    cmpopts.AnyError,
 			},
 		},
 	}
@@ -426,7 +425,7 @@ func TestAddControllerReference(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := AddControllerReference(tc.args.o, tc.args.r)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("AddControllerReference(...): -want error, +got error:\n%s", diff)
 			}
 

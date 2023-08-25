@@ -26,30 +26,24 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
-const (
-	errLoadCert  = "cannot load certificate"
-	errLoadCA    = "cannot load CA certificate"
-	errInvalidCA = "invalid CA certificate"
-)
-
 // LoadMTLSConfig loads TLS certificates in the given folder using well-defined filenames for certificates in a Kubernetes environment.
 func LoadMTLSConfig(caPath, certPath, keyPath string, isServer bool) (*tls.Config, error) {
 	tlsCertFilePath := filepath.Clean(certPath)
 	tlsKeyFilePath := filepath.Clean(keyPath)
 	certificate, err := tls.LoadX509KeyPair(tlsCertFilePath, tlsKeyFilePath)
 	if err != nil {
-		return nil, errors.Wrap(err, errLoadCert)
+		return nil, errors.Wrap(err, "cannot load certificate")
 	}
 
 	caCertFilePath := filepath.Clean(caPath)
 	ca, err := os.ReadFile(caCertFilePath)
 	if err != nil {
-		return nil, errors.Wrap(err, errLoadCA)
+		return nil, errors.Wrap(err, "cannot load CA certificate")
 	}
 
 	pool := x509.NewCertPool()
 	if !pool.AppendCertsFromPEM(ca) {
-		return nil, errors.New(errInvalidCA)
+		return nil, errors.New("invalid CA certificate")
 	}
 
 	tlsConfig := &tls.Config{

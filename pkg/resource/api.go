@@ -30,11 +30,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 )
 
-// Error strings.
-const (
-	errUpdateObject = "cannot update object"
-)
-
 // An APIPatchingApplicator applies changes to an object by either creating or
 // patching it in a Kubernetes API server.
 type APIPatchingApplicator struct {
@@ -162,7 +157,7 @@ func (a *APIFinalizer) AddFinalizer(ctx context.Context, obj Object) error {
 		return nil
 	}
 	meta.AddFinalizer(obj, a.finalizer)
-	return errors.Wrap(a.client.Update(ctx, obj), errUpdateObject)
+	return errors.Wrap(a.client.Update(ctx, obj), "cannot update object")
 }
 
 // RemoveFinalizer from the supplied Managed resource.
@@ -171,7 +166,7 @@ func (a *APIFinalizer) RemoveFinalizer(ctx context.Context, obj Object) error {
 		return nil
 	}
 	meta.RemoveFinalizer(obj, a.finalizer)
-	return errors.Wrap(IgnoreNotFound(a.client.Update(ctx, obj)), errUpdateObject)
+	return errors.Wrap(IgnoreNotFound(a.client.Update(ctx, obj)), "cannot update object")
 }
 
 // A FinalizerFns satisfy the Finalizer interface.

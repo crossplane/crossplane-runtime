@@ -41,12 +41,6 @@ const (
 	finalizer = "in-use.crossplane.io"
 	shortWait = 30 * time.Second
 	timeout   = 2 * time.Minute
-
-	errGetPC        = "cannot get ProviderConfig"
-	errListPCUs     = "cannot list ProviderConfigUsages"
-	errDeletePCU    = "cannot delete ProviderConfigUsage"
-	errUpdate       = "cannot update ProviderConfig"
-	errUpdateStatus = "cannot update ProviderConfig status"
 )
 
 // Event reasons.
@@ -152,8 +146,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// In case object is not found, most likely the object was deleted and
 		// then disappeared while the event was in the processing queue. We
 		// don't need to take any action in that case.
-		log.Debug(errGetPC, "error", err)
-		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetPC)
+		log.Debug("cannot get ProviderConfig", "error", err)
+		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), "cannot get ProviderConfig")
 	}
 
 	log = log.WithValues(
@@ -164,8 +158,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	l := r.newUsageList()
 	if err := r.client.List(ctx, l, client.MatchingLabels{xpv1.LabelKeyProviderName: pc.GetName()}); err != nil {
-		log.Debug(errListPCUs, "error", err)
-		r.record.Event(pc, event.Warning(reasonAccount, errors.Wrap(err, errListPCUs)))
+		log.Debug("cannot list ProviderConfigUsages", "error", err)
+		r.record.Event(pc, event.Warning(reasonAccount, errors.Wrap(err, "cannot list ProviderConfigUsages")))
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
@@ -177,8 +171,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// We can safely delete it - it's either stale, or will be recreated
 			// next time the relevant managed resource connects.
 			if err := r.client.Delete(ctx, pcu); resource.IgnoreNotFound(err) != nil {
-				log.Debug(errDeletePCU, "error", err)
-				r.record.Event(pc, event.Warning(reasonAccount, errors.Wrap(err, errDeletePCU)))
+				log.Debug("cannot delete ProviderConfigUsage", "error", err)
+				r.record.Event(pc, event.Warning(reasonAccount, errors.Wrap(err, "cannot delete ProviderConfigUsage")))
 				return reconcile.Result{RequeueAfter: shortWait}, nil //nolint:nilerr // Returning err would make us requeue instantly.
 			}
 			users--
@@ -196,12 +190,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// We're watching our usages, so we'll be requeued when they go.
 			pc.SetUsers(users)
 			pc.SetConditions(Terminating().WithMessage(msg))
-			return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pc), errUpdateStatus)
+			return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pc), "cannot update ProviderConfig status")
 		}
 
 		meta.RemoveFinalizer(pc, finalizer)
 		if err := r.client.Update(ctx, pc); err != nil {
-			r.log.Debug(errUpdate, "error", err)
+			r.log.Debug("cannot update ProviderConfig", "error", err)
 			return reconcile.Result{RequeueAfter: shortWait}, nil
 		}
 
@@ -211,11 +205,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	meta.AddFinalizer(pc, finalizer)
 	if err := r.client.Update(ctx, pc); err != nil {
-		r.log.Debug(errUpdate, "error", err)
+		r.log.Debug("cannot update ProviderConfig", "error", err)
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
 	// There's no need to requeue explicitly - we're watching all PCs.
 	pc.SetUsers(users)
-	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pc), errUpdateStatus)
+	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pc), "cannot update ProviderConfig status")
 }

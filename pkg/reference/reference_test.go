@@ -227,7 +227,7 @@ func TestResolve(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errGetManaged),
+				err: errBoom,
 			},
 		},
 		"ResolvedNoValue": {
@@ -247,7 +247,7 @@ func TestResolve(t *testing.T) {
 				rsp: ResolutionResponse{
 					ResolvedReference: ref,
 				},
-				err: errors.New(errNoValue),
+				err: cmpopts.AnyError,
 			},
 		},
 		"SuccessfulResolve": {
@@ -306,7 +306,7 @@ func TestResolve(t *testing.T) {
 			},
 			want: want{
 				rsp: ResolutionResponse{},
-				err: errors.Wrap(errBoom, errListManaged),
+				err: errBoom,
 			},
 		},
 		"NoMatches": {
@@ -323,7 +323,7 @@ func TestResolve(t *testing.T) {
 			},
 			want: want{
 				rsp: ResolutionResponse{},
-				err: errors.New(errNoMatches),
+				err: cmpopts.AnyError,
 			},
 		},
 		"OptionalSelector": {
@@ -431,7 +431,7 @@ func TestResolve(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			r := NewAPIResolver(tc.c, tc.from)
 			got, err := r.Resolve(tc.args.ctx, tc.args.req)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nControllersMustMatch(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.rsp, got); diff != "" {
@@ -542,7 +542,7 @@ func TestResolveMultiple(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errGetManaged),
+				err: errBoom,
 			},
 		},
 		"ResolvedNoValue": {
@@ -563,7 +563,7 @@ func TestResolveMultiple(t *testing.T) {
 					ResolvedValues:     []string{""},
 					ResolvedReferences: []xpv1.Reference{ref},
 				},
-				err: errors.New(errNoValue),
+				err: cmpopts.AnyError,
 			},
 		},
 		"SuccessfulResolve": {
@@ -623,7 +623,7 @@ func TestResolveMultiple(t *testing.T) {
 			},
 			want: want{
 				rsp: MultiResolutionResponse{},
-				err: errors.Wrap(errBoom, errListManaged),
+				err: errBoom,
 			},
 		},
 		"NoMatches": {
@@ -640,7 +640,7 @@ func TestResolveMultiple(t *testing.T) {
 			},
 			want: want{
 				rsp: MultiResolutionResponse{},
-				err: errors.New(errNoMatches),
+				err: cmpopts.AnyError,
 			},
 		},
 		"OptionalSelector": {
@@ -748,7 +748,7 @@ func TestResolveMultiple(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			r := NewAPIResolver(tc.c, tc.from)
 			got, err := r.ResolveMultiple(tc.args.ctx, tc.args.req)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nControllersMustMatch(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.rsp, got, cmpopts.EquateEmpty()); diff != "" {

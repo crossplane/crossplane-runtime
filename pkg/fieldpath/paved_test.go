@@ -27,7 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/json"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
 func TestIsNotFound(t *testing.T) {
@@ -170,7 +169,7 @@ func TestGetValue(t *testing.T) {
 			p := Pave(in)
 
 			got, err := p.GetValue(tc.path)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, EquateErrorStrings()); diff != "" {
 				t.Fatalf("\np.GetValue(%s): %s: -want error, +got error:\n%s", tc.path, tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.value, got); diff != "" {
@@ -246,7 +245,7 @@ func TestGetValueInto(t *testing.T) {
 			p := Pave(in)
 
 			err := p.GetValueInto(tc.args.path, tc.args.out)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, EquateErrorStrings()); diff != "" {
 				t.Fatalf("\np.GetValueInto(%s): %s: -want error, +got error:\n%s", tc.args.path, tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.out, tc.args.out); diff != "" {
@@ -299,7 +298,7 @@ func TestGetString(t *testing.T) {
 			p := Pave(in)
 
 			got, err := p.GetString(tc.path)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, EquateErrorStrings()); diff != "" {
 				t.Fatalf("\np.GetString(%s): %s: -want error, +got error:\n%s", tc.path, tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.value, got); diff != "" {
@@ -360,7 +359,7 @@ func TestGetStringArray(t *testing.T) {
 			p := Pave(in)
 
 			got, err := p.GetStringArray(tc.path)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, EquateErrorStrings()); diff != "" {
 				t.Fatalf("\np.GetStringArray(%s): %s: -want error, +got error:\n%s", tc.path, tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.value, got); diff != "" {
@@ -421,7 +420,7 @@ func TestGetStringObject(t *testing.T) {
 			p := Pave(in)
 
 			got, err := p.GetStringObject(tc.path)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, EquateErrorStrings()); diff != "" {
 				t.Fatalf("\np.GetStringObject(%s): %s: -want error, +got error:\n%s", tc.path, tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.value, got); diff != "" {
@@ -474,7 +473,7 @@ func TestGetBool(t *testing.T) {
 			p := Pave(in)
 
 			got, err := p.GetBool(tc.path)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, EquateErrorStrings()); diff != "" {
 				t.Fatalf("\np.GetBool(%s): %s: -want error, +got error:\n%s", tc.path, tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.value, got); diff != "" {
@@ -527,7 +526,7 @@ func TestGetInteger(t *testing.T) {
 			p := Pave(in)
 
 			got, err := p.GetInteger(tc.path)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, EquateErrorStrings()); diff != "" {
 				t.Fatalf("\np.GetNumber(%s): %s: -want error, +got error:\n%s", tc.path, tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.value, got); diff != "" {
@@ -801,7 +800,7 @@ func TestSetValue(t *testing.T) {
 			p := Pave(in, tc.args.opts...)
 
 			err := p.SetValue(tc.args.path, tc.args.value)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, EquateErrorStrings()); diff != "" {
 				t.Fatalf("\np.SetValue(%s, %v): %s: -want error, +got error:\n%s", tc.args.path, tc.args.value, tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.object, p.object); diff != "" {
@@ -958,7 +957,7 @@ func TestExpandWildcards(t *testing.T) {
 			p := Pave(in)
 
 			got, err := p.ExpandWildcards(tc.path)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, EquateErrorStrings()); diff != "" {
 				t.Fatalf("\np.ExpandWildcards(%s): %s: -want error, +got error:\n%s", tc.path, tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.expanded, got, cmpopts.SortSlices(func(x, y string) bool {
@@ -1246,7 +1245,7 @@ func TestDeleteField(t *testing.T) {
 			p := Pave(in)
 
 			err := p.DeleteField(tc.args.path)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, EquateErrorStrings()); diff != "" {
 				t.Fatalf("\np.DeleteField(%s): %s: -want error, +got error:\n%s", tc.args.path, tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.object, p.object); diff != "" {

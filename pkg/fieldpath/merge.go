@@ -25,10 +25,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
-const (
-	errInvalidMerge = "failed to merge values"
-)
-
 // MergeValue of the receiver p at the specified field path with the supplied
 // value according to supplied merge options
 func (p *Paved) MergeValue(path string, value any, mo *xpv1.MergeOptions) error {
@@ -75,7 +71,7 @@ func merge(dst, src any, mergeOptions *xpv1.MergeOptions) (any, error) {
 	mDst := argWrap(dst)
 	// use merge semantics with the configured merge options to obtain the target dst value
 	if err := mergo.Merge(&mDst, argWrap(src), mergeOptions.MergoConfiguration()...); err != nil {
-		return nil, errors.Wrap(err, errInvalidMerge)
+		return nil, errors.Wrap(err, "failed to merge values")
 	}
 	return mDst[keyArg], nil
 }

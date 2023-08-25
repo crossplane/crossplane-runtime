@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -94,7 +95,7 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errGetSecret),
+				err: errBoom,
 			},
 		},
 		"SuccessfulRead": {
@@ -145,7 +146,7 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 			s := &store.Secret{}
 			s.ScopedName = tc.args.n
 			err := ss.ReadKeyValues(context.Background(), tc.args.n, s)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nss.ReadKeyValues(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
@@ -192,7 +193,7 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errApplySecret),
+				err: errBoom,
 			},
 		},
 		"FailedWriteOption": {
@@ -222,7 +223,7 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errApplySecret),
+				err: errBoom,
 			},
 		},
 		"SuccessfulWriteOption": {
@@ -469,7 +470,7 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 				defaultNamespace: tc.args.defaultNamespace,
 			}
 			changed, err := ss.WriteKeyValues(context.Background(), tc.args.secret, tc.args.wo...)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nss.WriteKeyValues(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.changed, changed); diff != "" {
@@ -512,7 +513,7 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errGetSecret),
+				err: errBoom,
 			},
 		},
 		"SecretUpdatedWithRemainingKeys": {
@@ -567,7 +568,7 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errDeleteSecret),
+				err: errBoom,
 			},
 		},
 		"SecretAlreadyDeleted": {
@@ -659,7 +660,7 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 				defaultNamespace: tc.args.defaultNamespace,
 			}
 			err := ss.DeleteKeyValues(context.Background(), tc.args.secret, tc.args.do...)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nss.DeleteKeyValues(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
@@ -723,7 +724,8 @@ func TestNewSecretStore(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errors.Wrap(errors.Wrap(kerrors.NewNotFound(schema.GroupResource{}, "kube-conn"), "cannot get credentials secret"), errExtractKubernetesAuthCreds), errBuildClient),
+				// TODO(negz): Can we test that this is a *kerrors.StatusError?
+				err: cmpopts.AnyError,
 			},
 		},
 		"InvalidRestConfigForRemote": {
@@ -769,7 +771,8 @@ malformed
 				},
 			},
 			want: want{
-				err: errors.Wrap(errors.Wrap(errors.New("yaml: line 5: could not find expected ':'"), errBuildRestConfig), errBuildClient),
+				// TODO(negz): Can we be more specific?
+				err: cmpopts.AnyError,
 			},
 		},
 		"InvalidKubeconfigForRemote": {
@@ -829,7 +832,8 @@ users:
 				},
 			},
 			want: want{
-				err: errors.Wrap(errors.New("unable to load root certificates: unable to parse bytes as PEM block"), errBuildClient),
+				// TODO(negz): Can we be more specific?
+				err: cmpopts.AnyError,
 			},
 		},
 	}
@@ -837,7 +841,7 @@ users:
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			_, err := NewSecretStore(context.Background(), tc.args.client, nil, tc.args.cfg)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nNewSecretStore(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})

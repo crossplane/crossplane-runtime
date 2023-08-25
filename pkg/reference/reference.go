@@ -32,14 +32,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
-// Error strings.
-const (
-	errGetManaged  = "cannot get referenced resource"
-	errListManaged = "cannot list resources that match selector"
-	errNoMatches   = "no resources matched selector"
-	errNoValue     = "referenced field was empty (referenced resource may not yet be ready)"
-)
-
 // NOTE(negz): There are many equivalents of FromPtrValue and ToPtrValue
 // throughout the Crossplane codebase. We duplicate them here to reduce the
 // number of packages our API types have to import to support references.
@@ -190,7 +182,7 @@ type ResolutionResponse struct {
 // Validate this ResolutionResponse.
 func (rr ResolutionResponse) Validate() error {
 	if rr.ResolvedValue == "" {
-		return errors.New(errNoValue)
+		return errors.New("referenced field was empty (referenced resource may not yet be ready)")
 	}
 
 	return nil
@@ -249,12 +241,12 @@ type MultiResolutionResponse struct {
 // Validate this MultiResolutionResponse.
 func (rr MultiResolutionResponse) Validate() error {
 	if len(rr.ResolvedValues) == 0 {
-		return errors.New(errNoMatches)
+		return errors.New("no resources matched selector")
 	}
 
 	for i, v := range rr.ResolvedValues {
 		if v == "" {
-			return getResolutionError(rr.ResolvedReferences[i].Policy, errors.New(errNoValue))
+			return getResolutionError(rr.ResolvedReferences[i].Policy, errors.New("referenced field was empty (referenced resource may not yet be ready)"))
 		}
 	}
 
@@ -287,9 +279,9 @@ func (r *APIResolver) Resolve(ctx context.Context, req ResolutionRequest) (Resol
 	if req.Reference != nil {
 		if err := r.client.Get(ctx, types.NamespacedName{Name: req.Reference.Name}, req.To.Managed); err != nil {
 			if kerrors.IsNotFound(err) {
-				return ResolutionResponse{}, getResolutionError(req.Reference.Policy, errors.Wrap(err, errGetManaged))
+				return ResolutionResponse{}, getResolutionError(req.Reference.Policy, errors.Wrap(err, "cannot get referenced resource"))
 			}
-			return ResolutionResponse{}, errors.Wrap(err, errGetManaged)
+			return ResolutionResponse{}, errors.Wrap(err, "cannot get referenced resource")
 		}
 
 		rsp := ResolutionResponse{ResolvedValue: req.Extract(req.To.Managed), ResolvedReference: req.Reference}
@@ -298,7 +290,7 @@ func (r *APIResolver) Resolve(ctx context.Context, req ResolutionRequest) (Resol
 
 	// The reference was not set, but a selector was. Select a reference.
 	if err := r.client.List(ctx, req.To.List, client.MatchingLabels(req.Selector.MatchLabels)); err != nil {
-		return ResolutionResponse{}, errors.Wrap(err, errListManaged)
+		return ResolutionResponse{}, errors.Wrap(err, "cannot list resources that match selector")
 	}
 
 	for _, to := range req.To.List.GetItems() {
@@ -311,7 +303,7 @@ func (r *APIResolver) Resolve(ctx context.Context, req ResolutionRequest) (Resol
 	}
 
 	// We couldn't resolve anything.
-	return ResolutionResponse{}, getResolutionError(req.Selector.Policy, errors.New(errNoMatches))
+	return ResolutionResponse{}, getResolutionError(req.Selector.Policy, errors.New("no resources matched selector"))
 
 }
 
@@ -330,9 +322,9 @@ func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRe
 		for i := range req.References {
 			if err := r.client.Get(ctx, types.NamespacedName{Name: req.References[i].Name}, req.To.Managed); err != nil {
 				if kerrors.IsNotFound(err) {
-					return MultiResolutionResponse{}, getResolutionError(req.References[i].Policy, errors.Wrap(err, errGetManaged))
+					return MultiResolutionResponse{}, getResolutionError(req.References[i].Policy, errors.Wrap(err, "cannot get referenced resource"))
 				}
-				return MultiResolutionResponse{}, errors.Wrap(err, errGetManaged)
+				return MultiResolutionResponse{}, errors.Wrap(err, "cannot get referenced resource")
 			}
 			vals[i] = req.Extract(req.To.Managed)
 		}
@@ -343,7 +335,7 @@ func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRe
 
 	// No references were set, but a selector was. Select and resolve references.
 	if err := r.client.List(ctx, req.To.List, client.MatchingLabels(req.Selector.MatchLabels)); err != nil {
-		return MultiResolutionResponse{}, errors.Wrap(err, errListManaged)
+		return MultiResolutionResponse{}, errors.Wrap(err, "cannot list resources that match selector")
 	}
 
 	items := req.To.List.GetItems()

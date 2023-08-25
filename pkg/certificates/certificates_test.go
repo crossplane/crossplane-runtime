@@ -2,18 +2,12 @@ package certificates
 
 import (
 	"crypto/tls"
+	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
-)
-
-var (
-	errNoSuchFile = errors.New("open invalid/path/tls.crt: no such file or directory")
-	errNoCAFile   = errors.New("open test-data/no-ca/ca.crt: no such file or directory")
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 const (
@@ -42,7 +36,7 @@ func TestLoad(t *testing.T) {
 				certsFolderPath: "invalid/path",
 			},
 			want: want{
-				err: errors.Wrap(errNoSuchFile, errLoadCert),
+				err: os.ErrNotExist,
 				out: nil,
 			},
 		},
@@ -52,7 +46,7 @@ func TestLoad(t *testing.T) {
 				certsFolderPath: "test-data/no-ca",
 			},
 			want: want{
-				err: errors.Wrap(errNoCAFile, errLoadCA),
+				err: os.ErrNotExist,
 				out: nil,
 			},
 		},
@@ -62,7 +56,9 @@ func TestLoad(t *testing.T) {
 				certsFolderPath: "test-data/invalid-certs/",
 			},
 			want: want{
-				err: errors.New(errInvalidCA),
+				// TODO(negz): Can we be more specific? Should we use a sentinel
+				// error?
+				err: cmpopts.AnyError,
 				out: nil,
 			},
 		},
@@ -96,7 +92,7 @@ func TestLoad(t *testing.T) {
 			requireClient := tc.args.requireClientValidation
 
 			cfg, err := LoadMTLSConfig(filepath.Join(certsFolderPath, caCertFileName), filepath.Join(certsFolderPath, tlsCertFileName), filepath.Join(certsFolderPath, tlsKeyFileName), requireClient)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nLoad(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 

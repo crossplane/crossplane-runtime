@@ -22,11 +22,10 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/ratelimiter"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
 var _ ratelimiter.RateLimiter = &predictableRateLimiter{}
@@ -100,7 +99,7 @@ func TestReconcile(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			got, err := tc.r.Reconcile(tc.args.ctx, tc.args.req)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("%s\nr.Reconcile(...): -want, +got error:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.res, got); diff != "" {

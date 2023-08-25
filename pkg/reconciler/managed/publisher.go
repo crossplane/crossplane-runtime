@@ -23,8 +23,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
-const errSecretStoreDisabled = "cannot publish to secret store, feature is not enabled"
-
 // A PublisherChain chains multiple ManagedPublishers.
 type PublisherChain []ConnectionPublisher
 
@@ -64,7 +62,7 @@ type DisabledSecretStoreManager struct {
 // not enabled.
 func (m *DisabledSecretStoreManager) PublishConnection(_ context.Context, so resource.ConnectionSecretOwner, _ ConnectionDetails) (bool, error) {
 	if so.GetPublishConnectionDetailsTo() != nil {
-		return false, errors.New(errSecretStoreDisabled)
+		return false, errors.New("cannot publish to secret store, feature is not enabled")
 	}
 	return false, nil
 }
@@ -73,7 +71,7 @@ func (m *DisabledSecretStoreManager) PublishConnection(_ context.Context, so res
 // not enabled.
 func (m *DisabledSecretStoreManager) UnpublishConnection(_ context.Context, so resource.ConnectionSecretOwner, _ ConnectionDetails) error {
 	if so.GetPublishConnectionDetailsTo() != nil {
-		return errors.New(errSecretStoreDisabled)
+		return errors.New("cannot publish to secret store, feature is not enabled")
 	}
 	return nil
 }

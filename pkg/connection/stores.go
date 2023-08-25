@@ -28,10 +28,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
-const (
-	errFmtUnknownSecretStore = "unknown secret store type: %q"
-)
-
 // RuntimeStoreBuilder builds and returns a Store for any supported Store type
 // in a given config.
 //
@@ -43,5 +39,5 @@ func RuntimeStoreBuilder(ctx context.Context, local client.Client, tcfg *tls.Con
 	case v1.SecretStorePlugin:
 		return plugin.NewSecretStore(ctx, local, tcfg, cfg)
 	}
-	return nil, errors.Errorf(errFmtUnknownSecretStore, *cfg.Type)
+	return nil, errors.Errorf("unknown secret store type: %q", *cfg.Type)
 }

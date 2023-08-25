@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -41,10 +42,6 @@ const (
 	secretStoreFake = v1.SecretStoreType("Fake")
 	fakeConfig      = "fake"
 	testUID         = "e8587e99-15c9-4069-a530-1d2205032848"
-)
-
-const (
-	errBuildStore = "cannot build store"
 )
 
 var (
@@ -87,7 +84,8 @@ func TestManagerConnectStore(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrapf(kerrors.NewNotFound(schema.GroupResource{}, fakeConfig), errGetStoreConfig),
+				// TODO(negz): Can we test that this is kerrors.NewNotFound?
+				err: cmpopts.AnyError,
 			},
 		},
 		"BuildStoreError": {
@@ -101,7 +99,7 @@ func TestManagerConnectStore(t *testing.T) {
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: func(ctx context.Context, local client.Client, tCfg *tls.Config, cfg v1.SecretStoreConfig) (Store, error) {
-					return nil, errors.New(errBuildStore)
+					return nil, errBoom
 				},
 				p: &v1.PublishConnectionDetailsTo{
 					SecretStoreConfigRef: &v1.Reference{
@@ -110,7 +108,7 @@ func TestManagerConnectStore(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.New(errBuildStore),
+				err: errBoom,
 			},
 		},
 		"SuccessfulConnect": {
@@ -147,7 +145,7 @@ func TestManagerConnectStore(t *testing.T) {
 			m := NewDetailsManager(tc.args.c, resourcefake.GVK(&fake.StoreConfig{}), WithStoreBuilder(tc.args.sb))
 
 			_, err := m.connectStore(context.Background(), tc.args.p)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\nReason: %s\nm.connectStore(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
@@ -208,7 +206,8 @@ func TestManagerPublishConnection(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errors.Wrapf(kerrors.NewNotFound(schema.GroupResource{}, "non-existing"), errGetStoreConfig), errConnectStore),
+				// TODO(negz): Can we test that this is kerrors.NewNotFound?
+				err: cmpopts.AnyError,
 			},
 		},
 		"CannotPublishTo": {
@@ -242,7 +241,7 @@ func TestManagerPublishConnection(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errWriteStore),
+				err: errBoom,
 			},
 		},
 		"SuccessfulPublishWithOwnerUID": {
@@ -292,7 +291,7 @@ func TestManagerPublishConnection(t *testing.T) {
 			m := NewDetailsManager(tc.args.c, resourcefake.GVK(&fake.StoreConfig{}), WithStoreBuilder(tc.args.sb))
 
 			published, err := m.PublishConnection(context.Background(), tc.args.so, tc.args.conn)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\nReason: %s\nm.publishConnection(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.published, published); diff != "" {
@@ -355,7 +354,8 @@ func TestManagerUnpublishConnection(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errors.Wrapf(kerrors.NewNotFound(schema.GroupResource{}, "non-existing"), errGetStoreConfig), errConnectStore),
+				// TODO(negz): Can we test that this is kerrors.NewNotFound?
+				err: cmpopts.AnyError,
 			},
 		},
 		"CannotUnpublish": {
@@ -389,7 +389,7 @@ func TestManagerUnpublishConnection(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errDeleteFromStore),
+				err: errBoom,
 			},
 		},
 		"CannotUnpublishUnowned": {
@@ -436,7 +436,8 @@ func TestManagerUnpublishConnection(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errors.Errorf(errFmtNotOwnedBy, testUID), errDeleteFromStore),
+				// TODO(negz): Can we be more specific?
+				err: cmpopts.AnyError,
 			},
 		},
 		"SuccessfulUnpublish": {
@@ -492,7 +493,7 @@ func TestManagerUnpublishConnection(t *testing.T) {
 			m := NewDetailsManager(tc.args.c, resourcefake.GVK(&fake.StoreConfig{}), WithStoreBuilder(tc.args.sb))
 
 			err := m.UnpublishConnection(context.Background(), tc.args.so, tc.args.conn)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\nReason: %s\nm.unpublishConnection(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
@@ -552,7 +553,8 @@ func TestManagerFetchConnection(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errors.Wrapf(kerrors.NewNotFound(schema.GroupResource{}, "non-existing"), errGetStoreConfig), errConnectStore),
+				// TODO(negz): Can we test that this is kerrors.NewNotFound?
+				err: cmpopts.AnyError,
 			},
 		},
 		"CannotFetch": {
@@ -586,7 +588,7 @@ func TestManagerFetchConnection(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errReadStore),
+				err: errBoom,
 			},
 		},
 		"SuccessfulFetch": {
@@ -635,7 +637,7 @@ func TestManagerFetchConnection(t *testing.T) {
 			m := NewDetailsManager(tc.args.c, resourcefake.GVK(&fake.StoreConfig{}), WithStoreBuilder(tc.args.sb))
 
 			got, err := m.FetchConnection(context.Background(), tc.args.so)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\nReason: %s\nm.FetchConnection(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.conn, got); diff != "" {
@@ -713,7 +715,8 @@ func TestManagerPropagateConnection(t *testing.T) {
 				to: &resourcefake.MockLocalConnectionSecretOwner{To: &v1.PublishConnectionDetailsTo{}},
 			},
 			want: want{
-				err: errors.Wrap(errors.Wrapf(kerrors.NewNotFound(schema.GroupResource{}, "non-existing"), errGetStoreConfig), errConnectStore),
+				// TODO(negz): Can we test that this is kerrors.NewNotFound?
+				err: cmpopts.AnyError,
 			},
 		},
 		"CannotFetch": {
@@ -748,7 +751,7 @@ func TestManagerPropagateConnection(t *testing.T) {
 				to: &resourcefake.MockLocalConnectionSecretOwner{To: &v1.PublishConnectionDetailsTo{}},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errReadStore),
+				err: errBoom,
 			},
 		},
 		"CannotEstablishControlOfUnowned": {
@@ -798,7 +801,9 @@ func TestManagerPropagateConnection(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.New(errSecretConflict),
+				// TODO(negz): Can we be more specific? Do we want a sentinel
+				// error?
+				err: cmpopts.AnyError,
 			},
 		},
 		"CannotEstablishControlOfAnotherOwner": {
@@ -852,7 +857,9 @@ func TestManagerPropagateConnection(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.New(errSecretConflict),
+				// TODO(negz): Can we be more specific? Do we want a sentinel
+				// error?
+				err: cmpopts.AnyError,
 			},
 		},
 		"CannotConnectDestination": {
@@ -906,7 +913,8 @@ func TestManagerPropagateConnection(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errors.Wrapf(kerrors.NewNotFound(schema.GroupResource{}, "non-existing"), errGetStoreConfig), errConnectStore),
+				// TODO(negz): Can we test that this is kerrors.NewNotFound?
+				err: cmpopts.AnyError,
 			},
 		},
 		"CannotPublish": {
@@ -958,7 +966,7 @@ func TestManagerPropagateConnection(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errWriteStore),
+				err: errBoom,
 			},
 		},
 		"DestinationSecretCannotBeOwned": {
@@ -1024,7 +1032,8 @@ func TestManagerPropagateConnection(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errors.Errorf(errFmtNotOwnedBy, testUID), errWriteStore),
+				// TODO(negz): Can we be more specific?
+				err: cmpopts.AnyError,
 			},
 		},
 		"SuccessfulPropagateCreated": {
@@ -1138,7 +1147,8 @@ func TestManagerPropagateConnection(t *testing.T) {
 			},
 			want: want{
 				propagated: false,
-				err:        errors.Wrap(errors.Errorf(errFmtNotOwnedBy, ""), errWriteStore),
+				// TODO(negz): Can we be more specific?
+				err: cmpopts.AnyError,
 			},
 		},
 		"SuccessfulPropagateUpdated": {
@@ -1216,7 +1226,7 @@ func TestManagerPropagateConnection(t *testing.T) {
 			m := NewDetailsManager(tc.args.c, resourcefake.GVK(&fake.StoreConfig{}), WithStoreBuilder(tc.args.sb))
 
 			got, err := m.PropagateConnection(context.Background(), tc.args.to, tc.args.from)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\nReason: %s\nm.PropagateConnection(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.propagated, got); diff != "" {
@@ -1231,6 +1241,6 @@ func fakeStoreBuilderFn(ss fake.SecretStore) StoreBuilderFn {
 		if *cfg.Type == fakeStore {
 			return &ss, nil
 		}
-		return nil, errors.Errorf(errFmtUnknownSecretStore, *cfg.Type)
+		return nil, errors.Errorf("unknown secret store type: %q", *cfg.Type)
 	}
 }

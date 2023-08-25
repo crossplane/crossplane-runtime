@@ -24,12 +24,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
-const (
-	errNilLinterFn = "linter function is nil"
-
-	errOrFmt = "object did not pass any of the linters with following errors: %s"
-)
-
 // A Linter lints packages.
 type Linter interface {
 	Lint(*Package) error
@@ -102,7 +96,7 @@ func Or(linters ...ObjectLinterFn) ObjectLinterFn {
 		var errs []string
 		for _, l := range linters {
 			if l == nil {
-				return errors.New(errNilLinterFn)
+				return errors.New("linter function is nil")
 			}
 			err := l(o)
 			if err == nil {
@@ -110,6 +104,6 @@ func Or(linters ...ObjectLinterFn) ObjectLinterFn {
 			}
 			errs = append(errs, err.Error())
 		}
-		return errors.Errorf(errOrFmt, strings.Join(errs, ", "))
+		return errors.Errorf("object did not pass any of the linters with following errors: %s", strings.Join(errs, ", "))
 	}
 }

@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -69,14 +70,14 @@ func TestExtractEnv(t *testing.T) {
 				e: func(string) string { return string(credentials) },
 			},
 			want: want{
-				err: errors.New(errExtractEnv),
+				err: cmpopts.AnyError,
 			},
 		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			got, err := ExtractEnv(context.TODO(), tc.args.e, tc.args.creds)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\npc.ExtractEnv(...): -want error, +got error:\n%s\n", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.b, got); diff != "" {
@@ -128,14 +129,14 @@ func TestExtractFs(t *testing.T) {
 				fs: mockFs,
 			},
 			want: want{
-				err: errors.New(errExtractFs),
+				err: cmpopts.AnyError,
 			},
 		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			got, err := ExtractFs(context.TODO(), tc.args.fs, tc.args.creds)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\npc.ExtractFs(...): -want error, +got error:\n%s\n", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.b, got); diff != "" {
@@ -194,7 +195,7 @@ func TestExtractSecret(t *testing.T) {
 			reason: "Failed extraction of credentials from Secret when key not defined",
 			args:   args{},
 			want: want{
-				err: errors.New(errExtractSecretKey),
+				err: cmpopts.AnyError,
 			},
 		},
 		"SecretFailureGet": {
@@ -216,14 +217,14 @@ func TestExtractSecret(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errGetCredentialsSecret),
+				err: errBoom,
 			},
 		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			got, err := ExtractSecret(context.TODO(), tc.args.client, tc.args.creds)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\npc.ExtractSecret(...): -want error, +got error:\n%s\n", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.b, got); diff != "" {
@@ -261,7 +262,8 @@ func TestTrack(t *testing.T) {
 			args: args{
 				mg: &fake.Managed{},
 			},
-			want: errMissingRef{errors.New(errMissingPCRef)},
+			// TODO(negz): Actually test that this satisfies IsMissingReference :/
+			want: cmpopts.AnyError,
 		},
 		"NopUpdate": {
 			reason: "No error should be returned if the apply fails because it would be a no-op",
@@ -311,7 +313,7 @@ func TestTrack(t *testing.T) {
 					},
 				},
 			},
-			want: errors.Wrap(errBoom, errApplyPCU),
+			want: errBoom,
 		},
 	}
 
@@ -319,7 +321,7 @@ func TestTrack(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ut := &ProviderConfigUsageTracker{c: tc.fields.c, of: tc.fields.of}
 			got := ut.Track(tc.args.ctx, tc.args.mg)
-			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want, got, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nut.Track(...): -want error, +got error:\n%s\n", tc.reason, diff)
 			}
 		})

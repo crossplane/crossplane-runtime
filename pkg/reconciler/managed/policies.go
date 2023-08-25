@@ -112,7 +112,7 @@ func (m *ManagementPoliciesResolver) Validate() error {
 	// check if its disabled, but uses a non-default value.
 	if !m.enabled {
 		if !m.managementPolicies.Equal(sets.New[xpv1.ManagementAction](xpv1.ManagementActionAll)) && m.managementPolicies.Len() != 0 {
-			return fmt.Errorf(errFmtManagementPolicyNonDefault, m.managementPolicies.UnsortedList())
+			return fmt.Errorf("`spec.managementPolicies` is set to a non-default value but the feature is not enabled: %s", m.managementPolicies.UnsortedList())
 		}
 		// if its just disabled we don't care about supported policies
 		return nil
@@ -124,7 +124,7 @@ func (m *ManagementPoliciesResolver) Validate() error {
 			return nil
 		}
 	}
-	return fmt.Errorf(errFmtManagementPolicyNotSupported, m.managementPolicies.UnsortedList())
+	return fmt.Errorf("`spec.managementPolicies` is set to a value(%s) which is not supported. Check docs for supported policies", m.managementPolicies.UnsortedList())
 }
 
 // IsPaused returns true if the management policy is empty and the
