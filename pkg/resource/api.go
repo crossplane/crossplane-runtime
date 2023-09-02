@@ -18,8 +18,12 @@ package resource
 
 import (
 	"context"
+	"encoding/json"
 
+	jsonpatch "github.com/evanphx/json-patch"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -100,6 +104,37 @@ func groupResource(c client.Client, o client.Object) (schema.GroupResource, erro
 		return schema.GroupResource{}, errors.Wrapf(err, "cannot determine group resource of %v", gvk)
 	}
 	return m.Resource.GroupResource(), nil
+}
+
+// AdditiveMergePatchApplyOption returns an ApplyOption that makes
+// the Apply additive in the sense of a merge patch without null values. This is
+// the old behavior of the APIPatchingApplicator.
+//
+// This only works with a desired object of type *unstructured.Unstructured.
+//
+// Deprecated: replace with Server Side Apply.
+func AdditiveMergePatchApplyOption(_ context.Context, current, desired runtime.Object) error {
+	u, ok := desired.(*unstructured.Unstructured)
+	if !ok {
+		return errors.New("desired object is not an unstructured.Unstructured")
+	}
+	currentBytes, err := json.Marshal(current)
+	if err != nil {
+		return errors.Wrapf(err, "cannot marshal current %s", HumanReadableReference(nil, current))
+	}
+	desiredBytes, err := json.Marshal(u)
+	if err != nil {
+		return errors.Wrapf(err, "cannot marshal desired %s", HumanReadableReference(nil, desired))
+	}
+	mergedBytes, err := jsonpatch.MergePatch(currentBytes, desiredBytes)
+	if err != nil {
+		return errors.Wrapf(err, "cannot merge patch to %s", HumanReadableReference(nil, desired))
+	}
+	u.Object = nil
+	if err = json.Unmarshal(mergedBytes, &u.Object); err != nil {
+		return errors.Wrapf(err, "cannot unmarshal merged patch to %s", HumanReadableReference(nil, desired))
+	}
+	return nil
 }
 
 // An APIUpdatingApplicator applies changes to an object by either creating or
