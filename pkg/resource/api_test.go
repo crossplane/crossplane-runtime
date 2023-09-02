@@ -18,15 +18,20 @@ package resource
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
+	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/google/go-cmp/cmp"
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/yaml"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
@@ -53,6 +58,14 @@ func TestAPIPatchingApplicator(t *testing.T) {
 	singular := schema.GroupVersionResource{Group: "example.com", Version: "v1", Resource: "thing"}
 	fakeRESTMapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{gvk.GroupVersion()})
 	fakeRESTMapper.AddSpecific(gvk, gvr, singular, meta.RESTScopeRoot)
+
+	// for additive merge patch option test
+	currentYAML := `
+metadata:
+  resourceVersion: "42"
+a: old
+b: old
+`
 
 	type args struct {
 		ctx context.Context
@@ -219,6 +232,63 @@ func TestAPIPatchingApplicator(t *testing.T) {
 				o: withRV("42", desired),
 				// this is intentionally not a wrapped error because this comes from a client
 				err: kerrors.NewConflict(schema.GroupResource{Group: "example.com", Resource: "things"}, current.GetName(), errors.New(errOptimisticLock)),
+			},
+		},
+		"AdditiveMergePatch": {
+			reason: "No error with the old additive behaviour if desired",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+					o.(*unstructured.Unstructured).Object = map[string]interface{}{}
+					return yaml.Unmarshal([]byte(currentYAML), &o.(*unstructured.Unstructured).Object)
+				}),
+				MockPatch: func(_ context.Context, o client.Object, patch client.Patch, _ ...client.PatchOption) error {
+					bs, err := patch.Data(o)
+					if err != nil {
+						return err
+					}
+					currentJSON, err := yaml.YAMLToJSON([]byte(currentYAML))
+					if err != nil {
+						return err
+					}
+					patched, err := jsonpatch.MergePatch(currentJSON, bs)
+					if err != nil {
+						return err
+					}
+					o.(*unstructured.Unstructured).Object = map[string]interface{}{}
+					if err := json.Unmarshal(patched, &o.(*unstructured.Unstructured).Object); err != nil {
+						return err
+					}
+					o.SetResourceVersion("43")
+					return nil
+				},
+				MockGroupVersionKindFor: test.NewMockGroupVersionKindForFn(nil, gvk),
+				MockRESTMapper:          test.NewMockRESTMapperFn(fakeRESTMapper),
+			},
+			args: args{
+				o: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"kind": "Thing",
+						"metadata": map[string]interface{}{
+							"resourceVersion": "42",
+						},
+						"b": "changed",
+						"c": "added",
+					},
+				},
+				ao: []ApplyOption{AdditiveMergePatchApplyOption},
+			},
+			want: want{
+				o: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"kind": "Thing",
+						"metadata": map[string]interface{}{
+							"resourceVersion": "43",
+						},
+						"a": "old",
+						"b": "changed",
+						"c": "added",
+					},
+				},
 			},
 		},
 	}
@@ -514,6 +584,266 @@ func TestAPIFinalizerAdder(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.obj, tc.args.obj, test.EquateConditions()); diff != "" {
 				t.Errorf("api.Initialize(...) Managed: -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestAdditiveMergePatchApplyOption(t *testing.T) {
+	type args struct {
+		current runtime.Object
+		desired runtime.Object
+	}
+	type want struct {
+		err     error
+		current runtime.Object
+		desired runtime.Object
+	}
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			name: "equal unstructed",
+			args: args{
+				current: &unstructured.Unstructured{Object: map[string]interface{}{
+					"apiVersion": "example.com/v1",
+					"kind":       "Thing",
+					"a":          "foo",
+				}},
+				desired: &unstructured.Unstructured{Object: map[string]interface{}{
+					"apiVersion": "example.com/v1",
+					"kind":       "Thing",
+					"a":          "foo",
+				}},
+			},
+			want: want{
+				current: &unstructured.Unstructured{Object: map[string]interface{}{
+					"apiVersion": "example.com/v1",
+					"kind":       "Thing",
+					"a":          "foo",
+				}},
+				desired: &unstructured.Unstructured{Object: map[string]interface{}{
+					"apiVersion": "example.com/v1",
+					"kind":       "Thing",
+					"a":          "foo",
+				}},
+			},
+		},
+		{
+			name: "overlapping unstructed",
+			args: args{
+				current: &unstructured.Unstructured{Object: map[string]interface{}{
+					"apiVersion": "example.com/v1",
+					"kind":       "Thing",
+					"a":          "foo",
+					"b":          "foo",
+					"c":          "foo",
+				}},
+				desired: &unstructured.Unstructured{Object: map[string]interface{}{
+					"apiVersion": "example.com/v1",
+					"kind":       "Thing",
+					"a":          "foo",
+					"b":          "bar",
+					"d":          "bar",
+				}},
+			},
+			want: want{
+				current: &unstructured.Unstructured{Object: map[string]interface{}{
+					"apiVersion": "example.com/v1",
+					"kind":       "Thing",
+					"a":          "foo",
+					"b":          "foo",
+					"c":          "foo",
+				}},
+				desired: &unstructured.Unstructured{Object: map[string]interface{}{
+					"apiVersion": "example.com/v1",
+					"kind":       "Thing",
+					"a":          "foo",
+					"b":          "bar",
+					"c":          "foo",
+					"d":          "bar",
+				}},
+			},
+		},
+		{
+			name: "equal typed",
+			args: args{
+				current: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
+					"a": "foo",
+				}}},
+				desired: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
+					"a": "foo",
+				}}},
+			},
+			want: want{
+				current: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
+					"a": "foo",
+				}}},
+				desired: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
+					"a": "foo",
+				}}},
+			},
+		},
+		{
+			name: "overlapping typed",
+			args: args{
+				current: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
+					"a": "foo",
+					"b": "foo",
+					"c": "foo",
+				}}},
+				desired: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
+					"a": "foo",
+					"b": "bar",
+					"d": "bar",
+				}}},
+			},
+			want: want{
+				current: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
+					"a": "foo",
+					"b": "foo",
+					"c": "foo",
+				}}},
+				desired: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
+					"a": "foo",
+					"b": "bar",
+					"c": "foo",
+					"d": "bar",
+				}}},
+			},
+		},
+		{
+			name: "equal mixed",
+			args: args{
+				current: &unstructured.Unstructured{Object: map[string]interface{}{
+					"kind": "Thing",
+					"metadata": map[string]interface{}{
+						"labels": map[string]interface{}{
+							"a": "foo",
+						},
+					},
+				}},
+				desired: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
+					"a": "foo",
+				}}},
+			},
+			want: want{
+				current: &unstructured.Unstructured{Object: map[string]interface{}{
+					"kind": "Thing",
+					"metadata": map[string]interface{}{
+						"labels": map[string]interface{}{
+							"a": "foo",
+						},
+					},
+				}},
+				desired: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
+					"a": "foo",
+				}}},
+			},
+		},
+		{
+			name: "overlapping mixed",
+			args: args{
+				current: &unstructured.Unstructured{Object: map[string]interface{}{
+					"kind": "Thing",
+					"metadata": map[string]interface{}{
+						"labels": map[string]interface{}{
+							"a": "foo",
+							"b": "foo",
+							"c": "foo",
+						},
+					},
+				}},
+				desired: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
+					"a": "foo",
+					"b": "bar",
+					"d": "bar",
+				}}},
+			},
+			want: want{
+				current: &unstructured.Unstructured{Object: map[string]interface{}{
+					"kind": "Thing",
+					"metadata": map[string]interface{}{
+						"labels": map[string]interface{}{
+							"a": "foo",
+							"b": "foo",
+							"c": "foo",
+						},
+					},
+				}},
+				desired: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
+					"a": "foo",
+					"b": "bar",
+					"c": "foo",
+					"d": "bar",
+				}}},
+			},
+		},
+		{
+			name: "incomplete desired",
+			args: args{
+				current: &unstructured.Unstructured{Object: map[string]interface{}{
+					"apiVersion": "example.com/v1",
+					"kind":       "Thing",
+					"a":          "foo",
+				}},
+				desired: &unstructured.Unstructured{Object: map[string]interface{}{
+					"a": "foo",
+				}},
+			},
+			want: want{
+				current: &unstructured.Unstructured{Object: map[string]interface{}{
+					"apiVersion": "example.com/v1",
+					"kind":       "Thing",
+					"a":          "foo",
+				}},
+				desired: &unstructured.Unstructured{Object: map[string]interface{}{
+					"apiVersion": "example.com/v1",
+					"kind":       "Thing",
+					"a":          "foo",
+				}},
+			},
+		},
+		{
+			name: "different GVKs",
+			args: args{
+				current: &unstructured.Unstructured{Object: map[string]interface{}{
+					"apiVersion": "example.com/v1",
+					"kind":       "Thing",
+				}},
+				desired: &unstructured.Unstructured{Object: map[string]interface{}{
+					"apiVersion": "example.com/v1",
+					"kind":       "SomethingElse",
+					"a":          "foo",
+				}},
+			},
+			want: want{
+				err: errors.New("cannot apply example.com/v1, Kind=SomethingElse to example.com/v1, Kind=Thing"),
+				current: &unstructured.Unstructured{Object: map[string]interface{}{
+					"apiVersion": "example.com/v1",
+					"kind":       "Thing",
+				}},
+				desired: &unstructured.Unstructured{Object: map[string]interface{}{
+					"apiVersion": "example.com/v1",
+					"kind":       "SomethingElse",
+					"a":          "foo",
+				}},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := AdditiveMergePatchApplyOption(context.Background(), tt.args.current, tt.args.desired)
+			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("AdditiveMergePatchApplyOption() error = %v, wantErr %v", err, tt.want.err)
+			}
+			if diff := cmp.Diff(tt.want.current, tt.args.current); diff != "" {
+				t.Errorf("AdditiveMergePatchApplyOption()\ncurrent = %v\nwant    = %v\ndiff    = %s", tt.args.current, tt.want.current, diff)
+			}
+			if diff := cmp.Diff(tt.want.desired, tt.args.desired); diff != "" {
+				t.Errorf("AdditiveMergePatchApplyOption()\ncurrent = %v\nwant    = %v\ndiff    = %s", tt.args.desired, tt.want.desired, diff)
 			}
 		})
 	}

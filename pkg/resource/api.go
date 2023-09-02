@@ -17,10 +17,14 @@ limitations under the License.
 package resource
 
 import (
+	"bytes"
 	"context"
 
+	jsonpatch "github.com/evanphx/json-patch"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -54,7 +58,7 @@ func NewAPIPatchingApplicator(c client.Client) *APIPatchingApplicator {
 // Apply changes to the supplied object. The object will be created if it does
 // not exist, or patched if it does. If the object does exist, it will only be
 // patched if the passed object has the same or an empty resource version.
-func (a *APIPatchingApplicator) Apply(ctx context.Context, obj client.Object, ao ...ApplyOption) error { //nolint:gocyclo // the logic here is crucial and deserves to stay in one method
+func (a *APIPatchingApplicator) Apply(ctx context.Context, obj client.Object, ao ...ApplyOption) error {
 	if obj.GetName() == "" && obj.GetGenerateName() != "" {
 		return a.client.Create(ctx, obj)
 	}
@@ -100,6 +104,50 @@ func groupResource(c client.Client, o client.Object) (schema.GroupResource, erro
 		return schema.GroupResource{}, errors.Wrapf(err, "cannot determine group resource of %v", gvk)
 	}
 	return m.Resource.GroupResource(), nil
+}
+
+var emptyScheme = runtime.NewScheme() // no need to recognize any types
+var jsonSerializer = json.NewSerializerWithOptions(json.DefaultMetaFactory, emptyScheme, emptyScheme, json.SerializerOptions{})
+
+// AdditiveMergePatchApplyOption returns an ApplyOption that makes
+// the Apply additive in the sense of a merge patch without null values. This is
+// the old behavior of the APIPatchingApplicator.
+//
+// This only works with a desired object of type *unstructured.Unstructured.
+//
+// Deprecated: replace with Server Side Apply.
+func AdditiveMergePatchApplyOption(_ context.Context, current, desired runtime.Object) error {
+	// set GVK uniformly to the desired object to make serializer happy
+	currentGVK, desiredGVK := current.GetObjectKind().GroupVersionKind(), desired.GetObjectKind().GroupVersionKind()
+	if !desiredGVK.Empty() && currentGVK != desiredGVK {
+		return errors.Errorf("cannot apply %v to %v", desired.GetObjectKind().GroupVersionKind(), current.GetObjectKind().GroupVersionKind())
+	}
+	desired.GetObjectKind().SetGroupVersionKind(currentGVK)
+
+	// merge `desired` additively with `current`
+	var currentBytes, desiredBytes bytes.Buffer
+	if err := jsonSerializer.Encode(current, &currentBytes); err != nil {
+		return errors.Wrapf(err, "cannot marshal current %s", HumanReadableReference(nil, current))
+	}
+	if err := jsonSerializer.Encode(desired, &desiredBytes); err != nil {
+		return errors.Wrapf(err, "cannot marshal desired %s", HumanReadableReference(nil, desired))
+	}
+	mergedBytes, err := jsonpatch.MergePatch(currentBytes.Bytes(), desiredBytes.Bytes())
+	if err != nil {
+		return errors.Wrapf(err, "cannot merge patch to %s", HumanReadableReference(nil, desired))
+	}
+
+	// write merged object back to `desired`
+	if _, _, err := jsonSerializer.Decode(mergedBytes, nil, desired); err != nil {
+		return errors.Wrapf(err, "cannot unmarshal merged patch to %s", HumanReadableReference(nil, desired))
+	}
+
+	// restore empty GVK for typed objects
+	if _, isUnstructured := desired.(runtime.Unstructured); !isUnstructured {
+		desired.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{})
+	}
+
+	return nil
 }
 
 // An APIUpdatingApplicator applies changes to an object by either creating or
