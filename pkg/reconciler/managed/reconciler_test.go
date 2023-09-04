@@ -998,7 +998,7 @@ func TestReconciler(t *testing.T) {
 				})},
 			},
 		},
-		"ExternalResourceUpToDateWithJitterAndIntervalHook": {
+		"ExternalResourceUpToDateWithPollIntervalHook": {
 			reason: "When the external resource exists and is up to date a requeue should be triggered after a long wait processed by the interval hook.",
 			args: args{
 				m: &fake.Manager{
@@ -1030,21 +1030,13 @@ func TestReconciler(t *testing.T) {
 					})),
 					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
-					WithPollJitter(time.Second),
-					WithPollIntervalHook(func(managed resource.Managed, configuredPollInterval, computedJitter time.Duration) time.Duration {
-						return 2*configuredPollInterval + computedJitter
+					WithPollIntervalHook(func(managed resource.Managed, pollInterval time.Duration) time.Duration {
+						return 2*pollInterval
 					}),
 				},
 			},
 			want: want{
 				result: reconcile.Result{RequeueAfter: 2*defaultPollInterval},
-				resultCmpOpts: []cmp.Option{cmp.Comparer(func(l, r time.Duration) bool {
-					diff := l - r
-					if diff < 0 {
-						diff = -diff
-					}
-					return diff < time.Second
-				})},
 			},
 		},
 		"UpdateExternalError": {
