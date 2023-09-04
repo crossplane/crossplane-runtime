@@ -63,6 +63,9 @@ type MockSubResourcePatchFn func(ctx context.Context, obj client.Object, patch c
 // A MockSchemeFn is used to mock client.Client's Scheme implementation.
 type MockSchemeFn func() *runtime.Scheme
 
+// A MockRESTMapperFn is used to mock client.RESTMapper.
+type MockRESTMapperFn func() meta.RESTMapper
+
 // A MockGroupVersionKindForFn is used to mock client.Client's GroupVersionKindFor implementation.
 type MockGroupVersionKindForFn func(runtime.Object) (schema.GroupVersionKind, error)
 
@@ -201,10 +204,17 @@ func NewMockSubResourcePatchFn(err error, ofn ...ObjectFn) MockSubResourcePatchF
 	}
 }
 
-// NewMockSchemeFn returns a MockSchemeFn that returns the scheme
+// NewMockSchemeFn returns a MockSchemeFn that returns the scheme.
 func NewMockSchemeFn(scheme *runtime.Scheme) MockSchemeFn {
 	return func() *runtime.Scheme {
 		return scheme
+	}
+}
+
+// NewMockRESTMapperFn returns a MockRESTMapperFn that returns the RESTMapper.
+func NewMockRESTMapperFn(mapper meta.RESTMapper) MockRESTMapperFn {
+	return func() meta.RESTMapper {
+		return mapper
 	}
 }
 
@@ -257,6 +267,7 @@ type MockClient struct {
 	MockScheme              MockSchemeFn
 	MockGroupVersionKindFor MockGroupVersionKindForFn
 	MockIsObjectNamespaced  MockIsObjectNamespacedFn
+	MockRESTMapper          MockRESTMapperFn
 }
 
 // NewMockClient returns a MockClient that does nothing when its methods are
@@ -277,6 +288,7 @@ func NewMockClient() *MockClient {
 		MockScheme:              NewMockSchemeFn(nil),
 		MockGroupVersionKindFor: NewMockGroupVersionKindForFn(nil, schema.GroupVersionKind{}),
 		MockIsObjectNamespaced:  NewMockIsObjectNamespacedFn(nil, false),
+		MockRESTMapper:          NewMockRESTMapperFn(nil),
 	}
 }
 
@@ -336,7 +348,7 @@ func (c *MockClient) SubResource(_ string) client.SubResourceClient {
 
 // RESTMapper returns the REST mapper.
 func (c *MockClient) RESTMapper() meta.RESTMapper {
-	return nil
+	return c.MockRESTMapper()
 }
 
 // Scheme calls MockClient's MockScheme function
