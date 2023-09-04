@@ -1031,12 +1031,12 @@ func TestReconciler(t *testing.T) {
 					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 					WithPollIntervalHook(func(managed resource.Managed, pollInterval time.Duration) time.Duration {
-						return 2*pollInterval
+						return 2 * pollInterval
 					}),
 				},
 			},
 			want: want{
-				result: reconcile.Result{RequeueAfter: 2*defaultPollInterval},
+				result: reconcile.Result{RequeueAfter: 2 * defaultPollInterval},
 			},
 		},
 		"UpdateExternalError": {
