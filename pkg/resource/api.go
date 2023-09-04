@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 )
 
@@ -47,19 +48,31 @@ const (
 // patching it in a Kubernetes API server.
 type APIPatchingApplicator struct {
 	client client.Client
+	log    logging.Logger
 }
 
 // NewAPIPatchingApplicator returns an Applicator that applies changes to an
 // object by either creating or patching it in a Kubernetes API server.
 func NewAPIPatchingApplicator(c client.Client) *APIPatchingApplicator {
-	return &APIPatchingApplicator{client: c}
+	return &APIPatchingApplicator{client: c, log: logging.NewNopLogger()}
+}
+
+// WithLogger sets the logger on the APIPatchingApplicator. The logger logs
+// client operations including diffs of objects that are patched. Diffs of
+// secrets are redacted.
+func (a *APIPatchingApplicator) WithLogger(l logging.Logger) *APIPatchingApplicator {
+	a.log = l
+	return a
 }
 
 // Apply changes to the supplied object. The object will be created if it does
 // not exist, or patched if it does. If the object does exist, it will only be
 // patched if the passed object has the same or an empty resource version.
 func (a *APIPatchingApplicator) Apply(ctx context.Context, obj client.Object, ao ...ApplyOption) error { //nolint:gocyclo // the logic here is crucial and deserves to stay in one method
+	log := a.log.WithValues(logging.ForResource(obj))
+
 	if obj.GetName() == "" && obj.GetGenerateName() != "" {
+		log.Info("creating object")
 		return a.client.Create(ctx, obj)
 	}
 
@@ -67,6 +80,7 @@ func (a *APIPatchingApplicator) Apply(ctx context.Context, obj client.Object, ao
 	err := a.client.Get(ctx, types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}, current)
 	if kerrors.IsNotFound(err) {
 		// TODO(negz): Apply ApplyOptions here too?
+		log.Info("creating object")
 		return a.client.Create(ctx, obj)
 	}
 	if err != nil {
@@ -91,7 +105,24 @@ func (a *APIPatchingApplicator) Apply(ctx context.Context, obj client.Object, ao
 		}
 	}
 
-	return a.client.Patch(ctx, obj, client.MergeFromWithOptions(current, client.MergeFromWithOptimisticLock{}))
+	// log diff
+	patch := client.MergeFromWithOptions(current, client.MergeFromWithOptimisticLock{})
+	patchBytes, err := patch.Data(obj)
+	if err != nil {
+		return errors.Wrapf(err, "failed to diff %s", HumanReadableReference(a.client, obj))
+	}
+	if len(patchBytes) == 0 {
+		return nil
+	}
+	secretGVK := schema.GroupVersionKind{Group: "v1", Version: "Secret", Kind: "Secret"}
+	if obj.GetObjectKind().GroupVersionKind() == secretGVK {
+		// TODO(sttts): be more clever and only redact the secret data
+		log.WithValues("diff", "**REDACTED**").Info("patching object")
+	} else {
+		log.WithValues("diff", string(patchBytes)).Info("patching object")
+	}
+
+	return a.client.Patch(ctx, obj, client.RawPatch(patch.Type(), patchBytes))
 }
 
 func groupResource(c client.Client, o client.Object) (schema.GroupResource, error) {
@@ -141,6 +172,7 @@ func AdditiveMergePatchApplyOption(_ context.Context, current, desired runtime.O
 // updating it in a Kubernetes API server.
 type APIUpdatingApplicator struct {
 	client client.Client
+	log    logging.Logger
 }
 
 // NewAPIUpdatingApplicator returns an Applicator that applies changes to an
@@ -149,13 +181,24 @@ type APIUpdatingApplicator struct {
 // Deprecated: Use NewAPIPatchingApplicator instead. The updating applicator
 // can lead to data-loss if the Golang types in this process are not up-to-date.
 func NewAPIUpdatingApplicator(c client.Client) *APIUpdatingApplicator {
-	return &APIUpdatingApplicator{client: c}
+	return &APIUpdatingApplicator{client: c, log: logging.NewNopLogger()}
+}
+
+// WithLogger sets the logger on the APIUpdatingApplicator. The logger logs
+// client operations including diffs of objects that are patched. Diffs of
+// secrets are redacted.
+func (a *APIUpdatingApplicator) WithLogger(l logging.Logger) *APIUpdatingApplicator {
+	a.log = l
+	return a
 }
 
 // Apply changes to the supplied object. The object will be created if it does
 // not exist, or updated if it does.
 func (a *APIUpdatingApplicator) Apply(ctx context.Context, obj client.Object, ao ...ApplyOption) error {
+	log := a.log.WithValues(logging.ForResource(obj))
+
 	if obj.GetName() == "" && obj.GetGenerateName() != "" {
+		log.Info("creating object")
 		return a.client.Create(ctx, obj)
 	}
 
@@ -163,6 +206,7 @@ func (a *APIUpdatingApplicator) Apply(ctx context.Context, obj client.Object, ao
 	err := a.client.Get(ctx, types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}, current)
 	if kerrors.IsNotFound(err) {
 		// TODO(negz): Apply ApplyOptions here too?
+		log.Info("creating object")
 		return a.client.Create(ctx, obj)
 	}
 	if err != nil {
@@ -173,6 +217,23 @@ func (a *APIUpdatingApplicator) Apply(ctx context.Context, obj client.Object, ao
 		if err := fn(ctx, current, obj); err != nil {
 			return errors.Wrapf(err, "apply option failed for %s", HumanReadableReference(a.client, obj))
 		}
+	}
+
+	// log diff
+	patch := client.MergeFromWithOptions(current, client.MergeFromWithOptimisticLock{})
+	patchBytes, err := patch.Data(obj)
+	if err != nil {
+		return errors.Wrapf(err, "failed to diff %s", HumanReadableReference(a.client, obj))
+	}
+	if len(patchBytes) == 0 {
+		return nil
+	}
+	secretGVK := schema.GroupVersionKind{Group: "v1", Version: "Secret", Kind: "Secret"}
+	if obj.GetObjectKind().GroupVersionKind() == secretGVK {
+		// TODO(sttts): be more clever and only redact the secret data
+		log.WithValues("diff", "**REDACTED**").Info("patching object")
+	} else {
+		log.WithValues("diff", string(patchBytes)).Info("patching object")
 	}
 
 	return a.client.Update(ctx, obj)
