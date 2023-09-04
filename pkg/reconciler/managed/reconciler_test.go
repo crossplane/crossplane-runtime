@@ -998,6 +998,55 @@ func TestReconciler(t *testing.T) {
 				})},
 			},
 		},
+		"ExternalResourceUpToDateWithJitterAndIntervalHook": {
+			reason: "When the external resource exists and is up to date a requeue should be triggered after a long wait processed by the interval hook.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
+							want := &fake.Managed{}
+							want.SetConditions(xpv1.ReconcileSuccess())
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := "A successful no-op reconcile should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+								return ExternalObservation{ResourceExists: true, ResourceUpToDate: true}, nil
+							},
+						}
+						return c, nil
+					})),
+					WithConnectionPublishers(),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+					WithPollJitter(time.Second),
+					WithPollIntervalHook(func(managed resource.Managed, configuredPollInterval, computedJitter time.Duration) time.Duration {
+						return 2*configuredPollInterval + computedJitter
+					}),
+				},
+			},
+			want: want{
+				result: reconcile.Result{RequeueAfter: 2*defaultPollInterval},
+				resultCmpOpts: []cmp.Option{cmp.Comparer(func(l, r time.Duration) bool {
+					diff := l - r
+					if diff < 0 {
+						diff = -diff
+					}
+					return diff < time.Second
+				})},
+			},
+		},
 		"UpdateExternalError": {
 			reason: "Errors while updating an external resource should trigger a requeue after a short wait.",
 			args: args{
