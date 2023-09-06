@@ -361,6 +361,16 @@ func AllowUpdateIf(fn func(current, desired runtime.Object) bool) ApplyOption {
 	}
 }
 
+// StoreCurrentRV stores the resource version of the current object in the
+// supplied string pointer. This is useful to detect whether the Apply call
+// was a no-op.
+func StoreCurrentRV(origRV *string) ApplyOption {
+	return func(_ context.Context, current, desired runtime.Object) error {
+		*origRV = current.(client.Object).GetResourceVersion()
+		return nil
+	}
+}
+
 // GetExternalTags returns the identifying tags to be used to tag the external
 // resource in provider API.
 func GetExternalTags(mg Managed) map[string]string {
