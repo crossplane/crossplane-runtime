@@ -17,12 +17,14 @@ limitations under the License.
 package resource
 
 import (
+	"bytes"
 	"context"
-	"encoding/json"
 
+	jsonpatch "github.com/evanphx/json-patch"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/serializer/json"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -33,6 +35,12 @@ import (
 // Error strings.
 const (
 	errUpdateObject = "cannot update object"
+
+	// taken from k8s.io/apiserver. Not crucial to match, but for uniformity it
+	// better should.
+	// TODO(sttts): import from k8s.io/apiserver/pkg/registry/generic/registry when
+	//              kube has updated otel dependencies post-1.28.
+	errOptimisticLock = "the object has been modified; please apply your changes to the latest version and try again"
 )
 
 // An APIPatchingApplicator applies changes to an object by either creating or
@@ -50,41 +58,97 @@ func NewAPIPatchingApplicator(c client.Client) *APIPatchingApplicator {
 // Apply changes to the supplied object. The object will be created if it does
 // not exist, or patched if it does. If the object does exist, it will only be
 // patched if the passed object has the same or an empty resource version.
-func (a *APIPatchingApplicator) Apply(ctx context.Context, o client.Object, ao ...ApplyOption) error {
-	m, ok := o.(metav1.Object)
-	if !ok {
-		return errors.New("cannot access object metadata")
+func (a *APIPatchingApplicator) Apply(ctx context.Context, obj client.Object, ao ...ApplyOption) error {
+	if obj.GetName() == "" && obj.GetGenerateName() != "" {
+		return a.client.Create(ctx, obj)
 	}
 
-	if m.GetName() == "" && m.GetGenerateName() != "" {
-		return errors.Wrap(a.client.Create(ctx, o), "cannot create object")
-	}
-
-	desired := o.DeepCopyObject()
-
-	err := a.client.Get(ctx, types.NamespacedName{Name: m.GetName(), Namespace: m.GetNamespace()}, o)
+	current := obj.DeepCopyObject().(client.Object)
+	err := a.client.Get(ctx, types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}, current)
 	if kerrors.IsNotFound(err) {
 		// TODO(negz): Apply ApplyOptions here too?
-		return errors.Wrap(a.client.Create(ctx, o), "cannot create object")
+		return a.client.Create(ctx, obj)
 	}
 	if err != nil {
-		return errors.Wrap(err, "cannot get object")
+		return err
+	}
+
+	// Note: this check would ideally not be necessary if the Apply signature
+	// had a current object that we could use for the diff. But we have no
+	// current and for consistency of the patch it matters that the object we
+	// get above is the one that was originally used.
+	if obj.GetResourceVersion() != "" && obj.GetResourceVersion() != current.GetResourceVersion() {
+		gvr, err := groupResource(a.client, obj)
+		if err != nil {
+			return err
+		}
+		return kerrors.NewConflict(gvr, current.GetName(), errors.New(errOptimisticLock))
 	}
 
 	for _, fn := range ao {
-		if err := fn(ctx, o, desired); err != nil {
-			return err
+		if err := fn(ctx, current, obj); err != nil {
+			return errors.Wrapf(err, "apply option failed for %s", HumanReadableReference(a.client, obj))
 		}
 	}
 
-	// TODO(negz): Allow callers to override the kind of patch used.
-	return errors.Wrap(a.client.Patch(ctx, o, &patch{desired}), "cannot patch object")
+	return a.client.Patch(ctx, obj, client.MergeFromWithOptions(current, client.MergeFromWithOptimisticLock{}))
 }
 
-type patch struct{ from runtime.Object }
+func groupResource(c client.Client, o client.Object) (schema.GroupResource, error) {
+	gvk, err := c.GroupVersionKindFor(o)
+	if err != nil {
+		return schema.GroupResource{}, errors.Wrapf(err, "cannot determine group version kind of %T", o)
+	}
+	m, err := c.RESTMapper().RESTMapping(gvk.GroupKind(), gvk.Version)
+	if err != nil {
+		return schema.GroupResource{}, errors.Wrapf(err, "cannot determine group resource of %v", gvk)
+	}
+	return m.Resource.GroupResource(), nil
+}
 
-func (p *patch) Type() types.PatchType                { return types.MergePatchType }
-func (p *patch) Data(_ client.Object) ([]byte, error) { return json.Marshal(p.from) }
+var emptyScheme = runtime.NewScheme() // no need to recognize any types
+var jsonSerializer = json.NewSerializerWithOptions(json.DefaultMetaFactory, emptyScheme, emptyScheme, json.SerializerOptions{})
+
+// AdditiveMergePatchApplyOption returns an ApplyOption that makes
+// the Apply additive in the sense of a merge patch without null values. This is
+// the old behavior of the APIPatchingApplicator.
+//
+// This only works with a desired object of type *unstructured.Unstructured.
+//
+// Deprecated: replace with Server Side Apply.
+func AdditiveMergePatchApplyOption(_ context.Context, current, desired runtime.Object) error {
+	// set GVK uniformly to the desired object to make serializer happy
+	currentGVK, desiredGVK := current.GetObjectKind().GroupVersionKind(), desired.GetObjectKind().GroupVersionKind()
+	if !desiredGVK.Empty() && currentGVK != desiredGVK {
+		return errors.Errorf("cannot apply %v to %v", desired.GetObjectKind().GroupVersionKind(), current.GetObjectKind().GroupVersionKind())
+	}
+	desired.GetObjectKind().SetGroupVersionKind(currentGVK)
+
+	// merge `desired` additively with `current`
+	var currentBytes, desiredBytes bytes.Buffer
+	if err := jsonSerializer.Encode(current, &currentBytes); err != nil {
+		return errors.Wrapf(err, "cannot marshal current %s", HumanReadableReference(nil, current))
+	}
+	if err := jsonSerializer.Encode(desired, &desiredBytes); err != nil {
+		return errors.Wrapf(err, "cannot marshal desired %s", HumanReadableReference(nil, desired))
+	}
+	mergedBytes, err := jsonpatch.MergePatch(currentBytes.Bytes(), desiredBytes.Bytes())
+	if err != nil {
+		return errors.Wrapf(err, "cannot merge patch to %s", HumanReadableReference(nil, desired))
+	}
+
+	// write merged object back to `desired`
+	if _, _, err := jsonSerializer.Decode(mergedBytes, nil, desired); err != nil {
+		return errors.Wrapf(err, "cannot unmarshal merged patch to %s", HumanReadableReference(nil, desired))
+	}
+
+	// restore empty GVK for typed objects
+	if _, isUnstructured := desired.(runtime.Unstructured); !isUnstructured {
+		desired.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{})
+	}
+
+	return nil
+}
 
 // An APIUpdatingApplicator applies changes to an object by either creating or
 // updating it in a Kubernetes API server.
@@ -94,43 +158,37 @@ type APIUpdatingApplicator struct {
 
 // NewAPIUpdatingApplicator returns an Applicator that applies changes to an
 // object by either creating or updating it in a Kubernetes API server.
+//
+// Deprecated: Use NewAPIPatchingApplicator instead. The updating applicator
+// can lead to data-loss if the Golang types in this process are not up-to-date.
 func NewAPIUpdatingApplicator(c client.Client) *APIUpdatingApplicator {
 	return &APIUpdatingApplicator{client: c}
 }
 
 // Apply changes to the supplied object. The object will be created if it does
 // not exist, or updated if it does.
-func (a *APIUpdatingApplicator) Apply(ctx context.Context, o client.Object, ao ...ApplyOption) error {
-	m, ok := o.(Object)
-	if !ok {
-		return errors.New("cannot access object metadata")
+func (a *APIUpdatingApplicator) Apply(ctx context.Context, obj client.Object, ao ...ApplyOption) error {
+	if obj.GetName() == "" && obj.GetGenerateName() != "" {
+		return a.client.Create(ctx, obj)
 	}
 
-	if m.GetName() == "" && m.GetGenerateName() != "" {
-		return errors.Wrap(a.client.Create(ctx, o), "cannot create object")
-	}
-
-	current := o.DeepCopyObject().(client.Object)
-
-	err := a.client.Get(ctx, types.NamespacedName{Name: m.GetName(), Namespace: m.GetNamespace()}, current)
+	current := obj.DeepCopyObject().(client.Object)
+	err := a.client.Get(ctx, types.NamespacedName{Name: obj.GetName(), Namespace: obj.GetNamespace()}, current)
 	if kerrors.IsNotFound(err) {
 		// TODO(negz): Apply ApplyOptions here too?
-		return errors.Wrap(a.client.Create(ctx, m), "cannot create object")
+		return a.client.Create(ctx, obj)
 	}
 	if err != nil {
-		return errors.Wrap(err, "cannot get object")
+		return err
 	}
 
 	for _, fn := range ao {
-		if err := fn(ctx, current, m); err != nil {
-			return err
+		if err := fn(ctx, current, obj); err != nil {
+			return errors.Wrapf(err, "apply option failed for %s", HumanReadableReference(a.client, obj))
 		}
 	}
 
-	// NOTE(hasheddan): we must set the resource version of the desired object
-	// to that of the current or the update will always fail.
-	m.SetResourceVersion(current.(metav1.Object).GetResourceVersion())
-	return errors.Wrap(a.client.Update(ctx, m), "cannot update object")
+	return a.client.Update(ctx, obj)
 }
 
 // An APIFinalizer adds and removes finalizers to and from a resource.

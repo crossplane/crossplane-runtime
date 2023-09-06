@@ -66,7 +66,7 @@ func NewSecretStore(ctx context.Context, local client.Client, _ *tls.Config, cfg
 	return &SecretStore{
 		client: resource.ClientApplicator{
 			Client:     kube,
-			Applicator: resource.NewApplicatorWithRetry(resource.NewAPIPatchingApplicator(kube), resource.IsAPIErrorWrapped, nil),
+			Applicator: resource.NewApplicatorWithRetry(resource.NewAPIPatchingApplicator(kube), resource.IsNonConflictAPIErrorWrapped, nil),
 		},
 		defaultNamespace: cfg.DefaultScope,
 	}, nil
