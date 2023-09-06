@@ -74,7 +74,7 @@ func NewAPISecretPublisher(c client.Client, ot runtime.ObjectTyper) *APISecretPu
 	// backward compatibility with the original API of this function.
 	return &APISecretPublisher{
 		secret: resource.NewApplicatorWithRetry(resource.NewAPIPatchingApplicator(c),
-			resource.IsAPIErrorWrapped, nil),
+			resource.IsNonConflictAPIErrorWrapped, nil),
 		typer: ot,
 	}
 }

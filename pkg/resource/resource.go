@@ -18,6 +18,7 @@ package resource
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -190,13 +191,24 @@ func IsAPIErrorWrapped(err error) bool {
 	return IsAPIError(errors.Cause(err))
 }
 
+// IsNonConflictAPIErrorWrapped returns true if err is a non-conflict K8s API
+// error, or recursively wraps a K8s API error
+func IsNonConflictAPIErrorWrapped(err error) bool {
+	cause := errors.Cause(err)
+	return IsAPIError(cause) && !kerrors.IsConflict(cause)
+}
+
 // IsConditionTrue returns if condition status is true
 func IsConditionTrue(c xpv1.Condition) bool {
 	return c.Status == corev1.ConditionTrue
 }
 
-// An Applicator applies changes to an object.
+// An Applicator applies changes to an object. The passed object is expected to
+// be complete, i.e. not partial.
 type Applicator interface {
+	// Apply updates the given object to exactly the given state. It conflicts
+	// if the resource version stored on the apiserver does not match anymore
+	// the one in the given object.
 	Apply(context.Context, client.Object, ...ApplyOption) error
 }
 
@@ -383,4 +395,36 @@ func GetExternalTags(mg Managed) map[string]string {
 		tags[ExternalResourceTagKeyProvider] = mg.GetProviderConfigReference().Name
 	}
 	return tags
+}
+
+// HumanReadableReference returns a human readable object reference like
+// "pod default/database", e.g. to be used in error strings.
+//
+// The client is optional and can be nil. Then the kind is guessed from the
+// object.
+func HumanReadableReference(c client.Client, o runtime.Object) string {
+	gvk := o.GetObjectKind().GroupVersionKind()
+	if gvk.Kind == "" && c != nil {
+		gvk, _ = c.GroupVersionKindFor(o)
+	}
+	if gvk.Kind == "" {
+		gvk.Kind = fmt.Sprintf("%T", o) // best effort
+	}
+
+	co, ok := o.(client.Object)
+	if !ok {
+		return gvk.Kind
+	}
+
+	name := co.GetName()
+	infix := ""
+	if gn := co.GetGenerateName(); name == "" && gn != "" {
+		name = gn
+		infix = "with generated name "
+	}
+	if ns := co.GetNamespace(); ns != "" {
+		return fmt.Sprintf("%s %s%s/%s", strings.ToLower(gvk.Kind), infix, ns, name)
+	}
+
+	return fmt.Sprintf("%s %s%q", strings.ToLower(gvk.Kind), infix, name)
 }

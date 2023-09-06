@@ -29,6 +29,7 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 )
 
@@ -123,13 +124,22 @@ func (fn TrackerFn) Track(ctx context.Context, mg Managed) error {
 // A ProviderConfigUsageTracker tracks usages of a ProviderConfig by creating or
 // updating the appropriate ProviderConfigUsage.
 type ProviderConfigUsageTracker struct {
-	c  Applicator
-	of ProviderConfigUsage
+	c      Applicator
+	of     ProviderConfigUsage
+	log    logging.Logger
+	client client.Client
 }
 
 // NewProviderConfigUsageTracker creates a ProviderConfigUsageTracker.
 func NewProviderConfigUsageTracker(c client.Client, of ProviderConfigUsage) *ProviderConfigUsageTracker {
-	return &ProviderConfigUsageTracker{c: NewAPIUpdatingApplicator(c), of: of}
+	return &ProviderConfigUsageTracker{c: NewAPIUpdatingApplicator(c), of: of, log: logging.NewNopLogger(), client: c}
+}
+
+// WithLogger adds a logger to the ProviderConfigUsageTracker.
+func (u *ProviderConfigUsageTracker) WithLogger(l logging.Logger) *ProviderConfigUsageTracker {
+	u.log = l
+	u.c = NewAPIUpdatingApplicator(u.client).WithLogger(l)
+	return u
 }
 
 // Track that the supplied Managed resource is using the ProviderConfig it

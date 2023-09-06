@@ -18,14 +18,19 @@ package resource
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
+	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/google/go-cmp/cmp"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/yaml"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
@@ -34,8 +39,32 @@ import (
 
 func TestAPIPatchingApplicator(t *testing.T) {
 	errBoom := errors.New("boom")
-	desired := &object{}
-	desired.SetName("desired")
+
+	current := &object{Spec: "old"}
+	current.SetName("foo")
+
+	desired := &object{Spec: "new"}
+	desired.SetName("foo")
+
+	withRV := func(rv string, o client.Object) client.Object {
+		cpy := *(o.(*object))
+		cpy.SetResourceVersion(rv)
+		return &cpy
+	}
+
+	gvk := schema.GroupVersionKind{Group: "example.com", Version: "v1", Kind: "Thing"}
+	gvr := schema.GroupVersionResource{Group: "example.com", Version: "v1", Resource: "things"}
+	singular := schema.GroupVersionResource{Group: "example.com", Version: "v1", Resource: "thing"}
+	fakeRESTMapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{gvk.GroupVersion()})
+	fakeRESTMapper.AddSpecific(gvk, gvr, singular, meta.RESTScopeRoot)
+
+	// for additive merge patch option test
+	currentYAML := `
+metadata:
+  resourceVersion: "42"
+a: old
+b: old
+`
 
 	type args struct {
 		ctx context.Context
@@ -56,53 +85,71 @@ func TestAPIPatchingApplicator(t *testing.T) {
 	}{
 		"GetError": {
 			reason: "An error should be returned if we can't get the object",
-			c:      &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
+			c: &test.MockClient{
+				MockGet:                 test.NewMockGetFn(errBoom),
+				MockGroupVersionKindFor: test.NewMockGroupVersionKindForFn(nil, gvk),
+			},
 			args: args{
-				o: &object{},
+				o: withRV("42", desired),
 			},
 			want: want{
-				o:   &object{},
-				err: errors.Wrap(errBoom, "cannot get object"),
+				o: withRV("42", desired),
+				// this is intentionally not a wrapped error because this comes from a client
+				err: errBoom,
 			},
 		},
 		"CreateError": {
 			reason: "No error should be returned if we successfully create a new object",
 			c: &test.MockClient{
-				MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-				MockCreate: test.NewMockCreateFn(errBoom),
+				MockGet:                 test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+				MockCreate:              test.NewMockCreateFn(errBoom),
+				MockGroupVersionKindFor: test.NewMockGroupVersionKindForFn(nil, gvk),
 			},
 			args: args{
-				o: &object{},
+				o: desired,
 			},
 			want: want{
-				o:   &object{},
-				err: errors.Wrap(errBoom, "cannot create object"),
+				o: desired,
+				// this is intentionally not a wrapped error because this comes from a client
+				err: errBoom,
 			},
 		},
 		"ApplyOptionError": {
 			reason: "Any errors from an apply option should be returned",
-			c:      &test.MockClient{MockGet: test.NewMockGetFn(nil)},
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+					*o.(*object) = *current
+					o.SetResourceVersion("42")
+					return nil
+				}),
+				MockGroupVersionKindFor: test.NewMockGroupVersionKindForFn(nil, gvk),
+			},
 			args: args{
-				o:  &object{},
+				o:  withRV("42", desired),
 				ao: []ApplyOption{func(_ context.Context, _, _ runtime.Object) error { return errBoom }},
 			},
 			want: want{
-				o:   &object{},
-				err: errBoom,
+				o:   withRV("42", desired),
+				err: errors.Wrapf(errBoom, "apply option failed for thing \"foo\""),
 			},
 		},
 		"PatchError": {
 			reason: "An error should be returned if we can't patch the object",
 			c: &test.MockClient{
-				MockGet:   test.NewMockGetFn(nil),
-				MockPatch: test.NewMockPatchFn(errBoom),
+				MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+					*o.(*object) = *current
+					o.SetResourceVersion("42")
+					return nil
+				}),
+				MockPatch:               test.NewMockPatchFn(errBoom),
+				MockGroupVersionKindFor: test.NewMockGroupVersionKindForFn(nil, gvk),
 			},
 			args: args{
-				o: &object{},
+				o: withRV("42", desired),
 			},
 			want: want{
-				o:   &object{},
-				err: errors.Wrap(errBoom, "cannot patch object"),
+				o:   withRV("42", desired),
+				err: errBoom, // this is intentionally not a wrapped error because this comes from a client
 			},
 		},
 		"Created": {
@@ -111,8 +158,10 @@ func TestAPIPatchingApplicator(t *testing.T) {
 				MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 				MockCreate: test.NewMockCreateFn(nil, func(o client.Object) error {
 					*o.(*object) = *desired
+					o.SetResourceVersion("1")
 					return nil
 				}),
+				MockGroupVersionKindFor: test.NewMockGroupVersionKindForFn(nil, gvk),
 			},
 			args: args{
 				o: desired,
@@ -124,17 +173,121 @@ func TestAPIPatchingApplicator(t *testing.T) {
 		"Patched": {
 			reason: "No error should be returned if we successfully patch an existing object",
 			c: &test.MockClient{
-				MockGet: test.NewMockGetFn(nil),
-				MockPatch: test.NewMockPatchFn(nil, func(o client.Object) error {
-					*o.(*object) = *desired
+				MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+					*o.(*object) = *current
+					o.SetResourceVersion("42")
 					return nil
 				}),
+				MockPatch: test.NewMockPatchFn(nil, func(o client.Object) error {
+					*o.(*object) = *desired
+					o.SetResourceVersion("43")
+					return nil
+				}),
+				MockGroupVersionKindFor: test.NewMockGroupVersionKindForFn(nil, gvk),
 			},
 			args: args{
-				o: desired,
+				o: withRV("42", desired),
 			},
 			want: want{
-				o: desired,
+				o: withRV("43", desired),
+			},
+		},
+		"GetConflictError": {
+			reason: "No error should be returned if we successfully patch an existing object",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+					*o.(*object) = *current
+					o.SetResourceVersion("100")
+					return nil
+				}),
+				MockGroupVersionKindFor: test.NewMockGroupVersionKindForFn(nil, gvk),
+				MockRESTMapper:          test.NewMockRESTMapperFn(fakeRESTMapper),
+			},
+			args: args{
+				o: withRV("42", desired),
+			},
+			want: want{
+				o: withRV("42", desired),
+				// this is intentionally not a wrapped error because this comes from a client
+				err: kerrors.NewConflict(schema.GroupResource{Group: "example.com", Resource: "things"}, current.GetName(), errors.New(errOptimisticLock)),
+			},
+		},
+		"PatchConflictError": {
+			reason: "No error should be returned if we successfully patch an existing object",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+					*o.(*object) = *current
+					o.SetResourceVersion("42")
+					return nil
+				}),
+				MockPatch:               test.NewMockPatchFn(kerrors.NewConflict(schema.GroupResource{Group: "example.com", Resource: "things"}, "foo", errors.New(errOptimisticLock))),
+				MockGroupVersionKindFor: test.NewMockGroupVersionKindForFn(nil, gvk),
+				MockRESTMapper:          test.NewMockRESTMapperFn(fakeRESTMapper),
+			},
+			args: args{
+				o: withRV("42", desired),
+			},
+			want: want{
+				o: withRV("42", desired),
+				// this is intentionally not a wrapped error because this comes from a client
+				err: kerrors.NewConflict(schema.GroupResource{Group: "example.com", Resource: "things"}, current.GetName(), errors.New(errOptimisticLock)),
+			},
+		},
+		"AdditiveMergePatch": {
+			reason: "No error with the old additive behaviour if desired",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+					o.(*unstructured.Unstructured).Object = map[string]interface{}{}
+					return yaml.Unmarshal([]byte(currentYAML), &o.(*unstructured.Unstructured).Object)
+				}),
+				MockPatch: func(_ context.Context, o client.Object, patch client.Patch, _ ...client.PatchOption) error {
+					bs, err := patch.Data(o)
+					if err != nil {
+						return err
+					}
+					currentJSON, err := yaml.YAMLToJSON([]byte(currentYAML))
+					if err != nil {
+						return err
+					}
+					patched, err := jsonpatch.MergePatch(currentJSON, bs)
+					if err != nil {
+						return err
+					}
+					o.(*unstructured.Unstructured).Object = map[string]interface{}{}
+					if err := json.Unmarshal(patched, &o.(*unstructured.Unstructured).Object); err != nil {
+						return err
+					}
+					o.SetResourceVersion("43")
+					return nil
+				},
+				MockGroupVersionKindFor: test.NewMockGroupVersionKindForFn(nil, gvk),
+				MockRESTMapper:          test.NewMockRESTMapperFn(fakeRESTMapper),
+			},
+			args: args{
+				o: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"kind": "Thing",
+						"metadata": map[string]interface{}{
+							"resourceVersion": "42",
+						},
+						"b": "changed",
+						"c": "added",
+					},
+				},
+				ao: []ApplyOption{AdditiveMergePatchApplyOption},
+			},
+			want: want{
+				o: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"kind": "Thing",
+						"metadata": map[string]interface{}{
+							"resourceVersion": "43",
+						},
+						"a": "old",
+						"b": "changed",
+						"c": "added",
+					},
+				},
 			},
 		},
 	}
@@ -155,10 +308,24 @@ func TestAPIPatchingApplicator(t *testing.T) {
 
 func TestAPIUpdatingApplicator(t *testing.T) {
 	errBoom := errors.New("boom")
-	desired := &object{}
-	desired.SetName("desired")
-	current := &object{}
-	current.SetName("current")
+
+	current := &object{Spec: "old"}
+	current.SetName("foo")
+
+	desired := &object{Spec: "new"}
+	desired.SetName("foo")
+
+	withRV := func(rv string, o client.Object) client.Object {
+		cpy := *(o.(*object))
+		cpy.SetResourceVersion(rv)
+		return &cpy
+	}
+
+	gvk := schema.GroupVersionKind{Group: "example.com", Version: "v1", Kind: "Thing"}
+	gvr := schema.GroupVersionResource{Group: "example.com", Version: "v1", Resource: "things"}
+	singular := schema.GroupVersionResource{Group: "example.com", Version: "v1", Resource: "thing"}
+	fakeRESTMapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{gvk.GroupVersion()})
+	fakeRESTMapper.AddSpecific(gvk, gvr, singular, meta.RESTScopeRoot)
 
 	type args struct {
 		ctx context.Context
@@ -179,90 +346,114 @@ func TestAPIUpdatingApplicator(t *testing.T) {
 	}{
 		"GetError": {
 			reason: "An error should be returned if we can't get the object",
-			c:      &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
+			c: &test.MockClient{
+				MockGet:                 test.NewMockGetFn(errBoom),
+				MockGroupVersionKindFor: test.NewMockGroupVersionKindForFn(nil, gvk),
+			},
 			args: args{
-				o: &object{},
+				o: withRV("42", desired),
 			},
 			want: want{
-				o:   &object{},
-				err: errors.Wrap(errBoom, "cannot get object"),
+				o: withRV("42", desired),
+				// this is intentionally not a wrapped error because this comes from a client
+				err: errBoom,
 			},
 		},
 		"CreateError": {
 			reason: "No error should be returned if we successfully create a new object",
 			c: &test.MockClient{
-				MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-				MockCreate: test.NewMockCreateFn(errBoom),
+				MockGet:                 test.NewMockGetFn(kerrors.NewNotFound(gvr.GroupResource(), desired.GetName())),
+				MockCreate:              test.NewMockCreateFn(errBoom),
+				MockGroupVersionKindFor: test.NewMockGroupVersionKindForFn(nil, gvk),
 			},
 			args: args{
-				o: &object{},
+				o: desired,
 			},
 			want: want{
-				o:   &object{},
-				err: errors.Wrap(errBoom, "cannot create object"),
+				o: desired,
+				// this is intentionally not a wrapped error because this comes from a client
+				err: errBoom,
 			},
 		},
 		"ApplyOptionError": {
 			reason: "Any errors from an apply option should be returned",
-			c:      &test.MockClient{MockGet: test.NewMockGetFn(nil)},
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+					*o.(*object) = *desired
+					o.SetResourceVersion("42")
+					return nil
+				}),
+				MockGroupVersionKindFor: test.NewMockGroupVersionKindForFn(nil, gvk),
+			},
 			args: args{
-				o:  &object{},
+				o:  withRV("42", desired),
 				ao: []ApplyOption{func(_ context.Context, _, _ runtime.Object) error { return errBoom }},
 			},
 			want: want{
-				o:   &object{},
-				err: errBoom,
+				o:   withRV("42", desired),
+				err: errors.Wrapf(errBoom, "apply option failed for thing \"foo\""),
 			},
 		},
 		"UpdateError": {
 			reason: "An error should be returned if we can't update the object",
 			c: &test.MockClient{
-				MockGet:    test.NewMockGetFn(nil),
-				MockUpdate: test.NewMockUpdateFn(errBoom),
+				MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+					*o.(*object) = *desired
+					o.SetResourceVersion("42")
+					return nil
+				}),
+				MockUpdate:              test.NewMockUpdateFn(errBoom),
+				MockGroupVersionKindFor: test.NewMockGroupVersionKindForFn(nil, gvk),
 			},
 			args: args{
-				o: &object{},
+				o: withRV("42", desired),
 			},
 			want: want{
-				o:   &object{},
-				err: errors.Wrap(errBoom, "cannot update object"),
+				o: withRV("42", desired),
+				// this is intentionally not a wrapped error because this comes from a client
+				err: errBoom,
 			},
 		},
 		"Created": {
 			reason: "No error should be returned if we successfully create a new object",
 			c: &test.MockClient{
-				MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+				MockGet: test.NewMockGetFn(kerrors.NewNotFound(gvr.GroupResource(), desired.GetName())),
 				MockCreate: test.NewMockCreateFn(nil, func(o client.Object) error {
 					*o.(*object) = *desired
+					o.SetResourceVersion("1")
 					return nil
 				}),
+				MockGroupVersionKindFor: test.NewMockGroupVersionKindForFn(nil, gvk),
 			},
 			args: args{
 				o: desired,
 			},
 			want: want{
-				o: desired,
+				o: withRV("1", desired),
 			},
 		},
 		"Updated": {
 			reason: "No error should be returned if we successfully update an existing object. If no ApplyOption is passed the existing should not be modified",
 			c: &test.MockClient{
 				MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
-					*o.(*object) = *current
+					*o.(*object) = *desired
+					o.SetResourceVersion("42")
 					return nil
 				}),
 				MockUpdate: test.NewMockUpdateFn(nil, func(o client.Object) error {
-					if diff := cmp.Diff(*desired, *o.(*object)); diff != "" {
+					if diff := cmp.Diff(withRV("42", desired), o); diff != "" {
 						t.Errorf("r: -want, +got:\n%s", diff)
 					}
+					o.SetResourceVersion("43")
 					return nil
 				}),
+				MockGroupVersionKindFor: test.NewMockGroupVersionKindForFn(nil, gvk),
 			},
 			args: args{
-				o: desired,
+				o: withRV("42", desired),
 			},
 			want: want{
-				o: desired,
+				o: withRV("43", desired),
 			},
 		},
 	}
