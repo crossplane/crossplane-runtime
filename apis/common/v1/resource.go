@@ -122,9 +122,9 @@ type Reference struct {
 	Policy *Policy `json:"policy,omitempty"`
 }
 
-// A TypedReference refers to an object by Name, Kind, and APIVersion. It is
-// commonly used to reference cluster-scoped objects or objects where the
-// namespace is already known.
+// A TypedReference refers to an object by Name, Namespace, Kind, and
+// APIVersion. It is commonly used to reference cluster-scoped objects
+// and can also be used for namespace-scoped objects.
 type TypedReference struct {
 	// APIVersion of the referenced object.
 	APIVersion string `json:"apiVersion"`
@@ -134,6 +134,10 @@ type TypedReference struct {
 
 	// Name of the referenced object.
 	Name string `json:"name"`
+
+	// Namespace of the referenced object.
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
 
 	// UID of the referenced object.
 	// +optional

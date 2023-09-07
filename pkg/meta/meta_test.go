@@ -112,6 +112,7 @@ func TestTypedReferenceTo(t *testing.T) {
 			want: &xpv1.TypedReference{
 				APIVersion: groupVersion,
 				Kind:       kind,
+				Namespace:  namespace,
 				Name:       name,
 				UID:        uid,
 			},
