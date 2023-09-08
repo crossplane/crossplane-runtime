@@ -876,3 +876,34 @@ func TestUpdate(t *testing.T) {
 		})
 	}
 }
+
+func TestFirstNAndSomeMore(t *testing.T) {
+	type args struct {
+		n     int
+		names []string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{args: args{n: 3, names: []string{"a", "b", "c", "d", "e"}}, want: "a, b, c, and 2 more"},
+		{args: args{n: 3, names: []string{"a", "b", "c"}}, want: "a, b, and c"},
+		{args: args{n: 3, names: []string{"a", "b"}}, want: "a, b"},
+		{args: args{n: 3, names: []string{"a"}}, want: "a"},
+		{args: args{n: 3, names: []string{}}, want: ""},
+		{args: args{n: 3, names: []string{"a", "c", "e", "b", "d"}}, want: "a, c, e, and 2 more"},
+		{args: args{n: 3, names: []string{"a", "b", "b", "b", "d"}}, want: "a, b, b, and 2 more"},
+		{args: args{n: 2, names: []string{"a", "c", "e", "b", "d"}}, want: "a, c, and 3 more"},
+		{args: args{n: 0, names: []string{"a", "c", "e", "b", "d"}}, want: "5"},
+		{args: args{n: -7, names: []string{"a", "c", "e", "b", "d"}}, want: "5"},
+		{args: args{n: 1, names: []string{"a", "c", "e", "b", "d"}}, want: "a, and 4 more"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := FirstNAndSomeMore(tt.args.n, tt.args.names); got != tt.want {
+				t.Errorf("FirstNAndSomeMore() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

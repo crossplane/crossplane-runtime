@@ -18,6 +18,8 @@ package resource
 
 import (
 	"context"
+	"fmt"
+	"sort"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -383,4 +385,33 @@ func GetExternalTags(mg Managed) map[string]string {
 		tags[ExternalResourceTagKeyProvider] = mg.GetProviderConfigReference().Name
 	}
 	return tags
+}
+
+// DefaultFirstN is the default number of names to return in FirstNAndSomeMore.
+const DefaultFirstN = 3
+
+// FirstNAndSomeMore returns a string that contains the first n names in the
+// supplied slice, followed by ", and <count> more" if there are more than n.
+// The slice is not sorted, i.e. the caller must make sure the order is stable
+// e.g. when using this in conditions.
+func FirstNAndSomeMore(n int, names []string) string {
+	if n <= 0 {
+		return fmt.Sprintf("%d", len(names))
+	}
+	if len(names) > n {
+		return fmt.Sprintf("%s, and %d more", strings.Join(names[:n], ", "), len(names)-n)
+	}
+	if len(names) == n {
+		return fmt.Sprintf("%s, and %s", strings.Join(names[:n-1], ", "), names[n-1])
+	}
+	return strings.Join(names, ", ")
+}
+
+// StableNAndSomeMore is like FirstNAndSomeMore, but sorts the names before.
+// The input slice is not modified.
+func StableNAndSomeMore(n int, names []string) string {
+	cpy := make([]string, len(names))
+	copy(cpy, names)
+	sort.Strings(cpy)
+	return FirstNAndSomeMore(n, cpy)
 }
