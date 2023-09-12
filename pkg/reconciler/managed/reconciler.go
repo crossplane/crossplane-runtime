@@ -18,6 +18,7 @@ package managed
 
 import (
 	"context"
+	"math/rand"
 	"strings"
 	"time"
 
@@ -45,7 +46,7 @@ const (
 	reconcileGracePeriod = 30 * time.Second
 	reconcileTimeout     = 1 * time.Minute
 
-	defaultpollInterval = 1 * time.Minute
+	defaultPollInterval = 1 * time.Minute
 	defaultGracePeriod  = 30 * time.Second
 )
 
@@ -467,7 +468,9 @@ type Reconciler struct {
 	client     client.Client
 	newManaged func() resource.Managed
 
-	pollInterval        time.Duration
+	pollInterval     time.Duration
+	pollIntervalHook PollIntervalHook
+
 	timeout             time.Duration
 	creationGracePeriod time.Duration
 
@@ -539,6 +542,36 @@ func WithPollInterval(after time.Duration) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.pollInterval = after
 	}
+}
+
+// PollIntervalHook represents the function type passed to the
+// WithPollIntervalHook option to support dynamic computation of the poll
+// interval.
+type PollIntervalHook func(managed resource.Managed, pollInterval time.Duration) time.Duration
+
+func defaultPollIntervalHook(_ resource.Managed, pollInterval time.Duration) time.Duration {
+	return pollInterval
+}
+
+// WithPollIntervalHook adds a hook that can be used to configure the
+// delay before an up-to-date resource is reconciled again after a successful
+// reconcile. If this option is passed multiple times, only the latest hook
+// will be used.
+func WithPollIntervalHook(hook PollIntervalHook) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.pollIntervalHook = hook
+	}
+}
+
+// WithPollJitterHook adds a simple PollIntervalHook to add jitter to the poll
+// interval used when queuing a new reconciliation after a successful
+// reconcile. The added jitter will be a random duration between -jitter and
+// +jitter. This option wraps WithPollIntervalHook, and is subject to the same
+// constraint that only the latest hook will be used.
+func WithPollJitterHook(jitter time.Duration) ReconcilerOption {
+	return WithPollIntervalHook(func(managed resource.Managed, pollInterval time.Duration) time.Duration {
+		return pollInterval + time.Duration((rand.Float64()-0.5)*2*float64(jitter)) //#nosec G404 -- no need for secure randomness
+	})
 }
 
 // WithCreationGracePeriod configures an optional period during which we will
@@ -658,7 +691,8 @@ func NewReconciler(m manager.Manager, of resource.ManagedKind, o ...ReconcilerOp
 	r := &Reconciler{
 		client:                      m.GetClient(),
 		newManaged:                  nm,
-		pollInterval:                defaultpollInterval,
+		pollInterval:                defaultPollInterval,
+		pollIntervalHook:            defaultPollIntervalHook,
 		creationGracePeriod:         defaultGracePeriod,
 		timeout:                     reconcileTimeout,
 		managed:                     defaultMRManaged(m),
@@ -1080,9 +1114,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		// after the specified poll interval in order to observe it and react
 		// accordingly.
 		// https://github.com/crossplane/crossplane/issues/289
-		log.Debug("External resource is up to date", "requeue-after", time.Now().Add(r.pollInterval))
+		reconcileAfter := r.pollIntervalHook(managed, r.pollInterval)
+		log.Debug("External resource is up to date", "requeue-after", time.Now().Add(reconcileAfter))
 		managed.SetConditions(xpv1.ReconcileSuccess())
-		return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		return reconcile.Result{RequeueAfter: reconcileAfter}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
 	if observation.Diff != "" {
@@ -1091,9 +1126,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 
 	// skip the update if the management policy is set to ignore updates
 	if !policy.ShouldUpdate() {
-		log.Debug("Skipping update due to managementPolicies. Reconciliation succeeded", "requeue-after", time.Now().Add(r.pollInterval))
+		reconcileAfter := r.pollIntervalHook(managed, r.pollInterval)
+		log.Debug("Skipping update due to managementPolicies. Reconciliation succeeded", "requeue-after", time.Now().Add(reconcileAfter))
 		managed.SetConditions(xpv1.ReconcileSuccess())
-		return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		return reconcile.Result{RequeueAfter: reconcileAfter}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
 	update, err := external.Update(externalCtx, managed)
@@ -1124,8 +1160,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 	// changes, so we requeue a speculative reconcile after the specified poll
 	// interval in order to observe it and react accordingly.
 	// https://github.com/crossplane/crossplane/issues/289
-	log.Debug("Successfully requested update of external resource", "requeue-after", time.Now().Add(r.pollInterval))
+	reconcileAfter := r.pollIntervalHook(managed, r.pollInterval)
+	log.Debug("Successfully requested update of external resource", "requeue-after", time.Now().Add(reconcileAfter))
 	record.Event(managed, event.Normal(reasonUpdated, "Successfully requested update of external resource"))
 	managed.SetConditions(xpv1.ReconcileSuccess())
-	return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+	return reconcile.Result{RequeueAfter: reconcileAfter}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 }
