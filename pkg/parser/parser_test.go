@@ -56,7 +56,12 @@ metadata:
 	deployBytes = []byte(`apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: test`)
+  name: test
+  annotations:
+    crossplane.io/managed: |
+      #!/bin/bash some script
+      some script
+`)
 
 	commentedOutBytes = []byte(`# apiVersion: apps/v1
 # kind: Deployment
@@ -206,6 +211,87 @@ func TestParser(t *testing.T) {
 				return i.GetObjectKind().GroupVersionKind().String() > j.GetObjectKind().GroupVersionKind().String()
 			})); diff != "" {
 				t.Errorf("Meta: -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestCleanYAML(t *testing.T) {
+	type args struct {
+		in []byte
+	}
+	type want struct {
+		out []byte
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"Empty": {
+			reason: "Should return nil on empty input",
+			args:   args{in: []byte("")},
+			want:   want{out: nil},
+		},
+		"CommentedOut": {
+			reason: "Should return nil on a fully commented out input",
+			args: args{in: []byte(`# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: test`)},
+			want: want{out: nil},
+		},
+		"CommentedOutExceptSeparator": {
+			reason: "Should return nil on a fully commented out input",
+			args: args{in: []byte(`---
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: test`)},
+			want: want{out: nil},
+		},
+		"NotFullyCommentedOut": {
+			reason: "Should return the full file on a partially commented out input",
+			args: args{in: []byte(`---
+# some comment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test`)},
+			want: want{out: []byte(`---
+# some comment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test`)},
+		},
+		"ShebangAnnotation": {
+			reason: "Should return the full file on a shebang annotation",
+			args: args{in: []byte(`---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test
+  annotations:
+    someScriptWithAShebang: |
+      #!/bin/bash
+      some script`)},
+			want: want{out: []byte(`---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test
+  annotations:
+    someScriptWithAShebang: |
+      #!/bin/bash
+      some script`)},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := cleanYAML(tc.args.in)
+			if diff := cmp.Diff(tc.want.out, got); diff != "" {
+				t.Errorf("cleanYAML: -want, +got:\n%s", diff)
 			}
 		})
 	}

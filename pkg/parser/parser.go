@@ -130,19 +130,16 @@ func (p *PackageParser) Parse(_ context.Context, reader io.ReadCloser) (*Package
 	return pkg, nil
 }
 
-// cleanYAML cleans up YAML by removing empty and commented out lines which
+// cleanYAML cleans up YAML only drops fully commented inputs which would
 // cause issues with decoding.
 func cleanYAML(y []byte) []byte {
 	lines := []string{}
 	empty := true
 	for _, line := range strings.Split(string(y), "\n") {
 		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-			continue
-		}
 		// We don't want to return an empty document with only separators that
 		// have nothing in-between.
-		if empty && trimmed != "---" && trimmed != "..." {
+		if empty && trimmed != "" && trimmed != "---" && trimmed != "..." && !strings.HasPrefix(trimmed, "#") {
 			empty = false
 		}
 		lines = append(lines, line)
