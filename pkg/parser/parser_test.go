@@ -221,7 +221,7 @@ func TestCleanYAML(t *testing.T) {
 		in []byte
 	}
 	type want struct {
-		out []byte
+		out bool
 	}
 	cases := map[string]struct {
 		reason string
@@ -229,44 +229,59 @@ func TestCleanYAML(t *testing.T) {
 		want   want
 	}{
 		"Empty": {
-			reason: "Should return nil on empty input",
+			reason: "Should return true on empty input",
 			args:   args{in: []byte("")},
-			want:   want{out: nil},
+			want:   want{out: true},
+		},
+		"EmptyLine": {
+			reason: "Should return true on an input with an empty line",
+			args:   args{in: []byte("\n")},
+			want:   want{out: true},
+		},
+		"WhitespaceOnly": {
+			reason: "Should return true on an input with only whitespaces",
+			args:   args{in: []byte("    \n\t ")},
+			want:   want{out: true},
+		},
+		"OnlyYAMLSeparators": {
+			reason: "Should return true on an input with only YAML separators",
+			args:   args{in: []byte("---\n...")},
+			want:   want{out: true},
+		},
+		"YAMLWithWhitespaceLineAndNonEmptyLine": {
+			reason: "Should return false on having whitespace and non empty line in the input",
+			args:   args{in: []byte(" \nkey: value")},
+			want:   want{out: false},
 		},
 		"CommentedOut": {
-			reason: "Should return nil on a fully commented out input",
+			reason: "Should return true on a fully commented out input",
 			args: args{in: []byte(`# apiVersion: apps/v1
 # kind: Deployment
 # metadata:
 #   name: test`)},
-			want: want{out: nil},
+			want: want{out: true},
 		},
 		"CommentedOutExceptSeparator": {
-			reason: "Should return nil on a fully commented out input",
+			reason: "Should return true on a fully commented out input with a separator not commented",
 			args: args{in: []byte(`---
 # apiVersion: apps/v1
 # kind: Deployment
 # metadata:
 #   name: test`)},
-			want: want{out: nil},
+			want: want{out: true},
 		},
 		"NotFullyCommentedOut": {
-			reason: "Should return the full file on a partially commented out input",
+			reason: "Should return false on a partially commented out input",
 			args: args{in: []byte(`---
 # some comment
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: test`)},
-			want: want{out: []byte(`---
-# some comment
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: test`)},
+			want: want{out: false},
 		},
 		"ShebangAnnotation": {
-			reason: "Should return the full file on a shebang annotation",
+			reason: "Should return false with just a shebang annotation",
 			args: args{in: []byte(`---
 apiVersion: apps/v1
 kind: Deployment
@@ -276,22 +291,14 @@ metadata:
     someScriptWithAShebang: |
       #!/bin/bash
       some script`)},
-			want: want{out: []byte(`---
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: test
-  annotations:
-    someScriptWithAShebang: |
-      #!/bin/bash
-      some script`)},
+			want: want{out: false},
 		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := cleanYAML(tc.args.in)
+			got := isEmptyYAML(tc.args.in)
 			if diff := cmp.Diff(tc.want.out, got); diff != "" {
-				t.Errorf("cleanYAML: -want, +got:\n%s", diff)
+				t.Errorf("isEmptyYAML: -want, +got:\n%s", diff)
 			}
 		})
 	}
