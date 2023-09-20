@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 )
 
 func TestWithGroupVersionKind(t *testing.T) {
@@ -241,11 +242,11 @@ func TestCompositionUpdatePolicy(t *testing.T) {
 }
 
 func TestClaimReference(t *testing.T) {
-	ref := &corev1.ObjectReference{Namespace: "ns", Name: "cool"}
+	ref := &claim.Reference{Namespace: "ns", Name: "cool", APIVersion: "acme.com/v1", Kind: "Foo"}
 	cases := map[string]struct {
 		u    *Unstructured
-		set  *corev1.ObjectReference
-		want *corev1.ObjectReference
+		set  *claim.Reference
+		want *claim.Reference
 	}{
 		"NewRef": {
 			u:    New(),

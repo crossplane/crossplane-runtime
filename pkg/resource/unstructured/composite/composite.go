@@ -25,6 +25,7 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 )
 
 // An Option modifies an unstructured composite resource.
@@ -137,8 +138,8 @@ func (c *Unstructured) GetCompositionUpdatePolicy() *xpv1.UpdatePolicy {
 }
 
 // GetClaimReference of this Composite resource.
-func (c *Unstructured) GetClaimReference() *corev1.ObjectReference {
-	out := &corev1.ObjectReference{}
+func (c *Unstructured) GetClaimReference() *claim.Reference {
+	out := &claim.Reference{}
 	if err := fieldpath.Pave(c.Object).GetValueInto("spec.claimRef", out); err != nil {
 		return nil
 	}
@@ -146,7 +147,7 @@ func (c *Unstructured) GetClaimReference() *corev1.ObjectReference {
 }
 
 // SetClaimReference of this Composite resource.
-func (c *Unstructured) SetClaimReference(ref *corev1.ObjectReference) {
+func (c *Unstructured) SetClaimReference(ref *claim.Reference) {
 	_ = fieldpath.Pave(c.Object).SetValue("spec.claimRef", ref)
 }
 

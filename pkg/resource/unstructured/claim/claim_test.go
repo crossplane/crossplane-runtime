@@ -291,6 +291,19 @@ func TestResourceReference(t *testing.T) {
 	}
 }
 
+func TestClaimReference(t *testing.T) {
+	ref := &Reference{Namespace: "ns", Name: "cool", APIVersion: "foo.com/v1", Kind: "Foo"}
+	u := &Unstructured{}
+	u.SetName(ref.Name)
+	u.SetNamespace(ref.Namespace)
+	u.SetAPIVersion(ref.APIVersion)
+	u.SetKind(ref.Kind)
+	got := u.GetReference()
+	if diff := cmp.Diff(ref, got); diff != "" {
+		t.Errorf("\nu.GetClaimReference(): -want, +got:\n%s", diff)
+	}
+}
+
 func TestWriteConnectionSecretToReference(t *testing.T) {
 	ref := &xpv1.LocalSecretReference{Name: "cool"}
 	cases := map[string]struct {

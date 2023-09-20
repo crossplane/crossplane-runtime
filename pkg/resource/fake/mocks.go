@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 )
 
 // Conditioned is a mock that implements Conditioned interface.
@@ -46,13 +47,13 @@ func (m *Conditioned) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 }
 
 // ClaimReferencer is a mock that implements ClaimReferencer interface.
-type ClaimReferencer struct{ Ref *corev1.ObjectReference }
+type ClaimReferencer struct{ Ref *claim.Reference }
 
 // SetClaimReference sets the ClaimReference.
-func (m *ClaimReferencer) SetClaimReference(r *corev1.ObjectReference) { m.Ref = r }
+func (m *ClaimReferencer) SetClaimReference(r *claim.Reference) { m.Ref = r }
 
 // GetClaimReference gets the ClaimReference.
-func (m *ClaimReferencer) GetClaimReference() *corev1.ObjectReference { return m.Ref }
+func (m *ClaimReferencer) GetClaimReference() *claim.Reference { return m.Ref }
 
 // ManagedResourceReferencer is a mock that implements ManagedResourceReferencer interface.
 type ManagedResourceReferencer struct{ Ref *corev1.ObjectReference }
