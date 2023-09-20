@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
@@ -442,6 +443,7 @@ func (m *CompositeClaim) DeepCopyObject() runtime.Object {
 type Manager struct {
 	manager.Manager
 
+	Cache      cache.Cache
 	Client     client.Client
 	Scheme     *runtime.Scheme
 	Config     *rest.Config
@@ -455,6 +457,9 @@ func (m *Manager) Elected() <-chan struct{} {
 	close(e)
 	return e
 }
+
+// GetCache returns the cache.
+func (m *Manager) GetCache() cache.Cache { return m.Cache }
 
 // GetClient returns the client.
 func (m *Manager) GetClient() client.Client { return m.Client }

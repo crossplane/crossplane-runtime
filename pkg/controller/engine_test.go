@@ -22,6 +22,8 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -92,7 +94,11 @@ func TestEngine(t *testing.T) {
 		},
 		"NewControllerError": {
 			reason: "Errors creating a new controller should be returned",
-			e: NewEngine(&fake.Manager{},
+			e: NewEngine(
+				&fake.Manager{
+					Scheme: runtime.NewScheme(),
+					Cache:  &MockCache{},
+				},
 				WithNewCacheFn(func(*rest.Config, cache.Options) (cache.Cache, error) { return nil, nil }),
 				WithNewControllerFn(func(string, manager.Manager, controller.Options) (controller.Controller, error) { return nil, errBoom }),
 			),
@@ -105,7 +111,11 @@ func TestEngine(t *testing.T) {
 		},
 		"WatchError": {
 			reason: "Errors adding a watch should be returned",
-			e: NewEngine(&fake.Manager{},
+			e: NewEngine(
+				&fake.Manager{
+					Scheme: runtime.NewScheme(),
+					Cache:  &MockCache{},
+				},
 				WithNewCacheFn(func(*rest.Config, cache.Options) (cache.Cache, error) { return nil, nil }),
 				WithNewControllerFn(func(string, manager.Manager, controller.Options) (controller.Controller, error) {
 					c := &MockController{MockWatch: func(source.Source, handler.EventHandler, ...predicate.Predicate) error { return errBoom }}
@@ -114,10 +124,33 @@ func TestEngine(t *testing.T) {
 			),
 			args: args{
 				name: "coolcontroller",
-				w:    []Watch{For(&fake.Managed{}, nil)},
+				w: []Watch{For(&unstructured.Unstructured{
+					Object: map[string]interface{}{"apiVersion": "example.org/v1", "kind": "Thing"},
+				}, nil)},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errWatch),
+			},
+		},
+		"SchemeError": {
+			reason: "Passing an object of unknown GVK",
+			e: NewEngine(
+				&fake.Manager{
+					Scheme: runtime.NewScheme(),
+					Cache:  &MockCache{},
+				},
+				WithNewCacheFn(func(*rest.Config, cache.Options) (cache.Cache, error) { return nil, nil }),
+				WithNewControllerFn(func(string, manager.Manager, controller.Options) (controller.Controller, error) {
+					c := &MockController{MockWatch: func(source.Source, handler.EventHandler, ...predicate.Predicate) error { return errBoom }}
+					return c, nil
+				}),
+			),
+			args: args{
+				name: "coolcontroller",
+				w:    []Watch{For(&unstructured.Unstructured{}, nil)},
+			},
+			want: want{
+				err: errors.Wrap(runtime.NewMissingKindErr("unstructured object has no kind"), "failed to get GVK for type *unstructured.Unstructured"),
 			},
 		},
 		"CacheCrashError": {

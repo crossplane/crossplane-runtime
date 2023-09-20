@@ -24,6 +24,7 @@ import (
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -176,27 +177,29 @@ func TriggeredBy(source source.Source, h handler.EventHandler, p ...predicate.Pr
 // the supplied options, and configured with the supplied watches. Start does
 // not block.
 func (e *Engine) Start(name string, o controller.Options, w ...Watch) error {
-	if e.IsRunning(name) {
-		return nil
-	}
-
-	ctx, stop := context.WithCancel(context.Background())
-	e.mx.Lock()
-	e.started[name] = stop
-	e.errors[name] = nil
-	e.mx.Unlock()
-
-	// Each controller gets its own cache because there's currently no way to
-	// stop an informer. In practice a controller-runtime cache is a map of
-	// kinds to informers. If we delete the CRD for a kind we need to stop the
-	// relevant informer, or it will spew errors about the kind not existing. We
-	// work around this by stopping the entire cache.
+	// Each controller gets its own cache for the GVKs it owns. This cache is
+	// wrapped by a GVKRoutedCache that routes requests to other GVKs to the
+	// manager's cache. This way we can share informers for composed resources
+	// (that's where this is primarily used) with other controllers, but get
+	// control about the lifecycle of the owned GVKs' informers.
 	ca, err := e.newCache(e.mgr.GetConfig(), cache.Options{Scheme: e.mgr.GetScheme(), Mapper: e.mgr.GetRESTMapper()})
 	if err != nil {
 		return errors.Wrap(err, errCreateCache)
 	}
 
-	ctrl, err := e.newCtrl(name, e.mgr, o)
+	// Wrap the existing manager to use our cache for the GVKs of this controller.
+	rc := NewGVKRoutedCache(e.mgr.GetScheme(), e.mgr.GetCache())
+	rm := &routedManager{
+		Manager: e.mgr,
+		client: &cachedRoutedClient{
+			Client: e.mgr.GetClient(),
+			scheme: e.mgr.GetScheme(),
+			cache:  rc,
+		},
+		cache: rc,
+	}
+
+	ctrl, err := e.newCtrl(name, rm, o)
 	if err != nil {
 		return errors.Wrap(err, errCreateController)
 	}
@@ -208,10 +211,28 @@ func (e *Engine) Start(name string, o controller.Options, w ...Watch) error {
 			}
 			continue
 		}
+
+		// route cache and client (read) requests to our cache for this GVK.
+		gvk, err := apiutil.GVKForObject(wt.kind, e.mgr.GetScheme())
+		if err != nil {
+			return errors.Wrapf(err, "failed to get GVK for type %T", wt.kind)
+		}
+		rc.AddDelegate(gvk, ca)
+
 		if err := ctrl.Watch(source.Kind(ca, wt.kind), wt.handler, wt.predicates...); err != nil {
 			return errors.Wrap(err, errWatch)
 		}
 	}
+
+	if e.IsRunning(name) {
+		return nil
+	}
+
+	ctx, stop := context.WithCancel(context.Background())
+	e.mx.Lock()
+	e.started[name] = stop
+	e.errors[name] = nil
+	e.mx.Unlock()
 
 	go func() {
 		<-e.mgr.Elected()
