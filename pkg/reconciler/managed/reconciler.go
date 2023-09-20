@@ -660,7 +660,7 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 // WithManagementPolicies enables support for management policies.
 func WithManagementPolicies() ReconcilerOption {
 	return func(r *Reconciler) {
-		r.features.Enable(feature.EnableAlphaManagementPolicies)
+		r.features.Enable(feature.EnableBetaManagementPolicies)
 	}
 }
 
@@ -752,7 +752,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		"external-name", meta.GetExternalName(managed),
 	)
 
-	managementPoliciesEnabled := r.features.Enabled(feature.EnableAlphaManagementPolicies)
+	managementPoliciesEnabled := r.features.Enabled(feature.EnableBetaManagementPolicies)
 	if managementPoliciesEnabled {
 		log.WithValues("managementPolicies", managed.GetManagementPolicies())
 	}

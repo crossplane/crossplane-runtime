@@ -16,7 +16,7 @@ limitations under the License.
 
 package feature
 
-// EnableAlphaManagementPolicies enables alpha support for
+// EnableBetaManagementPolicies enables beta support for
 // Management Policies. See the below design for more details.
 // https://github.com/crossplane/crossplane/pull/3531
-const EnableAlphaManagementPolicies Flag = "EnableAlphaManagementPolicies"
+const EnableBetaManagementPolicies Flag = "EnableBetaManagementPolicies"
