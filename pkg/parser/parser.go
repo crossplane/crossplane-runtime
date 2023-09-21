@@ -22,6 +22,7 @@ import (
 	"context"
 	"io"
 	"strings"
+	"unicode"
 
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
@@ -107,8 +108,7 @@ func (p *PackageParser) Parse(_ context.Context, reader io.ReadCloser) (*Package
 		if errors.Is(err, io.EOF) {
 			break
 		}
-		content = cleanYAML(content)
-		if len(content) == 0 {
+		if isEmptyYAML(content) {
 			continue
 		}
 		m, _, err := dm.Decode(content, nil, nil)
@@ -130,27 +130,19 @@ func (p *PackageParser) Parse(_ context.Context, reader io.ReadCloser) (*Package
 	return pkg, nil
 }
 
-// cleanYAML cleans up YAML by removing empty and commented out lines which
-// cause issues with decoding.
-func cleanYAML(y []byte) []byte {
-	lines := []string{}
-	empty := true
+// isEmptyYAML checks whether the provided YAML can be considered empty. This
+// is useful for filtering out empty YAML documents that would otherwise
+// cause issues when decoded.
+func isEmptyYAML(y []byte) bool {
 	for _, line := range strings.Split(string(y), "\n") {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
-			continue
-		}
+		trimmed := strings.TrimLeftFunc(line, unicode.IsSpace)
 		// We don't want to return an empty document with only separators that
 		// have nothing in-between.
-		if empty && trimmed != "---" && trimmed != "..." {
-			empty = false
+		if trimmed != "" && trimmed != "---" && trimmed != "..." && !strings.HasPrefix(trimmed, "#") {
+			return false
 		}
-		lines = append(lines, line)
 	}
-	if empty {
-		return nil
-	}
-	return []byte(strings.Join(lines, "\n"))
+	return true
 }
 
 // annotateErr annotates an error if the reader is an AnnotatedReadCloser.

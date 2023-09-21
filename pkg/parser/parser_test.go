@@ -56,7 +56,12 @@ metadata:
 	deployBytes = []byte(`apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: test`)
+  name: test
+  annotations:
+    crossplane.io/managed: |
+      #!/bin/bash some script
+      some script
+`)
 
 	commentedOutBytes = []byte(`# apiVersion: apps/v1
 # kind: Deployment
@@ -206,6 +211,94 @@ func TestParser(t *testing.T) {
 				return i.GetObjectKind().GroupVersionKind().String() > j.GetObjectKind().GroupVersionKind().String()
 			})); diff != "" {
 				t.Errorf("Meta: -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestCleanYAML(t *testing.T) {
+	type args struct {
+		in []byte
+	}
+	type want struct {
+		out bool
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"Empty": {
+			reason: "Should return true on empty input",
+			args:   args{in: []byte("")},
+			want:   want{out: true},
+		},
+		"EmptyLine": {
+			reason: "Should return true on an input with an empty line",
+			args:   args{in: []byte("\n")},
+			want:   want{out: true},
+		},
+		"WhitespaceOnly": {
+			reason: "Should return true on an input with only whitespaces",
+			args:   args{in: []byte("    \n\t ")},
+			want:   want{out: true},
+		},
+		"OnlyYAMLSeparators": {
+			reason: "Should return true on an input with only YAML separators",
+			args:   args{in: []byte("---\n...")},
+			want:   want{out: true},
+		},
+		"YAMLWithWhitespaceLineAndNonEmptyLine": {
+			reason: "Should return false on having whitespace and non empty line in the input",
+			args:   args{in: []byte(" \nkey: value")},
+			want:   want{out: false},
+		},
+		"CommentedOut": {
+			reason: "Should return true on a fully commented out input",
+			args: args{in: []byte(`# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: test`)},
+			want: want{out: true},
+		},
+		"CommentedOutExceptSeparator": {
+			reason: "Should return true on a fully commented out input with a separator not commented",
+			args: args{in: []byte(`---
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: test`)},
+			want: want{out: true},
+		},
+		"NotFullyCommentedOut": {
+			reason: "Should return false on a partially commented out input",
+			args: args{in: []byte(`---
+# some comment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test`)},
+			want: want{out: false},
+		},
+		"ShebangAnnotation": {
+			reason: "Should return false with just a shebang annotation",
+			args: args{in: []byte(`---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test
+  annotations:
+    someScriptWithAShebang: |
+      #!/bin/bash
+      some script`)},
+			want: want{out: false},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := isEmptyYAML(tc.args.in)
+			if diff := cmp.Diff(tc.want.out, got); diff != "" {
+				t.Errorf("isEmptyYAML: -want, +got:\n%s", diff)
 			}
 		})
 	}
