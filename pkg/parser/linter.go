@@ -32,12 +32,12 @@ const (
 
 // A Linter lints packages.
 type Linter interface {
-	Lint(*Package) error
+	Lint(Lintable) error
 }
 
 // PackageLinterFn lints an entire package. If function applies a check for
 // multiple objects, consider using an ObjectLinterFn.
-type PackageLinterFn func(*Package) error
+type PackageLinterFn func(Lintable) error
 
 // PackageLinterFns is a convenience function to pass multiple PackageLinterFn
 // to a function that cannot accept variadic arguments.
@@ -72,7 +72,7 @@ func NewPackageLinter(pre []PackageLinterFn, perMeta, perObject []ObjectLinterFn
 }
 
 // Lint executes all linter functions against a package.
-func (l *PackageLinter) Lint(pkg *Package) error {
+func (l *PackageLinter) Lint(pkg Lintable) error {
 	for _, fn := range l.pre {
 		if err := fn(pkg); err != nil {
 			return err

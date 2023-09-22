@@ -31,10 +31,10 @@ var _ Linter = &PackageLinter{}
 var (
 	errBoom = errors.New("boom")
 
-	pkgPass = func(pkg *Package) error {
+	pkgPass = func(lin Lintable) error {
 		return nil
 	}
-	pkgFail = func(pkg *Package) error {
+	pkgFail = func(lin Lintable) error {
 		return errBoom
 	}
 	objPass = func(o runtime.Object) error {

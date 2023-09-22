@@ -34,6 +34,15 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
+// Lintable defines the common API for lintable packages.
+type Lintable interface {
+	// GetMeta returns metadata objects of the lintable package, such as
+	// Provider, Configuration or Function.
+	GetMeta() []runtime.Object
+	// GetObjects returns objects of the lintable package.
+	GetObjects() []runtime.Object
+}
+
 // AnnotatedReadCloser is a wrapper around io.ReadCloser that allows
 // implementations to supply additional information about data that is read.
 type AnnotatedReadCloser interface {
