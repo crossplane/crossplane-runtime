@@ -7,7 +7,7 @@ require (
 	github.com/bufbuild/buf v1.26.1
 	github.com/go-logr/logr v1.2.4
 	github.com/google/go-cmp v0.5.9
-	github.com/spf13/afero v1.9.5
+	github.com/spf13/afero v1.10.0
 	golang.org/x/time v0.3.0
 	google.golang.org/grpc v1.58.2
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.3.0
