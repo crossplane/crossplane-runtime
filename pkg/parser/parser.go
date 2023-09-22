@@ -35,7 +35,10 @@ import (
 
 // Lintable defines the common API for lintable packages.
 type Lintable interface {
+	// GetMeta returns metadata objects of the lintable package, such as
+	// Provider, Configuration or Function.
 	GetMeta() []runtime.Object
+	// GetObjects returns objects of the lintable package.
 	GetObjects() []runtime.Object
 }
 
