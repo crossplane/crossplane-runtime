@@ -75,6 +75,14 @@ type AnnotationChangedPredicate struct {
 	ignored []string
 }
 
+func copyAnnotations(an map[string]string) map[string]string {
+	r := make(map[string]string, len(an))
+	for k, v := range an {
+		r[k] = v
+	}
+	return r
+}
+
 // Update implements default UpdateEvent filter for validating annotation change.
 func (a AnnotationChangedPredicate) Update(e event.UpdateEvent) bool {
 	if e.ObjectOld == nil {
@@ -86,8 +94,8 @@ func (a AnnotationChangedPredicate) Update(e event.UpdateEvent) bool {
 		return false
 	}
 
-	na := e.ObjectNew.GetAnnotations()
-	oa := e.ObjectOld.GetAnnotations()
+	na := copyAnnotations(e.ObjectNew.GetAnnotations())
+	oa := copyAnnotations(e.ObjectOld.GetAnnotations())
 
 	for _, k := range a.ignored {
 		delete(na, k)
