@@ -22,7 +22,6 @@ import (
 	"strings"
 	"time"
 
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -714,19 +713,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 	// NOTE(negz): This method is a well over our cyclomatic complexity goal.
 	// Be wary of adding additional complexity.
 
+	defer func() { result, err = errors.SilentlyRequeueOnConflict(result, err) }()
+
 	log := r.log.WithValues("request", req)
-
-	defer func() {
-		if kerrors.IsConflict(errors.Cause(err)) {
-			// conflict errors are transient in Kubernetes and completely normal.
-			// The right reaction is to requeue, but not record the object as error'ing
-			// or creating events.
-			log.Debug("Transient conflict error", "error", err)
-			result.Requeue = true
-			err = nil
-		}
-	}()
-
 	log.Debug("Reconciling")
 
 	ctx, cancel := context.WithTimeout(ctx, r.timeout+reconcileGracePeriod)
