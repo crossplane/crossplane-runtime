@@ -103,6 +103,8 @@ func (c Condition) WithMessage(msg string) Condition {
 // one condition of each type may exist.
 type ConditionedStatus struct {
 	// Conditions of the resource.
+	// +listType=map
+	// +listMapKey=type
 	// +optional
 	Conditions []Condition `json:"conditions,omitempty"`
 }
