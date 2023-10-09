@@ -150,12 +150,12 @@ jobs:
         run: make vendor vendor.check
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@2cb752a87e96af96708ab57187ab6372ee1973ab # v2
+        uses: github/codeql-action/init@fdcae64e1484d349b3366718cdfef3d404390e85 # v2
         with:
           languages: go
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@2cb752a87e96af96708ab57187ab6372ee1973ab # v2
+        uses: github/codeql-action/analyze@fdcae64e1484d349b3366718cdfef3d404390e85 # v2
 
   trivy-scan-fs:
     runs-on: ubuntu-22.04
