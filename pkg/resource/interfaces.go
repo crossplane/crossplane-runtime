@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 )
 
 // A Conditioned may have conditions set or retrieved. Conditions are typically
@@ -36,8 +37,8 @@ type Conditioned interface {
 
 // A ClaimReferencer may reference a resource claim.
 type ClaimReferencer interface {
-	SetClaimReference(r *corev1.ObjectReference)
-	GetClaimReference() *corev1.ObjectReference
+	SetClaimReference(r *claim.Reference)
+	GetClaimReference() *claim.Reference
 }
 
 // A ManagedResourceReferencer may reference a concrete managed resource.

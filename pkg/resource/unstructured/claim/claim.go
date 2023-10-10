@@ -60,6 +60,21 @@ type Unstructured struct {
 	unstructured.Unstructured
 }
 
+// Reference to a claim
+type Reference struct {
+	// APIVersion of the referenced claim.
+	APIVersion string `json:"apiVersion"`
+
+	// Kind of the referenced claim.
+	Kind string `json:"kind"`
+
+	// Name of the referenced claim.
+	Name string `json:"name"`
+
+	// Namespace of the referenced claim.
+	Namespace string `json:"namespace"`
+}
+
 // GetUnstructured returns the underlying *unstructured.Unstructured.
 func (c *Unstructured) GetUnstructured() *unstructured.Unstructured {
 	return &c.Unstructured
@@ -163,6 +178,16 @@ func (c *Unstructured) GetResourceReference() *corev1.ObjectReference {
 // SetResourceReference of this composite resource claim.
 func (c *Unstructured) SetResourceReference(ref *corev1.ObjectReference) {
 	_ = fieldpath.Pave(c.Object).SetValue("spec.resourceRef", ref)
+}
+
+// GetReference returns reference to this claim
+func (c *Unstructured) GetReference() *Reference {
+	return &Reference{
+		APIVersion: c.GetAPIVersion(),
+		Kind:       c.GetKind(),
+		Name:       c.GetName(),
+		Namespace:  c.GetNamespace(),
+	}
 }
 
 // GetWriteConnectionSecretToReference of this composite resource claim.
