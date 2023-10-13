@@ -186,7 +186,12 @@ func (e *Engine) Start(name string, o controller.Options, w ...Watch) error {
 
 // NamedController is a controller that's not yet started. It gives access to
 // the underlying cache, which may be used e.g. to add indexes.
-type NamedController struct {
+type NamedController interface {
+	Start(ctx context.Context) error
+	GetCache() cache.Cache
+}
+
+type namedController struct {
 	name string
 	e    *Engine
 	ca   cache.Cache
@@ -197,7 +202,7 @@ type NamedController struct {
 // whose lifecycle is coupled to the controller. The controller is created with
 // the supplied options, and configured with the supplied watches. It is not
 // started yet.
-func (e *Engine) Create(name string, o controller.Options, w ...Watch) (*NamedController, error) {
+func (e *Engine) Create(name string, o controller.Options, w ...Watch) (NamedController, error) {
 	// Each controller gets its own cache for the GVKs it owns. This cache is
 	// wrapped by a GVKRoutedCache that routes requests to other GVKs to the
 	// manager's cache. This way we can share informers for composed resources
@@ -245,11 +250,11 @@ func (e *Engine) Create(name string, o controller.Options, w ...Watch) (*NamedCo
 		}
 	}
 
-	return &NamedController{name: name, e: e, ca: ca, ctrl: ctrl}, nil
+	return &namedController{name: name, e: e, ca: ca, ctrl: ctrl}, nil
 }
 
 // Start the named controller. Start does not block.
-func (c *NamedController) Start(ctx context.Context) error {
+func (c *namedController) Start(ctx context.Context) error {
 	if c.e.IsRunning(c.name) {
 		return nil
 	}
@@ -273,6 +278,6 @@ func (c *NamedController) Start(ctx context.Context) error {
 }
 
 // GetCache returns the cache used by the named controller.
-func (c *NamedController) GetCache() cache.Cache {
+func (c *namedController) GetCache() cache.Cache {
 	return c.ca
 }
