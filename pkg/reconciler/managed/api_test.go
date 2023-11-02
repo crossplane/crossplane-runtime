@@ -413,6 +413,26 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 				o:   &fake.Managed{},
 			},
 		},
+		"SuccessfulGetAfterAConflict": {
+			reason: "A successful get after a conflict should not hide the conflict error and prevent retries",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, setLabels),
+				MockUpdate: test.NewMockUpdateFn(kerrors.NewConflict(schema.GroupResource{
+					Group:    "foo.com",
+					Resource: "bars",
+				}, "abc", errBoom)),
+			},
+			args: args{
+				o: &fake.Managed{},
+			},
+			want: want{
+				err: errors.Wrap(kerrors.NewConflict(schema.GroupResource{
+					Group:    "foo.com",
+					Resource: "bars",
+				}, "abc", errBoom), errUpdateCriticalAnnotations),
+				o: objectReturnedByGet,
+			},
+		},
 		"Success": {
 			reason: "We should return without error if we successfully update our annotations",
 			c: &test.MockClient{
