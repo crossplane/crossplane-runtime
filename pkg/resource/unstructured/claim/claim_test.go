@@ -26,9 +26,28 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
+
+var (
+	_ client.Object = &Unstructured{}
+)
+
+func TestDeepCopyObject(t *testing.T) {
+	in := New(WithGroupVersionKind(schema.GroupVersionKind{
+		Group:   "test.crossplane.io",
+		Version: "v1",
+		Kind:    "Example",
+	}))
+
+	out := in.DeepCopyObject()
+
+	if diff := cmp.Diff(in, out); diff != "" {
+		t.Errorf("in.DeepCopyObject(): -want, +got:\n%s", diff)
+	}
+}
 
 func TestWithGroupVersionKind(t *testing.T) {
 	gvk := schema.GroupVersionKind{
