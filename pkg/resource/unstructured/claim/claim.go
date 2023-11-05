@@ -21,6 +21,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -73,6 +74,28 @@ type Reference struct {
 
 	// Namespace of the referenced claim.
 	Namespace string `json:"namespace"`
+}
+
+// DeepCopy returns a deep copy of the receiver.
+func (c *Unstructured) DeepCopy() *Unstructured {
+	if c == nil {
+		return nil
+	}
+	out := new(Unstructured)
+	*out = *c
+	out.Object = runtime.DeepCopyJSON(c.Object)
+	return out
+}
+
+// DeepCopyInto copies the receiver, writing into out. in must be non-nil.
+func (c *Unstructured) DeepCopyInto(out *Unstructured) {
+	clone := c.DeepCopy()
+	*out = *clone
+}
+
+// DeepCopyObject copies the receiver, creating a new runtime.Object.
+func (c *Unstructured) DeepCopyObject() runtime.Object {
+	return c.DeepCopy()
 }
 
 // GetUnstructured returns the underlying *unstructured.Unstructured.
