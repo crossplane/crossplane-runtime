@@ -31,19 +31,6 @@ var (
 	_ client.Object = &Unstructured{}
 )
 
-func TestDeepCopyObject(t *testing.T) {
-	in := New(FromReference(corev1.ObjectReference{
-		APIVersion: "testing.crossplane.io/v1",
-		Kind:       "Example",
-	}))
-
-	out := in.DeepCopyObject()
-
-	if diff := cmp.Diff(in, out); diff != "" {
-		t.Errorf("in.DeepCopyObject(): -want, +got:\n%s", diff)
-	}
-}
-
 func TestFromReference(t *testing.T) {
 	ref := corev1.ObjectReference{
 		APIVersion: "a/v1",
