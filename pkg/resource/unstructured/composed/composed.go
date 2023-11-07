@@ -20,7 +20,6 @@ package composed
 import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -58,31 +57,12 @@ func New(opts ...Option) *Unstructured {
 	return cr
 }
 
+// +k8s:deepcopy-gen=true
+// +kubebuilder:object:root=true
+
 // An Unstructured composed resource.
 type Unstructured struct {
 	unstructured.Unstructured
-}
-
-// DeepCopy returns a deep copy of the receiver.
-func (cr *Unstructured) DeepCopy() *Unstructured {
-	if cr == nil {
-		return nil
-	}
-	out := new(Unstructured)
-	*out = *cr
-	out.Object = runtime.DeepCopyJSON(cr.Object)
-	return out
-}
-
-// DeepCopyInto copies the receiver, writing into out. in must be non-nil.
-func (cr *Unstructured) DeepCopyInto(out *Unstructured) {
-	clone := cr.DeepCopy()
-	*out = *clone
-}
-
-// DeepCopyObject copies the receiver, creating a new runtime.Object.
-func (cr *Unstructured) DeepCopyObject() runtime.Object {
-	return cr.DeepCopy()
 }
 
 // GetUnstructured returns the underlying *unstructured.Unstructured.
