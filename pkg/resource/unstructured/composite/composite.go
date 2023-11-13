@@ -56,6 +56,9 @@ func New(opts ...Option) *Unstructured {
 	return c
 }
 
+// +k8s:deepcopy-gen=true
+// +kubebuilder:object:root=true
+
 // An Unstructured composed resource.
 type Unstructured struct {
 	unstructured.Unstructured
