@@ -74,14 +74,23 @@ func (ss *SecretStore) ReadKeyValues(ctx context.Context, n store.ScopedName, s 
 	}
 
 	s.ScopedName = n
-	s.Data = make(map[string][]byte, len(resp.Secret.Data))
-	for d := range resp.Secret.Data {
-		s.Data[d] = resp.Secret.Data[d]
+
+	respSecret := resp.GetSecret()
+	if respSecret == nil {
+		return nil
 	}
-	if resp.Secret != nil && len(resp.Secret.Metadata) != 0 {
+
+	respSecretData := respSecret.GetData()
+	s.Data = make(map[string][]byte, len(respSecretData))
+	for d := range respSecretData {
+		s.Data[d] = respSecretData[d]
+	}
+
+	respSecretMetadata := respSecret.GetMetadata()
+	if len(respSecretMetadata) != 0 {
 		s.Metadata = new(v1.ConnectionSecretMetadata)
-		s.Metadata.Labels = make(map[string]string, len(resp.Secret.Metadata))
-		for k, v := range resp.Secret.Metadata {
+		s.Metadata.Labels = make(map[string]string, len(respSecretMetadata))
+		for k, v := range respSecretMetadata {
 			s.Metadata.Labels[k] = v
 		}
 	}
@@ -110,7 +119,7 @@ func (ss *SecretStore) WriteKeyValues(ctx context.Context, s *store.Secret, _ ..
 		return false, errors.Wrap(err, errApply)
 	}
 
-	return resp.Changed, nil
+	return resp.GetChanged(), nil
 }
 
 // DeleteKeyValues delete key value pairs from a given Secret.
