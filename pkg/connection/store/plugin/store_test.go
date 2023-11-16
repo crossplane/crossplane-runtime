@@ -78,11 +78,11 @@ func TestReadKeyValues(t *testing.T) {
 				},
 				client: &fake.ExternalSecretStorePluginServiceClient{
 					GetSecretFn: func(ctx context.Context, req *ess.GetSecretRequest, opts ...grpc.CallOption) (*ess.GetSecretResponse, error) {
-						if diff := cmp.Diff(filepath.Join(parentPath, secretName), req.Secret.ScopedName); diff != "" {
+						if diff := cmp.Diff(filepath.Join(parentPath, secretName), req.GetSecret().GetScopedName()); diff != "" {
 							t.Errorf("r: -want, +got:\n%s", diff)
 						}
 						sec := &ess.Secret{
-							ScopedName: req.Secret.ScopedName,
+							ScopedName: req.GetSecret().GetScopedName(),
 							Data: map[string][]byte{
 								"data1": []byte("val1"),
 								"data2": []byte("val2"),
