@@ -60,6 +60,14 @@ func FromFloatPtrValue(v *float64) string {
 	return strconv.FormatFloat(*v, 'f', 0, 64)
 }
 
+// FromIntPtrValue adapts an int pointer field for use as a CurrentValue.
+func FromIntPtrValue(v *int64) string {
+	if v == nil {
+		return ""
+	}
+	return strconv.FormatInt(*v, 10)
+}
+
 // ToPtrValue adapts a ResolvedValue for use as a string pointer field.
 func ToPtrValue(v string) *string {
 	if v == "" {
@@ -74,6 +82,18 @@ func ToFloatPtrValue(v string) *float64 {
 		return nil
 	}
 	vParsed, err := strconv.ParseFloat(v, 64)
+	if err != nil {
+		return nil
+	}
+	return &vParsed
+}
+
+// ToIntPtrValue adapts a ResolvedValue for use as an int pointer field.
+func ToIntPtrValue(v string) *int64 {
+	if v == "" {
+		return nil
+	}
+	vParsed, err := strconv.ParseInt(v, 10, 64)
 	if err != nil {
 		return nil
 	}
@@ -102,6 +122,15 @@ func FromFloatPtrValues(v []*float64) []string {
 	return res
 }
 
+// FromIntPtrValues adapts a slice of int64 pointer fields for use as CurrentValues.
+func FromIntPtrValues(v []*int64) []string {
+	var res = make([]string, len(v))
+	for i := 0; i < len(v); i++ {
+		res[i] = FromIntPtrValue(v[i])
+	}
+	return res
+}
+
 // ToPtrValues adapts ResolvedValues for use as a slice of string pointer fields.
 // NOTE: Do not use this utility function unless you have to.
 // Using pointer slices does not adhere to our current API practices.
@@ -120,6 +149,15 @@ func ToFloatPtrValues(v []string) []*float64 {
 	var res = make([]*float64, len(v))
 	for i := 0; i < len(v); i++ {
 		res[i] = ToFloatPtrValue(v[i])
+	}
+	return res
+}
+
+// ToIntPtrValues adapts ResolvedValues for use as a slice of int64 pointer fields.
+func ToIntPtrValues(v []string) []*int64 {
+	var res = make([]*int64, len(v))
+	for i := 0; i < len(v); i++ {
+		res[i] = ToIntPtrValue(v[i])
 	}
 	return res
 }
