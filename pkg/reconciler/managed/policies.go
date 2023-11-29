@@ -82,6 +82,9 @@ func defaultSupportedManagementPolicies() []sets.Set[xpv1.ManagementAction] {
 		// is not deleted when the managed resource is deleted and the
 		// spec.forProvider is not late initialized.
 		sets.New[xpv1.ManagementAction](xpv1.ManagementActionObserve, xpv1.ManagementActionCreate),
+		// Like ObserveOnly, but the external resource is deleted when the
+		// managed resource is deleted.
+		sets.New[xpv1.ManagementAction](xpv1.ManagementActionObserve, xpv1.ManagementActionDelete),
 	}
 }
 
