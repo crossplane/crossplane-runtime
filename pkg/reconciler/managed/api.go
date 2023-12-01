@@ -18,12 +18,15 @@ package managed
 
 import (
 	"context"
+	"encoding/json"
 
+	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -33,10 +36,20 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
+const (
+	// fieldOwnerAPISimpleRefResolver owns the reference fields
+	// the managed reconciler resolves.
+	fieldOwnerAPISimpleRefResolver = "managed.crossplane.io/api-simple-reference-resolver"
+)
+
 // Error strings.
 const (
 	errCreateOrUpdateSecret      = "cannot create or update connection secret"
 	errUpdateManaged             = "cannot update managed resource"
+	errPatchManaged              = "cannot patch the managed resource via server-side apply"
+	errMarshalExisting           = "cannot marshal the existing object into JSON"
+	errMarshalResolved           = "cannot marshal the object with the resolved references into JSON"
+	errPreparePatch              = "cannot prepare the JSON merge patch for the resolved object"
 	errUpdateManagedStatus       = "cannot update managed resource status"
 	errResolveReferences         = "cannot resolve references"
 	errUpdateCriticalAnnotations = "cannot update critical annotations"
@@ -130,6 +143,27 @@ func NewAPISimpleReferenceResolver(c client.Client) *APISimpleReferenceResolver 
 	return &APISimpleReferenceResolver{client: c}
 }
 
+func prepareJSONMerge(existing, resolved runtime.Object) ([]byte, error) {
+	// restore the to be replaced GVK so that the existing object is
+	// not modified by this function.
+	defer existing.GetObjectKind().SetGroupVersionKind(existing.GetObjectKind().GroupVersionKind())
+	// we need the apiVersion and kind in the patch document so we set them
+	// to their zero values and make them available in the calculated patch
+	// in the first place, instead of an unmarshal/marshal from the prepared
+	// patch []byte later.
+	existing.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{})
+	eBuff, err := json.Marshal(existing)
+	if err != nil {
+		return nil, errors.Wrap(err, errMarshalExisting)
+	}
+	rBuff, err := json.Marshal(resolved)
+	if err != nil {
+		return nil, errors.Wrap(err, errMarshalResolved)
+	}
+	patch, err := jsonpatch.CreateMergePatch(eBuff, rBuff)
+	return patch, errors.Wrap(err, errPreparePatch)
+}
+
 // ResolveReferences of the supplied managed resource by calling its
 // ResolveReferences method, if any.
 func (a *APISimpleReferenceResolver) ResolveReferences(ctx context.Context, mg resource.Managed) error {
@@ -151,7 +185,11 @@ func (a *APISimpleReferenceResolver) ResolveReferences(ctx context.Context, mg r
 		return nil
 	}
 
-	return errors.Wrap(a.client.Update(ctx, mg), errUpdateManaged)
+	patch, err := prepareJSONMerge(existing, mg)
+	if err != nil {
+		return err
+	}
+	return errors.Wrap(a.client.Patch(ctx, mg, client.RawPatch(types.ApplyPatchType, patch), client.FieldOwner(fieldOwnerAPISimpleRefResolver), client.ForceOwnership), errPatchManaged)
 }
 
 // A RetryingCriticalAnnotationUpdater is a CriticalAnnotationUpdater that
