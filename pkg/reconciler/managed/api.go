@@ -146,7 +146,7 @@ func (a *APISimpleReferenceResolver) ResolveReferences(ctx context.Context, mg r
 		return errors.Wrap(err, errResolveReferences)
 	}
 
-	if cmp.Equal(existing, mg) {
+	if cmp.Equal(existing, mg, cmpopts.EquateEmpty()) {
 		// The resource didn't change during reference resolution.
 		return nil
 	}
