@@ -239,7 +239,7 @@ func TestAPISecretPublisher(t *testing.T) {
 type mockSimpleReferencer struct {
 	resource.Managed
 
-	MockResolveReferences func(context.Context, client.Reader) error
+	MockResolveReferences func(context.Context, client.Reader) error `json:"-"`
 }
 
 func (r *mockSimpleReferencer) ResolveReferences(ctx context.Context, c client.Reader) error {
@@ -313,7 +313,7 @@ func TestResolveReferences(t *testing.T) {
 		"SuccessfulUpdate": {
 			reason: "Should return without error when a value is successfully resolved.",
 			c: &test.MockClient{
-				MockUpdate: test.NewMockUpdateFn(nil),
+				MockPatch: test.NewMockPatchFn(nil),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -327,10 +327,10 @@ func TestResolveReferences(t *testing.T) {
 			},
 			want: nil,
 		},
-		"UpdateError": {
+		"PatchError": {
 			reason: "Should return an error when the managed resource cannot be updated.",
 			c: &test.MockClient{
-				MockUpdate: test.NewMockUpdateFn(errBoom),
+				MockPatch: test.NewMockPatchFn(errBoom),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -342,7 +342,7 @@ func TestResolveReferences(t *testing.T) {
 					},
 				},
 			},
-			want: errors.Wrap(errBoom, errUpdateManaged),
+			want: errors.Wrap(errBoom, errPatchManaged),
 		},
 	}
 
@@ -352,6 +352,49 @@ func TestResolveReferences(t *testing.T) {
 			got := r.ResolveReferences(tc.args.ctx, tc.args.mg)
 			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.ResolveReferences(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestPrepareJSONMerge(t *testing.T) {
+	type args struct {
+		existing runtime.Object
+		resolved runtime.Object
+	}
+	type want struct {
+		patch string
+		err   error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"SuccessfulPatch": {
+			reason: "Should successfully compute the JSON merge patch document.",
+			args: args{
+				existing: &fake.Managed{},
+				resolved: &fake.Managed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "resolved",
+					}},
+			},
+			want: want{
+				patch: `{"name":"resolved"}`,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			patch, err := prepareJSONMerge(tc.args.existing, tc.args.resolved)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nprepareJSONMerge(...): -wantErr, +gotErr:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.patch, string(patch)); diff != "" {
+				t.Errorf("\n%s\nprepareJSONMerge(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
