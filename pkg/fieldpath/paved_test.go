@@ -949,6 +949,14 @@ func TestExpandWildcards(t *testing.T) {
 				err: errors.Wrap(errors.New("unexpected ']' at position 5"), "cannot parse path \"spec[]\""),
 			},
 		},
+		"NilValue": {
+			reason: "Requesting a wildcard for an object that has nil value",
+			path:   "spec.containers[*].name",
+			data:   []byte(`{"spec":{"containers": null}}`),
+			want: want{
+				err: errors.Wrapf(errNotFound{errors.Errorf("wildcard field %q is not found in the path", "spec.containers")}, "cannot expand wildcards for segments: %q", "spec.containers[*].name"),
+			},
+		},
 	}
 
 	for name, tc := range cases {
