@@ -204,6 +204,8 @@ func expandWildcards(data any, segments Segments) ([]Segments, error) { //nolint
 					}
 					res = append(res, r...)
 				}
+			case nil:
+				return nil, errNotFound{errors.Errorf("%s: value of the field is nil", segments[:i])}
 			default:
 				return nil, errors.Errorf("%q: unexpected wildcard usage", segments[:i])
 			}
