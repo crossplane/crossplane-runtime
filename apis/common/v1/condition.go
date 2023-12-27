@@ -54,6 +54,8 @@ const (
 	ReasonReconcilePaused  ConditionReason = "ReconcilePaused"
 )
 
+// See https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties
+
 // A Condition that may apply to a resource.
 type Condition struct {
 	// Type of this condition. At most one of each condition type may apply to
@@ -74,6 +76,12 @@ type Condition struct {
 	// one status to another, if any.
 	// +optional
 	Message string `json:"message,omitempty"`
+
+	// ObservedGeneration represents the .metadata.generation that the condition was set based upon.
+	// For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+	// with respect to the current state of the instance.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
 // Equal returns true if the condition is identical to the supplied condition,
@@ -89,6 +97,13 @@ func (c Condition) Equal(other Condition) bool {
 // condition.
 func (c Condition) WithMessage(msg string) Condition {
 	c.Message = msg
+	return c
+}
+
+// WithObservedGeneration returns a condition by adding the provided observed generation
+// to existing condition.
+func (c Condition) WithObservedGeneration(gen int64) Condition {
+	c.ObservedGeneration = gen
 	return c
 }
 
@@ -131,6 +146,7 @@ func (s *ConditionedStatus) GetCondition(ct ConditionType) Condition {
 // SetConditions sets the supplied conditions, replacing any existing conditions
 // of the same type. This is a no-op if all supplied conditions are identical,
 // ignoring the last transition time, to those already set.
+// Observed generation is updated if higher than the existing one.
 func (s *ConditionedStatus) SetConditions(c ...Condition) {
 	for _, new := range c {
 		exists := false
@@ -141,6 +157,9 @@ func (s *ConditionedStatus) SetConditions(c ...Condition) {
 
 			if existing.Equal(new) {
 				exists = true
+				if existing.ObservedGeneration < new.ObservedGeneration {
+					existing.ObservedGeneration = new.ObservedGeneration
+				}
 				continue
 			}
 

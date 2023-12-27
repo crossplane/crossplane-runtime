@@ -146,3 +146,24 @@ func TestWriteConnectionSecretToReference(t *testing.T) {
 		})
 	}
 }
+
+func TestObservedGeneration(t *testing.T) {
+	u := &Unstructured{unstructured.Unstructured{Object: map[string]any{}}}
+	want := int64(123)
+	u.SetObservedGeneration(want)
+
+	if got := u.GetObservedGeneration(); got != want {
+		t.Errorf("u.GetObservedGeneration() got: %v, want %v", got, want)
+	}
+	if g := u.GetUnstructured().Object["status"].(map[string]any)["observedGeneration"]; g != want {
+		t.Errorf("Generations do not match! got: %v (%T)", g, g)
+	}
+}
+
+func TestObservedGenerationNotFound(t *testing.T) {
+	u := &Unstructured{unstructured.Unstructured{Object: map[string]any{}}}
+
+	if g := u.GetObservedGeneration(); g != 0 {
+		t.Errorf("u.GetObservedGeneration(): expected nil, but got %v", g)
+	}
+}

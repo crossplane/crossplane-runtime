@@ -206,7 +206,7 @@ func (c *Unstructured) SetPublishConnectionDetailsTo(ref *xpv1.PublishConnection
 
 // GetCondition of this Composite resource.
 func (c *Unstructured) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
-	conditioned := xpv1.ConditionedStatus{}
+	conditioned := xpv1.ResourceStatus{}
 	// The path is directly `status` because conditions are inline.
 	if err := fieldpath.Pave(c.Object).GetValueInto("status", &conditioned); err != nil {
 		return xpv1.Condition{}
@@ -216,7 +216,7 @@ func (c *Unstructured) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 
 // SetConditions of this Composite resource.
 func (c *Unstructured) SetConditions(conditions ...xpv1.Condition) {
-	conditioned := xpv1.ConditionedStatus{}
+	conditioned := xpv1.ResourceStatus{}
 	// The path is directly `status` because conditions are inline.
 	_ = fieldpath.Pave(c.Object).GetValueInto("status", &conditioned)
 	conditioned.SetConditions(conditions...)
@@ -257,4 +257,19 @@ func (c *Unstructured) SetEnvironmentConfigReferences(refs []corev1.ObjectRefere
 		filtered = append(filtered, ref)
 	}
 	_ = fieldpath.Pave(c.Object).SetValue("spec.environmentConfigRefs", filtered)
+}
+
+// SetObservedGeneration of this composite resource claim.
+func (c *Unstructured) SetObservedGeneration(generation int64) {
+	status := &xpv1.ResourceStatus{}
+	_ = fieldpath.Pave(c.Object).GetValueInto("status", status)
+	status.SetObservedGeneration(generation)
+	_ = fieldpath.Pave(c.Object).SetValue("status", status)
+}
+
+// GetObservedGeneration of this composite resource claim.
+func (c *Unstructured) GetObservedGeneration() int64 {
+	status := &xpv1.ResourceStatus{}
+	_ = fieldpath.Pave(c.Object).GetValueInto("status", status)
+	return status.GetObservedGeneration()
 }

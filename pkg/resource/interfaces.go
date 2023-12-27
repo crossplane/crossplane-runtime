@@ -176,6 +176,12 @@ type ConnectionDetailsPublishedTimer interface {
 	GetConnectionDetailsLastPublishedTime() *metav1.Time
 }
 
+// ReconciliationObserver can track data observed by resource reconciler.
+type ReconciliationObserver interface {
+	SetObservedGeneration(generation int64)
+	GetObservedGeneration() int64
+}
+
 // An Object is a Kubernetes object.
 type Object interface {
 	metav1.Object
@@ -245,6 +251,7 @@ type Composite interface { //nolint:interfacebloat // This interface has to be b
 
 	Conditioned
 	ConnectionDetailsPublishedTimer
+	ReconciliationObserver
 }
 
 // Composed resources can be a composed into a Composite resource.
@@ -254,6 +261,7 @@ type Composed interface {
 	Conditioned
 	ConnectionSecretWriterTo
 	ConnectionDetailsPublisherTo
+	ReconciliationObserver
 }
 
 // A CompositeClaim for a Composite resource.
@@ -272,4 +280,5 @@ type CompositeClaim interface { //nolint:interfacebloat // This interface has to
 
 	Conditioned
 	ConnectionDetailsPublishedTimer
+	ReconciliationObserver
 }
