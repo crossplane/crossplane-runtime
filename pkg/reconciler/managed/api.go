@@ -215,7 +215,7 @@ func (u *RetryingCriticalAnnotationUpdater) UpdateCriticalAnnotations(ctx contex
 	err := retry.OnError(retry.DefaultRetry, resource.IsAPIError, func() error {
 		err := u.client.Update(ctx, o)
 		if kerrors.IsConflict(err) {
-			if getErr := u.client.Get(ctx, types.NamespacedName{Name: o.GetName()}, o); getErr != nil {
+			if getErr := u.client.Get(ctx, client.ObjectKeyFromObject(o), o); getErr != nil {
 				return getErr
 			}
 			meta.AddAnnotations(o, a)
