@@ -47,6 +47,10 @@ func (c *MockCache) Start(stop context.Context) error {
 	return c.MockStart(stop)
 }
 
+func (c *MockCache) WaitForCacheSync(_ context.Context) bool {
+	return true
+}
+
 type MockController struct {
 	controller.Controller
 

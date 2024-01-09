@@ -147,8 +147,8 @@ func (c *GVKRoutedCache) Start(_ context.Context) error {
 	return nil
 }
 
-// WaitForCacheSync for a GVKRoutedCache waits for all delegates to sync, and
-// returns false if any of them fails to sync.
+// WaitForCacheSync for a GVKRoutedCache waits for all delegates and the
+// fallback to sync, and returns false if any of them fails to sync.
 func (c *GVKRoutedCache) WaitForCacheSync(ctx context.Context) bool {
 	c.lock.RLock()
 	syncedCh := make(chan bool, len(c.delegates)+1)
@@ -186,7 +186,7 @@ func (c *GVKRoutedCache) WaitForCacheSync(ctx context.Context) bool {
 		}
 	}
 
-	return true
+	return c.fallback.WaitForCacheSync(ctx)
 }
 
 // IndexField adds an index with the given field name on the given object type

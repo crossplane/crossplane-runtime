@@ -271,6 +271,10 @@ func (c *namedController) Start(ctx context.Context) error {
 	}()
 	go func() {
 		<-c.e.mgr.Elected()
+		if synced := c.ca.WaitForCacheSync(ctx); !synced {
+			c.e.done(c.name, errors.New(errCrashCache))
+			return
+		}
 		c.e.done(c.name, errors.Wrap(c.ctrl.Start(ctx), errCrashController))
 	}()
 
