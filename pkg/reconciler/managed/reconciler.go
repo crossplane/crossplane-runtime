@@ -1051,10 +1051,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 			// issue we'll be requeued implicitly when we update our status with
 			// the new error condition. If not, we requeue explicitly, which will trigger backoff.
 			log.Debug("Cannot create external resource", "error", err)
-			if kerrors.IsConflict(err) {
-				return reconcile.Result{Requeue: true}, nil
+			if !kerrors.IsConflict(err) {
+				record.Event(managed, event.Warning(reasonCannotCreate, err))
 			}
-			record.Event(managed, event.Warning(reasonCannotCreate, err))
 
 			// We handle annotations specially here because it's
 			// critical that they are persisted to the API server.
