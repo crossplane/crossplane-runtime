@@ -212,7 +212,9 @@ func NewRetryingCriticalAnnotationUpdater(c client.Client) *RetryingCriticalAnno
 // case of a conflict error.
 func (u *RetryingCriticalAnnotationUpdater) UpdateCriticalAnnotations(ctx context.Context, o client.Object) error {
 	a := o.GetAnnotations()
-	err := retry.OnError(retry.DefaultRetry, resource.IsAPIError, func() error {
+	err := retry.OnError(retry.DefaultRetry, func(err error) bool {
+		return !errors.Is(err, context.Canceled)
+	}, func() error {
 		err := u.client.Update(ctx, o)
 		if kerrors.IsConflict(err) {
 			if getErr := u.client.Get(ctx, client.ObjectKeyFromObject(o), o); getErr != nil {
