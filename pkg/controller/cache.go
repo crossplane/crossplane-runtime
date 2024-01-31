@@ -142,6 +142,24 @@ func (c *GVKRoutedCache) GetInformerForKind(ctx context.Context, gvk schema.Grou
 	return c.fallback.GetInformerForKind(ctx, gvk, opts...)
 }
 
+// RemoveInformer removes an informer entry and stops it if it was running.
+func (c *GVKRoutedCache) RemoveInformer(ctx context.Context, obj client.Object) error {
+	gvk, err := apiutil.GVKForObject(obj, c.scheme)
+	if err != nil {
+		return errors.Errorf("failed to get GVK for type %T: %w", obj, err)
+	}
+
+	c.lock.RLock()
+	delegate, ok := c.delegates[gvk]
+	c.lock.RUnlock()
+
+	if ok {
+		return delegate.RemoveInformer(ctx, obj)
+	}
+
+	return c.fallback.RemoveInformer(ctx, obj)
+}
+
 // Start for a GVKRoutedCache is a no-op. Start must be called for each delegate.
 func (c *GVKRoutedCache) Start(_ context.Context) error {
 	return nil
