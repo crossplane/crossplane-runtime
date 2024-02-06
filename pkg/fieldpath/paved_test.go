@@ -161,6 +161,14 @@ func TestGetValue(t *testing.T) {
 				err: errors.Wrap(errors.New("unexpected ']' at position 5"), "cannot parse path \"spec[]\""),
 			},
 		},
+		"NilValue": {
+			reason: "Requesting for an object that has nil value",
+			path:   "spec.containers[*].name",
+			data:   []byte(`{"spec":{"containers": null}}`),
+			want: want{
+				err: errNotFound{errors.Errorf("field %q is not found in the path", "spec.containers")},
+			},
+		},
 	}
 
 	for name, tc := range cases {
