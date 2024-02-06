@@ -112,7 +112,9 @@ func (p *Paved) getValue(s Segments) (any, error) {
 	return getValueFromInterface(p.object, s)
 }
 
-func getValueFromInterface(it any, s Segments) (any, error) {
+func getValueFromInterface(it any, s Segments) (any, error) { //nolint:gocyclo // See note below.
+	// Although the complexity of the function may seem high, in fact the same
+	// operation is performed in different cases.
 	for i, current := range s {
 		final := i == len(s)-1
 		switch current.Type {
@@ -129,18 +131,21 @@ func getValueFromInterface(it any, s Segments) (any, error) {
 			}
 			it = array[current.Index]
 		case SegmentField:
-			object, ok := it.(map[string]any)
-			if !ok {
+			switch object := it.(type) {
+			case map[string]any:
+				v, ok := object[current.Field]
+				if !ok {
+					return nil, errNotFound{errors.Errorf("%s: no such field", s[:i+1])}
+				}
+				if final {
+					return v, nil
+				}
+				it = object[current.Field]
+			case nil:
+				return nil, errNotFound{errors.Errorf("field %q is not found in the path", s[:i])}
+			default:
 				return nil, errors.Errorf("%s: not an object", s[:i])
 			}
-			v, ok := object[current.Field]
-			if !ok {
-				return nil, errNotFound{errors.Errorf("%s: no such field", s[:i+1])}
-			}
-			if final {
-				return v, nil
-			}
-			it = object[current.Field]
 		}
 	}
 
