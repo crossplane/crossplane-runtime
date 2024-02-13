@@ -142,7 +142,7 @@ func getValueFromInterface(it any, s Segments) (any, error) { //nolint:gocyclo /
 				}
 				it = object[current.Field]
 			case nil:
-				return nil, errNotFound{errors.Errorf("path %q is not found in the paved object", s[:i])}
+				return nil, errNotFound{errors.Errorf("%s: expected map, got nil", s[:i])}
 			default:
 				return nil, errors.Errorf("%s: not an object", s[:i])
 			}
