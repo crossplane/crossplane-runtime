@@ -166,7 +166,7 @@ func TestGetValue(t *testing.T) {
 			path:   "spec.containers[*].name",
 			data:   []byte(`{"spec":{"containers": null}}`),
 			want: want{
-				err: errNotFound{errors.Errorf("path %q is not found in the paved object", "spec.containers")},
+				err: errNotFound{errors.Errorf("%s: expected map, got nil", "spec.containers")},
 			},
 		},
 	}
