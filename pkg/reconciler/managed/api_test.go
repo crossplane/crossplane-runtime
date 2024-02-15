@@ -129,7 +129,7 @@ func TestAPISecretPublisher(t *testing.T) {
 		}},
 	}
 
-	cd := ConnectionDetails{"cool": {42}}
+	cd := resource.ConnectionDetails{"cool": {42}}
 
 	type fields struct {
 		secret resource.Applicator
@@ -139,7 +139,7 @@ func TestAPISecretPublisher(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		mg  resource.Managed
-		c   ConnectionDetails
+		c   resource.ConnectionDetails
 	}
 
 	type want struct {

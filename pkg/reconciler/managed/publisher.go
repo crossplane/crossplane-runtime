@@ -30,7 +30,7 @@ type PublisherChain []ConnectionPublisher
 
 // PublishConnection calls each ConnectionPublisher.PublishConnection serially. It returns the first error it
 // encounters, if any.
-func (pc PublisherChain) PublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) (bool, error) {
+func (pc PublisherChain) PublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c resource.ConnectionDetails) (bool, error) {
 	published := false
 	for _, p := range pc {
 		pb, err := p.PublishConnection(ctx, o, c)
@@ -46,7 +46,7 @@ func (pc PublisherChain) PublishConnection(ctx context.Context, o resource.Conne
 
 // UnpublishConnection calls each ConnectionPublisher.UnpublishConnection serially. It returns the first error it
 // encounters, if any.
-func (pc PublisherChain) UnpublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) error {
+func (pc PublisherChain) UnpublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c resource.ConnectionDetails) error {
 	for _, p := range pc {
 		if err := p.UnpublishConnection(ctx, o, c); err != nil {
 			return err
@@ -62,7 +62,7 @@ type DisabledSecretStoreManager struct {
 
 // PublishConnection returns a proper error when API used but the feature was
 // not enabled.
-func (m *DisabledSecretStoreManager) PublishConnection(_ context.Context, so resource.ConnectionSecretOwner, _ ConnectionDetails) (bool, error) {
+func (m *DisabledSecretStoreManager) PublishConnection(_ context.Context, so resource.ConnectionSecretOwner, _ resource.ConnectionDetails) (bool, error) {
 	if so.GetPublishConnectionDetailsTo() != nil {
 		return false, errors.New(errSecretStoreDisabled)
 	}
@@ -71,7 +71,7 @@ func (m *DisabledSecretStoreManager) PublishConnection(_ context.Context, so res
 
 // UnpublishConnection returns a proper error when API used but the feature was
 // not enabled.
-func (m *DisabledSecretStoreManager) UnpublishConnection(_ context.Context, so resource.ConnectionSecretOwner, _ ConnectionDetails) error {
+func (m *DisabledSecretStoreManager) UnpublishConnection(_ context.Context, so resource.ConnectionSecretOwner, _ resource.ConnectionDetails) error {
 	if so.GetPublishConnectionDetailsTo() != nil {
 		return errors.New(errSecretStoreDisabled)
 	}

@@ -95,7 +95,7 @@ func NewAPISecretPublisher(c client.Client, ot runtime.ObjectTyper) *APISecretPu
 // PublishConnection publishes the supplied ConnectionDetails to a Secret in the
 // same namespace as the supplied Managed resource. It is a no-op if the secret
 // already exists with the supplied ConnectionDetails.
-func (a *APISecretPublisher) PublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) (bool, error) {
+func (a *APISecretPublisher) PublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c resource.ConnectionDetails) (bool, error) {
 	// This resource does not want to expose a connection secret.
 	if o.GetWriteConnectionSecretToReference() == nil {
 		return false, nil
@@ -125,7 +125,7 @@ func (a *APISecretPublisher) PublishConnection(ctx context.Context, o resource.C
 // UnpublishConnection is no-op since PublishConnection only creates resources
 // that will be garbage collected by Kubernetes when the managed resource is
 // deleted.
-func (a *APISecretPublisher) UnpublishConnection(_ context.Context, _ resource.ConnectionSecretOwner, _ ConnectionDetails) error {
+func (a *APISecretPublisher) UnpublishConnection(_ context.Context, _ resource.ConnectionSecretOwner, _ resource.ConnectionDetails) error {
 	return nil
 }
 

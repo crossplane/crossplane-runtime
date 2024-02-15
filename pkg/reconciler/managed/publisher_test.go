@@ -38,7 +38,7 @@ func TestPublisherChain(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		mg  resource.Managed
-		c   ConnectionDetails
+		c   resource.ConnectionDetails
 	}
 
 	type want struct {
@@ -58,16 +58,16 @@ func TestPublisherChain(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				mg:  &fake.Managed{},
-				c:   ConnectionDetails{},
+				c:   resource.ConnectionDetails{},
 			},
 		},
 		"SuccessfulPublisher": {
 			p: PublisherChain{
 				ConnectionPublisherFns{
-					PublishConnectionFn: func(_ context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) (bool, error) {
+					PublishConnectionFn: func(_ context.Context, o resource.ConnectionSecretOwner, c resource.ConnectionDetails) (bool, error) {
 						return true, nil
 					},
-					UnpublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) error {
+					UnpublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, c resource.ConnectionDetails) error {
 						return nil
 					},
 				},
@@ -75,7 +75,7 @@ func TestPublisherChain(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				mg:  &fake.Managed{},
-				c:   ConnectionDetails{},
+				c:   resource.ConnectionDetails{},
 			},
 			want: want{
 				published: true,
@@ -84,10 +84,10 @@ func TestPublisherChain(t *testing.T) {
 		"PublisherReturnsError": {
 			p: PublisherChain{
 				ConnectionPublisherFns{
-					PublishConnectionFn: func(_ context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) (bool, error) {
+					PublishConnectionFn: func(_ context.Context, o resource.ConnectionSecretOwner, c resource.ConnectionDetails) (bool, error) {
 						return false, errBoom
 					},
-					UnpublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) error {
+					UnpublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, c resource.ConnectionDetails) error {
 						return nil
 					},
 				},
@@ -95,7 +95,7 @@ func TestPublisherChain(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				mg:  &fake.Managed{},
-				c:   ConnectionDetails{},
+				c:   resource.ConnectionDetails{},
 			},
 			want: want{
 				err: errBoom,

@@ -32,6 +32,7 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
+	"github.com/crossplane/crossplane-runtime/pkg/external"
 	"github.com/crossplane/crossplane-runtime/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
@@ -134,10 +135,6 @@ func (fn CriticalAnnotationUpdateFn) UpdateCriticalAnnotations(ctx context.Conte
 	return fn(ctx, o)
 }
 
-// ConnectionDetails created or updated during an operation on an external
-// resource, for example usernames, passwords, endpoints, ports, etc.
-type ConnectionDetails map[string][]byte
-
 // A ConnectionPublisher manages the supplied ConnectionDetails for the
 // supplied Managed resource. ManagedPublishers must handle the case in which
 // the supplied ConnectionDetails are empty.
@@ -145,37 +142,37 @@ type ConnectionPublisher interface {
 	// PublishConnection details for the supplied Managed resource. Publishing
 	// must be additive; i.e. if details (a, b, c) are published, subsequently
 	// publicing details (b, c, d) should update (b, c) but not remove a.
-	PublishConnection(ctx context.Context, so resource.ConnectionSecretOwner, c ConnectionDetails) (published bool, err error)
+	PublishConnection(ctx context.Context, so resource.ConnectionSecretOwner, c resource.ConnectionDetails) (published bool, err error)
 
 	// UnpublishConnection details for the supplied Managed resource.
-	UnpublishConnection(ctx context.Context, so resource.ConnectionSecretOwner, c ConnectionDetails) error
+	UnpublishConnection(ctx context.Context, so resource.ConnectionSecretOwner, c resource.ConnectionDetails) error
 }
 
 // ConnectionPublisherFns is the pluggable struct to produce objects with ConnectionPublisher interface.
 type ConnectionPublisherFns struct {
-	PublishConnectionFn   func(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) (bool, error)
-	UnpublishConnectionFn func(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) error
+	PublishConnectionFn   func(ctx context.Context, o resource.ConnectionSecretOwner, c resource.ConnectionDetails) (bool, error)
+	UnpublishConnectionFn func(ctx context.Context, o resource.ConnectionSecretOwner, c resource.ConnectionDetails) error
 }
 
 // PublishConnection details for the supplied Managed resource.
-func (fn ConnectionPublisherFns) PublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) (bool, error) {
+func (fn ConnectionPublisherFns) PublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c resource.ConnectionDetails) (bool, error) {
 	return fn.PublishConnectionFn(ctx, o, c)
 }
 
 // UnpublishConnection details for the supplied Managed resource.
-func (fn ConnectionPublisherFns) UnpublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) error {
+func (fn ConnectionPublisherFns) UnpublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c resource.ConnectionDetails) error {
 	return fn.UnpublishConnectionFn(ctx, o, c)
 }
 
 // A ConnectionDetailsFetcher fetches connection details for the supplied
 // Connection Secret owner.
 type ConnectionDetailsFetcher interface {
-	FetchConnection(ctx context.Context, so resource.ConnectionSecretOwner) (ConnectionDetails, error)
+	FetchConnection(ctx context.Context, so resource.ConnectionSecretOwner) (resource.ConnectionDetails, error)
 }
 
 // A Initializer establishes ownership of the supplied Managed resource.
 // This typically involves the operations that are run before calling any
-// ExternalClient methods.
+// external.Client methods.
 type Initializer interface {
 	Initialize(ctx context.Context, mg resource.Managed) error
 }
@@ -221,245 +218,6 @@ func (m ReferenceResolverFn) ResolveReferences(ctx context.Context, mg resource.
 	return m(ctx, mg)
 }
 
-// An ExternalConnecter produces a new ExternalClient given the supplied
-// Managed resource.
-type ExternalConnecter interface {
-	// Connect to the provider specified by the supplied managed resource and
-	// produce an ExternalClient.
-	Connect(ctx context.Context, mg resource.Managed) (ExternalClient, error)
-}
-
-// An ExternalDisconnecter disconnects from a provider.
-type ExternalDisconnecter interface {
-	// Disconnect from the provider and close the ExternalClient.
-	Disconnect(ctx context.Context) error
-}
-
-// A NopDisconnecter converts an ExternalConnecter into an
-// ExternalConnectDisconnecter with a no-op Disconnect method.
-type NopDisconnecter struct {
-	c ExternalConnecter
-}
-
-// Connect calls the underlying ExternalConnecter's Connect method.
-func (c *NopDisconnecter) Connect(ctx context.Context, mg resource.Managed) (ExternalClient, error) {
-	return c.c.Connect(ctx, mg)
-}
-
-// Disconnect does nothing. It never returns an error.
-func (c *NopDisconnecter) Disconnect(_ context.Context) error {
-	return nil
-}
-
-// NewNopDisconnecter converts an ExternalConnecter into an
-// ExternalConnectDisconnecter with a no-op Disconnect method.
-func NewNopDisconnecter(c ExternalConnecter) ExternalConnectDisconnecter {
-	return &NopDisconnecter{c}
-}
-
-// An ExternalConnectDisconnecter produces a new ExternalClient given the supplied
-// Managed resource.
-type ExternalConnectDisconnecter interface {
-	ExternalConnecter
-	ExternalDisconnecter
-}
-
-// An ExternalConnectorFn is a function that satisfies the ExternalConnecter
-// interface.
-type ExternalConnectorFn func(ctx context.Context, mg resource.Managed) (ExternalClient, error)
-
-// Connect to the provider specified by the supplied managed resource and
-// produce an ExternalClient.
-func (ec ExternalConnectorFn) Connect(ctx context.Context, mg resource.Managed) (ExternalClient, error) {
-	return ec(ctx, mg)
-}
-
-// An ExternalDisconnectorFn is a function that satisfies the ExternalConnecter
-// interface.
-type ExternalDisconnectorFn func(ctx context.Context) error
-
-// Disconnect from provider and close the ExternalClient.
-func (ed ExternalDisconnectorFn) Disconnect(ctx context.Context) error {
-	return ed(ctx)
-}
-
-// ExternalConnectDisconnecterFns are functions that satisfy the
-// ExternalConnectDisconnecter interface.
-type ExternalConnectDisconnecterFns struct {
-	ConnectFn    func(ctx context.Context, mg resource.Managed) (ExternalClient, error)
-	DisconnectFn func(ctx context.Context) error
-}
-
-// Connect to the provider specified by the supplied managed resource and
-// produce an ExternalClient.
-func (fns ExternalConnectDisconnecterFns) Connect(ctx context.Context, mg resource.Managed) (ExternalClient, error) {
-	return fns.ConnectFn(ctx, mg)
-}
-
-// Disconnect from the provider and close the ExternalClient.
-func (fns ExternalConnectDisconnecterFns) Disconnect(ctx context.Context) error {
-	return fns.DisconnectFn(ctx)
-}
-
-// An ExternalClient manages the lifecycle of an external resource.
-// None of the calls here should be blocking. All of the calls should be
-// idempotent. For example, Create call should not return AlreadyExists error
-// if it's called again with the same parameters or Delete call should not
-// return error if there is an ongoing deletion or resource does not exist.
-type ExternalClient interface {
-	// Observe the external resource the supplied Managed resource
-	// represents, if any. Observe implementations must not modify the
-	// external resource, but may update the supplied Managed resource to
-	// reflect the state of the external resource. Status modifications are
-	// automatically persisted unless ResourceLateInitialized is true - see
-	// ResourceLateInitialized for more detail.
-	Observe(ctx context.Context, mg resource.Managed) (ExternalObservation, error)
-
-	// Create an external resource per the specifications of the supplied
-	// Managed resource. Called when Observe reports that the associated
-	// external resource does not exist. Create implementations may update
-	// managed resource annotations, and those updates will be persisted.
-	// All other updates will be discarded.
-	Create(ctx context.Context, mg resource.Managed) (ExternalCreation, error)
-
-	// Update the external resource represented by the supplied Managed
-	// resource, if necessary. Called unless Observe reports that the
-	// associated external resource is up to date.
-	Update(ctx context.Context, mg resource.Managed) (ExternalUpdate, error)
-
-	// Delete the external resource upon deletion of its associated Managed
-	// resource. Called when the managed resource has been deleted.
-	Delete(ctx context.Context, mg resource.Managed) error
-}
-
-// ExternalClientFns are a series of functions that satisfy the ExternalClient
-// interface.
-type ExternalClientFns struct {
-	ObserveFn func(ctx context.Context, mg resource.Managed) (ExternalObservation, error)
-	CreateFn  func(ctx context.Context, mg resource.Managed) (ExternalCreation, error)
-	UpdateFn  func(ctx context.Context, mg resource.Managed) (ExternalUpdate, error)
-	DeleteFn  func(ctx context.Context, mg resource.Managed) error
-}
-
-// Observe the external resource the supplied Managed resource represents, if
-// any.
-func (e ExternalClientFns) Observe(ctx context.Context, mg resource.Managed) (ExternalObservation, error) {
-	return e.ObserveFn(ctx, mg)
-}
-
-// Create an external resource per the specifications of the supplied Managed
-// resource.
-func (e ExternalClientFns) Create(ctx context.Context, mg resource.Managed) (ExternalCreation, error) {
-	return e.CreateFn(ctx, mg)
-}
-
-// Update the external resource represented by the supplied Managed resource, if
-// necessary.
-func (e ExternalClientFns) Update(ctx context.Context, mg resource.Managed) (ExternalUpdate, error) {
-	return e.UpdateFn(ctx, mg)
-}
-
-// Delete the external resource upon deletion of its associated Managed
-// resource.
-func (e ExternalClientFns) Delete(ctx context.Context, mg resource.Managed) error {
-	return e.DeleteFn(ctx, mg)
-}
-
-// A NopConnecter does nothing.
-type NopConnecter struct{}
-
-// Connect returns a NopClient. It never returns an error.
-func (c *NopConnecter) Connect(_ context.Context, _ resource.Managed) (ExternalClient, error) {
-	return &NopClient{}, nil
-}
-
-// A NopClient does nothing.
-type NopClient struct{}
-
-// Observe does nothing. It returns an empty ExternalObservation and no error.
-func (c *NopClient) Observe(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-	return ExternalObservation{}, nil
-}
-
-// Create does nothing. It returns an empty ExternalCreation and no error.
-func (c *NopClient) Create(_ context.Context, _ resource.Managed) (ExternalCreation, error) {
-	return ExternalCreation{}, nil
-}
-
-// Update does nothing. It returns an empty ExternalUpdate and no error.
-func (c *NopClient) Update(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
-	return ExternalUpdate{}, nil
-}
-
-// Delete does nothing. It never returns an error.
-func (c *NopClient) Delete(_ context.Context, _ resource.Managed) error { return nil }
-
-// An ExternalObservation is the result of an observation of an external
-// resource.
-type ExternalObservation struct {
-	// ResourceExists must be true if a corresponding external resource exists
-	// for the managed resource. Typically this is proven by the presence of an
-	// external resource of the expected kind whose unique identifier matches
-	// the managed resource's external name. Crossplane uses this information to
-	// determine whether it needs to create or delete the external resource.
-	ResourceExists bool
-
-	// ResourceUpToDate should be true if the corresponding external resource
-	// appears to be up-to-date - i.e. updating the external resource to match
-	// the desired state of the managed resource would be a no-op. Keep in mind
-	// that often only a subset of external resource fields can be updated.
-	// Crossplane uses this information to determine whether it needs to update
-	// the external resource.
-	ResourceUpToDate bool
-
-	// ResourceLateInitialized should be true if the managed resource's spec was
-	// updated during its observation. A Crossplane provider may update a
-	// managed resource's spec fields after it is created or updated, as long as
-	// the updates are limited to setting previously unset fields, and adding
-	// keys to maps. Crossplane uses this information to determine whether
-	// changes to the spec were made during observation that must be persisted.
-	// Note that changes to the spec will be persisted before changes to the
-	// status, and that pending changes to the status may be lost when the spec
-	// is persisted. Status changes will be persisted by the first subsequent
-	// observation that _does not_ late initialize the managed resource, so it
-	// is important that Observe implementations do not late initialize the
-	// resource every time they are called.
-	ResourceLateInitialized bool
-
-	// ConnectionDetails required to connect to this resource. These details
-	// are a set that is collated throughout the managed resource's lifecycle -
-	// i.e. returning new connection details will have no affect on old details
-	// unless an existing key is overwritten. Crossplane may publish these
-	// credentials to a store (e.g. a Secret).
-	ConnectionDetails ConnectionDetails
-
-	// Diff is a Debug level message that is sent to the reconciler when
-	// there is a change in the observed Managed Resource. It is useful for
-	// finding where the observed diverges from the desired state.
-	// The string should be a cmp.Diff that details the difference.
-	Diff string
-}
-
-// An ExternalCreation is the result of the creation of an external resource.
-type ExternalCreation struct {
-	// ConnectionDetails required to connect to this resource. These details
-	// are a set that is collated throughout the managed resource's lifecycle -
-	// i.e. returning new connection details will have no affect on old details
-	// unless an existing key is overwritten. Crossplane may publish these
-	// credentials to a store (e.g. a Secret).
-	ConnectionDetails ConnectionDetails
-}
-
-// An ExternalUpdate is the result of an update to an external resource.
-type ExternalUpdate struct {
-	// ConnectionDetails required to connect to this resource. These details
-	// are a set that is collated throughout the managed resource's lifecycle -
-	// i.e. returning new connection details will have no affect on old details
-	// unless an existing key is overwritten. Crossplane may publish these
-	// credentials to a store (e.g. a Secret).
-	ConnectionDetails ConnectionDetails
-}
-
 // A Reconciler reconciles managed resources by creating and managing the
 // lifecycle of an external resource, i.e. a resource in an external system such
 // as a cloud provider API. Each controller must watch the managed resource kind
@@ -480,7 +238,7 @@ type Reconciler struct {
 	// managed resource reconciler. We do this primarily for readability, so
 	// that the reconciler logic reads r.external.Connect(),
 	// r.managed.Delete(), etc.
-	external mrExternal
+	external external.ConnectDisconnector
 	managed  mrManaged
 
 	supportedManagementPolicies []sets.Set[xpv1.ManagementAction]
@@ -507,16 +265,6 @@ func defaultMRManaged(m manager.Manager) mrManaged {
 			NewAPISecretPublisher(m.GetClient(), m.GetScheme()),
 			&DisabledSecretStoreManager{},
 		}),
-	}
-}
-
-type mrExternal struct {
-	ExternalConnectDisconnecter
-}
-
-func defaultMRExternal() mrExternal {
-	return mrExternal{
-		ExternalConnectDisconnecter: NewNopDisconnecter(&NopConnecter{}),
 	}
 }
 
@@ -585,20 +333,36 @@ func WithCreationGracePeriod(d time.Duration) ReconcilerOption {
 	}
 }
 
-// WithExternalConnecter specifies how the Reconciler should connect to the API
+// WithExternalConnector specifies how the Reconciler should connect to the API
 // used to sync and delete external resources.
-func WithExternalConnecter(c ExternalConnecter) ReconcilerOption {
+func WithExternalConnector(c external.Connector) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.external.ExternalConnectDisconnecter = NewNopDisconnecter(c)
+		r.external = external.NewNopDisconnector(c)
 	}
 }
 
-// WithExternalConnectDisconnecter specifies how the Reconciler should connect and disconnect to the API
+// WithExternalConnecter specifies how the Reconciler should connect to the API
 // used to sync and delete external resources.
-func WithExternalConnectDisconnecter(c ExternalConnectDisconnecter) ReconcilerOption {
+//
+// Deprecated: Use WithExternalConnector (not er).
+func WithExternalConnecter(c external.Connector) ReconcilerOption {
+	return WithExternalConnector(c)
+}
+
+// WithExternalConnectDisconnector specifies how the Reconciler should connect
+// and disconnect to the API used to sync and delete external resources.
+func WithExternalConnectDisconnector(c external.ConnectDisconnector) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.external.ExternalConnectDisconnecter = c
+		r.external = c
 	}
+}
+
+// WithExternalConnectDisconnecter specifies how the Reconciler should connect
+// and disconnect to the API used to sync and delete external resources.
+//
+// Deprecated: Use WithExternalConnectDisconnector (not er).
+func WithExternalConnectDisconnecter(c external.ConnectDisconnector) ReconcilerOption {
+	return WithExternalConnectDisconnector(c)
 }
 
 // WithCriticalAnnotationUpdater specifies how the Reconciler should update a
@@ -620,7 +384,7 @@ func WithConnectionPublishers(p ...ConnectionPublisher) ReconcilerOption {
 }
 
 // WithInitializers specifies how the Reconciler should initialize a
-// managed resource before calling any of the ExternalClient functions.
+// managed resource before calling any of the external.Client functions.
 func WithInitializers(i ...Initializer) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.managed.Initializer = InitializerChain(i)
@@ -677,7 +441,7 @@ func WithReconcilerSupportedManagementPolicies(supported []sets.Set[xpv1.Managem
 // provider API. It panics if asked to reconcile a managed resource kind that is
 // not registered with the supplied manager's runtime.Scheme. The returned
 // Reconciler reconciles with a dummy, no-op 'external system' by default;
-// callers should supply an ExternalConnector that returns an ExternalClient
+// callers should supply an external.Connector that returns an external.Client
 // capable of managing resources in a real system.
 func NewReconciler(m manager.Manager, of resource.ManagedKind, o ...ReconcilerOption) *Reconciler {
 	nm := func() resource.Managed {
@@ -696,7 +460,7 @@ func NewReconciler(m manager.Manager, of resource.ManagedKind, o ...ReconcilerOp
 		creationGracePeriod:         defaultGracePeriod,
 		timeout:                     reconcileTimeout,
 		managed:                     defaultMRManaged(m),
-		external:                    defaultMRExternal(),
+		external:                    external.NewNopDisconnector(&external.NopConnector{}),
 		supportedManagementPolicies: defaultSupportedManagementPolicies(),
 		log:                         logging.NewNopLogger(),
 		record:                      event.NewNopRecorder(),
@@ -794,7 +558,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		// currently only write connection details to a Secret, and we rely on
 		// garbage collection to delete the entire secret, regardless of the
 		// supplied connection details.
-		if err := r.managed.UnpublishConnection(ctx, managed, ConnectionDetails{}); err != nil {
+		if err := r.managed.UnpublishConnection(ctx, managed, resource.ConnectionDetails{}); err != nil {
 			// If this is the first time we encounter this issue we'll be
 			// requeued implicitly when we update our status with the new error
 			// condition. If not, we requeue explicitly, which will trigger

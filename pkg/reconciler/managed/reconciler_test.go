@@ -34,6 +34,7 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/external"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
@@ -85,7 +86,7 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{}},
 		},
-		"UnpublishConnectionDetailsDeletionPolicyDeleteOrpahn": {
+		"Unpublishresource.ConnectionDetailsDeletionPolicyDeleteOrpahn": {
 			reason: "Errors unpublishing connection details should trigger a requeue after a short wait.",
 			args: args{
 				m: &fake.Manager{
@@ -114,7 +115,9 @@ func TestReconciler(t *testing.T) {
 				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ReconcilerOption{
 					WithConnectionPublishers(ConnectionPublisherFns{
-						UnpublishConnectionFn: func(_ context.Context, _ resource.ConnectionSecretOwner, _ ConnectionDetails) error { return errBoom },
+						UnpublishConnectionFn: func(_ context.Context, _ resource.ConnectionSecretOwner, _ resource.ConnectionDetails) error {
+							return errBoom
+						},
 					}),
 				},
 			},
@@ -203,7 +206,7 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{Requeue: true}},
 		},
-		"ExternalCreatePending": {
+		"external.CreatePending": {
 			reason: "We should return early if the managed resource appears to be pending creation. We might have leaked a resource and don't want to create another.",
 			args: args{
 				m: &fake.Manager{
@@ -260,7 +263,7 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{Requeue: true}},
 		},
-		"ExternalConnectError": {
+		"external.Connectorror": {
 			reason: "Errors connecting to the provider should trigger a requeue after a short wait.",
 			args: args{
 				m: &fake.Manager{
@@ -281,14 +284,14 @@ func TestReconciler(t *testing.T) {
 				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
+					WithExternalConnector(external.ConnectorFn(func(_ context.Context, mg resource.Managed) (external.Client, error) {
 						return nil, errBoom
 					})),
 				},
 			},
 			want: want{result: reconcile.Result{Requeue: true}},
 		},
-		"ExternalDisconnectError": {
+		"ExternalDisconnectorror": {
 			reason: "Error disconnecting from the provider should not trigger requeue.",
 			args: args{
 				m: &fake.Manager{
@@ -310,11 +313,11 @@ func TestReconciler(t *testing.T) {
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnectDisconnecter(ExternalConnectDisconnecterFns{
-						ConnectFn: func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
-							c := &ExternalClientFns{
-								ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-									return ExternalObservation{ResourceExists: true, ResourceUpToDate: true}, nil
+					WithExternalConnectDisconnector(external.ConnectDisconnectorFns{
+						ConnectFn: func(_ context.Context, mg resource.Managed) (external.Client, error) {
+							c := &external.ClientFns{
+								ObserveFn: func(_ context.Context, _ resource.Managed) (external.Observation, error) {
+									return external.Observation{ResourceExists: true, ResourceUpToDate: true}, nil
 								},
 							}
 							return c, nil
@@ -327,7 +330,7 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultPollInterval}},
 		},
-		"ExternalObserveError": {
+		"external.ObserveError": {
 			reason: "Errors observing the external resource should trigger a requeue after a short wait.",
 			args: args{
 				m: &fake.Manager{
@@ -348,10 +351,10 @@ func TestReconciler(t *testing.T) {
 				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{}, errBoom
+					WithExternalConnector(external.ConnectorFn(func(_ context.Context, mg resource.Managed) (external.Client, error) {
+						c := &external.ClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (external.Observation, error) {
+								return external.Observation{}, errBoom
 							},
 						}
 						return c, nil
@@ -376,10 +379,10 @@ func TestReconciler(t *testing.T) {
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithCreationGracePeriod(1 * time.Minute),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: false}, nil
+					WithExternalConnector(external.ConnectorFn(func(_ context.Context, mg resource.Managed) (external.Client, error) {
+						c := &external.ClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (external.Observation, error) {
+								return external.Observation{ResourceExists: false}, nil
 							},
 						}
 						return c, nil
@@ -418,10 +421,10 @@ func TestReconciler(t *testing.T) {
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: true}, nil
+					WithExternalConnector(external.ConnectorFn(func(_ context.Context, mg resource.Managed) (external.Client, error) {
+						c := &external.ClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (external.Observation, error) {
+								return external.Observation{ResourceExists: true}, nil
 							},
 							DeleteFn: func(_ context.Context, _ resource.Managed) error {
 								return errBoom
@@ -463,10 +466,10 @@ func TestReconciler(t *testing.T) {
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: true}, nil
+					WithExternalConnector(external.ConnectorFn(func(_ context.Context, mg resource.Managed) (external.Client, error) {
+						c := &external.ClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (external.Observation, error) {
+								return external.Observation{ResourceExists: true}, nil
 							},
 							DeleteFn: func(_ context.Context, _ resource.Managed) error {
 								return nil
@@ -478,7 +481,7 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{Requeue: true}},
 		},
-		"UnpublishConnectionDetailsDeletionPolicyDeleteError": {
+		"Unpublishresource.ConnectionDetailsDeletionPolicyDeleteError": {
 			reason: "Errors unpublishing connection details should trigger a requeue after a short wait.",
 			args: args{
 				m: &fake.Manager{
@@ -508,16 +511,18 @@ func TestReconciler(t *testing.T) {
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: false}, nil
+					WithExternalConnector(external.ConnectorFn(func(_ context.Context, mg resource.Managed) (external.Client, error) {
+						c := &external.ClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (external.Observation, error) {
+								return external.Observation{ResourceExists: false}, nil
 							},
 						}
 						return c, nil
 					})),
 					WithConnectionPublishers(ConnectionPublisherFns{
-						UnpublishConnectionFn: func(_ context.Context, _ resource.ConnectionSecretOwner, _ ConnectionDetails) error { return errBoom },
+						UnpublishConnectionFn: func(_ context.Context, _ resource.ConnectionSecretOwner, _ resource.ConnectionDetails) error {
+							return errBoom
+						},
 					}),
 				},
 			},
@@ -553,10 +558,10 @@ func TestReconciler(t *testing.T) {
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: false}, nil
+					WithExternalConnector(external.ConnectorFn(func(_ context.Context, mg resource.Managed) (external.Client, error) {
+						c := &external.ClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (external.Observation, error) {
+								return external.Observation{ResourceExists: false}, nil
 							},
 						}
 						return c, nil
@@ -585,10 +590,10 @@ func TestReconciler(t *testing.T) {
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: false}, nil
+					WithExternalConnector(external.ConnectorFn(func(_ context.Context, mg resource.Managed) (external.Client, error) {
+						c := &external.ClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (external.Observation, error) {
+								return external.Observation{ResourceExists: false}, nil
 							},
 						}
 						return c, nil
@@ -599,7 +604,7 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{Requeue: false}},
 		},
-		"PublishObservationConnectionDetailsError": {
+		"PublishObservationresource.ConnectionDetailsError": {
 			reason: "Errors publishing connection details after observation should trigger a requeue after a short wait.",
 			args: args{
 				m: &fake.Manager{
@@ -621,9 +626,9 @@ func TestReconciler(t *testing.T) {
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnecter(&NopConnecter{}),
+					WithExternalConnector(&external.NopConnector{}),
 					WithConnectionPublishers(ConnectionPublisherFns{
-						PublishConnectionFn: func(_ context.Context, _ resource.ConnectionSecretOwner, _ ConnectionDetails) (bool, error) {
+						PublishConnectionFn: func(_ context.Context, _ resource.ConnectionSecretOwner, _ resource.ConnectionDetails) (bool, error) {
 							return false, errBoom
 						},
 					}),
@@ -653,7 +658,7 @@ func TestReconciler(t *testing.T) {
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnecter(&NopConnecter{}),
+					WithExternalConnector(&external.NopConnector{}),
 					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return errBoom }}),
 				},
@@ -684,13 +689,13 @@ func TestReconciler(t *testing.T) {
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: false}, nil
+					WithExternalConnector(external.ConnectorFn(func(_ context.Context, mg resource.Managed) (external.Client, error) {
+						c := &external.ClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (external.Observation, error) {
+								return external.Observation{ResourceExists: false}, nil
 							},
-							CreateFn: func(_ context.Context, _ resource.Managed) (ExternalCreation, error) {
-								return ExternalCreation{}, errBoom
+							CreateFn: func(_ context.Context, _ resource.Managed) (external.Creation, error) {
+								return external.Creation{}, errBoom
 							},
 						}
 						return c, nil
@@ -727,13 +732,13 @@ func TestReconciler(t *testing.T) {
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: false}, nil
+					WithExternalConnector(external.ConnectorFn(func(_ context.Context, mg resource.Managed) (external.Client, error) {
+						c := &external.ClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (external.Observation, error) {
+								return external.Observation{ResourceExists: false}, nil
 							},
-							CreateFn: func(_ context.Context, _ resource.Managed) (ExternalCreation, error) {
-								return ExternalCreation{}, errBoom
+							CreateFn: func(_ context.Context, _ resource.Managed) (external.Creation, error) {
+								return external.Creation{}, errBoom
 							},
 						}
 						return c, nil
@@ -773,13 +778,13 @@ func TestReconciler(t *testing.T) {
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: false}, nil
+					WithExternalConnector(external.ConnectorFn(func(_ context.Context, mg resource.Managed) (external.Client, error) {
+						c := &external.ClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (external.Observation, error) {
+								return external.Observation{ResourceExists: false}, nil
 							},
-							CreateFn: func(_ context.Context, _ resource.Managed) (ExternalCreation, error) {
-								return ExternalCreation{}, nil
+							CreateFn: func(_ context.Context, _ resource.Managed) (external.Creation, error) {
+								return external.Creation{}, nil
 							},
 						}
 						return c, nil
@@ -790,7 +795,7 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{Requeue: true}},
 		},
-		"PublishCreationConnectionDetailsError": {
+		"PublishCreationresource.ConnectionDetailsError": {
 			reason: "Errors publishing connection details after creation should trigger a requeue after a short wait.",
 			args: args{
 				m: &fake.Manager{
@@ -816,21 +821,21 @@ func TestReconciler(t *testing.T) {
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: false}, nil
+					WithExternalConnector(external.ConnectorFn(func(_ context.Context, mg resource.Managed) (external.Client, error) {
+						c := &external.ClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (external.Observation, error) {
+								return external.Observation{ResourceExists: false}, nil
 							},
-							CreateFn: func(_ context.Context, _ resource.Managed) (ExternalCreation, error) {
-								cd := ConnectionDetails{"create": []byte{}}
-								return ExternalCreation{ConnectionDetails: cd}, nil
+							CreateFn: func(_ context.Context, _ resource.Managed) (external.Creation, error) {
+								cd := resource.ConnectionDetails{"create": []byte{}}
+								return external.Creation{ConnectionDetails: cd}, nil
 							},
 						}
 						return c, nil
 					})),
 					WithCriticalAnnotationUpdater(CriticalAnnotationUpdateFn(func(ctx context.Context, o client.Object) error { return nil })),
 					WithConnectionPublishers(ConnectionPublisherFns{
-						PublishConnectionFn: func(_ context.Context, _ resource.ConnectionSecretOwner, cd ConnectionDetails) (bool, error) {
+						PublishConnectionFn: func(_ context.Context, _ resource.ConnectionSecretOwner, cd resource.ConnectionDetails) (bool, error) {
 							// We're called after observe, create, and update
 							// but we only want to fail when publishing details
 							// after a creation.
@@ -871,7 +876,7 @@ func TestReconciler(t *testing.T) {
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnecter(&NopConnecter{}),
+					WithExternalConnector(&external.NopConnector{}),
 					WithCriticalAnnotationUpdater(CriticalAnnotationUpdateFn(func(ctx context.Context, o client.Object) error { return nil })),
 					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
@@ -902,10 +907,10 @@ func TestReconciler(t *testing.T) {
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: true, ResourceUpToDate: true, ResourceLateInitialized: true}, nil
+					WithExternalConnector(external.ConnectorFn(func(_ context.Context, mg resource.Managed) (external.Client, error) {
+						c := &external.ClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (external.Observation, error) {
+								return external.Observation{ResourceExists: true, ResourceUpToDate: true, ResourceLateInitialized: true}, nil
 							},
 						}
 						return c, nil
@@ -938,10 +943,10 @@ func TestReconciler(t *testing.T) {
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: true, ResourceUpToDate: true}, nil
+					WithExternalConnector(external.ConnectorFn(func(_ context.Context, mg resource.Managed) (external.Client, error) {
+						c := &external.ClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (external.Observation, error) {
+								return external.Observation{ResourceExists: true, ResourceUpToDate: true}, nil
 							},
 						}
 						return c, nil
@@ -968,10 +973,10 @@ func TestReconciler(t *testing.T) {
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: true, ResourceUpToDate: true}, nil
+					WithExternalConnector(external.ConnectorFn(func(_ context.Context, mg resource.Managed) (external.Client, error) {
+						c := &external.ClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (external.Observation, error) {
+								return external.Observation{ResourceExists: true, ResourceUpToDate: true}, nil
 							},
 						}
 						return c, nil
@@ -1008,10 +1013,10 @@ func TestReconciler(t *testing.T) {
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: true, ResourceUpToDate: true}, nil
+					WithExternalConnector(external.ConnectorFn(func(_ context.Context, mg resource.Managed) (external.Client, error) {
+						c := &external.ClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (external.Observation, error) {
+								return external.Observation{ResourceExists: true, ResourceUpToDate: true}, nil
 							},
 						}
 						return c, nil
@@ -1043,10 +1048,10 @@ func TestReconciler(t *testing.T) {
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: true, ResourceUpToDate: true}, nil
+					WithExternalConnector(external.ConnectorFn(func(_ context.Context, mg resource.Managed) (external.Client, error) {
+						c := &external.ClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (external.Observation, error) {
+								return external.Observation{ResourceExists: true, ResourceUpToDate: true}, nil
 							},
 						}
 						return c, nil
@@ -1088,13 +1093,13 @@ func TestReconciler(t *testing.T) {
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false}, nil
+					WithExternalConnector(external.ConnectorFn(func(_ context.Context, mg resource.Managed) (external.Client, error) {
+						c := &external.ClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (external.Observation, error) {
+								return external.Observation{ResourceExists: true, ResourceUpToDate: false}, nil
 							},
-							UpdateFn: func(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
-								return ExternalUpdate{}, errBoom
+							UpdateFn: func(_ context.Context, _ resource.Managed) (external.Update, error) {
+								return external.Update{}, errBoom
 							},
 						}
 						return c, nil
@@ -1105,7 +1110,7 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{Requeue: true}},
 		},
-		"PublishUpdateConnectionDetailsError": {
+		"PublishUpdateresource.ConnectionDetailsError": {
 			reason: "Errors publishing connection details after an update should trigger a requeue after a short wait.",
 			args: args{
 				m: &fake.Manager{
@@ -1127,20 +1132,20 @@ func TestReconciler(t *testing.T) {
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false}, nil
+					WithExternalConnector(external.ConnectorFn(func(_ context.Context, mg resource.Managed) (external.Client, error) {
+						c := &external.ClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (external.Observation, error) {
+								return external.Observation{ResourceExists: true, ResourceUpToDate: false}, nil
 							},
-							UpdateFn: func(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
-								cd := ConnectionDetails{"update": []byte{}}
-								return ExternalUpdate{ConnectionDetails: cd}, nil
+							UpdateFn: func(_ context.Context, _ resource.Managed) (external.Update, error) {
+								cd := resource.ConnectionDetails{"update": []byte{}}
+								return external.Update{ConnectionDetails: cd}, nil
 							},
 						}
 						return c, nil
 					})),
 					WithConnectionPublishers(ConnectionPublisherFns{
-						PublishConnectionFn: func(_ context.Context, _ resource.ConnectionSecretOwner, cd ConnectionDetails) (bool, error) {
+						PublishConnectionFn: func(_ context.Context, _ resource.ConnectionSecretOwner, cd resource.ConnectionDetails) (bool, error) {
 							// We're called after observe, create, and update
 							// but we only want to fail when publishing details
 							// after an update.
@@ -1177,13 +1182,13 @@ func TestReconciler(t *testing.T) {
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false}, nil
+					WithExternalConnector(external.ConnectorFn(func(_ context.Context, mg resource.Managed) (external.Client, error) {
+						c := &external.ClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (external.Observation, error) {
+								return external.Observation{ResourceExists: true, ResourceUpToDate: false}, nil
 							},
-							UpdateFn: func(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
-								return ExternalUpdate{}, nil
+							UpdateFn: func(_ context.Context, _ resource.Managed) (external.Update, error) {
+								return external.Update{}, nil
 							},
 						}
 						return c, nil
@@ -1282,11 +1287,11 @@ func TestReconciler(t *testing.T) {
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnectDisconnecter(ExternalConnectDisconnecterFns{
-						ConnectFn: func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
-							c := &ExternalClientFns{
-								ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-									return ExternalObservation{ResourceExists: true, ResourceUpToDate: true}, nil
+					WithExternalConnectDisconnector(external.ConnectDisconnectorFns{
+						ConnectFn: func(_ context.Context, mg resource.Managed) (external.Client, error) {
+							c := &external.ClientFns{
+								ObserveFn: func(_ context.Context, _ resource.Managed) (external.Observation, error) {
+									return external.Observation{ResourceExists: true, ResourceUpToDate: true}, nil
 								},
 							}
 							return c, nil
@@ -1434,10 +1439,10 @@ func TestReconciler(t *testing.T) {
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithManagementPolicies(),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: false}, nil
+					WithExternalConnector(external.ConnectorFn(func(_ context.Context, mg resource.Managed) (external.Client, error) {
+						c := &external.ClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (external.Observation, error) {
+								return external.Observation{ResourceExists: false}, nil
 							},
 						}
 						return c, nil
@@ -1446,7 +1451,7 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{Requeue: true}},
 		},
-		"ObserveOnlyPublishConnectionDetailsError": {
+		"ObserveOnlyPublishresource.ConnectionDetailsError": {
 			reason: "With Observe, errors publishing connection details after observation should trigger a requeue after a short wait.",
 			args: args{
 				m: &fake.Manager{
@@ -1473,16 +1478,16 @@ func TestReconciler(t *testing.T) {
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithManagementPolicies(),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: true}, nil
+					WithExternalConnector(external.ConnectorFn(func(_ context.Context, mg resource.Managed) (external.Client, error) {
+						c := &external.ClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (external.Observation, error) {
+								return external.Observation{ResourceExists: true}, nil
 							},
 						}
 						return c, nil
 					})),
 					WithConnectionPublishers(ConnectionPublisherFns{
-						PublishConnectionFn: func(_ context.Context, _ resource.ConnectionSecretOwner, _ ConnectionDetails) (bool, error) {
+						PublishConnectionFn: func(_ context.Context, _ resource.ConnectionSecretOwner, _ resource.ConnectionDetails) (bool, error) {
 							return false, errBoom
 						},
 					}),
@@ -1517,16 +1522,16 @@ func TestReconciler(t *testing.T) {
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithManagementPolicies(),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: true}, nil
+					WithExternalConnector(external.ConnectorFn(func(_ context.Context, mg resource.Managed) (external.Client, error) {
+						c := &external.ClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (external.Observation, error) {
+								return external.Observation{ResourceExists: true}, nil
 							},
 						}
 						return c, nil
 					})),
 					WithConnectionPublishers(ConnectionPublisherFns{
-						PublishConnectionFn: func(_ context.Context, _ resource.ConnectionSecretOwner, _ ConnectionDetails) (bool, error) {
+						PublishConnectionFn: func(_ context.Context, _ resource.ConnectionSecretOwner, _ resource.ConnectionDetails) (bool, error) {
 							return false, nil
 						},
 					}),
@@ -1567,7 +1572,7 @@ func TestReconciler(t *testing.T) {
 					WithInitializers(),
 					WithManagementPolicies(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnecter(&NopConnecter{}),
+					WithExternalConnector(&external.NopConnector{}),
 					WithCriticalAnnotationUpdater(CriticalAnnotationUpdateFn(func(ctx context.Context, o client.Object) error { return nil })),
 					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
@@ -1607,7 +1612,7 @@ func TestReconciler(t *testing.T) {
 					WithInitializers(),
 					WithManagementPolicies(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnecter(&NopConnecter{}),
+					WithExternalConnector(&external.NopConnector{}),
 					WithCriticalAnnotationUpdater(CriticalAnnotationUpdateFn(func(ctx context.Context, o client.Object) error { return nil })),
 					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
@@ -1644,13 +1649,13 @@ func TestReconciler(t *testing.T) {
 					WithInitializers(),
 					WithManagementPolicies(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false}, nil
+					WithExternalConnector(external.ConnectorFn(func(_ context.Context, mg resource.Managed) (external.Client, error) {
+						c := &external.ClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (external.Observation, error) {
+								return external.Observation{ResourceExists: true, ResourceUpToDate: false}, nil
 							},
-							UpdateFn: func(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
-								return ExternalUpdate{}, errBoom
+							UpdateFn: func(_ context.Context, _ resource.Managed) (external.Update, error) {
+								return external.Update{}, errBoom
 							},
 						}
 						return c, nil
@@ -1689,13 +1694,13 @@ func TestReconciler(t *testing.T) {
 					WithInitializers(),
 					WithManagementPolicies(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false}, nil
+					WithExternalConnector(external.ConnectorFn(func(_ context.Context, mg resource.Managed) (external.Client, error) {
+						c := &external.ClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (external.Observation, error) {
+								return external.Observation{ResourceExists: true, ResourceUpToDate: false}, nil
 							},
-							UpdateFn: func(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
-								return ExternalUpdate{}, nil
+							UpdateFn: func(_ context.Context, _ resource.Managed) (external.Update, error) {
+								return external.Update{}, nil
 							},
 						}
 						return c, nil
@@ -1734,13 +1739,13 @@ func TestReconciler(t *testing.T) {
 					WithInitializers(),
 					WithManagementPolicies(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false}, nil
+					WithExternalConnector(external.ConnectorFn(func(_ context.Context, mg resource.Managed) (external.Client, error) {
+						c := &external.ClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (external.Observation, error) {
+								return external.Observation{ResourceExists: true, ResourceUpToDate: false}, nil
 							},
-							UpdateFn: func(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
-								return ExternalUpdate{}, nil
+							UpdateFn: func(_ context.Context, _ resource.Managed) (external.Update, error) {
+								return external.Update{}, nil
 							},
 						}
 						return c, nil
@@ -1780,10 +1785,10 @@ func TestReconciler(t *testing.T) {
 					WithInitializers(),
 					WithManagementPolicies(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, mg resource.Managed) (ExternalClient, error) {
-						c := &ExternalClientFns{
-							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: true, ResourceUpToDate: true, ResourceLateInitialized: true}, nil
+					WithExternalConnector(external.ConnectorFn(func(_ context.Context, mg resource.Managed) (external.Client, error) {
+						c := &external.ClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (external.Observation, error) {
+								return external.Observation{ResourceExists: true, ResourceUpToDate: true, ResourceLateInitialized: true}, nil
 							},
 						}
 						return c, nil

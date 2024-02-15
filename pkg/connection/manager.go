@@ -29,7 +29,6 @@ import (
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
@@ -101,7 +100,7 @@ func NewDetailsManager(c client.Client, of schema.GroupVersionKind, o ...Details
 
 // PublishConnection publishes the supplied ConnectionDetails to a secret on
 // the configured connection Store.
-func (m *DetailsManager) PublishConnection(ctx context.Context, so resource.ConnectionSecretOwner, conn managed.ConnectionDetails) (bool, error) {
+func (m *DetailsManager) PublishConnection(ctx context.Context, so resource.ConnectionSecretOwner, conn resource.ConnectionDetails) (bool, error) {
 	// This resource does not want to expose a connection secret.
 	p := so.GetPublishConnectionDetailsTo()
 	if p == nil {
@@ -119,7 +118,7 @@ func (m *DetailsManager) PublishConnection(ctx context.Context, so resource.Conn
 
 // UnpublishConnection deletes connection details secret to the configured
 // connection Store.
-func (m *DetailsManager) UnpublishConnection(ctx context.Context, so resource.ConnectionSecretOwner, conn managed.ConnectionDetails) error {
+func (m *DetailsManager) UnpublishConnection(ctx context.Context, so resource.ConnectionSecretOwner, conn resource.ConnectionDetails) error {
 	// This resource didn't expose a connection secret.
 	p := so.GetPublishConnectionDetailsTo()
 	if p == nil {
@@ -135,7 +134,7 @@ func (m *DetailsManager) UnpublishConnection(ctx context.Context, so resource.Co
 }
 
 // FetchConnection fetches connection details of a given ConnectionSecretOwner.
-func (m *DetailsManager) FetchConnection(ctx context.Context, so resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+func (m *DetailsManager) FetchConnection(ctx context.Context, so resource.ConnectionSecretOwner) (resource.ConnectionDetails, error) {
 	// This resource does not want to expose a connection secret.
 	p := so.GetPublishConnectionDetailsTo()
 	if p == nil {
@@ -148,7 +147,7 @@ func (m *DetailsManager) FetchConnection(ctx context.Context, so resource.Connec
 	}
 
 	s := &store.Secret{}
-	return managed.ConnectionDetails(s.Data), errors.Wrap(ss.ReadKeyValues(ctx, store.ScopedName{Name: p.Name, Scope: so.GetNamespace()}, s), errReadStore)
+	return resource.ConnectionDetails(s.Data), errors.Wrap(ss.ReadKeyValues(ctx, store.ScopedName{Name: p.Name, Scope: so.GetNamespace()}, s), errReadStore)
 }
 
 // PropagateConnection propagate connection details from one resource to another.

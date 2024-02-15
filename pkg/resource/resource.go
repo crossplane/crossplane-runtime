@@ -415,3 +415,7 @@ func StableNAndSomeMore(n int, names []string) string {
 	sort.Strings(cpy)
 	return FirstNAndSomeMore(n, cpy)
 }
+
+// ConnectionDetails created or updated during an operation on an external
+// resource, for example usernames, passwords, endpoints, ports, etc.
+type ConnectionDetails map[string][]byte
