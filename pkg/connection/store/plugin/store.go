@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	essproto "github.com/crossplane/crossplane-runtime/apis/proto/v1alpha1"
+	essproto "github.com/crossplane/crossplane-runtime/apis/proto/ess/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )

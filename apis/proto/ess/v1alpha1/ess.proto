@@ -15,7 +15,7 @@ syntax = "proto3";
 
 package ess.proto.v1alpha1;
 
-option go_package = "github.com/crossplane/crossplane-runtime/apis/proto/v1alpha1";
+option go_package = "github.com/crossplane/crossplane-runtime/apis/proto/ess/v1alpha1";
 
 // ExternalSecretStorePluginService defines the APIs for an External Secret Store plugin.
 service ExternalSecretStorePluginService {

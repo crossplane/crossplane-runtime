@@ -25,7 +25,7 @@ import (
 	"google.golang.org/grpc"
 
 	v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	ess "github.com/crossplane/crossplane-runtime/apis/proto/v1alpha1"
+	ess "github.com/crossplane/crossplane-runtime/apis/proto/ess/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store"
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store/plugin/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
