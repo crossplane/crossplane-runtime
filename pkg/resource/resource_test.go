@@ -249,6 +249,7 @@ func TestGetKind(t *testing.T) {
 		})
 	}
 }
+
 func TestMustCreateObject(t *testing.T) {
 	type args struct {
 		kind schema.GroupVersionKind
@@ -290,14 +291,14 @@ func TestIgnore(t *testing.T) {
 	}{
 		"IgnoreError": {
 			args: args{
-				is:  func(err error) bool { return true },
+				is:  func(_ error) bool { return true },
 				err: errBoom,
 			},
 			want: nil,
 		},
 		"PropagateError": {
 			args: args{
-				is:  func(err error) bool { return false },
+				is:  func(_ error) bool { return false },
 				err: errBoom,
 			},
 			want: errBoom,
@@ -327,7 +328,7 @@ func TestIgnoreAny(t *testing.T) {
 	}{
 		"IgnoreError": {
 			args: args{
-				is:  []ErrorIs{func(err error) bool { return true }},
+				is:  []ErrorIs{func(_ error) bool { return true }},
 				err: errBoom,
 			},
 			want: nil,
@@ -335,8 +336,8 @@ func TestIgnoreAny(t *testing.T) {
 		"IgnoreErrorArr": {
 			args: args{
 				is: []ErrorIs{
-					func(err error) bool { return true },
-					func(err error) bool { return false },
+					func(_ error) bool { return true },
+					func(_ error) bool { return false },
 				},
 				err: errBoom,
 			},
@@ -344,7 +345,7 @@ func TestIgnoreAny(t *testing.T) {
 		},
 		"PropagateError": {
 			args: args{
-				is:  []ErrorIs{func(err error) bool { return false }},
+				is:  []ErrorIs{func(_ error) bool { return false }},
 				err: errBoom,
 			},
 			want: errBoom,
@@ -434,7 +435,6 @@ func TestIsNotControllable(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestMustBeControllableBy(t *testing.T) {
@@ -582,14 +582,14 @@ func TestAllowUpdateIf(t *testing.T) {
 	}{
 		"Allowed": {
 			reason: "No error should be returned when the supplied function returns true",
-			fn:     func(current, desired runtime.Object) bool { return true },
+			fn:     func(_, _ runtime.Object) bool { return true },
 			args: args{
 				current: &object{},
 			},
 		},
 		"NotAllowed": {
 			reason: "An error that satisfies IsNotAllowed should be returned when the supplied function returns false",
-			fn:     func(current, desired runtime.Object) bool { return false },
+			fn:     func(_, _ runtime.Object) bool { return false },
 			args: args{
 				current: &object{},
 			},
@@ -616,9 +616,10 @@ func TestGetExternalTags(t *testing.T) {
 		want map[string]string
 	}{
 		"SuccessfulWithProviderConfig": {
-			o: &fake.Managed{ObjectMeta: metav1.ObjectMeta{
-				Name: name,
-			},
+			o: &fake.Managed{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: name,
+				},
 				ProviderConfigReferencer: fake.ProviderConfigReferencer{Ref: &xpv1.Reference{Name: provName}},
 			},
 			want: map[string]string{
@@ -639,7 +640,7 @@ func TestGetExternalTags(t *testing.T) {
 	}
 }
 
-// single test case => not using tables
+// single test case => not using tables.
 func Test_errNotControllable_NotControllable(t *testing.T) {
 	err := errNotControllable{
 		errors.New("test-error"),
@@ -650,7 +651,7 @@ func Test_errNotControllable_NotControllable(t *testing.T) {
 	}
 }
 
-// single test case => not using tables
+// single test case => not using tables.
 func Test_errNotAllowed_NotAllowed(t *testing.T) {
 	err := errNotAllowed{
 		errors.New("test-error"),
@@ -834,11 +835,12 @@ func TestUpdate(t *testing.T) {
 		want runtime.Object
 	}{
 		"Update": {
-			args: args{fn: func(current, desired runtime.Object) {
-				c, d := current.(*corev1.Secret), desired.(*corev1.Secret)
+			args: args{
+				fn: func(current, desired runtime.Object) {
+					c, d := current.(*corev1.Secret), desired.(*corev1.Secret)
 
-				c.StringData = d.StringData
-			},
+					c.StringData = d.StringData
+				},
 				current: &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "current",
@@ -893,7 +895,7 @@ func TestFirstNAndSomeMore(t *testing.T) {
 		{args: args{n: 3, names: []string{"a"}}, want: "a"},
 		{args: args{n: 3, names: []string{}}, want: ""},
 		{args: args{n: 3, names: []string{"a", "c", "e", "b", "d"}}, want: "a, c, e, and 2 more"},
-		{args: args{n: 3, names: []string{"a", "b", "b", "b", "d"}}, want: "a, b, b, and 2 more"},
+		{args: args{n: 3, names: []string{"a", "b", "b", "b", "d"}}, want: "a, b, b, and 2 more"}, //nolint:dupword // Intentional.
 		{args: args{n: 2, names: []string{"a", "c", "e", "b", "d"}}, want: "a, c, and 3 more"},
 		{args: args{n: 0, names: []string{"a", "c", "e", "b", "d"}}, want: "5"},
 		{args: args{n: -7, names: []string{"a", "c", "e", "b", "d"}}, want: "5"},

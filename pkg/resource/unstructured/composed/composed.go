@@ -117,7 +117,7 @@ func (cr *Unstructured) SetPublishConnectionDetailsTo(ref *xpv1.PublishConnectio
 	_ = fieldpath.Pave(cr.Object).SetValue("spec.publishConnectionDetailsTo", ref)
 }
 
-// OwnedBy returns true if the supplied UID is an owner of the composed
+// OwnedBy returns true if the supplied UID is an owner of the composed.
 func (cr *Unstructured) OwnedBy(u types.UID) bool {
 	for _, owner := range cr.GetOwnerReferences() {
 		if owner.UID == u {
@@ -127,7 +127,7 @@ func (cr *Unstructured) OwnedBy(u types.UID) bool {
 	return false
 }
 
-// RemoveOwnerRef removes the supplied UID from the composed resource's owner
+// RemoveOwnerRef removes the supplied UID from the composed resource's owner.
 func (cr *Unstructured) RemoveOwnerRef(u types.UID) {
 	refs := cr.GetOwnerReferences()
 	for i := range refs {

@@ -63,7 +63,7 @@ type Unstructured struct {
 	unstructured.Unstructured
 }
 
-// Reference to a claim
+// Reference to a claim.
 type Reference struct {
 	// APIVersion of the referenced claim.
 	APIVersion string `json:"apiVersion"`
@@ -183,7 +183,7 @@ func (c *Unstructured) SetResourceReference(ref *corev1.ObjectReference) {
 	_ = fieldpath.Pave(c.Object).SetValue("spec.resourceRef", ref)
 }
 
-// GetReference returns reference to this claim
+// GetReference returns reference to this claim.
 func (c *Unstructured) GetReference() *Reference {
 	return &Reference{
 		APIVersion: c.GetAPIVersion(),

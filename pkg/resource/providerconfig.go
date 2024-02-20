@@ -49,7 +49,7 @@ func (m errMissingRef) MissingReference() bool { return true }
 // IsMissingReference returns true if an error indicates that a managed
 // resource is missing a required reference..
 func IsMissingReference(err error) bool {
-	_, ok := err.(interface { //nolint: errorlint // Skip errorlint for interface type
+	_, ok := err.(interface {
 		MissingReference() bool
 	})
 	return ok
@@ -138,6 +138,7 @@ func NewProviderConfigUsageTracker(c client.Client, of ProviderConfigUsage) *Pro
 // managed resource's usage is updated if the managed resource is updated to
 // reference a misconfigured ProviderConfig.
 func (u *ProviderConfigUsageTracker) Track(ctx context.Context, mg Managed) error {
+	//nolint:forcetypeassert // Will always be a PCU.
 	pcu := u.of.DeepCopyObject().(ProviderConfigUsage)
 	gvk := mg.GetObjectKind().GroupVersionKind()
 	ref := mg.GetProviderConfigReference()
@@ -158,6 +159,7 @@ func (u *ProviderConfigUsageTracker) Track(ctx context.Context, mg Managed) erro
 	err := u.c.Apply(ctx, pcu,
 		MustBeControllableBy(mg.GetUID()),
 		AllowUpdateIf(func(current, _ runtime.Object) bool {
+			//nolint:forcetypeassert // Will always be a PCU.
 			return current.(ProviderConfigUsage).GetProviderConfigReference() != pcu.GetProviderConfigReference()
 		}),
 	)

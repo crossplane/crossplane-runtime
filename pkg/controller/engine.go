@@ -34,7 +34,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
-// Error strings
+// Error strings.
 const (
 	errCreateCache      = "cannot create new cache"
 	errCreateController = "cannot create new controller"
@@ -50,6 +50,8 @@ type NewCacheFn func(cfg *rest.Config, o cache.Options) (cache.Cache, error)
 type NewControllerFn func(name string, m manager.Manager, o controller.Options) (controller.Controller, error)
 
 // The default new cache and new controller functions.
+//
+//nolint:gochecknoglobals // We treat these as constants.
 var (
 	DefaultNewCacheFn      NewCacheFn      = cache.New
 	DefaultNewControllerFn NewControllerFn = controller.NewUnmanaged

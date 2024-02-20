@@ -56,7 +56,7 @@ func TestReconcile(t *testing.T) {
 		"NotRateLimited": {
 			reason: "Requests that are not rate limited should be passed to the inner Reconciler.",
 			r: NewReconciler("test",
-				reconcile.Func(func(c context.Context, r reconcile.Request) (reconcile.Result, error) {
+				reconcile.Func(func(_ context.Context, _ reconcile.Request) (reconcile.Result, error) {
 					return reconcile.Result{Requeue: true}, nil
 				}),
 				&predictableRateLimiter{}),
@@ -76,7 +76,7 @@ func TestReconcile(t *testing.T) {
 		"Returning": {
 			reason: "Returning requests that were previously rate limited should be allowed through without further rate limiting.",
 			r: func() reconcile.Reconciler {
-				inner := reconcile.Func(func(c context.Context, r reconcile.Request) (reconcile.Result, error) {
+				inner := reconcile.Func(func(_ context.Context, _ reconcile.Request) (reconcile.Result, error) {
 					return reconcile.Result{Requeue: true}, nil
 				})
 
@@ -84,7 +84,6 @@ func TestReconcile(t *testing.T) {
 				r := NewReconciler("test", inner, &predictableRateLimiter{d: 8 * time.Second})
 				r.Reconcile(context.Background(), reconcile.Request{NamespacedName: types.NamespacedName{Name: "limited"}})
 				return r
-
 			}(),
 			args: args{
 				ctx: context.Background(),

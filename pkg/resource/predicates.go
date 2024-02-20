@@ -47,7 +47,7 @@ func NewPredicates(fn PredicateFn) predicate.Funcs {
 // To be more specific, it accepts update events that have changes in one of the followings:
 // - `metadata.annotations` (except for certain annotations)
 // - `metadata.labels`
-// - `spec`
+// - `spec`.
 func DesiredStateChanged() predicate.Predicate {
 	return predicate.Or(
 		AnnotationChangedPredicate{

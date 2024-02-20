@@ -64,10 +64,10 @@ func TestPublisherChain(t *testing.T) {
 		"SuccessfulPublisher": {
 			p: PublisherChain{
 				ConnectionPublisherFns{
-					PublishConnectionFn: func(_ context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) (bool, error) {
+					PublishConnectionFn: func(_ context.Context, _ resource.ConnectionSecretOwner, _ ConnectionDetails) (bool, error) {
 						return true, nil
 					},
-					UnpublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) error {
+					UnpublishConnectionFn: func(_ context.Context, _ resource.ConnectionSecretOwner, _ ConnectionDetails) error {
 						return nil
 					},
 				},
@@ -84,10 +84,10 @@ func TestPublisherChain(t *testing.T) {
 		"PublisherReturnsError": {
 			p: PublisherChain{
 				ConnectionPublisherFns{
-					PublishConnectionFn: func(_ context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) (bool, error) {
+					PublishConnectionFn: func(_ context.Context, _ resource.ConnectionSecretOwner, _ ConnectionDetails) (bool, error) {
 						return false, errBoom
 					},
-					UnpublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) error {
+					UnpublishConnectionFn: func(_ context.Context, _ resource.ConnectionSecretOwner, _ ConnectionDetails) error {
 						return nil
 					},
 				},

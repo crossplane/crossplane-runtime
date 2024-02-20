@@ -111,9 +111,11 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 // NewReconciler returns a Reconciler of ProviderConfigs.
 func NewReconciler(m manager.Manager, of resource.ProviderConfigKinds, o ...ReconcilerOption) *Reconciler {
 	nc := func() resource.ProviderConfig {
+		//nolint:forcetypeassert // If this isn't a ProviderConfig it's a programming error and we want to panic.
 		return resource.MustCreateObject(of.Config, m.GetScheme()).(resource.ProviderConfig)
 	}
 	nul := func() resource.ProviderConfigUsageList {
+		//nolint:forcetypeassert // If this isn't a ProviderConfigUsage it's a programming error and we want to panic.
 		return resource.MustCreateObject(of.UsageList, m.GetScheme()).(resource.ProviderConfigUsageList)
 	}
 

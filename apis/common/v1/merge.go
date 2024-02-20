@@ -20,7 +20,7 @@ import (
 	"dario.cat/mergo"
 )
 
-// MergeOptions Specifies merge options on a field path
+// MergeOptions Specifies merge options on a field path.
 type MergeOptions struct { // TODO(aru): add more options that control merging behavior
 	// Specifies that already existing values in a merged map should be preserved
 	// +optional
@@ -30,7 +30,7 @@ type MergeOptions struct { // TODO(aru): add more options that control merging b
 	AppendSlice *bool `json:"appendSlice,omitempty"`
 }
 
-// MergoConfiguration the default behavior is to replace maps and slices
+// MergoConfiguration the default behavior is to replace maps and slices.
 func (mo *MergeOptions) MergoConfiguration() []func(*mergo.Config) {
 	config := []func(*mergo.Config){mergo.WithOverride}
 	if mo == nil {
@@ -46,7 +46,7 @@ func (mo *MergeOptions) MergoConfiguration() []func(*mergo.Config) {
 	return config
 }
 
-// IsAppendSlice returns true if mo.AppendSlice is set to true
+// IsAppendSlice returns true if mo.AppendSlice is set to true.
 func (mo *MergeOptions) IsAppendSlice() bool {
 	return mo != nil && mo.AppendSlice != nil && *mo.AppendSlice
 }

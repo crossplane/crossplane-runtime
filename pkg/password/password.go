@@ -32,6 +32,8 @@ type Settings struct {
 }
 
 // Default password generation settings.
+//
+//nolint:gochecknoglobals // We treat this as a constant.
 var Default = Settings{
 	CharacterSet: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
 	Length:       27,

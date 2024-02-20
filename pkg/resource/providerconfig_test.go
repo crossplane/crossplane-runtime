@@ -266,7 +266,7 @@ func TestTrack(t *testing.T) {
 		"NopUpdate": {
 			reason: "No error should be returned if the apply fails because it would be a no-op",
 			fields: fields{
-				c: ApplyFn(func(c context.Context, r client.Object, ao ...ApplyOption) error {
+				c: ApplyFn(func(ctx context.Context, _ client.Object, ao ...ApplyOption) error {
 					for _, fn := range ao {
 						// Exercise the MustBeControllableBy and AllowUpdateIf
 						// ApplyOptions. The former should pass because the
@@ -279,7 +279,7 @@ func TestTrack(t *testing.T) {
 								Ref: xpv1.Reference{Name: name},
 							},
 						}
-						if err := fn(context.TODO(), current, nil); err != nil {
+						if err := fn(ctx, current, nil); err != nil {
 							return err
 						}
 					}
@@ -299,7 +299,7 @@ func TestTrack(t *testing.T) {
 		"ApplyError": {
 			reason: "Errors applying the ProviderConfigUsage should be returned",
 			fields: fields{
-				c: ApplyFn(func(c context.Context, r client.Object, ao ...ApplyOption) error {
+				c: ApplyFn(func(_ context.Context, _ client.Object, _ ...ApplyOption) error {
 					return errBoom
 				}),
 				of: &fake.ProviderConfigUsage{},

@@ -31,9 +31,7 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
-var (
-	_ client.Object = &Unstructured{}
-)
+var _ client.Object = &Unstructured{}
 
 func TestWithGroupVersionKind(t *testing.T) {
 	gvk := schema.GroupVersionKind{
@@ -47,12 +45,13 @@ func TestWithGroupVersionKind(t *testing.T) {
 	}{
 		"New": {
 			gvk: gvk,
-			want: &Unstructured{Unstructured: unstructured.Unstructured{
-				Object: map[string]any{
-					"apiVersion": "g/v1",
-					"kind":       "k",
+			want: &Unstructured{
+				Unstructured: unstructured.Unstructured{
+					Object: map[string]any{
+						"apiVersion": "g/v1",
+						"kind":       "k",
+					},
 				},
-			},
 			},
 		},
 	}
@@ -146,6 +145,7 @@ func TestCompositionSelector(t *testing.T) {
 		})
 	}
 }
+
 func TestCompositionReference(t *testing.T) {
 	ref := &corev1.ObjectReference{Namespace: "ns", Name: "cool"}
 	cases := map[string]struct {
@@ -341,7 +341,7 @@ func TestConnectionDetailsLastPublishedTime(t *testing.T) {
 	// encoding.
 	lores := func(t *metav1.Time) *metav1.Time {
 		out := &metav1.Time{}
-		j, _ := json.Marshal(t)
+		j, _ := json.Marshal(t) //nolint:errchkjson // No encoding issue in practice.
 		_ = json.Unmarshal(j, out)
 		return out
 	}

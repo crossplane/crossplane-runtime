@@ -79,7 +79,7 @@ func (p *Package) GetObjects() []runtime.Object {
 
 // Parser is a package parser.
 type Parser interface {
-	Parse(context.Context, io.ReadCloser) (*Package, error)
+	Parse(ctx context.Context, rc io.ReadCloser) (*Package, error)
 }
 
 // PackageParser is a Parser implementation for parsing packages.
@@ -168,7 +168,7 @@ type BackendOption func(Backend)
 
 // Backend provides a source for a parser.
 type Backend interface {
-	Init(context.Context, ...BackendOption) (io.ReadCloser, error)
+	Init(ctx context.Context, o ...BackendOption) (io.ReadCloser, error)
 }
 
 // PodLogBackend is a parser backend that uses Kubernetes pod logs as source.

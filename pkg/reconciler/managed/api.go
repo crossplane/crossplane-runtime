@@ -108,6 +108,7 @@ func (a *APISecretPublisher) PublishConnection(ctx context.Context, o resource.C
 		resource.AllowUpdateIf(func(current, desired runtime.Object) bool {
 			// We consider the update to be a no-op and don't allow it if the
 			// current and existing secret data are identical.
+			//nolint:forcetypeassert // Will always be a secret.
 			return !cmp.Equal(current.(*corev1.Secret).Data, desired.(*corev1.Secret).Data, cmpopts.EquateEmpty())
 		}),
 	)
@@ -168,7 +169,7 @@ func prepareJSONMerge(existing, resolved runtime.Object) ([]byte, error) {
 // ResolveReferences method, if any.
 func (a *APISimpleReferenceResolver) ResolveReferences(ctx context.Context, mg resource.Managed) error {
 	rr, ok := mg.(interface {
-		ResolveReferences(context.Context, client.Reader) error
+		ResolveReferences(ctx context.Context, r client.Reader) error
 	})
 	if !ok {
 		// This managed resource doesn't have any references to resolve.

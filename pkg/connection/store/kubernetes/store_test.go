@@ -102,7 +102,7 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 			args: args{
 				client: resource.ClientApplicator{
 					Client: &test.MockClient{
-						MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+						MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 							if key.Name != fakeSecretName || key.Namespace != fakeSecretNamespace {
 								return errors.New("unexpected secret name or namespace to get the secret")
 							}
@@ -179,7 +179,7 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 			reason: "Should return a proper error when cannot apply.",
 			args: args{
 				client: resource.ClientApplicator{
-					Applicator: resource.ApplyFn(func(ctx context.Context, obj client.Object, option ...resource.ApplyOption) error {
+					Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
 						return errBoom
 					}),
 				},
@@ -216,7 +216,7 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 					Data: store.KeyValues(fakeKV()),
 				},
 				wo: []store.WriteOption{
-					func(ctx context.Context, current, desired *store.Secret) error {
+					func(_ context.Context, _, _ *store.Secret) error {
 						return errBoom
 					},
 				},
@@ -246,7 +246,7 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 					Data: store.KeyValues(fakeKV()),
 				},
 				wo: []store.WriteOption{
-					func(ctx context.Context, current, desired *store.Secret) error {
+					func(_ context.Context, _, desired *store.Secret) error {
 						desired.Data["customkey"] = []byte("customval")
 						desired.Metadata = &v1.ConnectionSecretMetadata{
 							Labels: map[string]string{
@@ -346,7 +346,7 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 						"existing-key": []byte("new-value"),
 					}),
 				},
-				wo: []store.WriteOption{func(ctx context.Context, current, desired *store.Secret) error {
+				wo: []store.WriteOption{func(_ context.Context, current, _ *store.Secret) error {
 					if current.Metadata == nil || current.Metadata.GetOwnerUID() != fakeOwnerID {
 						return errors.Errorf("secret not owned by %s", fakeOwnerID)
 					}
@@ -524,7 +524,7 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 							*obj.(*corev1.Secret) = *fakeConnectionSecret(withData(fakeKV()))
 							return nil
 						}),
-						MockUpdate: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+						MockUpdate: func(_ context.Context, obj client.Object, _ ...client.UpdateOption) error {
 							if diff := cmp.Diff(fakeConnectionSecret(withData(map[string][]byte{"key3": []byte("value3")})), obj.(*corev1.Secret)); diff != "" {
 								t.Errorf("r: -want, +got:\n%s", diff)
 							}
@@ -575,7 +575,7 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 			args: args{
 				client: resource.ClientApplicator{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(_ client.Object) error {
 							return kerrors.NewNotFound(schema.GroupResource{}, "")
 						}),
 					},
@@ -600,7 +600,7 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 							*obj.(*corev1.Secret) = *fakeConnectionSecret(withData(fakeKV()))
 							return nil
 						}),
-						MockDelete: func(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
+						MockDelete: func(_ context.Context, _ client.Object, _ ...client.DeleteOption) error {
 							return nil
 						},
 					},
@@ -612,7 +612,7 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 					},
 				},
 				do: []store.DeleteOption{
-					func(ctx context.Context, secret *store.Secret) error {
+					func(_ context.Context, _ *store.Secret) error {
 						return errBoom
 					},
 				},
@@ -630,7 +630,7 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 							*obj.(*corev1.Secret) = *fakeConnectionSecret(withData(fakeKV()))
 							return nil
 						}),
-						MockDelete: func(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
+						MockDelete: func(_ context.Context, _ client.Object, _ ...client.DeleteOption) error {
 							return nil
 						},
 					},
@@ -642,7 +642,7 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 					},
 				},
 				do: []store.DeleteOption{
-					func(ctx context.Context, secret *store.Secret) error {
+					func(_ context.Context, _ *store.Secret) error {
 						return nil
 					},
 				},
@@ -698,7 +698,7 @@ func TestNewSecretStore(t *testing.T) {
 			args: args{
 				client: resource.ClientApplicator{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(_ client.Object) error {
 							return kerrors.NewNotFound(schema.GroupResource{}, "kube-conn")
 						}),
 					},

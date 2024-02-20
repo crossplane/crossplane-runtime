@@ -23,23 +23,23 @@ import (
 )
 
 const (
-	// ResourceCredentialsSecretEndpointKey is the key inside a connection secret for the connection endpoint
+	// ResourceCredentialsSecretEndpointKey is the key inside a connection secret for the connection endpoint.
 	ResourceCredentialsSecretEndpointKey = "endpoint"
-	// ResourceCredentialsSecretPortKey is the key inside a connection secret for the connection port
+	// ResourceCredentialsSecretPortKey is the key inside a connection secret for the connection port.
 	ResourceCredentialsSecretPortKey = "port"
-	// ResourceCredentialsSecretUserKey is the key inside a connection secret for the connection user
+	// ResourceCredentialsSecretUserKey is the key inside a connection secret for the connection user.
 	ResourceCredentialsSecretUserKey = "username"
-	// ResourceCredentialsSecretPasswordKey is the key inside a connection secret for the connection password
+	// ResourceCredentialsSecretPasswordKey is the key inside a connection secret for the connection password.
 	ResourceCredentialsSecretPasswordKey = "password"
-	// ResourceCredentialsSecretCAKey is the key inside a connection secret for the server CA certificate
+	// ResourceCredentialsSecretCAKey is the key inside a connection secret for the server CA certificate.
 	ResourceCredentialsSecretCAKey = "clusterCA"
-	// ResourceCredentialsSecretClientCertKey is the key inside a connection secret for the client certificate
+	// ResourceCredentialsSecretClientCertKey is the key inside a connection secret for the client certificate.
 	ResourceCredentialsSecretClientCertKey = "clientCert"
-	// ResourceCredentialsSecretClientKeyKey is the key inside a connection secret for the client key
+	// ResourceCredentialsSecretClientKeyKey is the key inside a connection secret for the client key.
 	ResourceCredentialsSecretClientKeyKey = "clientKey"
-	// ResourceCredentialsSecretTokenKey is the key inside a connection secret for the bearer token value
+	// ResourceCredentialsSecretTokenKey is the key inside a connection secret for the bearer token value.
 	ResourceCredentialsSecretTokenKey = "token"
-	// ResourceCredentialsSecretKubeconfigKey is the key inside a connection secret for the raw kubeconfig yaml
+	// ResourceCredentialsSecretKubeconfigKey is the key inside a connection secret for the raw kubeconfig yaml.
 	ResourceCredentialsSecretKubeconfigKey = "kubeconfig"
 )
 

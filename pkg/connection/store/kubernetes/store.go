@@ -128,7 +128,7 @@ func (ss *SecretStore) WriteKeyValues(ctx context.Context, s *store.Secret, wo .
 	ao = append(ao, resource.AllowUpdateIf(func(current, desired runtime.Object) bool {
 		// We consider the update to be a no-op and don't allow it if the
 		// current and existing secret data are identical.
-		return !cmp.Equal(current.(*corev1.Secret).Data, desired.(*corev1.Secret).Data, cmpopts.EquateEmpty())
+		return !cmp.Equal(current.(*corev1.Secret).Data, desired.(*corev1.Secret).Data, cmpopts.EquateEmpty()) //nolint:forcetypeassert // Will always be a secret.
 	}))
 
 	err := ss.client.Apply(ctx, ks, ao...)
@@ -197,8 +197,8 @@ func applyOptions(wo ...store.WriteOption) []resource.ApplyOption {
 	for i := range wo {
 		o := wo[i]
 		ao[i] = func(ctx context.Context, current, desired runtime.Object) error {
-			currentSecret := current.(*corev1.Secret)
-			desiredSecret := desired.(*corev1.Secret)
+			currentSecret := current.(*corev1.Secret) //nolint:forcetypeassert // Will always be a secret.
+			desiredSecret := desired.(*corev1.Secret) //nolint:forcetypeassert // Will always be a secret.
 
 			cs := &store.Secret{
 				ScopedName: store.ScopedName{

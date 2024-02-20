@@ -27,9 +27,7 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
-var (
-	_ client.Object = &Unstructured{}
-)
+var _ client.Object = &Unstructured{}
 
 func TestFromReference(t *testing.T) {
 	ref := corev1.ObjectReference{
@@ -44,16 +42,17 @@ func TestFromReference(t *testing.T) {
 	}{
 		"New": {
 			ref: ref,
-			want: &Unstructured{Unstructured: unstructured.Unstructured{
-				Object: map[string]any{
-					"apiVersion": "a/v1",
-					"kind":       "k",
-					"metadata": map[string]any{
-						"name":      "name",
-						"namespace": "ns",
+			want: &Unstructured{
+				Unstructured: unstructured.Unstructured{
+					Object: map[string]any{
+						"apiVersion": "a/v1",
+						"kind":       "k",
+						"metadata": map[string]any{
+							"name":      "name",
+							"namespace": "ns",
+						},
 					},
 				},
-			},
 			},
 		},
 	}

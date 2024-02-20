@@ -32,9 +32,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 )
 
-var (
-	_ client.Object = &Unstructured{}
-)
+var _ client.Object = &Unstructured{}
 
 func TestWithGroupVersionKind(t *testing.T) {
 	gvk := schema.GroupVersionKind{
@@ -48,12 +46,13 @@ func TestWithGroupVersionKind(t *testing.T) {
 	}{
 		"New": {
 			gvk: gvk,
-			want: &Unstructured{Unstructured: unstructured.Unstructured{
-				Object: map[string]any{
-					"apiVersion": "g/v1",
-					"kind":       "k",
+			want: &Unstructured{
+				Unstructured: unstructured.Unstructured{
+					Object: map[string]any{
+						"apiVersion": "g/v1",
+						"kind":       "k",
+					},
 				},
-			},
 			},
 		},
 	}
@@ -122,6 +121,7 @@ func TestConditions(t *testing.T) {
 		})
 	}
 }
+
 func TestCompositionSelector(t *testing.T) {
 	sel := &metav1.LabelSelector{MatchLabels: map[string]string{"cool": "very"}}
 	cases := map[string]struct {
@@ -146,6 +146,7 @@ func TestCompositionSelector(t *testing.T) {
 		})
 	}
 }
+
 func TestCompositionReference(t *testing.T) {
 	ref := &corev1.ObjectReference{Namespace: "ns", Name: "cool"}
 	cases := map[string]struct {
@@ -328,7 +329,7 @@ func TestConnectionDetailsLastPublishedTime(t *testing.T) {
 	// encoding.
 	lores := func(t *metav1.Time) *metav1.Time {
 		out := &metav1.Time{}
-		j, _ := json.Marshal(t)
+		j, _ := json.Marshal(t) //nolint:errchkjson // No encoding error in practice.
 		_ = json.Unmarshal(j, out)
 		return out
 	}

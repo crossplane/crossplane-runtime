@@ -825,6 +825,7 @@ func TestWasDeleted(t *testing.T) {
 		})
 	}
 }
+
 func TestWasCreated(t *testing.T) {
 	now := metav1.Now()
 	zero := metav1.Time{}
@@ -1111,7 +1112,6 @@ func TestExternalCreateSucceededDuring(t *testing.T) {
 }
 
 func TestExternalCreateIncomplete(t *testing.T) {
-
 	now := time.Now().Format(time.RFC3339)
 	earlier := time.Now().Add(-1 * time.Second).Format(time.RFC3339)
 	evenEarlier := time.Now().Add(-1 * time.Minute).Format(time.RFC3339)

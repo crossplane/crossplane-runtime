@@ -32,7 +32,7 @@ const (
 
 // A Linter lints packages.
 type Linter interface {
-	Lint(Lintable) error
+	Lint(l Lintable) error
 }
 
 // PackageLinterFn lints an entire package. If function applies a check for

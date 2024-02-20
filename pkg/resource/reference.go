@@ -24,7 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// ReferenceStatusType is an enum type for the possible values for a Reference Status
+// ReferenceStatusType is an enum type for the possible values for a Reference Status.
 type ReferenceStatusType int
 
 // Reference statuses.
@@ -39,7 +39,7 @@ func (t ReferenceStatusType) String() string {
 	return []string{"Unknown", "NotFound", "NotReady", "Ready"}[t]
 }
 
-// ReferenceStatus has the name and status of a reference
+// ReferenceStatus has the name and status of a reference.
 type ReferenceStatus struct {
 	Name   string
 	Status ReferenceStatusType
@@ -56,7 +56,7 @@ type CanReference runtime.Object
 
 // An AttributeReferencer resolves cross-resource attribute references. See
 // https://github.com/crossplane/crossplane/blob/master/design/one-pager-cross-resource-referencing.md
-// for more information
+// for more information.
 type AttributeReferencer interface {
 	// GetStatus retries the referenced resource, as well as other non-managed
 	// resources (like a `Provider`) and reports their readiness for use as a

@@ -110,6 +110,7 @@ func (a *APIUpdatingApplicator) Apply(ctx context.Context, o client.Object, ao .
 		return errors.Wrap(a.client.Create(ctx, o), "cannot create object")
 	}
 
+	//nolint:forcetypeassert // Will always be a client.Object.
 	current := o.DeepCopyObject().(client.Object)
 
 	err := a.client.Get(ctx, types.NamespacedName{Name: m.GetName(), Namespace: m.GetNamespace()}, current)
@@ -129,7 +130,7 @@ func (a *APIUpdatingApplicator) Apply(ctx context.Context, o client.Object, ao .
 
 	// NOTE(hasheddan): we must set the resource version of the desired object
 	// to that of the current or the update will always fail.
-	m.SetResourceVersion(current.(metav1.Object).GetResourceVersion())
+	m.SetResourceVersion(current.GetResourceVersion())
 	return errors.Wrap(a.client.Update(ctx, m), "cannot update object")
 }
 
@@ -147,6 +148,7 @@ type nopFinalizer struct{}
 func (f nopFinalizer) AddFinalizer(_ context.Context, _ Object) error {
 	return nil
 }
+
 func (f nopFinalizer) RemoveFinalizer(_ context.Context, _ Object) error {
 	return nil
 }

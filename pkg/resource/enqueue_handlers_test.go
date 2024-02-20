@@ -29,9 +29,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 )
 
-var (
-	_ handler.EventHandler = &EnqueueRequestForProviderConfig{}
-)
+var _ handler.EventHandler = &EnqueueRequestForProviderConfig{}
 
 type addFn func(item any)
 

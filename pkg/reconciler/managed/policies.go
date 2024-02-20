@@ -131,7 +131,7 @@ func (m *ManagementPoliciesResolver) Validate() error {
 }
 
 // IsPaused returns true if the management policy is empty and the
-// management policies feature is enabled
+// management policies feature is enabled.
 func (m *ManagementPoliciesResolver) IsPaused() bool {
 	if !m.enabled {
 		return false

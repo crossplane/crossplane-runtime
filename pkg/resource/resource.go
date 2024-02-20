@@ -183,35 +183,35 @@ func IgnoreNotFound(err error) error {
 
 // IsAPIError returns true if the given error's type is of Kubernetes API error.
 func IsAPIError(err error) bool {
-	_, ok := err.(kerrors.APIStatus) //nolint: errorlint // we assert against the kerrors.APIStatus Interface which does not implement the error interface
+	_, ok := err.(kerrors.APIStatus)
 	return ok
 }
 
-// IsAPIErrorWrapped returns true if err is a K8s API error, or recursively wraps a K8s API error
+// IsAPIErrorWrapped returns true if err is a K8s API error, or recursively wraps a K8s API error.
 func IsAPIErrorWrapped(err error) bool {
 	return IsAPIError(errors.Cause(err))
 }
 
-// IsConditionTrue returns if condition status is true
+// IsConditionTrue returns if condition status is true.
 func IsConditionTrue(c xpv1.Condition) bool {
 	return c.Status == corev1.ConditionTrue
 }
 
 // An Applicator applies changes to an object.
 type Applicator interface {
-	Apply(context.Context, client.Object, ...ApplyOption) error
+	Apply(ctx context.Context, obj client.Object, o ...ApplyOption) error
 }
 
 type shouldRetryFunc func(error) bool
 
-// An ApplicatorWithRetry applies changes to an object, retrying on transient failures
+// An ApplicatorWithRetry applies changes to an object, retrying on transient failures.
 type ApplicatorWithRetry struct {
 	Applicator
 	shouldRetry shouldRetryFunc
 	backoff     wait.Backoff
 }
 
-// Apply invokes nested Applicator's Apply retrying on designated errors
+// Apply invokes nested Applicator's Apply retrying on designated errors.
 func (awr *ApplicatorWithRetry) Apply(ctx context.Context, c client.Object, opts ...ApplyOption) error {
 	return retry.OnError(awr.backoff, awr.shouldRetry, func() error {
 		return awr.Applicator.Apply(ctx, c, opts...)
@@ -274,7 +274,7 @@ func (e errNotControllable) NotControllable() bool {
 // resource is not controllable - i.e. that it another resource is not and may
 // not become its controller reference.
 func IsNotControllable(err error) bool {
-	_, ok := err.(interface { //nolint: errorlint // Skip errorlint for interface type
+	_, ok := err.(interface {
 		NotControllable() bool
 	})
 	return ok
@@ -287,14 +287,17 @@ func IsNotControllable(err error) bool {
 // cannot be controlled by the supplied UID.
 func MustBeControllableBy(u types.UID) ApplyOption {
 	return func(_ context.Context, current, _ runtime.Object) error {
-		c := metav1.GetControllerOf(current.(metav1.Object))
+		mo, ok := current.(metav1.Object)
+		if !ok {
+			return errNotControllable{errors.Errorf("existing object is missing object metadata")}
+		}
+		c := metav1.GetControllerOf(mo)
 		if c == nil {
 			return nil
 		}
 
 		if c.UID != u {
 			return errNotControllable{errors.Errorf("existing object is not controlled by UID %q", u)}
-
 		}
 		return nil
 	}
@@ -314,7 +317,10 @@ func MustBeControllableBy(u types.UID) ApplyOption {
 // secret or cannot be controlled by the supplied UID.
 func ConnectionSecretMustBeControllableBy(u types.UID) ApplyOption {
 	return func(_ context.Context, current, _ runtime.Object) error {
-		s := current.(*corev1.Secret)
+		s, ok := current.(*corev1.Secret)
+		if !ok {
+			return errors.New("current resource is not a Secret")
+		}
 		c := metav1.GetControllerOf(s)
 
 		switch {
@@ -336,7 +342,7 @@ func (e errNotAllowed) NotAllowed() bool {
 	return true
 }
 
-// NewNotAllowed returns a new NotAllowed error
+// NewNotAllowed returns a new NotAllowed error.
 func NewNotAllowed(message string) error {
 	return errNotAllowed{error: errors.New(message)}
 }
@@ -344,7 +350,7 @@ func NewNotAllowed(message string) error {
 // IsNotAllowed returns true if the supplied error indicates that an operation
 // was not allowed.
 func IsNotAllowed(err error) bool {
-	_, ok := err.(interface { //nolint: errorlint // Skip errorlint for interface type
+	_, ok := err.(interface {
 		NotAllowed() bool
 	})
 	return ok
@@ -367,8 +373,12 @@ func AllowUpdateIf(fn func(current, desired runtime.Object) bool) ApplyOption {
 // supplied string pointer. This is useful to detect whether the Apply call
 // was a no-op.
 func StoreCurrentRV(origRV *string) ApplyOption {
-	return func(_ context.Context, current, desired runtime.Object) error {
-		*origRV = current.(client.Object).GetResourceVersion()
+	return func(_ context.Context, current, _ runtime.Object) error {
+		mo, ok := current.(metav1.Object)
+		if !ok {
+			return errors.New("current resource is missing object metadata")
+		}
+		*origRV = mo.GetResourceVersion()
 		return nil
 	}
 }

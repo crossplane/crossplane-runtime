@@ -161,11 +161,11 @@ func TestEngine(t *testing.T) {
 			reason: "Errors starting or running a cache should be returned",
 			e: NewEngine(&fake.Manager{},
 				WithNewCacheFn(func(*rest.Config, cache.Options) (cache.Cache, error) {
-					c := &MockCache{MockStart: func(stop context.Context) error { return errBoom }}
+					c := &MockCache{MockStart: func(_ context.Context) error { return errBoom }}
 					return c, nil
 				}),
 				WithNewControllerFn(func(string, manager.Manager, controller.Options) (controller.Controller, error) {
-					c := &MockController{MockStart: func(stop context.Context) error {
+					c := &MockController{MockStart: func(_ context.Context) error {
 						return nil
 					}}
 					return c, nil
@@ -182,13 +182,13 @@ func TestEngine(t *testing.T) {
 			reason: "Errors starting or running a controller should be returned",
 			e: NewEngine(&fake.Manager{},
 				WithNewCacheFn(func(*rest.Config, cache.Options) (cache.Cache, error) {
-					c := &MockCache{MockStart: func(stop context.Context) error {
+					c := &MockCache{MockStart: func(_ context.Context) error {
 						return nil
 					}}
 					return c, nil
 				}),
 				WithNewControllerFn(func(string, manager.Manager, controller.Options) (controller.Controller, error) {
-					c := &MockController{MockStart: func(stop context.Context) error {
+					c := &MockController{MockStart: func(_ context.Context) error {
 						return errBoom
 					}}
 					return c, nil

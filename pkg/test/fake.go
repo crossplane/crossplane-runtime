@@ -107,7 +107,7 @@ func NewMockListFn(err error, ofn ...ObjectListFn) MockListFn {
 
 // NewMockCreateFn returns a MockCreateFn that returns the supplied error.
 func NewMockCreateFn(err error, ofn ...ObjectFn) MockCreateFn {
-	return func(_ context.Context, obj client.Object, opts ...client.CreateOption) error {
+	return func(_ context.Context, obj client.Object, _ ...client.CreateOption) error {
 		for _, fn := range ofn {
 			if err := fn(obj); err != nil {
 				return err
@@ -167,7 +167,7 @@ func NewMockPatchFn(err error, ofn ...ObjectFn) MockPatchFn {
 
 // NewMockSubResourceCreateFn returns a MockSubResourceCreateFn that returns the supplied error.
 func NewMockSubResourceCreateFn(err error, ofn ...ObjectFn) MockSubResourceCreateFn {
-	return func(_ context.Context, obj, subResource client.Object, _ ...client.SubResourceCreateOption) error {
+	return func(_ context.Context, obj, _ client.Object, _ ...client.SubResourceCreateOption) error {
 		for _, fn := range ofn {
 			if err := fn(obj); err != nil {
 				return err
@@ -201,7 +201,7 @@ func NewMockSubResourcePatchFn(err error, ofn ...ObjectFn) MockSubResourcePatchF
 	}
 }
 
-// NewMockSchemeFn returns a MockSchemeFn that returns the scheme
+// NewMockSchemeFn returns a MockSchemeFn that returns the scheme.
 func NewMockSchemeFn(scheme *runtime.Scheme) MockSchemeFn {
 	return func() *runtime.Scheme {
 		return scheme
@@ -315,7 +315,7 @@ func (c *MockClient) Patch(ctx context.Context, obj client.Object, patch client.
 	return c.MockPatch(ctx, obj, patch, opts...)
 }
 
-// Status returns status writer for status sub-resource
+// Status returns status writer for status sub-resource.
 func (c *MockClient) Status() client.SubResourceWriter {
 	return &MockSubResourceClient{
 		MockCreate: c.MockStatusCreate,
@@ -339,22 +339,22 @@ func (c *MockClient) RESTMapper() meta.RESTMapper {
 	return nil
 }
 
-// Scheme calls MockClient's MockScheme function
+// Scheme calls MockClient's MockScheme function.
 func (c *MockClient) Scheme() *runtime.Scheme {
 	return c.MockScheme()
 }
 
-// GroupVersionKindFor calls MockClient's MockGroupVersionKindFor function
+// GroupVersionKindFor calls MockClient's MockGroupVersionKindFor function.
 func (c *MockClient) GroupVersionKindFor(obj runtime.Object) (schema.GroupVersionKind, error) {
 	return c.MockGroupVersionKindFor(obj)
 }
 
-// IsObjectNamespaced calls MockClient's MockIsObjectNamespaced function
+// IsObjectNamespaced calls MockClient's MockIsObjectNamespaced function.
 func (c *MockClient) IsObjectNamespaced(obj runtime.Object) (bool, error) {
 	return c.MockIsObjectNamespaced(obj)
 }
 
-// MockSubResourceClient provides mock functionality for status sub-resource
+// MockSubResourceClient provides mock functionality for status sub-resource.
 type MockSubResourceClient struct {
 	MockGet    MockSubResourceGetFn
 	MockCreate MockSubResourceCreateFn
@@ -362,22 +362,22 @@ type MockSubResourceClient struct {
 	MockPatch  MockSubResourcePatchFn
 }
 
-// Get a sub-resource
+// Get a sub-resource.
 func (m *MockSubResourceClient) Get(ctx context.Context, obj, subResource client.Object, opts ...client.SubResourceGetOption) error {
 	return m.MockGet(ctx, obj, subResource, opts...)
 }
 
-// Create a sub-resource
+// Create a sub-resource.
 func (m *MockSubResourceClient) Create(ctx context.Context, obj, subResource client.Object, opts ...client.SubResourceCreateOption) error {
 	return m.MockCreate(ctx, obj, subResource, opts...)
 }
 
-// Update a sub-resource
+// Update a sub-resource.
 func (m *MockSubResourceClient) Update(ctx context.Context, obj client.Object, opts ...client.SubResourceUpdateOption) error {
 	return m.MockUpdate(ctx, obj, opts...)
 }
 
-// Patch a sub-resource
+// Patch a sub-resource.
 func (m *MockSubResourceClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.SubResourcePatchOption) error {
 	return m.MockPatch(ctx, obj, patch, opts...)
 }
