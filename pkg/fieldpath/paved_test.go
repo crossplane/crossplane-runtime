@@ -161,6 +161,14 @@ func TestGetValue(t *testing.T) {
 				err: errors.Wrap(errors.New("unexpected ']' at position 5"), "cannot parse path \"spec[]\""),
 			},
 		},
+		"NilParent": {
+			reason: "Request for a path with a nil parent value",
+			path:   "spec.containers[*].name",
+			data:   []byte(`{"spec":{"containers": null}}`),
+			want: want{
+				err: errNotFound{errors.Errorf("%s: expected map, got nil", "spec.containers")},
+			},
+		},
 	}
 
 	for name, tc := range cases {
