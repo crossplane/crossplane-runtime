@@ -187,8 +187,18 @@ func (e *Engine) Start(name string, o controller.Options, w ...Watch) error {
 // NamedController is a controller that's not yet started. It gives access to
 // the underlying cache, which may be used e.g. to add indexes.
 type NamedController interface {
+	// Start the named controller. Start does not block.
 	Start(ctx context.Context) error
+	// GetCache returns the cache used by the named controller. If the
+	// controller hasn't been started, neither has the cache.
+	//
+	// Warning: Be careful when calling methods with a context before the
+	// controller has been started. The pass context will be used to e.g. start
+	// informers, and the life-cycle will differ from that of the controller. In
+	// particular, use IndexField instead to add indexes to the cache before the
+	// controller is started.
 	GetCache() cache.Cache
+	IndexField(obj client.Object, field string, extractValue client.IndexerFunc)
 }
 
 type namedController struct {
@@ -196,6 +206,14 @@ type namedController struct {
 	e    *Engine
 	ca   cache.Cache
 	ctrl controller.Controller
+
+	indexes []index
+}
+
+type index struct {
+	obj          client.Object
+	field        string
+	extractValue client.IndexerFunc
 }
 
 // Create the named controller. Each controller gets its own cache
@@ -265,6 +283,12 @@ func (c *namedController) Start(ctx context.Context) error {
 	c.e.errors[c.name] = nil
 	c.e.mx.Unlock()
 
+	for _, idx := range c.indexes {
+		if err := c.ca.IndexField(ctx, idx.obj, idx.field, idx.extractValue); err != nil {
+			return errors.Wrap(err, "cannot add index")
+		}
+	}
+
 	go func() {
 		<-c.e.mgr.Elected()
 		c.e.done(c.name, errors.Wrap(c.ca.Start(ctx), errCrashCache))
@@ -281,7 +305,18 @@ func (c *namedController) Start(ctx context.Context) error {
 	return nil
 }
 
+// IndexField queues an index for addition to the cache on start.
+func (c *namedController) IndexField(obj client.Object, field string, extractValue client.IndexerFunc) {
+	c.indexes = append(c.indexes, index{obj: obj, field: field, extractValue: extractValue})
+}
+
 // GetCache returns the cache used by the named controller.
+//
+// Warning: Be careful when calling methods with a context before the controller
+// has been started. The pass context will be used to e.g. start informers, and
+// the life-cycle will differ from that of the controller. In particular, use
+// IndexField instead to add indexes to the cache before the controller is
+// started.
 func (c *namedController) GetCache() cache.Cache {
 	return c.ca
 }
