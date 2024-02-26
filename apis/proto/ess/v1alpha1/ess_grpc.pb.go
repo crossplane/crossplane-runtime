@@ -14,7 +14,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.3.0
 // - protoc             (unknown)
-// source: proto/v1alpha1/ess.proto
+// source: proto/ess/v1alpha1/ess.proto
 
 package v1alpha1
 
@@ -192,5 +192,5 @@ var ExternalSecretStorePluginService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "proto/v1alpha1/ess.proto",
+	Metadata: "proto/ess/v1alpha1/ess.proto",
 }

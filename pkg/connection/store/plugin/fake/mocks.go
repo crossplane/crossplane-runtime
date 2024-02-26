@@ -19,7 +19,7 @@ import (
 
 	"google.golang.org/grpc"
 
-	ess "github.com/crossplane/crossplane-runtime/apis/proto/v1alpha1"
+	ess "github.com/crossplane/crossplane-runtime/apis/proto/ess/v1alpha1"
 )
 
 // ExternalSecretStorePluginServiceClient is a fake ExternalSecretStorePluginServiceClient.

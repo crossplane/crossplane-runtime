@@ -31,7 +31,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/connection/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	resourcefake "github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
@@ -159,7 +158,7 @@ func TestManagerPublishConnection(t *testing.T) {
 		c  client.Client
 		sb StoreBuilderFn
 
-		conn managed.ConnectionDetails
+		conn resource.ConnectionDetails
 		so   resource.ConnectionSecretOwner
 	}
 
@@ -307,7 +306,7 @@ func TestManagerUnpublishConnection(t *testing.T) {
 		c  client.Client
 		sb StoreBuilderFn
 
-		conn managed.ConnectionDetails
+		conn resource.ConnectionDetails
 		so   resource.ConnectionSecretOwner
 	}
 
@@ -508,7 +507,7 @@ func TestManagerFetchConnection(t *testing.T) {
 	}
 
 	type want struct {
-		conn managed.ConnectionDetails
+		conn resource.ConnectionDetails
 		err  error
 	}
 

@@ -8,6 +8,7 @@ require (
 	dario.cat/mergo v1.0.0
 	github.com/bufbuild/buf v1.27.2
 	github.com/evanphx/json-patch v5.6.0+incompatible
+	github.com/go-json-experiment/json v0.0.0-20231102232822-2e55bd4e08b0
 	github.com/go-logr/logr v1.4.1
 	github.com/google/go-cmp v0.6.0
 	github.com/spf13/afero v1.11.0
