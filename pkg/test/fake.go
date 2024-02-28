@@ -22,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -232,6 +233,23 @@ func NewMockIsObjectNamespacedFn(err error, isNamespaced bool, rofn ...RuntimeOb
 	}
 }
 
+// MockClientReader implements controller-runtime's client.Reader interface,
+// allowing each method to be overridden for testing.
+type MockClientReader struct {
+	MockGet  MockGetFn
+	MockList MockListFn
+}
+
+// Get calls MockClientReader's MockGet function.
+func (c *MockClientReader) Get(ctx context.Context, key client.ObjectKey, obj client.Object, _ ...client.GetOption) error {
+	return c.MockGet(ctx, key, obj)
+}
+
+// List calls MockClientReader's MockList function.
+func (c *MockClientReader) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+	return c.MockList(ctx, list, opts...)
+}
+
 // MockClient implements controller-runtime's Client interface, allowing each
 // method to be overridden for testing. The controller-runtime provides a fake
 // client, but it is has surprising side effects (e.g. silently calling
@@ -380,4 +398,79 @@ func (m *MockSubResourceClient) Update(ctx context.Context, obj client.Object, o
 // Patch a sub-resource
 func (m *MockSubResourceClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.SubResourcePatchOption) error {
 	return m.MockPatch(ctx, obj, patch, opts...)
+}
+
+var _ cache.Cache = &MockCache{}
+
+// MockCache implements controller-runtime's cache.Cache interface, allowing each
+// method to be overridden for testing.
+type MockCache struct {
+	MockClientReader
+	MockInformers
+}
+
+// MockGetInformerFn is used to mock cache.Informers' GetInformer implementation.
+type MockGetInformerFn func(ctx context.Context, obj client.Object, opts ...cache.InformerGetOption) (cache.Informer, error)
+
+// MockGetInformerForKindFn is used to mock cache.Informers' GetInformerForKind implementation.
+type MockGetInformerForKindFn func(ctx context.Context, gvk schema.GroupVersionKind, opts ...cache.InformerGetOption) (cache.Informer, error)
+
+// MockRemoveInformersFn is used to mock cache.Informers' RemoveInformer implementation.
+type MockRemoveInformersFn func(ctx context.Context, obj client.Object) error
+
+// MockStartFn is used to mock cache.Informers' Start implementation.
+type MockStartFn func(ctx context.Context) error
+
+// MockWaitForCacheSyncFn is used to mock cache.Informers' WaitForCacheSync implementation.
+type MockWaitForCacheSyncFn func(ctx context.Context) bool
+
+// MockInformers implements controller-runtime's cache.Informers interface, allowing each
+// method to be overridden for testing.
+type MockInformers struct {
+	MockFieldIndexer
+
+	MockGetInformer        MockGetInformerFn
+	MockGetInformerForKind MockGetInformerForKindFn
+	MockRemoveInformer     MockRemoveInformersFn
+	MockStart              MockStartFn
+	MockWaitForCacheSync   MockWaitForCacheSyncFn
+}
+
+// GetInformer calls MockInformers' MockGetInformer function.
+func (m MockCache) GetInformer(ctx context.Context, obj client.Object, opts ...cache.InformerGetOption) (cache.Informer, error) {
+	return m.MockGetInformer(ctx, obj, opts...)
+}
+
+// GetInformerForKind calls MockInformers' MockGetInformerForKind function.
+func (m MockCache) GetInformerForKind(ctx context.Context, gvk schema.GroupVersionKind, opts ...cache.InformerGetOption) (cache.Informer, error) {
+	return m.MockGetInformerForKind(ctx, gvk, opts...)
+}
+
+// RemoveInformer calls MockInformers' MockRemoveInformer function.
+func (m MockCache) RemoveInformer(ctx context.Context, obj client.Object) error {
+	return m.MockRemoveInformer(ctx, obj)
+}
+
+// Start calls MockInformers' MockStart function.
+func (m MockCache) Start(ctx context.Context) error {
+	return m.MockStart(ctx)
+}
+
+// WaitForCacheSync calls MockInformers' MockWaitForCacheSync function.
+func (m MockCache) WaitForCacheSync(ctx context.Context) bool {
+	return m.MockWaitForCacheSync(ctx)
+}
+
+// MockIndexFieldFn is used to mock cache.Cache's IndexField implementation.
+type MockIndexFieldFn func(ctx context.Context, obj client.Object, field string, extractValue client.IndexerFunc) error
+
+// MockFieldIndexer implements controller-runtime's cache.FieldIndexer interface, allowing each
+// method to be overridden for testing.
+type MockFieldIndexer struct {
+	MockIndexField MockIndexFieldFn
+}
+
+// IndexField calls MockFieldIndexer's MockIndexField function.
+func (m MockCache) IndexField(ctx context.Context, obj client.Object, field string, extractValue client.IndexerFunc) error {
+	return m.MockIndexField(ctx, obj, field, extractValue)
 }
