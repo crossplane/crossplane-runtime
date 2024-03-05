@@ -24,7 +24,6 @@ import (
 )
 
 func TestSliceMap(t *testing.T) {
-
 	type args struct {
 		from []string
 		to   map[string]string
@@ -86,5 +85,4 @@ func TestSliceMap(t *testing.T) {
 			}
 		})
 	}
-
 }

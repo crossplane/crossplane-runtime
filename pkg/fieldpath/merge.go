@@ -30,7 +30,7 @@ const (
 )
 
 // MergeValue of the receiver p at the specified field path with the supplied
-// value according to supplied merge options
+// value according to supplied merge options.
 func (p *Paved) MergeValue(path string, value any, mo *xpv1.MergeOptions) error {
 	dst, err := p.GetValue(path)
 	if IsNotFound(err) || mo == nil {

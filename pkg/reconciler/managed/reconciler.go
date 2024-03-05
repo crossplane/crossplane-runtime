@@ -99,7 +99,7 @@ func ControllerName(kind string) string {
 // ManagementPoliciesChecker is used to perform checks on management policies
 // to determine specific actions are allowed, or if they are the only allowed
 // action.
-type ManagementPoliciesChecker interface {
+type ManagementPoliciesChecker interface { //nolint:interfacebloat // This has to be big.
 	// Validate validates the management policies.
 	Validate() error
 	// IsPaused returns true if the resource is paused based
@@ -216,7 +216,7 @@ type ReferenceResolver interface {
 // ReferenceResolver interface.
 type ReferenceResolverFn func(context.Context, resource.Managed) error
 
-// ResolveReferences calls ReferenceResolverFn function
+// ResolveReferences calls ReferenceResolverFn function.
 func (m ReferenceResolverFn) ResolveReferences(ctx context.Context, mg resource.Managed) error {
 	return m(ctx, mg)
 }
@@ -569,8 +569,8 @@ func WithPollIntervalHook(hook PollIntervalHook) ReconcilerOption {
 // +jitter. This option wraps WithPollIntervalHook, and is subject to the same
 // constraint that only the latest hook will be used.
 func WithPollJitterHook(jitter time.Duration) ReconcilerOption {
-	return WithPollIntervalHook(func(managed resource.Managed, pollInterval time.Duration) time.Duration {
-		return pollInterval + time.Duration((rand.Float64()-0.5)*2*float64(jitter)) //#nosec G404 -- no need for secure randomness
+	return WithPollIntervalHook(func(_ resource.Managed, pollInterval time.Duration) time.Duration {
+		return pollInterval + time.Duration((rand.Float64()-0.5)*2*float64(jitter)) //nolint:gosec // No need for secure randomness.
 	})
 }
 
@@ -681,6 +681,7 @@ func WithReconcilerSupportedManagementPolicies(supported []sets.Set[xpv1.Managem
 // capable of managing resources in a real system.
 func NewReconciler(m manager.Manager, of resource.ManagedKind, o ...ReconcilerOption) *Reconciler {
 	nm := func() resource.Managed {
+		//nolint:forcetypeassert // If this isn't an MR it's a programming error and we want to panic.
 		return resource.MustCreateObject(schema.GroupVersionKind(of), m.GetScheme()).(resource.Managed)
 	}
 
@@ -710,7 +711,7 @@ func NewReconciler(m manager.Manager, of resource.ManagedKind, o ...ReconcilerOp
 }
 
 // Reconcile a managed resource with an external resource.
-func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (result reconcile.Result, err error) { //nolint:gocyclo // See note below.
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (result reconcile.Result, err error) { //nolint:gocognit // See note below.
 	// NOTE(negz): This method is a well over our cyclomatic complexity goal.
 	// Be wary of adding additional complexity.
 
@@ -722,10 +723,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 	ctx, cancel := context.WithTimeout(ctx, r.timeout+reconcileGracePeriod)
 	defer cancel()
 
-	// Govet linter has a check for lost cancel funcs but it's a false positive
-	// for child contexts as because parent's cancel is called, so we skip it
-	// for this line.
-	externalCtx, _ := context.WithTimeout(ctx, r.timeout) //nolint:govet // See note above.
+	externalCtx, externalCancel := context.WithTimeout(ctx, r.timeout)
+	defer externalCancel()
 
 	managed := r.newManaged()
 	if err := r.client.Get(ctx, req.NamespacedName, managed); err != nil {

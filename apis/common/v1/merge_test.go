@@ -84,7 +84,6 @@ func TestMergoConfiguration(t *testing.T) {
 			if diff := cmp.Diff(tc.want.names(), mergoOptArr(tc.mo.MergoConfiguration()).names()); diff != "" {
 				t.Errorf("\nmo.MergoConfiguration(): -want, +got:\n %s", diff)
 			}
-
 		})
 	}
 }

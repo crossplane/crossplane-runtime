@@ -22,8 +22,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
-// DefaultRetry is the recommended retry parameters for unit testing scenarios where a condition is being
-// tested multiple times before it is expected to succeed.
+// DefaultRetry is the recommended retry parameters for unit testing scenarios
+// where a condition is being tested multiple times before it is expected to
+// succeed.
+//
+//nolint:gochecknoglobals // We treat this as a constant.
 var DefaultRetry = wait.Backoff{
 	Steps:    500,
 	Duration: 10 * time.Millisecond,

@@ -15,6 +15,8 @@ limitations under the License.
 */
 
 // Package fake provides fake Crossplane resources for use in tests.
+//
+//nolint:musttag // We only use JSON to round-trip convert these mocks.
 package fake
 
 import (
@@ -66,7 +68,7 @@ func (m *ManagedResourceReferencer) SetResourceReference(r *corev1.ObjectReferen
 func (m *ManagedResourceReferencer) GetResourceReference() *corev1.ObjectReference { return m.Ref }
 
 // ProviderConfigReferencer is a mock that implements ProviderConfigReferencer interface.
-type ProviderConfigReferencer struct{ Ref *xpv1.Reference } //nolint:musttag // This is a fake implementation to be used in unit tests only.
+type ProviderConfigReferencer struct{ Ref *xpv1.Reference }
 
 // SetProviderConfigReference sets the ProviderConfigReference.
 func (m *ProviderConfigReferencer) SetProviderConfigReference(p *xpv1.Reference) { m.Ref = p }
@@ -76,7 +78,7 @@ func (m *ProviderConfigReferencer) GetProviderConfigReference() *xpv1.Reference 
 
 // RequiredProviderConfigReferencer is a mock that implements the
 // RequiredProviderConfigReferencer interface.
-type RequiredProviderConfigReferencer struct{ Ref xpv1.Reference } //nolint:musttag // This is a fake implementation to be used in unit tests only.
+type RequiredProviderConfigReferencer struct{ Ref xpv1.Reference }
 
 // SetProviderConfigReference sets the ProviderConfigReference.
 func (m *RequiredProviderConfigReferencer) SetProviderConfigReference(p xpv1.Reference) {
@@ -118,7 +120,7 @@ func (m *LocalConnectionSecretWriterTo) GetWriteConnectionSecretToReference() *x
 }
 
 // ConnectionSecretWriterTo is a mock that implements ConnectionSecretWriterTo interface.
-type ConnectionSecretWriterTo struct{ Ref *xpv1.SecretReference } //nolint:musttag // This is a fake implementation to be used in unit tests only.
+type ConnectionSecretWriterTo struct{ Ref *xpv1.SecretReference }
 
 // SetWriteConnectionSecretToReference sets the WriteConnectionSecretToReference.
 func (m *ConnectionSecretWriterTo) SetWriteConnectionSecretToReference(r *xpv1.SecretReference) {
@@ -173,7 +175,7 @@ func (m *CompositionReferencer) SetCompositionReference(r *corev1.ObjectReferenc
 func (m *CompositionReferencer) GetCompositionReference() *corev1.ObjectReference { return m.Ref }
 
 // CompositionSelector is a mock that implements CompositionSelector interface.
-type CompositionSelector struct{ Sel *metav1.LabelSelector } //nolint:musttag // This is a fake implementation to be used in unit tests only.
+type CompositionSelector struct{ Sel *metav1.LabelSelector }
 
 // SetCompositionSelector sets the CompositionSelector.
 func (m *CompositionSelector) SetCompositionSelector(s *metav1.LabelSelector) { m.Sel = s }
@@ -287,7 +289,7 @@ func (c *ConnectionDetailsLastPublishedTimer) GetConnectionDetailsLastPublishedT
 
 // UserCounter is a mock that satisfies UserCounter
 // interface.
-type UserCounter struct{ Users int64 } //nolint:musttag // This is a fake implementation to be used in unit tests only.
+type UserCounter struct{ Users int64 }
 
 // SetUsers sets the count of users.
 func (m *UserCounter) SetUsers(i int64) {
@@ -310,7 +312,7 @@ func (o *Object) GetObjectKind() schema.ObjectKind {
 	return schema.EmptyObjectKind
 }
 
-// DeepCopyObject returns a copy of the object as runtime.Object
+// DeepCopyObject returns a copy of the object as runtime.Object.
 func (o *Object) DeepCopyObject() runtime.Object {
 	out := &Object{}
 	j, err := json.Marshal(o)
@@ -337,7 +339,7 @@ func (m *Managed) GetObjectKind() schema.ObjectKind {
 	return schema.EmptyObjectKind
 }
 
-// DeepCopyObject returns a copy of the object as runtime.Object
+// DeepCopyObject returns a copy of the object as runtime.Object.
 func (m *Managed) DeepCopyObject() runtime.Object {
 	out := &Managed{}
 	j, err := json.Marshal(m)
@@ -371,7 +373,7 @@ func (m *Composite) GetObjectKind() schema.ObjectKind {
 	return schema.EmptyObjectKind
 }
 
-// DeepCopyObject returns a copy of the object as runtime.Object
+// DeepCopyObject returns a copy of the object as runtime.Object.
 func (m *Composite) DeepCopyObject() runtime.Object {
 	out := &Composite{}
 	j, err := json.Marshal(m)
@@ -395,7 +397,7 @@ func (m *Composed) GetObjectKind() schema.ObjectKind {
 	return schema.EmptyObjectKind
 }
 
-// DeepCopyObject returns a copy of the object as runtime.Object
+// DeepCopyObject returns a copy of the object as runtime.Object.
 func (m *Composed) DeepCopyObject() runtime.Object {
 	out := &Composed{}
 	j, err := json.Marshal(m)
@@ -428,7 +430,7 @@ func (m *CompositeClaim) GetObjectKind() schema.ObjectKind {
 	return schema.EmptyObjectKind
 }
 
-// DeepCopyObject returns a copy of the object as runtime.Object
+// DeepCopyObject returns a copy of the object as runtime.Object.
 func (m *CompositeClaim) DeepCopyObject() runtime.Object {
 	out := &CompositeClaim{}
 	j, err := json.Marshal(m)
@@ -477,7 +479,7 @@ func (m *Manager) GetRESTMapper() meta.RESTMapper { return m.RESTMapper }
 func (m *Manager) GetLogger() logr.Logger { return m.Logger }
 
 // GV returns a mock schema.GroupVersion.
-var GV = schema.GroupVersion{Group: "g", Version: "v"}
+var GV = schema.GroupVersion{Group: "g", Version: "v"} //nolint:gochecknoglobals // We treat this as a constant.
 
 // GVK returns the mock GVK of the given object.
 func GVK(o runtime.Object) schema.GroupVersionKind {
@@ -493,7 +495,7 @@ func SchemeWith(o ...runtime.Object) *runtime.Scheme {
 
 // MockConnectionSecretOwner is a mock object that satisfies ConnectionSecretOwner
 // interface.
-type MockConnectionSecretOwner struct { //nolint:musttag // This is a fake implementation to be used in unit tests only.
+type MockConnectionSecretOwner struct {
 	runtime.Object
 	metav1.ObjectMeta
 
@@ -526,7 +528,7 @@ func (m *MockConnectionSecretOwner) GetObjectKind() schema.ObjectKind {
 	return schema.EmptyObjectKind
 }
 
-// DeepCopyObject returns a copy of the object as runtime.Object
+// DeepCopyObject returns a copy of the object as runtime.Object.
 func (m *MockConnectionSecretOwner) DeepCopyObject() runtime.Object {
 	out := &MockConnectionSecretOwner{}
 	j, err := json.Marshal(m)
@@ -539,7 +541,7 @@ func (m *MockConnectionSecretOwner) DeepCopyObject() runtime.Object {
 
 // MockLocalConnectionSecretOwner is a mock object that satisfies LocalConnectionSecretOwner
 // interface.
-type MockLocalConnectionSecretOwner struct { //nolint:musttag // This is a fake implementation to be used in unit tests only.
+type MockLocalConnectionSecretOwner struct {
 	runtime.Object
 	metav1.ObjectMeta
 
@@ -557,7 +559,7 @@ func (m *MockLocalConnectionSecretOwner) SetWriteConnectionSecretToReference(r *
 	m.Ref = r
 }
 
-// SetPublishConnectionDetailsTo sets the publish connectionDetails to
+// SetPublishConnectionDetailsTo sets the publish connectionDetails to.
 func (m *MockLocalConnectionSecretOwner) SetPublishConnectionDetailsTo(r *xpv1.PublishConnectionDetailsTo) {
 	m.To = r
 }
@@ -572,7 +574,7 @@ func (m *MockLocalConnectionSecretOwner) GetObjectKind() schema.ObjectKind {
 	return schema.EmptyObjectKind
 }
 
-// DeepCopyObject returns a copy of the object as runtime.Object
+// DeepCopyObject returns a copy of the object as runtime.Object.
 func (m *MockLocalConnectionSecretOwner) DeepCopyObject() runtime.Object {
 	out := &MockLocalConnectionSecretOwner{}
 	j, err := json.Marshal(m)
@@ -596,7 +598,7 @@ func (p *ProviderConfig) GetObjectKind() schema.ObjectKind {
 	return schema.EmptyObjectKind
 }
 
-// DeepCopyObject returns a copy of the object as runtime.Object
+// DeepCopyObject returns a copy of the object as runtime.Object.
 func (p *ProviderConfig) DeepCopyObject() runtime.Object {
 	out := &ProviderConfig{}
 	j, err := json.Marshal(p)
@@ -621,7 +623,7 @@ func (p *ProviderConfigUsage) GetObjectKind() schema.ObjectKind {
 	return schema.EmptyObjectKind
 }
 
-// DeepCopyObject returns a copy of the object as runtime.Object
+// DeepCopyObject returns a copy of the object as runtime.Object.
 func (p *ProviderConfigUsage) DeepCopyObject() runtime.Object {
 	out := &ProviderConfigUsage{}
 	j, err := json.Marshal(p)

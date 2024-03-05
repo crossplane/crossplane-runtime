@@ -703,7 +703,8 @@ func TestSetValue(t *testing.T) {
 			},
 			want: want{
 				object: map[string]any{
-					"data": []any{"a"}},
+					"data": []any{"a"},
+				},
 				err: errors.Errorf("index %v is greater than max allowed index %v",
 					DefaultMaxFieldPathIndex+1, DefaultMaxFieldPathIndex),
 			},
@@ -723,7 +724,8 @@ func TestSetValue(t *testing.T) {
 						res[0] = "a"
 						res[DefaultMaxFieldPathIndex+1] = "c"
 						return res
-					}()},
+					}(),
+				},
 			},
 		},
 		"MapStringString": {

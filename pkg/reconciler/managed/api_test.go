@@ -35,9 +35,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
-var (
-	_ Initializer = &NameAsExternalName{}
-)
+var _ Initializer = &NameAsExternalName{}
 
 func TestNameAsExternalName(t *testing.T) {
 	type args struct {
@@ -176,11 +174,11 @@ func TestAPISecretPublisher(t *testing.T) {
 		"AlreadyPublished": {
 			reason: "An up to date connection secret should result in no error and not being published",
 			fields: fields{
-				secret: resource.ApplyFn(func(_ context.Context, o client.Object, ao ...resource.ApplyOption) error {
+				secret: resource.ApplyFn(func(ctx context.Context, o client.Object, ao ...resource.ApplyOption) error {
 					want := resource.ConnectionSecretFor(mg, fake.GVK(mg))
 					want.Data = cd
 					for _, fn := range ao {
-						if err := fn(context.Background(), o, want); err != nil {
+						if err := fn(ctx, o, want); err != nil {
 							return err
 						}
 					}
@@ -379,7 +377,8 @@ func TestPrepareJSONMerge(t *testing.T) {
 				resolved: &fake.Managed{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "resolved",
-					}},
+					},
+				},
 			},
 			want: want{
 				patch: `{"name":"resolved"}`,

@@ -57,8 +57,7 @@ func (pc PublisherChain) UnpublishConnection(ctx context.Context, o resource.Con
 
 // DisabledSecretStoreManager is a connection details manager that returns a proper
 // error when API used but feature not enabled.
-type DisabledSecretStoreManager struct {
-}
+type DisabledSecretStoreManager struct{}
 
 // PublishConnection returns a proper error when API used but the feature was
 // not enabled.

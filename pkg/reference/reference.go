@@ -104,9 +104,9 @@ func ToIntPtrValue(v string) *int64 {
 // NOTE: Do not use this utility function unless you have to.
 // Using pointer slices does not adhere to our current API practices.
 // The current use case is where generated code creates reference-able fields in a provider which are
-// string pointers and need to be resolved as part of `ResolveMultiple`
+// string pointers and need to be resolved as part of `ResolveMultiple`.
 func FromPtrValues(v []*string) []string {
-	var res = make([]string, len(v))
+	res := make([]string, len(v))
 	for i := 0; i < len(v); i++ {
 		res[i] = FromPtrValue(v[i])
 	}
@@ -115,7 +115,7 @@ func FromPtrValues(v []*string) []string {
 
 // FromFloatPtrValues adapts a slice of float64 pointer fields for use as CurrentValues.
 func FromFloatPtrValues(v []*float64) []string {
-	var res = make([]string, len(v))
+	res := make([]string, len(v))
 	for i := 0; i < len(v); i++ {
 		res[i] = FromFloatPtrValue(v[i])
 	}
@@ -124,7 +124,7 @@ func FromFloatPtrValues(v []*float64) []string {
 
 // FromIntPtrValues adapts a slice of int64 pointer fields for use as CurrentValues.
 func FromIntPtrValues(v []*int64) []string {
-	var res = make([]string, len(v))
+	res := make([]string, len(v))
 	for i := 0; i < len(v); i++ {
 		res[i] = FromIntPtrValue(v[i])
 	}
@@ -135,9 +135,9 @@ func FromIntPtrValues(v []*int64) []string {
 // NOTE: Do not use this utility function unless you have to.
 // Using pointer slices does not adhere to our current API practices.
 // The current use case is where generated code creates reference-able fields in a provider which are
-// string pointers and need to be resolved as part of `ResolveMultiple`
+// string pointers and need to be resolved as part of `ResolveMultiple`.
 func ToPtrValues(v []string) []*string {
-	var res = make([]*string, len(v))
+	res := make([]*string, len(v))
 	for i := 0; i < len(v); i++ {
 		res[i] = ToPtrValue(v[i])
 	}
@@ -146,7 +146,7 @@ func ToPtrValues(v []string) []*string {
 
 // ToFloatPtrValues adapts ResolvedValues for use as a slice of float64 pointer fields.
 func ToFloatPtrValues(v []string) []*float64 {
-	var res = make([]*float64, len(v))
+	res := make([]*float64, len(v))
 	for i := 0; i < len(v); i++ {
 		res[i] = ToFloatPtrValue(v[i])
 	}
@@ -155,7 +155,7 @@ func ToFloatPtrValues(v []string) []*float64 {
 
 // ToIntPtrValues adapts ResolvedValues for use as a slice of int64 pointer fields.
 func ToIntPtrValues(v []string) []*int64 {
-	var res = make([]*int64, len(v))
+	res := make([]*int64, len(v))
 	for i := 0; i < len(v); i++ {
 		res[i] = ToIntPtrValue(v[i])
 	}
@@ -350,7 +350,6 @@ func (r *APIResolver) Resolve(ctx context.Context, req ResolutionRequest) (Resol
 
 	// We couldn't resolve anything.
 	return ResolutionResponse{}, getResolutionError(req.Selector.Policy, errors.New(errNoMatches))
-
 }
 
 // ResolveMultiple resolves the supplied MultiResolutionRequest. The returned

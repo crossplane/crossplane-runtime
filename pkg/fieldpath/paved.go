@@ -41,7 +41,7 @@ func (e errNotFound) IsNotFound() bool {
 // index was out of bounds in an array.
 func IsNotFound(err error) bool {
 	cause := errors.Cause(err)
-	_, ok := cause.(interface { //nolint: errorlint // Skip errorlint for interface type
+	_, ok := cause.(interface {
 		IsNotFound() bool
 	})
 	return ok
@@ -112,9 +112,7 @@ func (p *Paved) getValue(s Segments) (any, error) {
 	return getValueFromInterface(p.object, s)
 }
 
-func getValueFromInterface(it any, s Segments) (any, error) { //nolint:gocyclo // See note below.
-	// Although the complexity of the function may seem high, in fact the same
-	// operation is performed in different cases.
+func getValueFromInterface(it any, s Segments) (any, error) {
 	for i, current := range s {
 		final := i == len(s)-1
 		switch current.Type {
@@ -161,7 +159,7 @@ func getValueFromInterface(it any, s Segments) (any, error) { //nolint:gocyclo /
 //
 // For a Paved object with the following data: []byte(`{"spec":{"containers":[{"name":"cool", "image": "latest", "args": ["start", "now", "debug"]}]}}`),
 // ExpandWildcards("spec.containers[*].args[*]") returns:
-// []string{"spec.containers[0].args[0]", "spec.containers[0].args[1]", "spec.containers[0].args[2]"},
+// []string{"spec.containers[0].args[0]", "spec.containers[0].args[1]", "spec.containers[0].args[2]"},.
 func (p *Paved) ExpandWildcards(path string) ([]string, error) {
 	segments, err := Parse(path)
 	if err != nil {
@@ -178,7 +176,7 @@ func (p *Paved) ExpandWildcards(path string) ([]string, error) {
 	return paths, nil
 }
 
-func expandWildcards(data any, segments Segments) ([]Segments, error) { //nolint:gocyclo // See note below.
+func expandWildcards(data any, segments Segments) ([]Segments, error) { //nolint:gocognit // See note below.
 	// Even complexity turns out to be high, it is mostly because we have duplicate
 	// logic for arrays and maps and a couple of error handling.
 	var res []Segments
@@ -308,7 +306,6 @@ func (p *Paved) GetStringObject(path string) (map[string]string, error) {
 			return nil, errors.Errorf("%s: not an object with string field values", path)
 		}
 		so[k] = s
-
 	}
 
 	return so, nil
@@ -517,7 +514,7 @@ func (p *Paved) DeleteField(path string) error {
 	return p.delete(segments)
 }
 
-func (p *Paved) delete(segments Segments) error { //nolint:gocyclo // See note below.
+func (p *Paved) delete(segments Segments) error { //nolint:gocognit // See note below.
 	// NOTE(muvaf): I could not reduce the cyclomatic complexity
 	// more than that without disturbing the reading flow.
 	if len(segments) == 1 {
@@ -525,7 +522,7 @@ func (p *Paved) delete(segments Segments) error { //nolint:gocyclo // See note b
 		if err != nil {
 			return errors.Wrapf(err, "cannot delete %s", segments)
 		}
-		p.object = o.(map[string]any)
+		p.object = o.(map[string]any) //nolint:forcetypeassert // We're deleting from the root of the paved object, which is always a map[string]any.
 		return nil
 	}
 	var in any = p.object

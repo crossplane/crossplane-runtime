@@ -79,6 +79,7 @@ type DetailsManager struct {
 // NewDetailsManager returns a new connection DetailsManager.
 func NewDetailsManager(c client.Client, of schema.GroupVersionKind, o ...DetailsManagerOption) *DetailsManager {
 	nc := func() StoreConfig {
+		//nolint:forcetypeassert // If the supplied type isn't a StoreConfig it's a programming error. We want to panic.
 		return resource.MustCreateObject(of, c.Scheme()).(StoreConfig)
 	}
 

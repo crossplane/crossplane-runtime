@@ -39,7 +39,7 @@ import (
 
 // This can't live in fake, because it would cause an import cycle due to
 // GetItems returning managed.ProviderConfigUsage.
-type ProviderConfigUsageList struct { //nolint:musttag // This is a fake implementation to be used in unit tests only.
+type ProviderConfigUsageList struct {
 	client.ObjectList
 	Items []resource.ProviderConfigUsage
 }
@@ -50,11 +50,11 @@ func (p *ProviderConfigUsageList) GetObjectKind() schema.ObjectKind {
 
 func (p *ProviderConfigUsageList) DeepCopyObject() runtime.Object {
 	out := &ProviderConfigUsageList{}
-	j, err := json.Marshal(p)
+	j, err := json.Marshal(p) //nolint:musttag // We're just using this to round-trip convert.
 	if err != nil {
 		panic(err)
 	}
-	_ = json.Unmarshal(j, out)
+	_ = json.Unmarshal(j, out) //nolint:musttag // We're just using this to round-trip convert.
 	return out
 }
 

@@ -10,7 +10,7 @@ import (
 )
 
 func FuzzParse(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(_ *testing.T, data []byte) {
 		objScheme := runtime.NewScheme()
 		metaScheme := runtime.NewScheme()
 		p := New(metaScheme, objScheme)

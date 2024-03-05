@@ -34,8 +34,10 @@ import (
 // controller-runtime Manager.
 var _ webhook.CustomValidator = &Validator{}
 
-var errBoom = errors.New("boom")
-var warnings = []string{"warning"}
+var (
+	errBoom  = errors.New("boom")
+	warnings = []string{"warning"}
+)
 
 func TestValidateCreate(t *testing.T) {
 	type args struct {

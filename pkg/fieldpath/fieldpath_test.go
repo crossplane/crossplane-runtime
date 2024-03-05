@@ -72,7 +72,6 @@ func TestSegments(t *testing.T) {
 			if diff := cmp.Diff(tc.want, tc.s.String()); diff != "" {
 				t.Errorf("s.String(): -want, +got:\n %s", diff)
 			}
-
 		})
 	}
 }

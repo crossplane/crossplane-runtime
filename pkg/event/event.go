@@ -27,7 +27,7 @@ type Type string
 
 // Event types. See below for valid types.
 // https://godoc.org/k8s.io/client-go/tools/record#EventRecorder
-var (
+const (
 	TypeNormal  Type = "Normal"
 	TypeWarning Type = "Warning"
 )

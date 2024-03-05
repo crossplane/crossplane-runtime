@@ -51,14 +51,14 @@ type FilterFn func(path string, info os.FileInfo) (bool, error)
 
 // SkipPath skips files at a certain path.
 func SkipPath(pattern string) FilterFn {
-	return func(path string, info os.FileInfo) (bool, error) {
+	return func(path string, _ os.FileInfo) (bool, error) {
 		return filepath.Match(pattern, path)
 	}
 }
 
 // SkipDirs skips directories.
 func SkipDirs() FilterFn {
-	return func(path string, info os.FileInfo) (bool, error) {
+	return func(_ string, info os.FileInfo) (bool, error) {
 		if info.IsDir() {
 			return true, nil
 		}
@@ -68,14 +68,14 @@ func SkipDirs() FilterFn {
 
 // SkipEmpty skips empty files.
 func SkipEmpty() FilterFn {
-	return func(path string, info os.FileInfo) (bool, error) {
+	return func(_ string, info os.FileInfo) (bool, error) {
 		return info.Size() == 0, nil
 	}
 }
 
 // SkipNotYAML skips files that do not have YAML extension.
 func SkipNotYAML() FilterFn {
-	return func(path string, info os.FileInfo) (bool, error) {
+	return func(path string, _ os.FileInfo) (bool, error) {
 		if filepath.Ext(path) != ".yaml" && filepath.Ext(path) != ".yml" {
 			return true, nil
 		}
