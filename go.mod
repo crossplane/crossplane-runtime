@@ -7,7 +7,7 @@ toolchain go1.21.6
 require (
 	dario.cat/mergo v1.0.0
 	github.com/bufbuild/buf v1.27.2
-	github.com/evanphx/json-patch v5.6.0+incompatible
+	github.com/evanphx/json-patch v5.9.0+incompatible
 	github.com/go-logr/logr v1.4.1
 	github.com/google/go-cmp v0.6.0
 	github.com/spf13/afero v1.11.0
