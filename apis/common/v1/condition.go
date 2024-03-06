@@ -44,6 +44,7 @@ const (
 	ReasonAvailable   ConditionReason = "Available"
 	ReasonUnavailable ConditionReason = "Unavailable"
 	ReasonCreating    ConditionReason = "Creating"
+	ReasonUpdating    ConditionReason = "Updating"
 	ReasonDeleting    ConditionReason = "Deleting"
 )
 
@@ -191,6 +192,17 @@ func Creating() Condition {
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonCreating,
+	}
+}
+
+// Updating returns a condition that indicates the resource is currently
+// being updated.
+func Updating() Condition {
+	return Condition{
+		Type:               TypeReady,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonUpdating,
 	}
 }
 

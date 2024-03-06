@@ -1075,6 +1075,7 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileUpdate)))
+							want.SetConditions(xpv1.Updating())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors while updating an external resource should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
@@ -1114,6 +1115,7 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileError(errBoom))
+							want.SetConditions(xpv1.Updating())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors publishing connection details after an update should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
@@ -1156,7 +1158,7 @@ func TestReconciler(t *testing.T) {
 			want: want{result: reconcile.Result{Requeue: true}},
 		},
 		"UpdateSuccessful": {
-			reason: "A successful managed resource update should trigger a requeue after a long wait.",
+			reason: "A successful managed resource update should trigger a requeue after a short wait",
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
@@ -1164,6 +1166,7 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := &fake.Managed{}
 							want.SetConditions(xpv1.ReconcileSuccess())
+							want.SetConditions(xpv1.Updating())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful managed resource update should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
@@ -1192,7 +1195,7 @@ func TestReconciler(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultPollInterval}},
+			want: want{result: reconcile.Result{Requeue: true}},
 		},
 		"ReconciliationPausedSuccessful": {
 			reason: `If a managed resource has the pause annotation with value "true", there should be no further requeue requests.`,
@@ -1662,7 +1665,7 @@ func TestReconciler(t *testing.T) {
 			want: want{result: reconcile.Result{RequeueAfter: defaultPollInterval}},
 		},
 		"ManagementPolicyAllUpdateSuccessful": {
-			reason: "A successful managed resource update using management policies should trigger a requeue after a long wait.",
+			reason: "A successful managed resource update using management policies should trigger a requeue after a short wait.",
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
@@ -1675,6 +1678,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Managed{}
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
 							want.SetConditions(xpv1.ReconcileSuccess())
+							want.SetConditions(xpv1.Updating())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful managed resource update should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
@@ -1704,10 +1708,10 @@ func TestReconciler(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultPollInterval}},
+			want: want{result: reconcile.Result{Requeue: true}},
 		},
 		"ManagementPolicyUpdateUpdateSuccessful": {
-			reason: "A successful managed resource update using management policies should trigger a requeue after a long wait.",
+			reason: "A successful managed resource update using management policies should trigger a requeue after a short wait.",
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
@@ -1720,6 +1724,7 @@ func TestReconciler(t *testing.T) {
 							want := &fake.Managed{}
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
 							want.SetConditions(xpv1.ReconcileSuccess())
+							want.SetConditions(xpv1.Updating())
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful managed resource update should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
@@ -1749,7 +1754,7 @@ func TestReconciler(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
-			want: want{result: reconcile.Result{RequeueAfter: defaultPollInterval}},
+			want: want{result: reconcile.Result{Requeue: true}},
 		},
 		"ManagementPolicySkipLateInitialize": {
 			reason: "Should skip updating a managed resource to persist late initialized fields and should trigger a requeue after a long wait.",
