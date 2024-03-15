@@ -364,7 +364,7 @@ type Composite struct {
 	ConnectionSecretWriterTo
 	ConnectionDetailsPublisherTo
 
-	xpv1.ConditionedStatus
+	xpv1.ResourceStatus
 	ConnectionDetailsLastPublishedTimer
 }
 
@@ -389,7 +389,7 @@ type Composed struct {
 	metav1.ObjectMeta
 	ConnectionSecretWriterTo
 	ConnectionDetailsPublisherTo
-	xpv1.ConditionedStatus
+	xpv1.ResourceStatus
 }
 
 // GetObjectKind returns schema.ObjectKind.
@@ -421,7 +421,7 @@ type CompositeClaim struct {
 	LocalConnectionSecretWriterTo
 	ConnectionDetailsPublisherTo
 
-	xpv1.ConditionedStatus
+	xpv1.ResourceStatus
 	ConnectionDetailsLastPublishedTimer
 }
 

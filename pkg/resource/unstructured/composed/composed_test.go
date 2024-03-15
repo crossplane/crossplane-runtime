@@ -146,3 +146,66 @@ func TestWriteConnectionSecretToReference(t *testing.T) {
 		})
 	}
 }
+
+func TestObservedGeneration(t *testing.T) {
+	u := &Unstructured{unstructured.Unstructured{Object: map[string]any{}}}
+	want := int64(123)
+	u.SetObservedGeneration(want)
+
+	if got := u.GetObservedGeneration(); *got != want {
+		t.Errorf("u.GetObservedGeneration() got: %v, want %v", *got, want)
+	}
+	if g := u.GetUnstructured().Object["status"].(map[string]any)["observedGeneration"]; g != want {
+		t.Errorf("Generations do not match! got: %v (%T)", g, g)
+	}
+}
+
+func TestObservedGenerationNotFound(t *testing.T) {
+	u := &Unstructured{unstructured.Unstructured{Object: map[string]any{}}}
+
+	if g := u.GetObservedGeneration(); g != nil {
+		t.Errorf("u.GetObservedGeneration(): expected nil, but got %v", g)
+	}
+}
+
+func TestObservedLabels(t *testing.T) {
+	u := &Unstructured{unstructured.Unstructured{Object: map[string]any{}}}
+	labels := map[string]string{
+		"foo": "1",
+		"bar": "2",
+	}
+	u.SetObservedLabels(labels)
+
+	if diff := cmp.Diff(labels, u.GetObservedLabels()); diff != "" {
+		t.Errorf("u.GetObservedLabels(): -want, +got:\n%s", diff)
+	}
+}
+
+func TestObservedLabelsNotFound(t *testing.T) {
+	u := &Unstructured{unstructured.Unstructured{Object: map[string]any{}}}
+
+	if g := u.GetObservedLabels(); g != nil {
+		t.Errorf("u.GetObservedLabels(): expected nil, but got %v", g)
+	}
+}
+
+func TestObservedAnnotations(t *testing.T) {
+	u := &Unstructured{unstructured.Unstructured{Object: map[string]any{}}}
+	annotations := map[string]string{
+		"foo": "1",
+		"bar": "2",
+	}
+	u.SetObservedAnnotations(annotations)
+
+	if diff := cmp.Diff(annotations, u.GetObservedAnnotations()); diff != "" {
+		t.Errorf("u.GetObservedAnnotations(): -want, +got:\n%s", diff)
+	}
+}
+
+func TestObservedAnnotationsNotFound(t *testing.T) {
+	u := &Unstructured{unstructured.Unstructured{Object: map[string]any{}}}
+
+	if g := u.GetObservedAnnotations(); g != nil {
+		t.Errorf("u.GetObservedAnnotations(): expected nil, but got %v", g)
+	}
+}
