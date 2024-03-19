@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -549,7 +550,13 @@ func WithPollInterval(after time.Duration) ReconcilerOption {
 // interval.
 type PollIntervalHook func(managed resource.Managed, pollInterval time.Duration) time.Duration
 
-func defaultPollIntervalHook(_ resource.Managed, pollInterval time.Duration) time.Duration {
+func defaultPollIntervalHook(managed resource.Managed, pollInterval time.Duration) time.Duration {
+	if managed != nil &&
+		managed.GetCondition(xpv1.TypeSynced).Status == v1.ConditionTrue &&
+		managed.GetCondition(xpv1.TypeReady).Status == v1.ConditionTrue {
+		jitter := 30 * time.Minute
+		return time.Hour + time.Duration((rand.Float64()-0.5)*2*float64(jitter)).Round(time.Second)
+	}
 	return pollInterval
 }
 

@@ -24,6 +24,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -2236,6 +2237,108 @@ func TestShouldDelete(t *testing.T) {
 			r := NewManagementPoliciesResolver(tc.args.managementPoliciesEnabled, tc.args.managed.GetManagementPolicies(), tc.args.managed.GetDeletionPolicy())
 			if diff := cmp.Diff(tc.want.delete, r.ShouldDelete()); diff != "" {
 				t.Errorf("\nReason: %s\nShouldDelete(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestDefaultPollIntervalHook(t *testing.T) {
+	type args struct {
+		duration time.Duration
+		managed  resource.Managed
+	}
+	type want struct {
+		expected time.Duration
+		margin   time.Duration
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"ResourceIsNil": {
+			reason: "Should return the default poll interval if the managed resource is nil.",
+			args: args{
+				duration: defaultPollInterval,
+				managed:  nil,
+			},
+			want: want{expected: defaultPollInterval, margin: 0},
+		},
+		"ResourceNotReady": {
+			reason: "Should return the default poll interval if the managed resource is not ready.",
+			args: args{
+				duration: defaultPollInterval,
+				managed: &fake.Managed{
+					ConditionedStatus: xpv1.ConditionedStatus{
+						Conditions: []xpv1.Condition{
+							{
+								Type:   xpv1.TypeReady,
+								Status: v1.ConditionFalse,
+							},
+							{
+								Type:   xpv1.TypeSynced,
+								Status: v1.ConditionTrue,
+							},
+						},
+					},
+				},
+			},
+			want: want{expected: defaultPollInterval, margin: 0},
+		},
+		"ResourceNotSynced": {
+			reason: "Should return the default poll interval if the managed resource is not synced.",
+			args: args{
+				duration: defaultPollInterval,
+				managed: &fake.Managed{
+					ConditionedStatus: xpv1.ConditionedStatus{
+						Conditions: []xpv1.Condition{
+							{
+								Type:   xpv1.TypeReady,
+								Status: v1.ConditionTrue,
+							},
+							{
+								Type:   xpv1.TypeSynced,
+								Status: v1.ConditionFalse,
+							},
+						},
+					},
+				},
+			},
+			want: want{expected: defaultPollInterval, margin: 0},
+		},
+		"ResourceReady": {
+			reason: "Should return the provided duration if the managed resource is ready.",
+			args: args{
+				duration: 1 * time.Minute,
+				managed: &fake.Managed{
+					ConditionedStatus: xpv1.ConditionedStatus{
+						Conditions: []xpv1.Condition{
+							{
+								Type:   xpv1.TypeReady,
+								Status: v1.ConditionTrue,
+							},
+							{
+								Type:   xpv1.TypeSynced,
+								Status: v1.ConditionTrue,
+							},
+						},
+					},
+				},
+			},
+			want: want{expected: 1 * time.Hour, margin: 30 * time.Minute},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			r := defaultPollIntervalHook(tc.args.managed, tc.args.duration)
+			if tc.want.margin == 0 {
+				if diff := cmp.Diff(tc.want.expected, r); diff != "" {
+					t.Errorf("\nReason: %s\ndefaultPollIntervalHook(...): -want, +got:\n%s", tc.reason, diff)
+				}
+			} else {
+				if r < tc.want.expected-tc.want.margin || r > tc.want.expected+tc.want.margin {
+					t.Errorf("defaultPollIntervalHook(...): expected %v, got %v", tc.want.expected, r)
+				}
 			}
 		})
 	}
