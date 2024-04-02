@@ -478,11 +478,6 @@ func (m *Manager) GetRESTMapper() meta.RESTMapper { return m.RESTMapper }
 // GetLogger returns the logger.
 func (m *Manager) GetLogger() logr.Logger { return m.Logger }
 
-// Add adds a runnable to the manager.
-func (m *Manager) Add(_ manager.Runnable) error {
-	return nil // do nothing
-}
-
 // GV returns a mock schema.GroupVersion.
 var GV = schema.GroupVersion{Group: "g", Version: "v"} //nolint:gochecknoglobals // We treat this as a constant.
 
