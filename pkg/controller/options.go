@@ -53,6 +53,9 @@ type Options struct {
 	// determine whether it has work to do.
 	PollInterval time.Duration
 
+	// PollIntervalJitter is a jitter to add to PollInterval.
+	PollIntervalJitter time.Duration
+
 	// MaxConcurrentReconciles for each controller.
 	MaxConcurrentReconciles int
 
