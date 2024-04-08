@@ -26,6 +26,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
+	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 )
 
 // DefaultOptions returns a functional set of options with conservative
@@ -61,6 +62,10 @@ type Options struct {
 
 	// ESSOptions for External Secret Stores.
 	ESSOptions *ESSOptions
+
+	MetricRecorder managed.MetricRecorder
+
+	StateRecorder managed.StateRecorder
 }
 
 // ForControllerRuntime extracts options for controller-runtime.
