@@ -27,6 +27,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
+	"github.com/crossplane/crossplane-runtime/pkg/statemetrics"
 )
 
 // DefaultOptions returns a functional set of options with conservative
@@ -65,7 +66,7 @@ type Options struct {
 
 	MetricRecorder managed.MetricRecorder
 
-	StateRecorder managed.StateRecorder
+	StateRecorder statemetrics.StateRecorder
 }
 
 // ForControllerRuntime extracts options for controller-runtime.

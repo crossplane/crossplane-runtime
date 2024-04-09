@@ -61,25 +61,25 @@ func NewMRMetricRecorder() *MRMetricRecorder {
 			Name:      "managed_resource_time_to_first_reconcile_seconds",
 			Help:      "The time it took for a managed resource to be detected by the controller",
 			Buckets:   kmetrics.ExponentialBuckets(10e-9, 10, 10),
-		}, []string{"gvk", "claim", "composite"}),
+		}, []string{"gvk"}),
 		mrFirstTimeReady: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Subsystem: subSystem,
 			Name:      "managed_resource_first_time_to_readiness_seconds",
 			Help:      "The time it took for a managed resource to become ready first time after creation",
 			Buckets:   []float64{1, 5, 10, 15, 30, 60, 120, 300, 600, 1800, 3600},
-		}, []string{"gvk", "claim", "composite"}),
+		}, []string{"gvk"}),
 		mrDeletion: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Subsystem: subSystem,
 			Name:      "managed_resource_deletion_seconds",
 			Help:      "The time it took for a managed resource to be deleted",
 			Buckets:   []float64{1, 5, 10, 15, 30, 60, 120, 300, 600, 1800, 3600},
-		}, []string{"gvk", "claim", "composite"}),
+		}, []string{"gvk"}),
 		mrDrift: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Subsystem: subSystem,
 			Name:      "managed_resource_drift_seconds",
 			Help:      "ALPHA: How long since the previous successful reconcile when a resource was found to be out of sync; excludes restart of the provider",
 			Buckets:   kmetrics.ExponentialBuckets(10e-9, 10, 10),
-		}, []string{"gvk", "claim", "composite"}),
+		}, []string{"gvk"}),
 	}
 }
 
@@ -109,7 +109,8 @@ func (r *MRMetricRecorder) recordUnchanged(name string) {
 
 func (r *MRMetricRecorder) recordFirstTimeReconciled(managed resource.Managed) {
 	if managed.GetCondition(xpv1.TypeSynced).Status == corev1.ConditionUnknown {
-		r.mrDetected.With(getMRMetricLabels(managed)).Observe(time.Since(managed.GetCreationTimestamp().Time).Seconds())
+		r.mrDetected.WithLabelValues("gvk", managed.GetObjectKind().GroupVersionKind().String()).
+			Observe(time.Since(managed.GetCreationTimestamp().Time).Seconds())
 		r.firstObservation.Store(managed.GetName(), time.Now()) // this is the first time we reconciled on this resource
 	}
 }
@@ -125,13 +126,15 @@ func (r *MRMetricRecorder) recordDrift(managed resource.Managed) {
 		return
 	}
 
-	r.mrDrift.With(getMRMetricLabels(managed)).Observe(time.Since(lt).Seconds())
+	r.mrDrift.WithLabelValues("gvk", managed.GetObjectKind().GroupVersionKind().String()).
+		Observe(time.Since(lt).Seconds())
 
 	r.lastObservation.Store(name, time.Now())
 }
 
 func (r *MRMetricRecorder) recordDeleted(managed resource.Managed) {
-	r.mrDeletion.With(getMRMetricLabels(managed)).Observe(time.Since(managed.GetDeletionTimestamp().Time).Seconds())
+	r.mrDeletion.WithLabelValues("gvk", managed.GetObjectKind().GroupVersionKind().String()).
+		Observe(time.Since(managed.GetDeletionTimestamp().Time).Seconds())
 }
 
 func (r *MRMetricRecorder) recordFirstTimeReady(managed resource.Managed) {
@@ -142,7 +145,8 @@ func (r *MRMetricRecorder) recordFirstTimeReady(managed resource.Managed) {
 		if !ok {
 			return
 		}
-		r.mrFirstTimeReady.With(getMRMetricLabels(managed)).Observe(time.Since(managed.GetCreationTimestamp().Time).Seconds())
+		r.mrFirstTimeReady.WithLabelValues("gvk", managed.GetObjectKind().GroupVersionKind().String()).
+			Observe(time.Since(managed.GetCreationTimestamp().Time).Seconds())
 		r.firstObservation.Delete(managed.GetName())
 	}
 }
@@ -170,17 +174,3 @@ func (r *NopMetricRecorder) recordDrift(_ resource.Managed) {}
 func (r *NopMetricRecorder) recordDeleted(_ resource.Managed) {}
 
 func (r *NopMetricRecorder) recordFirstTimeReady(_ resource.Managed) {}
-
-func getMRMetricLabels(managed resource.Managed) prometheus.Labels {
-	l := prometheus.Labels{
-		"gvk":       managed.GetObjectKind().GroupVersionKind().String(),
-		"claim":     "",
-		"composite": managed.GetLabels()["crossplane.io/composite"],
-	}
-
-	if managed.GetLabels()["crossplane.io/claim-namespace"] != "" && managed.GetLabels()["crossplane.io/claim-name"] != "" {
-		l["claim"] = managed.GetLabels()["crossplane.io/claim-namespace"] + "/" + managed.GetLabels()["crossplane.io/claim-name"]
-	}
-
-	return l
-}

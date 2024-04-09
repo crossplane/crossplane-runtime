@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package managed
+package statemetrics
 
 import (
 	"context"
@@ -31,20 +31,14 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 )
 
-// A StateRecorder records the state of given GroupVersionKind.
-type StateRecorder interface {
-	Describe(ch chan<- *prometheus.Desc)
-	Collect(ch chan<- prometheus.Metric)
-
-	Record(ctx context.Context, gvk schema.GroupVersionKind)
-	Run(ctx context.Context, gvk schema.GroupVersionKind)
-}
+// A MRStateRecorderOption configures a MRStateRecorder.
+type MRStateRecorderOption func(*MRStateRecorder)
 
 // A MRStateRecorder records the state of managed resources.
 type MRStateRecorder struct {
-	client    client.Client
-	log       logging.Logger
-	frequency time.Duration
+	client   client.Client
+	log      logging.Logger
+	interval time.Duration
 
 	mrExists *prometheus.GaugeVec
 	mrReady  *prometheus.GaugeVec
@@ -52,10 +46,11 @@ type MRStateRecorder struct {
 }
 
 // NewMRStateRecorder returns a new MRStateRecorder which records the state of managed resources.
-func NewMRStateRecorder(client client.Client, log logging.Logger, o ...StateRecorderOption) *MRStateRecorder {
-	r := &MRStateRecorder{
-		client: client,
-		log:    log,
+func NewMRStateRecorder(client client.Client, log logging.Logger, interval time.Duration) *MRStateRecorder {
+	return &MRStateRecorder{
+		client:   client,
+		log:      log,
+		interval: interval,
 
 		mrExists: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Subsystem: subSystem,
@@ -72,23 +67,6 @@ func NewMRStateRecorder(client client.Client, log logging.Logger, o ...StateReco
 			Name:      "managed_resource_synced",
 			Help:      "The number of managed resources in Synced=True state",
 		}, []string{"gvk"}),
-	}
-
-	for _, ro := range o {
-		ro(r)
-	}
-
-	return r
-}
-
-// A StateRecorderOption configures a MRStateRecorder.
-type StateRecorderOption func(*MRStateRecorder)
-
-// WithFrequency configures the frequency at which the MRStateRecorder
-// will record.
-func WithFrequency(f time.Duration) StateRecorderOption {
-	return func(r *MRStateRecorder) {
-		r.frequency = f
 	}
 }
 
@@ -133,10 +111,13 @@ func (r *MRStateRecorder) Record(ctx context.Context, gvk schema.GroupVersionKin
 		}
 
 		for _, condition := range conditioned.Conditions {
-			if condition.Type == xpv1.TypeReady && condition.Status == corev1.ConditionTrue {
-				numReady++
-			} else if condition.Type == xpv1.TypeSynced && condition.Status == corev1.ConditionTrue {
-				numSynced++
+			if condition.Status == corev1.ConditionTrue {
+				switch condition.Type {
+				case xpv1.TypeReady:
+					numReady++
+				case xpv1.TypeSynced:
+					numSynced++
+				}
 			}
 		}
 	}
@@ -145,39 +126,18 @@ func (r *MRStateRecorder) Record(ctx context.Context, gvk schema.GroupVersionKin
 	r.mrSynced.WithLabelValues(label).Set(numSynced)
 }
 
-// Run records state of managed resources with given frequency.
+// Run records state of managed resources with given interval.
 func (r *MRStateRecorder) Run(ctx context.Context, gvk schema.GroupVersionKind) {
-	ticker := time.NewTicker(r.frequency)
-	quit := make(chan struct{})
+	ticker := time.NewTicker(r.interval)
 	go func() {
 		for {
 			select {
 			case <-ticker.C:
 				r.Record(ctx, gvk)
-			case <-quit:
+			case <-ctx.Done():
 				ticker.Stop()
 				return
 			}
 		}
 	}()
 }
-
-// A NopStateRecorder does nothing.
-type NopStateRecorder struct{}
-
-// NewNopStateRecorder returns a NopStateRecorder that does nothing.
-func NewNopStateRecorder() *NopStateRecorder {
-	return &NopStateRecorder{}
-}
-
-// Describe does nothing.
-func (r *NopStateRecorder) Describe(_ chan<- *prometheus.Desc) {}
-
-// Collect does nothing.
-func (r *NopStateRecorder) Collect(_ chan<- prometheus.Metric) {}
-
-// Record does nothing.
-func (r *NopStateRecorder) Record(_ context.Context, _ schema.GroupVersionKind) {}
-
-// Run does nothing.
-func (r *NopStateRecorder) Run(_ context.Context, _ schema.GroupVersionKind) {}
