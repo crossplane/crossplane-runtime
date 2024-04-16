@@ -22,55 +22,40 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	v1 "k8s.io/apiserver/pkg/apis/audit/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
-// A XRStateRecorder records the state of composite resources.
-type XRStateRecorder struct {
-	client   client.Client
-	log      logging.Logger
-	interval time.Duration
-
-	compositeExists        *prometheus.GaugeVec
-	compositeReady         *prometheus.GaugeVec
-	compositeSynced        *prometheus.GaugeVec
-	compositeComposedCount *prometheus.GaugeVec
+// A XRStateMetrics holds Prometheus metrics for composite resources.
+type XRStateMetrics struct {
+	Exists        *prometheus.GaugeVec
+	Ready         *prometheus.GaugeVec
+	Synced        *prometheus.GaugeVec
+	ComposedCount *prometheus.GaugeVec
 }
 
-// A APIExtStateRecorderOption configures a MRStateRecorder.
-type APIExtStateRecorderOption func(*XRStateRecorder)
-
-// NewXRStateRecorder returns a new XRStateRecorder which records the state of claim,
-// composite and composition metrics.
-func NewXRStateRecorder(client client.Client, log logging.Logger, interval time.Duration) *XRStateRecorder {
-	return &XRStateRecorder{
-		client:   client,
-		log:      log,
-		interval: interval,
-
-		compositeExists: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+// NewXRStateMetrics returns a new XRStateMetrics.
+func NewXRStateMetrics() *XRStateMetrics {
+	return &XRStateMetrics{
+		Exists: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Subsystem: subSystem,
 			Name:      "composite_resource_exists",
 			Help:      "The number of composite resources that exist",
 		}, []string{"gvk", "composition"}),
-		compositeReady: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Ready: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Subsystem: subSystem,
 			Name:      "composite_resource_ready",
 			Help:      "The number of composite resources in Ready=True state",
 		}, []string{"gvk", "composition"}),
-		compositeSynced: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Synced: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Subsystem: subSystem,
 			Name:      "composite_resource_synced",
 			Help:      "The number of composite resources in Synced=True state",
 		}, []string{"gvk", "composition"}),
-		compositeComposedCount: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		ComposedCount: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Subsystem: subSystem,
 			Name:      "composite_resource_composed_count",
 			Help:      "The number of composed resources in total",
@@ -81,101 +66,101 @@ func NewXRStateRecorder(client client.Client, log logging.Logger, interval time.
 // Describe sends the super-set of all possible descriptors of metrics
 // collected by this Collector to the provided channel and returns once
 // the last descriptor has been sent.
-func (r *XRStateRecorder) Describe(ch chan<- *prometheus.Desc) {
-	r.compositeExists.Describe(ch)
-	r.compositeReady.Describe(ch)
-	r.compositeSynced.Describe(ch)
-	r.compositeComposedCount.Describe(ch)
+func (r *XRStateMetrics) Describe(ch chan<- *prometheus.Desc) {
+	r.Exists.Describe(ch)
+	r.Ready.Describe(ch)
+	r.Synced.Describe(ch)
+	r.ComposedCount.Describe(ch)
 }
 
 // Collect is called by the Prometheus registry when collecting
 // metrics. The implementation sends each collected metric via the
 // provided channel and returns once the last metric has been sent.
-func (r *XRStateRecorder) Collect(ch chan<- prometheus.Metric) {
-	r.compositeExists.Collect(ch)
-	r.compositeReady.Collect(ch)
-	r.compositeSynced.Collect(ch)
-	r.compositeComposedCount.Collect(ch)
+func (r *XRStateMetrics) Collect(ch chan<- prometheus.Metric) {
+	r.Exists.Collect(ch)
+	r.Ready.Collect(ch)
+	r.Synced.Collect(ch)
+	r.ComposedCount.Collect(ch)
+}
+
+// A XRStateRecorder records the state of composite resources.
+type XRStateRecorder struct {
+	client        client.Client
+	log           logging.Logger
+	interval      time.Duration
+	compositeList resource.CompositeList
+
+	metrics *XRStateMetrics
+}
+
+// NewXRStateRecorder returns a new XRStateRecorder which records the state xr resources.
+func NewXRStateRecorder(client client.Client, log logging.Logger, metrics *XRStateMetrics, compositeList resource.CompositeList, interval time.Duration) *XRStateRecorder {
+	return &XRStateRecorder{
+		client:        client,
+		log:           log,
+		metrics:       metrics,
+		compositeList: compositeList,
+		interval:      interval,
+	}
 }
 
 // Record records the state of managed resources.
-func (r *XRStateRecorder) Record(ctx context.Context, gvk schema.GroupVersionKind) {
-	xrs := &unstructured.UnstructuredList{}
-	xrs.SetGroupVersionKind(gvk)
-	err := r.client.List(ctx, xrs)
-	if err != nil {
+func (r *XRStateRecorder) Record(ctx context.Context, xrList resource.CompositeList) error {
+	if err := r.client.List(ctx, xrList); err != nil {
 		r.log.Info("Failed to list composite resources", "error", err)
-		return
+		return err
 	}
 
-	composition, err := getCompositionRef(xrs)
-	if err != nil {
-		r.log.Info("Failed to get composition reference of composite resource", "error", err)
-		return
+	xrs := xrList.GetItems()
+	if len(xrs) == 0 {
+		return nil
 	}
 
-	labels := prometheus.Labels{
-		"gvk":         gvk.String(),
-		"composition": composition,
-	}
-	r.compositeExists.With(labels).Set(float64(len(xrs.Items)))
+	labels := getLabels(xrs)
+	r.metrics.Exists.With(labels).Set(float64(len(xrs)))
 
 	var numReady, numSynced, numComposed float64 = 0, 0, 0
-	for _, xr := range xrs.Items {
-		conditioned := xpv1.ConditionedStatus{}
-		if err := fieldpath.Pave(xr.Object).GetValueInto("status", &conditioned); err != nil {
-			r.log.Info("Failed to get conditions of managed resource", "error", err)
-			continue
+	for _, xr := range xrs {
+		if xr.GetCondition(xpv1.TypeReady).Status == corev1.ConditionTrue {
+			numReady++
 		}
 
-		for _, condition := range conditioned.Conditions {
-			if condition.Type == xpv1.TypeReady && condition.Status == corev1.ConditionTrue {
-				numReady++
-			} else if condition.Type == xpv1.TypeSynced && condition.Status == corev1.ConditionTrue {
-				numSynced++
-			}
+		if xr.GetCondition(xpv1.TypeSynced).Status == corev1.ConditionTrue {
+			numSynced++
 		}
 
-		resourceRefs := make([]v1.ObjectReference, 0)
-		if err := fieldpath.Pave(xr.Object).GetValueInto("spec.resourceRefs", &resourceRefs); err != nil {
-			r.log.Info("Failed to get resource references of composed resource", "error", err)
-			continue
-		}
-
-		numComposed += float64(len(resourceRefs))
+		numComposed += float64(len(xr.GetResourceReferences()))
 	}
 
-	r.compositeReady.With(labels).Set(numReady)
-	r.compositeSynced.With(labels).Set(numSynced)
-	r.compositeComposedCount.With(labels).Set(numComposed)
+	r.metrics.Ready.With(labels).Set(numReady)
+	r.metrics.Synced.With(labels).Set(numSynced)
+	r.metrics.ComposedCount.With(labels).Set(numComposed)
+
+	return nil
 }
 
-// Run records state of managed resources with given interval.
-func (r *XRStateRecorder) Run(ctx context.Context, gvk schema.GroupVersionKind) {
+// Start records state of managed resources with given interval.
+func (r *XRStateRecorder) Start(ctx context.Context) error {
 	ticker := time.NewTicker(r.interval)
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				r.Record(ctx, gvk)
-			case <-ctx.Done():
-				ticker.Stop()
-				return
+	for {
+		select {
+		case <-ticker.C:
+			if err := r.Record(ctx, r.compositeList); err != nil {
+				return err
 			}
+		case <-ctx.Done():
+			ticker.Stop()
+			return nil
 		}
-	}()
+	}
 }
 
-func getCompositionRef(l *unstructured.UnstructuredList) (string, error) {
-	if len(l.Items) == 0 {
-		return "", nil
+func getLabels(xrs []resource.Composite) prometheus.Labels {
+	xr := xrs[0]
+	labels := prometheus.Labels{
+		"gvk":         xr.GetObjectKind().GroupVersionKind().String(),
+		"composition": xr.GetCompositionReference().String(),
 	}
 
-	xr := l.Items[0].Object
-	compRef, err := fieldpath.Pave(xr).GetString("spec.compositionRef")
-	if err != nil {
-		return "", err
-	}
-
-	return compRef, nil
+	return labels
 }

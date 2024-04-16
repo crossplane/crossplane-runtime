@@ -36,7 +36,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/statemetrics"
 )
 
 const (
@@ -489,7 +488,6 @@ type Reconciler struct {
 	log            logging.Logger
 	record         event.Recorder
 	metricRecorder MetricRecorder
-	stateRecorder  statemetrics.StateRecorder
 }
 
 type mrManaged struct {
@@ -551,13 +549,6 @@ func WithPollInterval(after time.Duration) ReconcilerOption {
 func WithMetricRecorder(recorder MetricRecorder) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.metricRecorder = recorder
-	}
-}
-
-// WithStateRecorder configures the Reconciler to use the supplied StateRecorder.
-func WithStateRecorder(recorder statemetrics.StateRecorder) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.stateRecorder = recorder
 	}
 }
 
@@ -719,15 +710,11 @@ func NewReconciler(m manager.Manager, of resource.ManagedKind, o ...ReconcilerOp
 		log:                         logging.NewNopLogger(),
 		record:                      event.NewNopRecorder(),
 		metricRecorder:              NewNopMetricRecorder(),
-		stateRecorder:               statemetrics.NewNopStateRecorder(),
 	}
 
 	for _, ro := range o {
 		ro(r)
 	}
-
-	// State recorder is started in the background to record MR states.
-	go r.stateRecorder.Run(context.Background(), schema.GroupVersionKind(of))
 
 	return r
 }

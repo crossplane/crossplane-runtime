@@ -20,7 +20,6 @@ package statemetrics
 import (
 	"context"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
@@ -28,11 +27,8 @@ const subSystem = "crossplane"
 
 // A StateRecorder records the state of given GroupVersionKind.
 type StateRecorder interface {
-	Describe(ch chan<- *prometheus.Desc)
-	Collect(ch chan<- prometheus.Metric)
-
 	Record(ctx context.Context, gvk schema.GroupVersionKind)
-	Run(ctx context.Context, gvk schema.GroupVersionKind)
+	Start(ctx context.Context) error
 }
 
 // A NopStateRecorder does nothing.
@@ -43,14 +39,8 @@ func NewNopStateRecorder() *NopStateRecorder {
 	return &NopStateRecorder{}
 }
 
-// Describe does nothing.
-func (r *NopStateRecorder) Describe(_ chan<- *prometheus.Desc) {}
-
-// Collect does nothing.
-func (r *NopStateRecorder) Collect(_ chan<- prometheus.Metric) {}
-
 // Record does nothing.
 func (r *NopStateRecorder) Record(_ context.Context, _ schema.GroupVersionKind) {}
 
-// Run does nothing.
-func (r *NopStateRecorder) Run(_ context.Context, _ schema.GroupVersionKind) {}
+// Start does nothing.
+func (r *NopStateRecorder) Start(_ context.Context) error { return nil }

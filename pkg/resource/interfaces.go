@@ -247,6 +247,14 @@ type Composite interface { //nolint:interfacebloat // This interface has to be b
 	ConnectionDetailsPublishedTimer
 }
 
+// A CompositeList is a list of composite resources.
+type CompositeList interface {
+	client.ObjectList
+
+	// GetItems returns the list of composite resources.
+	GetItems() []Composite
+}
+
 // Composed resources can be a composed into a Composite resource.
 type Composed interface {
 	Object

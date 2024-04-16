@@ -22,47 +22,34 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
-// A MRStateRecorderOption configures a MRStateRecorder.
-type MRStateRecorderOption func(*MRStateRecorder)
-
-// A MRStateRecorder records the state of managed resources.
-type MRStateRecorder struct {
-	client   client.Client
-	log      logging.Logger
-	interval time.Duration
-
-	mrExists *prometheus.GaugeVec
-	mrReady  *prometheus.GaugeVec
-	mrSynced *prometheus.GaugeVec
+// MRStateMetrics holds Prometheus metrics for managed resources.
+type MRStateMetrics struct {
+	Exists *prometheus.GaugeVec
+	Ready  *prometheus.GaugeVec
+	Synced *prometheus.GaugeVec
 }
 
-// NewMRStateRecorder returns a new MRStateRecorder which records the state of managed resources.
-func NewMRStateRecorder(client client.Client, log logging.Logger, interval time.Duration) *MRStateRecorder {
-	return &MRStateRecorder{
-		client:   client,
-		log:      log,
-		interval: interval,
-
-		mrExists: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+// NewMRStateMetrics returns a new MRStateMetrics.
+func NewMRStateMetrics() *MRStateMetrics {
+	return &MRStateMetrics{
+		Exists: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Subsystem: subSystem,
 			Name:      "managed_resource_exists",
 			Help:      "The number of managed resources that exist",
 		}, []string{"gvk"}),
-		mrReady: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Ready: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Subsystem: subSystem,
 			Name:      "managed_resource_ready",
 			Help:      "The number of managed resources in Ready=True state",
 		}, []string{"gvk"}),
-		mrSynced: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Synced: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Subsystem: subSystem,
 			Name:      "managed_resource_synced",
 			Help:      "The number of managed resources in Synced=True state",
@@ -73,71 +60,86 @@ func NewMRStateRecorder(client client.Client, log logging.Logger, interval time.
 // Describe sends the super-set of all possible descriptors of metrics
 // collected by this Collector to the provided channel and returns once
 // the last descriptor has been sent.
-func (r *MRStateRecorder) Describe(ch chan<- *prometheus.Desc) {
-	r.mrExists.Describe(ch)
-	r.mrReady.Describe(ch)
-	r.mrSynced.Describe(ch)
+func (r *MRStateMetrics) Describe(ch chan<- *prometheus.Desc) {
+	r.Exists.Describe(ch)
+	r.Ready.Describe(ch)
+	r.Synced.Describe(ch)
 }
 
 // Collect is called by the Prometheus registry when collecting
 // metrics. The implementation sends each collected metric via the
 // provided channel and returns once the last metric has been sent.
-func (r *MRStateRecorder) Collect(ch chan<- prometheus.Metric) {
-	r.mrExists.Collect(ch)
-	r.mrReady.Collect(ch)
-	r.mrSynced.Collect(ch)
+func (r *MRStateMetrics) Collect(ch chan<- prometheus.Metric) {
+	r.Exists.Collect(ch)
+	r.Ready.Collect(ch)
+	r.Synced.Collect(ch)
+}
+
+// A MRStateRecorder records the state of managed resources.
+type MRStateRecorder struct {
+	client      client.Client
+	log         logging.Logger
+	interval    time.Duration
+	managedList resource.ManagedList
+
+	metrics *MRStateMetrics
+}
+
+// NewMRStateRecorder returns a new MRStateRecorder which records the state of managed resources.
+func NewMRStateRecorder(client client.Client, log logging.Logger, m *MRStateMetrics, managedList resource.ManagedList, interval time.Duration) *MRStateRecorder {
+	return &MRStateRecorder{
+		client:      client,
+		log:         log,
+		metrics:     m,
+		managedList: managedList,
+		interval:    interval,
+	}
 }
 
 // Record records the state of managed resources.
-func (r *MRStateRecorder) Record(ctx context.Context, gvk schema.GroupVersionKind) {
-	l := &unstructured.UnstructuredList{}
-	l.SetGroupVersionKind(gvk)
-	err := r.client.List(ctx, l)
-	if err != nil {
+func (r *MRStateRecorder) Record(ctx context.Context, mrList resource.ManagedList) error {
+	if err := r.client.List(ctx, mrList); err != nil {
 		r.log.Info("Failed to list managed resources", "error", err)
-		return
+		return err
 	}
 
-	label := gvk.String()
-	r.mrExists.WithLabelValues(label).Set(float64(len(l.Items)))
+	mrs := mrList.GetItems()
+	if len(mrs) == 0 {
+		return nil
+	}
+
+	label := mrs[0].GetObjectKind().GroupVersionKind().String()
+	r.metrics.Exists.WithLabelValues(label).Set(float64(len(mrs)))
 
 	var numReady, numSynced float64 = 0, 0
-	for _, o := range l.Items {
-		conditioned := xpv1.ConditionedStatus{}
-		err := fieldpath.Pave(o.Object).GetValueInto("status", &conditioned)
-		if err != nil {
-			r.log.Info("Failed to get conditions of managed resource", "error", err)
-			continue
+	for _, o := range mrs {
+		if o.GetCondition(xpv1.TypeReady).Status == corev1.ConditionTrue {
+			numReady++
 		}
 
-		for _, condition := range conditioned.Conditions {
-			if condition.Status == corev1.ConditionTrue {
-				switch condition.Type {
-				case xpv1.TypeReady:
-					numReady++
-				case xpv1.TypeSynced:
-					numSynced++
-				}
-			}
+		if o.GetCondition(xpv1.TypeSynced).Status == corev1.ConditionTrue {
+			numSynced++
 		}
 	}
 
-	r.mrReady.WithLabelValues(label).Set(numReady)
-	r.mrSynced.WithLabelValues(label).Set(numSynced)
+	r.metrics.Ready.WithLabelValues(label).Set(numReady)
+	r.metrics.Synced.WithLabelValues(label).Set(numSynced)
+
+	return nil
 }
 
-// Run records state of managed resources with given interval.
-func (r *MRStateRecorder) Run(ctx context.Context, gvk schema.GroupVersionKind) {
+// Start records state of managed resources with given interval.
+func (r *MRStateRecorder) Start(ctx context.Context) error {
 	ticker := time.NewTicker(r.interval)
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				r.Record(ctx, gvk)
-			case <-ctx.Done():
-				ticker.Stop()
-				return
+	for {
+		select {
+		case <-ticker.C:
+			if err := r.Record(ctx, r.managedList); err != nil {
+				return err
 			}
+		case <-ctx.Done():
+			ticker.Stop()
+			return nil
 		}
-	}()
+	}
 }
