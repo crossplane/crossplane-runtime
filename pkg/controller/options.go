@@ -55,9 +55,6 @@ type Options struct {
 	// determine whether it has work to do.
 	PollInterval time.Duration
 
-	// PollStateMetricInterval at which each controller should record state
-	PollStateMetricInterval time.Duration
-
 	// MaxConcurrentReconciles for each controller.
 	MaxConcurrentReconciles int
 
@@ -67,11 +64,8 @@ type Options struct {
 	// ESSOptions for External Secret Stores.
 	ESSOptions *ESSOptions
 
-	// MetricsRecorder to use for recording metrics.
-	MRMetrics managed.MetricRecorder
-
-	// StateMetrics to use for recording state metrics.
-	StateMetrics *statemetrics.MRStateMetrics
+	// MetricOptions for recording metrics.
+	MetricOptions *MetricOptions
 }
 
 // ForControllerRuntime extracts options for controller-runtime.
@@ -89,4 +83,16 @@ func (o Options) ForControllerRuntime() controller.Options {
 type ESSOptions struct {
 	TLSConfig     *tls.Config
 	TLSSecretName *string
+}
+
+// MetricOptions for recording metrics.
+type MetricOptions struct {
+	// PollStateMetricInterval at which each controller should record state
+	PollStateMetricInterval time.Duration
+
+	// MetricsRecorder to use for recording metrics.
+	MRMetrics managed.MetricRecorder
+
+	// MRStateMetrics to use for recording state metrics.
+	MRStateMetrics *statemetrics.MRStateMetrics
 }

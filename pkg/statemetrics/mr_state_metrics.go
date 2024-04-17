@@ -86,11 +86,11 @@ type MRStateRecorder struct {
 }
 
 // NewMRStateRecorder returns a new MRStateRecorder which records the state of managed resources.
-func NewMRStateRecorder(client client.Client, log logging.Logger, m *MRStateMetrics, managedList resource.ManagedList, interval time.Duration) *MRStateRecorder {
+func NewMRStateRecorder(client client.Client, log logging.Logger, metrics *MRStateMetrics, managedList resource.ManagedList, interval time.Duration) *MRStateRecorder {
 	return &MRStateRecorder{
 		client:      client,
 		log:         log,
-		metrics:     m,
+		metrics:     metrics,
 		managedList: managedList,
 		interval:    interval,
 	}

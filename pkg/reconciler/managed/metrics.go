@@ -58,7 +58,7 @@ func NewMRMetricRecorder() *MRMetricRecorder {
 	return &MRMetricRecorder{
 		mrDetected: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Subsystem: subSystem,
-			Name:      "managed_resource_time_to_first_reconcile_seconds",
+			Name:      "managed_resource_first_time_to_reconcile_seconds",
 			Help:      "The time it took for a managed resource to be detected by the controller",
 			Buckets:   kmetrics.ExponentialBuckets(10e-9, 10, 10),
 		}, []string{"gvk"}),
@@ -109,8 +109,7 @@ func (r *MRMetricRecorder) recordUnchanged(name string) {
 
 func (r *MRMetricRecorder) recordFirstTimeReconciled(managed resource.Managed) {
 	if managed.GetCondition(xpv1.TypeSynced).Status == corev1.ConditionUnknown {
-		r.mrDetected.WithLabelValues("gvk", managed.GetObjectKind().GroupVersionKind().String()).
-			Observe(time.Since(managed.GetCreationTimestamp().Time).Seconds())
+		r.mrDetected.With(getLabels(managed)).Observe(time.Since(managed.GetCreationTimestamp().Time).Seconds())
 		r.firstObservation.Store(managed.GetName(), time.Now()) // this is the first time we reconciled on this resource
 	}
 }
@@ -126,15 +125,13 @@ func (r *MRMetricRecorder) recordDrift(managed resource.Managed) {
 		return
 	}
 
-	r.mrDrift.WithLabelValues("gvk", managed.GetObjectKind().GroupVersionKind().String()).
-		Observe(time.Since(lt).Seconds())
+	r.mrDrift.With(getLabels(managed)).Observe(time.Since(lt).Seconds())
 
 	r.lastObservation.Store(name, time.Now())
 }
 
 func (r *MRMetricRecorder) recordDeleted(managed resource.Managed) {
-	r.mrDeletion.WithLabelValues("gvk", managed.GetObjectKind().GroupVersionKind().String()).
-		Observe(time.Since(managed.GetDeletionTimestamp().Time).Seconds())
+	r.mrDeletion.With(getLabels(managed)).Observe(time.Since(managed.GetDeletionTimestamp().Time).Seconds())
 }
 
 func (r *MRMetricRecorder) recordFirstTimeReady(managed resource.Managed) {
@@ -145,8 +142,7 @@ func (r *MRMetricRecorder) recordFirstTimeReady(managed resource.Managed) {
 		if !ok {
 			return
 		}
-		r.mrFirstTimeReady.WithLabelValues("gvk", managed.GetObjectKind().GroupVersionKind().String()).
-			Observe(time.Since(managed.GetCreationTimestamp().Time).Seconds())
+		r.mrFirstTimeReady.With(getLabels(managed)).Observe(time.Since(managed.GetCreationTimestamp().Time).Seconds())
 		r.firstObservation.Delete(managed.GetName())
 	}
 }
@@ -174,3 +170,9 @@ func (r *NopMetricRecorder) recordDrift(_ resource.Managed) {}
 func (r *NopMetricRecorder) recordDeleted(_ resource.Managed) {}
 
 func (r *NopMetricRecorder) recordFirstTimeReady(_ resource.Managed) {}
+
+func getLabels(r resource.Managed) prometheus.Labels {
+	return prometheus.Labels{
+		"gvk": r.GetObjectKind().GroupVersionKind().String(),
+	}
+}
