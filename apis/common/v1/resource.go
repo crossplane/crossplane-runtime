@@ -226,6 +226,7 @@ type ResourceSpec struct {
 // ResourceStatus represents the observed state of a managed resource.
 type ResourceStatus struct {
 	ConditionedStatus `json:",inline"`
+	ObservedStatus    `json:",inline"`
 }
 
 // A CredentialsSource is a source from which provider credentials may be

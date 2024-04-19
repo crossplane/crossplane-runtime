@@ -146,3 +146,28 @@ func TestWriteConnectionSecretToReference(t *testing.T) {
 		})
 	}
 }
+
+func TestObservedGeneration(t *testing.T) {
+	cases := map[string]struct {
+		u    *Unstructured
+		want int64
+	}{
+		"Set": {
+			u: New(func(u *Unstructured) {
+				u.SetObservedGeneration(123)
+			}),
+			want: 123,
+		},
+		"NotFound": {
+			u: New(),
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := tc.u.GetObservedGeneration()
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\nu.GetObservedGeneration(): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}

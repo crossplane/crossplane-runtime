@@ -228,3 +228,32 @@ func TestConditionWithMessage(t *testing.T) {
 		})
 	}
 }
+
+func TestConditionWithObservedGeneration(t *testing.T) {
+	cases := map[string]struct {
+		c                  Condition
+		observedGeneration int64
+		want               Condition
+	}{
+		"Added": {
+			c:                  Condition{Type: TypeReady, Reason: ReasonUnavailable},
+			observedGeneration: 10,
+			want:               Condition{Type: TypeReady, Reason: ReasonUnavailable, ObservedGeneration: 10},
+		},
+		"Changed": {
+			c:                  Condition{Type: TypeReady, Reason: ReasonUnavailable, ObservedGeneration: 3},
+			observedGeneration: 10,
+			want:               Condition{Type: TypeReady, Reason: ReasonUnavailable, ObservedGeneration: 10},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := tc.c.WithObservedGeneration(tc.observedGeneration)
+
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("a.Equal(b): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}

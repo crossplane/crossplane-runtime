@@ -253,3 +253,18 @@ func (c *Unstructured) GetConnectionDetailsLastPublishedTime() *metav1.Time {
 func (c *Unstructured) SetConnectionDetailsLastPublishedTime(t *metav1.Time) {
 	_ = fieldpath.Pave(c.Object).SetValue("status.connectionDetails.lastPublishedTime", t)
 }
+
+// SetObservedGeneration of this composite resource claim.
+func (c *Unstructured) SetObservedGeneration(generation int64) {
+	status := &xpv1.ObservedStatus{}
+	_ = fieldpath.Pave(c.Object).GetValueInto("status", status)
+	status.SetObservedGeneration(generation)
+	_ = fieldpath.Pave(c.Object).SetValue("status.observedGeneration", status.ObservedGeneration)
+}
+
+// GetObservedGeneration of this composite resource claim.
+func (c *Unstructured) GetObservedGeneration() int64 {
+	status := &xpv1.ObservedStatus{}
+	_ = fieldpath.Pave(c.Object).GetValueInto("status", status)
+	return status.GetObservedGeneration()
+}
