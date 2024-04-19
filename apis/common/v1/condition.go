@@ -85,7 +85,7 @@ type Condition struct {
 }
 
 // Equal returns true if the condition is identical to the supplied condition,
-// ignoring the LastTransitionTime.
+// ignoring the LastTransitionTime and ObservedGeneration.
 func (c Condition) Equal(other Condition) bool {
 	return c.Type == other.Type &&
 		c.Status == other.Status &&

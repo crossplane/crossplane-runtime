@@ -72,7 +72,7 @@ func (cr *Unstructured) GetUnstructured() *unstructured.Unstructured {
 
 // GetCondition of this Composed resource.
 func (cr *Unstructured) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
-	conditioned := xpv1.ResourceStatus{}
+	conditioned := xpv1.ConditionedStatus{}
 	// The path is directly `status` because conditions are inline.
 	if err := fieldpath.Pave(cr.Object).GetValueInto("status", &conditioned); err != nil {
 		return xpv1.Condition{}
@@ -82,7 +82,7 @@ func (cr *Unstructured) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 
 // SetConditions of this Composed resource.
 func (cr *Unstructured) SetConditions(c ...xpv1.Condition) {
-	conditioned := xpv1.ResourceStatus{}
+	conditioned := xpv1.ConditionedStatus{}
 	// The path is directly `status` because conditions are inline.
 	_ = fieldpath.Pave(cr.Object).GetValueInto("status", &conditioned)
 	conditioned.SetConditions(c...)
@@ -171,15 +171,15 @@ func (cr *UnstructuredList) GetUnstructuredList() *unstructured.UnstructuredList
 
 // SetObservedGeneration of this composite resource claim.
 func (cr *Unstructured) SetObservedGeneration(generation int64) {
-	status := &xpv1.ResourceStatus{}
+	status := &xpv1.ObservedStatus{}
 	_ = fieldpath.Pave(cr.Object).GetValueInto("status", status)
 	status.SetObservedGeneration(generation)
-	_ = fieldpath.Pave(cr.Object).SetValue("status", status)
+	_ = fieldpath.Pave(cr.Object).SetValue("status.observedGeneration", status.ObservedGeneration)
 }
 
 // GetObservedGeneration of this composite resource claim.
 func (cr *Unstructured) GetObservedGeneration() int64 {
-	status := &xpv1.ResourceStatus{}
+	status := &xpv1.ObservedStatus{}
 	_ = fieldpath.Pave(cr.Object).GetValueInto("status", status)
 	return status.GetObservedGeneration()
 }

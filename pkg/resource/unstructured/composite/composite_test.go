@@ -358,22 +358,26 @@ func TestConnectionDetailsLastPublishedTime(t *testing.T) {
 }
 
 func TestObservedGeneration(t *testing.T) {
-	u := &Unstructured{unstructured.Unstructured{Object: map[string]any{}}}
-	want := int64(123)
-	u.SetObservedGeneration(want)
-
-	if got := u.GetObservedGeneration(); got != want {
-		t.Errorf("u.GetObservedGeneration() got: %v, want %v", got, want)
+	cases := map[string]struct {
+		u    *Unstructured
+		want int64
+	}{
+		"Set": {
+			u: New(func(u *Unstructured) {
+				u.SetObservedGeneration(123)
+			}),
+			want: 123,
+		},
+		"NotFound": {
+			u: New(),
+		},
 	}
-	if g := u.GetUnstructured().Object["status"].(map[string]any)["observedGeneration"]; g != want {
-		t.Errorf("Generations do not match! got: %v (%T)", g, g)
-	}
-}
-
-func TestObservedGenerationNotFound(t *testing.T) {
-	u := &Unstructured{unstructured.Unstructured{Object: map[string]any{}}}
-
-	if g := u.GetObservedGeneration(); g != 0 {
-		t.Errorf("u.GetObservedGeneration(): expected nil, but got %v", g)
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := tc.u.GetObservedGeneration()
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\nu.GetObservedGeneration(): -want, +got:\n%s", diff)
+			}
+		})
 	}
 }
