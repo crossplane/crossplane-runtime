@@ -1140,23 +1140,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		}
 	}
 
-	if observation.ResourceUpToDate {
-		// We did not need to create, update, or delete our external resource.
-		// Per the below issue nothing will notify us if and when the external
-		// resource we manage changes, so we requeue a speculative reconcile
-		// after the specified poll interval in order to observe it and react
-		// accordingly.
-		// https://github.com/crossplane/crossplane/issues/289
-		reconcileAfter := r.pollIntervalHook(managed, r.pollInterval)
-		log.Debug("External resource is up to date", "requeue-after", time.Now().Add(reconcileAfter))
-		managed.SetConditions(xpv1.ReconcileSuccess())
-		return reconcile.Result{RequeueAfter: reconcileAfter}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
-	}
-
-	if observation.Diff != "" {
-		log.Debug("External resource differs from desired state", "diff", observation.Diff)
-	}
-
 	// skip the update if the management policy is set to ignore updates
 	if !policy.ShouldUpdate() {
 		reconcileAfter := r.pollIntervalHook(managed, r.pollInterval)
@@ -1165,37 +1148,52 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		return reconcile.Result{RequeueAfter: reconcileAfter}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
-	update, err := external.Update(externalCtx, managed)
-	if err != nil {
-		// We'll hit this condition if we can't update our external resource,
-		// for example if our provider credentials don't have access to update
-		// it. If this is the first time we encounter this issue we'll be
-		// requeued implicitly when we update our status with the new error
-		// condition. If not, we requeue explicitly, which will trigger backoff.
-		log.Debug("Cannot update external resource")
-		record.Event(managed, event.Warning(reasonCannotUpdate, err))
-		managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, errReconcileUpdate)))
+	if observation.Diff != "" {
+		log.Debug("External resource differs from desired state", "diff", observation.Diff)
+	}
+
+	if !observation.ResourceUpToDate && policy.ShouldUpdate() {
+		update, err := external.Update(externalCtx, managed)
+		if err != nil {
+			// We'll hit this condition if we can't update our external resource,
+			// for example if our provider credentials don't have access to update
+			// it. If this is the first time we encounter this issue we'll be
+			// requeued implicitly when we update our status with the new error
+			// condition. If not, we requeue explicitly, which will trigger backoff.
+			log.Debug("Cannot update external resource")
+			record.Event(managed, event.Warning(reasonCannotUpdate, err))
+			managed.SetConditions(xpv1.Updating(), xpv1.ReconcileError(errors.Wrap(err, errReconcileUpdate)))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		}
+
+		if _, err := r.managed.PublishConnection(ctx, managed, update.ConnectionDetails); err != nil {
+			// If this is the first time we encounter this issue we'll be requeued
+			// implicitly when we update our status with the new error condition. If
+			// not, we requeue explicitly, which will trigger backoff.
+			log.Debug("Cannot publish connection details", "error", err)
+			record.Event(managed, event.Warning(reasonCannotPublish, err))
+			managed.SetConditions(xpv1.Updating(), xpv1.ReconcileError(err))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		}
+
+		// We've successfully updated our external resource. In many cases the
+		// updating process takes a little time to finish. We requeue explicitly
+		// order to observe the external resource to determine whether it's
+		// ready for use.
+		log.Debug("Successfully requested update of external resource")
+		record.Event(managed, event.Normal(reasonUpdated, "Successfully requested update of external resource"))
+		managed.SetConditions(xpv1.Updating(), xpv1.ReconcileSuccess())
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
-	if _, err := r.managed.PublishConnection(ctx, managed, update.ConnectionDetails); err != nil {
-		// If this is the first time we encounter this issue we'll be requeued
-		// implicitly when we update our status with the new error condition. If
-		// not, we requeue explicitly, which will trigger backoff.
-		log.Debug("Cannot publish connection details", "error", err)
-		record.Event(managed, event.Warning(reasonCannotPublish, err))
-		managed.SetConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
-	}
-
-	// We've successfully updated our external resource. Per the below issue
-	// nothing will notify us if and when the external resource we manage
-	// changes, so we requeue a speculative reconcile after the specified poll
-	// interval in order to observe it and react accordingly.
+	// We did not need to create, update, or delete our external resource.
+	// Per the below issue nothing will notify us if and when the external
+	// resource we manage changes, so we requeue a speculative reconcile
+	// after the specified poll interval in order to observe it and react
+	// accordingly.
 	// https://github.com/crossplane/crossplane/issues/289
 	reconcileAfter := r.pollIntervalHook(managed, r.pollInterval)
-	log.Debug("Successfully requested update of external resource", "requeue-after", time.Now().Add(reconcileAfter))
-	record.Event(managed, event.Normal(reasonUpdated, "Successfully requested update of external resource"))
+	log.Debug("External resource is up to date", "requeue-after", time.Now().Add(reconcileAfter))
 	managed.SetConditions(xpv1.ReconcileSuccess())
 	return reconcile.Result{RequeueAfter: reconcileAfter}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 }
