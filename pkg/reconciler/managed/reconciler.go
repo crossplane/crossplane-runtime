@@ -485,8 +485,9 @@ type Reconciler struct {
 
 	supportedManagementPolicies []sets.Set[xpv1.ManagementAction]
 
-	log    logging.Logger
-	record event.Recorder
+	log            logging.Logger
+	record         event.Recorder
+	metricRecorder MetricRecorder
 }
 
 type mrManaged struct {
@@ -541,6 +542,13 @@ func WithTimeout(duration time.Duration) ReconcilerOption {
 func WithPollInterval(after time.Duration) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.pollInterval = after
+	}
+}
+
+// WithMetricRecorder configures the Reconciler to use the supplied MetricRecorder.
+func WithMetricRecorder(recorder MetricRecorder) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.metricRecorder = recorder
 	}
 }
 
@@ -701,6 +709,7 @@ func NewReconciler(m manager.Manager, of resource.ManagedKind, o ...ReconcilerOp
 		supportedManagementPolicies: defaultSupportedManagementPolicies(),
 		log:                         logging.NewNopLogger(),
 		record:                      event.NewNopRecorder(),
+		metricRecorder:              NewNopMetricRecorder(),
 	}
 
 	for _, ro := range o {
@@ -733,6 +742,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		log.Debug("Cannot get managed resource", "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetManaged)
 	}
+
+	r.metricRecorder.recordFirstTimeReconciled(managed)
 
 	record := r.record.WithAnnotations("external-name", meta.GetExternalName(managed))
 	log = log.WithValues(
@@ -823,6 +834,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		// details and removed our finalizer. If we assume we were the only
 		// controller that added a finalizer to this resource then it should no
 		// longer exist and thus there is no point trying to update its status.
+		r.metricRecorder.recordDeleted(managed)
 		log.Debug("Successfully deleted managed resource")
 		return reconcile.Result{Requeue: false}, nil
 	}
@@ -994,6 +1006,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		// removed our finalizer. If we assume we were the only controller that
 		// added a finalizer to this resource then it should no longer exist and
 		// thus there is no point trying to update its status.
+		r.metricRecorder.recordDeleted(managed)
 		log.Debug("Successfully deleted managed resource")
 		return reconcile.Result{Requeue: false}, nil
 	}
@@ -1150,6 +1163,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		reconcileAfter := r.pollIntervalHook(managed, r.pollInterval)
 		log.Debug("External resource is up to date", "requeue-after", time.Now().Add(reconcileAfter))
 		managed.SetConditions(xpv1.ReconcileSuccess())
+		r.metricRecorder.recordFirstTimeReady(managed)
+
+		// record that we intentionally did not update the managed resource
+		// because no drift was detected. We call this so late in the reconcile
+		// because all the cases above could contribute (for different reasons)
+		// that the external object would not have been updated.
+		r.metricRecorder.recordUnchanged(managed.GetName())
+
 		return reconcile.Result{RequeueAfter: reconcileAfter}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
@@ -1177,6 +1198,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, errReconcileUpdate)))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
+
+	// record the drift after the successful update.
+	r.metricRecorder.recordDrift(managed)
 
 	if _, err := r.managed.PublishConnection(ctx, managed, update.ConnectionDetails); err != nil {
 		// If this is the first time we encounter this issue we'll be requeued

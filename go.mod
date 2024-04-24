@@ -10,6 +10,7 @@ require (
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/go-logr/logr v1.4.1
 	github.com/google/go-cmp v0.6.0
+	github.com/prometheus/client_golang v1.18.0
 	github.com/spf13/afero v1.11.0
 	golang.org/x/time v0.5.0
 	google.golang.org/grpc v1.61.0
@@ -19,6 +20,7 @@ require (
 	k8s.io/apiextensions-apiserver v0.29.1
 	k8s.io/apimachinery v0.29.1
 	k8s.io/client-go v0.29.1
+	k8s.io/component-base v0.29.1
 	k8s.io/klog/v2 v2.110.1
 	sigs.k8s.io/controller-runtime v0.17.0
 	sigs.k8s.io/controller-tools v0.14.0
@@ -31,6 +33,7 @@ require (
 	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
+	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/bufbuild/protocompile v0.6.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
@@ -87,7 +90,6 @@ require (
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pkg/profile v1.7.0 // indirect
-	github.com/prometheus/client_golang v1.18.0 // indirect
 	github.com/prometheus/client_model v0.5.0 // indirect
 	github.com/prometheus/common v0.45.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
@@ -123,7 +125,6 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/component-base v0.29.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20231010175941-2dd684a91f00 // indirect
 	k8s.io/utils v0.0.0-20230726121419-3b25d923346b // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect

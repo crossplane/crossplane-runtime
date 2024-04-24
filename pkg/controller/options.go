@@ -26,6 +26,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
+	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
+	"github.com/crossplane/crossplane-runtime/pkg/statemetrics"
 )
 
 // DefaultOptions returns a functional set of options with conservative
@@ -61,6 +63,9 @@ type Options struct {
 
 	// ESSOptions for External Secret Stores.
 	ESSOptions *ESSOptions
+
+	// MetricOptions for recording metrics.
+	MetricOptions *MetricOptions
 }
 
 // ForControllerRuntime extracts options for controller-runtime.
@@ -78,4 +83,16 @@ func (o Options) ForControllerRuntime() controller.Options {
 type ESSOptions struct {
 	TLSConfig     *tls.Config
 	TLSSecretName *string
+}
+
+// MetricOptions for recording metrics.
+type MetricOptions struct {
+	// PollStateMetricInterval at which each controller should record state
+	PollStateMetricInterval time.Duration
+
+	// MetricsRecorder to use for recording metrics.
+	MRMetrics managed.MetricRecorder
+
+	// MRStateMetrics to use for recording state metrics.
+	MRStateMetrics *statemetrics.MRStateMetrics
 }
