@@ -67,10 +67,12 @@ func NewNameAsExternalName(c client.Client) *NameAsExternalName {
 
 // Initialize the given managed resource.
 func (a *NameAsExternalName) Initialize(ctx context.Context, mg resource.Managed) error {
-	if meta.GetExternalName(mg) != "" {
+	externalName := meta.GetExternalName(mg)
+	name := mg.GetName()
+	if externalName != "" && externalName == name {
 		return nil
 	}
-	meta.SetExternalName(mg, mg.GetName())
+	meta.SetExternalName(mg, name)
 	return errors.Wrap(a.client.Update(ctx, mg), errUpdateManaged)
 }
 
