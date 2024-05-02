@@ -18,13 +18,16 @@ package statemetrics
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
@@ -86,9 +89,9 @@ type MRStateRecorder struct {
 }
 
 // NewMRStateRecorder returns a new MRStateRecorder which records the state of managed resources.
-func NewMRStateRecorder(client client.Client, log logging.Logger, metrics *MRStateMetrics, managedList resource.ManagedList, interval time.Duration) *MRStateRecorder {
+func NewMRStateRecorder(c client.Client, log logging.Logger, metrics *MRStateMetrics, managedList resource.ManagedList, interval time.Duration) *MRStateRecorder {
 	return &MRStateRecorder{
-		client:      client,
+		client:      c,
 		log:         log,
 		metrics:     metrics,
 		managedList: managedList,
@@ -97,19 +100,18 @@ func NewMRStateRecorder(client client.Client, log logging.Logger, metrics *MRSta
 }
 
 // Record records the state of managed resources.
-func (r *MRStateRecorder) Record(ctx context.Context, mrList resource.ManagedList) error {
-	if err := r.client.List(ctx, mrList); err != nil {
-		r.log.Info("Failed to list managed resources", "error", err)
-		return err
+func (r *MRStateRecorder) Record(ctx context.Context) error {
+	if err := r.client.List(ctx, r.managedList); err != nil {
+		return errors.Wrap(err, "failed to list managed resources")
 	}
 
-	mrs := mrList.GetItems()
-	if len(mrs) == 0 {
-		return nil
+	labels, err := r.getLabels()
+	if err != nil {
+		return errors.Wrap(err, "failed to get labels")
 	}
 
-	label := mrs[0].GetObjectKind().GroupVersionKind().String()
-	r.metrics.Exists.WithLabelValues(label).Set(float64(len(mrs)))
+	mrs := r.managedList.GetItems()
+	r.metrics.Exists.With(labels).Set(float64(len(mrs)))
 
 	var numReady, numSynced float64 = 0, 0
 	for _, o := range mrs {
@@ -122,8 +124,8 @@ func (r *MRStateRecorder) Record(ctx context.Context, mrList resource.ManagedLis
 		}
 	}
 
-	r.metrics.Ready.WithLabelValues(label).Set(numReady)
-	r.metrics.Synced.WithLabelValues(label).Set(numSynced)
+	r.metrics.Ready.With(labels).Set(numReady)
+	r.metrics.Synced.With(labels).Set(numSynced)
 
 	return nil
 }
@@ -134,7 +136,7 @@ func (r *MRStateRecorder) Start(ctx context.Context) error {
 	for {
 		select {
 		case <-ticker.C:
-			if err := r.Record(ctx, r.managedList); err != nil {
+			if err := r.Record(ctx); err != nil {
 				return err
 			}
 		case <-ctx.Done():
@@ -142,4 +144,16 @@ func (r *MRStateRecorder) Start(ctx context.Context) error {
 			return nil
 		}
 	}
+}
+
+func (r *MRStateRecorder) getLabels() (prometheus.Labels, error) {
+	gvk, err := apiutil.GVKForObject(r.managedList, r.client.Scheme())
+	if err != nil {
+		return nil, err
+	}
+
+	// Remove "List" to get object kind.
+	res := strings.Replace(gvk.String(), "List", "", 1)
+
+	return prometheus.Labels{"gvk": res}, nil
 }
