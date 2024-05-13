@@ -85,6 +85,10 @@ func defaultSupportedManagementPolicies() []sets.Set[xpv1.ManagementAction] {
 		// Like ObserveOnly, but the external resource is deleted when the
 		// managed resource is deleted.
 		sets.New[xpv1.ManagementAction](xpv1.ManagementActionObserve, xpv1.ManagementActionDelete),
+		// No Crate and no Delete. Just update/patch the external resource.
+		// Useful when the same external resource is managed by multiple
+		// managed resources.
+		sets.New[xpv1.ManagementAction](xpv1.ManagementActionObserve, xpv1.ManagementActionUpdate),
 	}
 }
 
