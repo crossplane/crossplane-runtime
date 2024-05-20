@@ -6,7 +6,7 @@ toolchain go1.22.1
 
 require (
 	dario.cat/mergo v1.0.0
-	github.com/evanphx/json-patch v5.6.0+incompatible
+	github.com/evanphx/json-patch v5.9.0+incompatible
 	github.com/go-logr/logr v1.4.1
 	github.com/google/go-cmp v0.6.0
 	github.com/prometheus/client_golang v1.18.0
