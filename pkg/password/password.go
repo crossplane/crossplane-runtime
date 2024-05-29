@@ -48,7 +48,7 @@ func Generate() (string, error) {
 // Generate a password.
 func (s Settings) Generate() (string, error) {
 	pw := make([]byte, s.Length)
-	for i := 0; i < s.Length; i++ {
+	for i := range s.Length {
 		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(s.CharacterSet))))
 		if err != nil {
 			return "", err

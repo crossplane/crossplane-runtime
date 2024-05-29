@@ -107,7 +107,7 @@ func ToIntPtrValue(v string) *int64 {
 // string pointers and need to be resolved as part of `ResolveMultiple`.
 func FromPtrValues(v []*string) []string {
 	res := make([]string, len(v))
-	for i := 0; i < len(v); i++ {
+	for i := range len(v) {
 		res[i] = FromPtrValue(v[i])
 	}
 	return res
@@ -116,7 +116,7 @@ func FromPtrValues(v []*string) []string {
 // FromFloatPtrValues adapts a slice of float64 pointer fields for use as CurrentValues.
 func FromFloatPtrValues(v []*float64) []string {
 	res := make([]string, len(v))
-	for i := 0; i < len(v); i++ {
+	for i := range len(v) {
 		res[i] = FromFloatPtrValue(v[i])
 	}
 	return res
@@ -125,7 +125,7 @@ func FromFloatPtrValues(v []*float64) []string {
 // FromIntPtrValues adapts a slice of int64 pointer fields for use as CurrentValues.
 func FromIntPtrValues(v []*int64) []string {
 	res := make([]string, len(v))
-	for i := 0; i < len(v); i++ {
+	for i := range len(v) {
 		res[i] = FromIntPtrValue(v[i])
 	}
 	return res
@@ -138,7 +138,7 @@ func FromIntPtrValues(v []*int64) []string {
 // string pointers and need to be resolved as part of `ResolveMultiple`.
 func ToPtrValues(v []string) []*string {
 	res := make([]*string, len(v))
-	for i := 0; i < len(v); i++ {
+	for i := range len(v) {
 		res[i] = ToPtrValue(v[i])
 	}
 	return res
@@ -147,7 +147,7 @@ func ToPtrValues(v []string) []*string {
 // ToFloatPtrValues adapts ResolvedValues for use as a slice of float64 pointer fields.
 func ToFloatPtrValues(v []string) []*float64 {
 	res := make([]*float64, len(v))
-	for i := 0; i < len(v); i++ {
+	for i := range len(v) {
 		res[i] = ToFloatPtrValue(v[i])
 	}
 	return res
@@ -156,7 +156,7 @@ func ToFloatPtrValues(v []string) []*float64 {
 // ToIntPtrValues adapts ResolvedValues for use as a slice of int64 pointer fields.
 func ToIntPtrValues(v []string) []*int64 {
 	res := make([]*int64, len(v))
-	for i := 0; i < len(v); i++ {
+	for i := range len(v) {
 		res[i] = ToIntPtrValue(v[i])
 	}
 	return res
