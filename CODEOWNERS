@@ -22,7 +22,7 @@
 # See also OWNERS.md for governance details
 
 # Fallback owners
-*                                   @crossplane/crossplane-maintainers @crossplane/crossplane-reviewers
+*                                   @crossplane/crossplane-maintainers
 
 # Governance owners - steering committee
 /README.md                           @crossplane/steering-committee
