@@ -19,9 +19,6 @@ env:
   # a step 'if env.AWS_USR' != ""', so we copy these to succinctly test whether
   # credentials have been provided before trying to run steps that need them.
   DOCKER_USR: ${{ secrets.DOCKER_USR }}
-  AWS_USR: ${{ secrets.AWS_USR }}
-  UPBOUND_MARKETPLACE_PUSH_ROBOT_USR: ${{ secrets.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR }}
-
 
 jobs:
   check-diff:
@@ -58,7 +55,7 @@ jobs:
           echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
 
       - name: Generate Files
-        run: earthly --strict --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }} +generate
+        run: earthly --strict --remote-cache ghcr.io/crossplane/crossplane-runtime-earthly-cache:${{ github.job }} +generate
 
       - name: Count Changed Files
         id: changed_files
@@ -104,7 +101,7 @@ jobs:
           echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
 
       - name: Lint
-        run: earthly --strict --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }} +lint
+        run: earthly --strict --remote-cache ghcr.io/crossplane/crossplane-runtime-earthly-cache:${{ github.job }} +lint
 
   codeql:
     runs-on: ubuntu-22.04
@@ -140,7 +137,7 @@ jobs:
           echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
 
       - name: Run CodeQL
-        run: earthly --strict --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }} +ci-codeql
+        run: earthly --strict --remote-cache ghcr.io/crossplane/crossplane-runtime-earthly-cache:${{ github.job }} +ci-codeql
 
       - name: Upload CodeQL Results to GitHub
         uses: github/codeql-action/upload-sarif@9fdb3e49720b44c48891d036bb502feb25684276 # v3
@@ -204,7 +201,7 @@ jobs:
           echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
 
       - name: Run Unit Tests
-        run: earthly --strict --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }} +test
+        run: earthly --strict --remote-cache ghcr.io/crossplane/crossplane-runtime-earthly-cache:${{ github.job }} +test
 
       - name: Publish Unit Test Coverage
         uses: codecov/codecov-action@125fc84a9a348dbcf27191600683ec096ec9021c # v4
@@ -212,177 +209,6 @@ jobs:
           flags: unittests
           file: _output/tests/coverage.txt
           token: ${{ secrets.CODECOV_TOKEN }}
-
-  e2e-tests:
-    runs-on: ubuntu-22.04
-    strategy:
-      fail-fast: false
-      matrix:
-        test-suite:
-          - base
-          - environment-configs
-          - usage
-          - ssa-claims
-          - realtime-compositions
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4
-
-      - name: Setup Earthly
-        uses: earthly/actions-setup@v1
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          version: ${{ env.EARTHLY_VERSION }}
-
-      - name: Login to DockerHub
-        uses: docker/login-action@0d4c9c5ea7693da7b068278f7b52bda2a190a446 # v3
-        if: env.DOCKER_USR != ''
-        with:
-          username: ${{ secrets.DOCKER_USR }}
-          password: ${{ secrets.DOCKER_PSW }}
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@0d4c9c5ea7693da7b068278f7b52bda2a190a446 # v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Configure Earthly to Push Cache to GitHub Container Registry 
-        if: github.ref == 'refs/heads/master'
-        run: |
-          echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
-          echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
-
-      - name: Run E2E Tests
-        run: |
-          earthly --strict --allow-privileged --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }}-${{ matrix.test-suite}} \
-            +e2e --FLAGS="-test.failfast -fail-fast --test-suite ${{ matrix.test-suite }}"
-
-      - name: Publish E2E Test Flakes
-        if: '!cancelled()'
-        uses: buildpulse/buildpulse-action@d0d30f53585cf16b2e01811a5a753fd47968654a # v0.11.0
-        with:
-          account: 45158470
-          repository: 147886080
-          key: ${{ secrets.BUILDPULSE_ACCESS_KEY_ID }}
-          secret: ${{ secrets.BUILDPULSE_SECRET_ACCESS_KEY }}
-          path: _output/tests/e2e-tests.xml
-
-  publish-artifacts:
-    runs-on: ubuntu-22.04
-
-    steps:
-      - name: Cleanup Disk
-        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
-        with:
-          android: true
-          dotnet: true
-          haskell: true
-          tool-cache: true
-          swap-storage: false
-          # This works, and saves ~5GiB, but takes ~2 minutes to do it.
-          large-packages: false
-          # TODO(negz): Does having these around avoid Earthly needing to pull
-          # large images like golang?
-          docker-images: false
-
-      - name: Checkout
-        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Earthly
-        uses: earthly/actions-setup@v1
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          version: ${{ env.EARTHLY_VERSION }}
-
-      - name: Login to DockerHub
-        uses: docker/login-action@0d4c9c5ea7693da7b068278f7b52bda2a190a446 # v3
-        if: env.DOCKER_USR != ''
-        with:
-          username: ${{ secrets.DOCKER_USR }}
-          password: ${{ secrets.DOCKER_PSW }}
-
-      - name: Login to Upbound
-        uses: docker/login-action@0d4c9c5ea7693da7b068278f7b52bda2a190a446 # v3
-        if: env.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR != ''
-        with:
-          registry: xpkg.upbound.io
-          username: ${{ secrets.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR }}
-          password: ${{ secrets.UPBOUND_MARKETPLACE_PUSH_ROBOT_PSW }}
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@0d4c9c5ea7693da7b068278f7b52bda2a190a446 # v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Configure Earthly to Push Cache to GitHub Container Registry 
-        if: github.ref == 'refs/heads/master'
-        run: echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
-
-      - name: Configure Earthly to Push Artifacts
-        if: env.DOCKER_USR != '' && env.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR != '' && env.AWS_USR != ''
-        run: echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
-
-      - name: Set CROSSPLANE_VERSION GitHub Environment Variable
-        run: earthly +ci-version
-
-      - name: Build and Push Artifacts
-        run: earthly --strict --remote-cache ghcr.io/crossplane/earthly-cache:${{ github.job }} +ci-artifacts --CROSSPLANE_VERSION=${CROSSPLANE_VERSION}
-
-      - name: Push Artifacts to https://releases.crossplane.io/build/
-        if: env.AWS_USR != ''
-        run: |
-          earthly --strict \
-            --secret=AWS_ACCESS_KEY_ID=${{ secrets.AWS_USR }} \
-            --secret=AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_PSW }} \
-            +ci-push-build-artifacts --AWS_DEFAULT_REGION=us-east-1 --CROSSPLANE_VERSION=${CROSSPLANE_VERSION}
-
-      - name: Push Artifacts to https://releases.crossplane.io/master/ and https://charts.crossplane.io/master
-        if: env.AWS_USR != '' && github.ref == 'refs/heads/master'
-        run: |
-          earthly --strict \
-            --secret=AWS_ACCESS_KEY_ID=${{ secrets.AWS_USR }} \
-            --secret=AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_PSW }} \
-            +ci-promote-build-artifacts --AWS_DEFAULT_REGION=us-east-1 --CROSSPLANE_VERSION=${CROSSPLANE_VERSION} --CHANNEL=master
-
-      - name: Upload Artifacts to GitHub
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
-        with:
-          name: output
-          path: _output/**
-
-  fuzz-test:
-    runs-on: ubuntu-22.04
-
-    steps:
-      # TODO(negz): Can we make this use our Go build and dependency cache? It
-      # seems to build Crossplane inside of a Docker image.
-      - name: Build Fuzzers
-        id: build
-        uses: google/oss-fuzz/infra/cifuzz/actions/build_fuzzers@master
-        with:
-          oss-fuzz-project-name: "crossplane"
-          language: go
-
-      - name: Run Fuzzers
-        uses: google/oss-fuzz/infra/cifuzz/actions/run_fuzzers@master
-        with:
-          oss-fuzz-project-name: "crossplane"
-          fuzz-seconds: 300
-          language: go
-
-      - name: Upload Crash
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4
-        if: failure() && steps.build.outcome == 'success'
-        with:
-          name: artifacts
-          path: ./out/artifacts
 
   protobuf-schemas:
     runs-on: ubuntu-22.04
@@ -412,7 +238,7 @@ jobs:
           against: "https://github.com/${GITHUB_REPOSITORY}.git#branch=master,subdir=apis"
 
       - name: Push Protocol Buffers to Buf Schema Registry
-        if: ${{ github.repository == 'crossplane/crossplane' && github.ref == 'refs/heads/master' }}
+        if: ${{ github.repository == 'crossplane/crossplane-runtime' && github.ref == 'refs/heads/master' }}
         uses: bufbuild/buf-push-action@v1
         with:
           input: apis
