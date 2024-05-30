@@ -4,4 +4,4 @@ curl -fsSLo /usr/local/bin/earthly https://github.com/earthly/earthly/releases/l
 chmod +x /usr/local/bin/earthly
 /usr/local/bin/earthly bootstrap
 
-runuser -u ubuntu renovate
+renovate
