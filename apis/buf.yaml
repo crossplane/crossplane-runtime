@@ -1,3 +1,9 @@
 version: v1
+name: buf.build/crossplane/crossplane-runtime
+breaking:
+  use:
+    - FILE
 lint:
+  use:
+    - DEFAULT
   allow_comment_ignores: true
