@@ -93,7 +93,7 @@ func removeSourceDuplicates(dst, src any) any {
 	}
 
 	result := reflect.New(sliceSrc.Type()).Elem() // we will not modify src
-	for i := 0; i < sliceSrc.Len(); i++ {
+	for i := range sliceSrc.Len() {
 		itemSrc := sliceSrc.Index(i)
 		found := false
 		for j := 0; j < sliceDst.Len() && !found; j++ {

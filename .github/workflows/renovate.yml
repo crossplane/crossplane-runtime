@@ -1,0 +1,57 @@
+name: Renovate
+on:
+  # Allows manual/automated trigger for debugging purposes
+  workflow_dispatch:
+    inputs:
+      logLevel:
+        description: "Renovate's log level"
+        required: true
+        default: "info"
+        type: string
+  schedule:
+    - cron: '0 8 * * *'
+
+env:
+  # Common versions
+  EARTHLY_VERSION: '0.8.11'
+
+  LOG_LEVEL: "info"
+
+jobs:
+  renovate:
+    runs-on: ubuntu-latest
+    if: |
+      !github.event.repository.fork &&
+      !github.event.pull_request.head.repo.fork
+    steps:
+      - name: Checkout
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+
+      - name: Setup Earthly
+        uses: earthly/actions-setup@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          version: ${{ env.EARTHLY_VERSION }}
+
+      # Don't waste time starting Renovate if JSON is invalid
+      - name: Validate Renovate JSON
+        run:  npx --yes --package renovate -- renovate-config-validator
+
+      - name: Get token
+        id: get-github-app-token
+        uses: actions/create-github-app-token@a0de6af83968303c8c955486bf9739a57d23c7f1 # v1
+        with:
+          app-id: ${{ secrets.RENOVATE_GITHUB_APP_ID }}
+          private-key: ${{ secrets.RENOVATE_GITHUB_APP_PRIVATE_KEY }}
+
+      - name: Self-hosted Renovate
+        uses: renovatebot/github-action@063e0c946b9c1af35ef3450efc44114925d6e8e6 # v40.1.11
+        env:
+          RENOVATE_REPOSITORIES: ${{ github.repository }}
+          # Use GitHub API to create commits
+          RENOVATE_PLATFORM_COMMIT: "true"
+          LOG_LEVEL: ${{ github.event.inputs.logLevel || env.LOG_LEVEL }}
+          RENOVATE_ALLOWED_POST_UPGRADE_COMMANDS: '["^earthly .+"]'
+        with:
+          configurationFile: .github/renovate.json5
+          token: '${{ steps.get-github-app-token.outputs.token }}'

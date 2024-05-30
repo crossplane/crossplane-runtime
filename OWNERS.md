@@ -14,17 +14,15 @@ See [CODEOWNERS](CODEOWNERS) for automatic PR assignment.
 ## Maintainers
 
 * Nic Cope <negz@upbound.io> ([negz](https://github.com/negz))
-* Daniel Mangum <dan@upbound.io> ([hasheddan](https://github.com/hasheddan))
-* Muvaffak Onus <monus@upbound.io> ([muvaf](https://github.com/muvaf))
 * Hasan Turken <hasan@upbound.io> ([turkenh](https://github.com/turkenh))
+* Bob Haddleton <bob.haddleton@nokia.com> ([bobh66](https://github.com/bobh66))
+* Philippe Scorsolini <philippe.scorsolini@upbound.io> ([phisco](https://github.com/phisco))
 
 ## Reviewers
 
-* Bob Haddleton <bob.haddleton@nokia.com> ([bobh66](https://github.com/bobh66))
 * Yury Tsarev <yury@upbound.io> ([ytsarev](https://github.com/ytsarev))
 * Ezgi Demirel <ezgi@upbound.io> ([ezgidemirel](https://github.com/ezgidemirel))
 * Max Blatt ([MisterMX](https://github.com/MisterMX))
-* Philippe Scorsolini <philippe.scorsolini@upbound.io> ([phisco](https://github.com/phisco))
 
 ## Emeritus maintainers
 

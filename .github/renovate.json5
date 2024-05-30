@@ -1,63 +1,172 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:base",
-    "helpers:pinGitHubActionDigests"
+    "config:recommended",
+    "helpers:pinGitHubActionDigests",
+    ":semanticCommits"
   ],
-// We only want renovate to rebase PRs when they have conflicts,
-// default "auto" mode is not required.
+  // We only want renovate to rebase PRs when they have conflicts, default
+  // "auto" mode is not required.
   "rebaseWhen": "conflicted",
-// The maximum number of PRs to be created in parallel
+  // The maximum number of PRs to be created in parallel
   "prConcurrentLimit": 5,
-  "postUpdateOptions": ["gomodTidy"],
-// By default renovate will auto detect whether semantic commits have been used
-// in the recent history and comply with that, we explicitly disable it
-  "semanticCommits": "disabled",
-// All PRs should have a label
-  "labels": ["automated"],
-  "regexManagers": [
+  // The branches renovate should target
+  // PLEASE UPDATE THIS WHEN RELEASING.
+  "baseBranches": [
+    "master",
+    "release-1.14",
+    "release-1.15",
+    "release-1.16"
+  ],
+  "ignorePaths": [
+    "design/**",
+    // We test upgrades, so leave it on an older version on purpose.
+    "test/e2e/manifests/pkg/provider/provider-initial.yaml",
+  ],
+  "postUpdateOptions": [
+    "gomodTidy"
+  ],
+  // All PRs should have a label
+  "labels": [
+    "automated"
+  ],
+  "customManagers": [
     {
-      "description": "Bump Go version ued in workflows",
-      "fileMatch": ["^\\.github\\/workflows\\/[^/]+\\.ya?ml$"],
+      "customType": "regex",
+      "description": "Bump Earthly version in GitHub workflows",
+      "fileMatch": [
+        "^\\.github\\/workflows\\/[^/]+\\.ya?ml$"
+      ],
       "matchStrings": [
-        "GO_VERSION: '(?<currentValue>.*?)'\\n"
+        "EARTHLY_VERSION '(?<currentValue>.*?)'\\n"
+      ],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "earthly/earthly",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "customType": "regex",
+      "description": "Bump Go version in Earthfile",
+      "fileMatch": [
+        "^Earthfile$"
+      ],
+      "matchStrings": [
+        "ARG --global GO_VERSION=(?<currentValue>.*?)\\n"
       ],
       "datasourceTemplate": "golang-version",
       "depNameTemplate": "golang"
-    }, {
-      "description": "Bump golangci-lint version in workflows and the Makefile",
-      "fileMatch": ["^\\.github\\/workflows\\/[^/]+\\.ya?ml$","^Makefile$"],
+    },
+    {
+      "customType": "regex",
+      "description": "Bump golangci-lint version in the Earthfile",
+      "fileMatch": [
+        "^Earthfile$"
+      ],
       "matchStrings": [
-        "GOLANGCI_VERSION: 'v(?<currentValue>.*?)'\\n",
-        "GOLANGCILINT_VERSION = (?<currentValue>.*?)\\n"
+        "ARG GOLANGCI_LINT_VERSION=(?<currentValue>.*?)\\n"
       ],
       "datasourceTemplate": "github-tags",
-      "depNameTemplate": "golangci/golangci-lint",
-      "extractVersionTemplate": "^v(?<version>.*)$"
-    }, {
-      "description": "Bump Go required version in workflows and the Makefile",
-      "fileMatch": ["^\\.github\\/workflows\\/[^/]+\\.ya?ml$", "^Makefile$"],
-      "matchStrings": [
-        "GO_REQUIRED_VERSION = (?<currentValue>.*?)\\n",
+      "depNameTemplate": "golangci/golangci-lint"
+    },
+    {
+      "customType": "regex",
+      "description": "Bump codeql version in the Earthfile",
+      "fileMatch": [
+        "^Earthfile$"
       ],
-      "datasourceTemplate": "golang-version",
-      "depNameTemplate": "golang",
-      "versioningTemplate": "loose",
-      "extractVersionTemplate": "^(?<version>\\d+\\.\\d+)"
-    }
+      "matchStrings": [
+        "ARG CODEQL_VERSION=(?<currentValue>.*?)\\n"
+      ],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "github/codeql-action",
+      "extractVersionTemplate": "^codeql-bundle-(?<version>.*)$"
+    },
   ],
-// PackageRules disabled below should be enabled in case of vulnerabilities
+  // Renovate doesn't have native Earthfile support, but because Earthfile
+  // syntax is a superset of Dockerfile syntax this works to update FROM images.
+  // https://github.com/renovatebot/renovate/issues/15975
+  "dockerfile": {
+    "fileMatch": [
+      "(^|/)Earthfile$"
+    ]
+  },
+  // PackageRules disabled below should be enabled in case of vulnerabilities
   "vulnerabilityAlerts": {
     "enabled": true
   },
   "osvVulnerabilityAlerts": true,
+  // Renovate evaluates all packageRules in order, so low priority rules should
+  // be at the beginning, high priority at the end
   "packageRules": [
     {
-      "description": "Only get docker image updates every 2 weeks to reduce noise",
-      "matchDatasources": ["docker"],
-      "schedule": ["every 2 week on monday"],
-      "enabled": true,
-    }, {
+      "description": "Generate code after upgrading go dependencies",
+      "matchDatasources": [
+        "go"
+      ],
+      postUpgradeTasks: {
+        // Post-upgrade tasks that are executed before a commit is made by Renovate.
+        "commands": [
+          "earthly --strict +go-generate",
+        ],
+        fileFilters: [
+          "**/*"
+        ],
+        executionMode: "update",
+      },
+    },
+    {
+      "description": "Lint code after upgrading golangci-lint",
+      "matchDepNames": [
+        "golangci/golangci-lint"
+      ],
+      postUpgradeTasks: {
+        // Post-upgrade tasks that are executed before a commit is made by Renovate.
+        "commands": [
+          "earthly --strict +go-lint",
+        ],
+        fileFilters: [
+          "**/*"
+        ],
+        executionMode: "update",
+      },
+    },
+    {
+      "matchManagers": [
+        "crossplane"
+      ],
+      "matchFileNames": [
+        "test/e2e/**"
+      ],
+      "groupName": "e2e-manifests",
+    },
+    {
+      "description": "Ignore non-security related updates to release branches",
+      matchBaseBranches: [
+        "/^release-.*/"
+      ],
+      enabled: false,
+    },
+    {
+      "description": "Still update Docker images on release branches though",
+      "matchDatasources": [
+        "docker"
+      ],
+      matchBaseBranches: [
+        "/^release-.*/"
+      ],
+      enabled: true,
+    },
+    {
+      "description": "Only get Docker image updates every 2 weeks to reduce noise",
+      "matchDatasources": [
+        "docker"
+      ],
+      "schedule": [
+        "every 2 week on monday"
+      ],
+      enabled: true,
+    },
+    {
       "description": "Ignore k8s.io/client-go older versions, they switched to semantic version and old tags are still available in the repo",
       "matchDatasources": [
         "go"
@@ -65,32 +174,35 @@
       "matchDepNames": [
         "k8s.io/client-go"
       ],
-      "allowedVersions": "<1.0"
-    }, {
-      "description": "Only get dependency digest updates every month to reduce noise",
+      "allowedVersions": "<1.0",
+    },
+    {
+      "description": "Ignore k8s dependencies, should be updated on crossplane-runtime",
+      "matchDatasources": [
+        "go"
+      ],
+      "matchPackagePrefixes": [
+        "k8s.io",
+        "sigs.k8s.io"
+      ],
+      "enabled": false,
+    },
+    {
+      "description": "Only get dependency digest updates every month to reduce noise, except crossplane-runtime",
+      "excludePackageNames": [
+        "github.com/crossplane/crossplane-runtime"
+      ],
       "matchDatasources": [
         "go"
       ],
       "matchUpdateTypes": [
         "digest",
       ],
-      "extends": ["schedule:monthly"],
-    }, {
-      "description": "Single PR for all kubernetes dependency updates, as they usually are all linked",
-      "matchDatasources": [
-        "go"
+      "extends": [
+        "schedule:monthly"
       ],
-      "groupName": "kubernetes deps",
-      "matchUpdateTypes": [
-        "major",
-        "minor",
-        "patch"
-      ],
-      "matchPackagePrefixes": [
-        "k8s.io",
-        "sigs.k8s.io"
-      ]
-    }, {
+    },
+    {
       "description": "Ignore oss-fuzz, it's not using tags, we'll stick to master",
       "matchDepTypes": [
         "action"
@@ -99,6 +211,13 @@
         "google/oss-fuzz"
       ],
       "enabled": false
+    },
+    {
+      "description": "Group all go version updates",
+      "matchDatasources": [
+        "golang-version"
+      ],
+      "groupName": "golang version",
     }
-  ]
+  ],
 }

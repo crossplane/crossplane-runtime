@@ -1,35 +1,32 @@
 <!--
-Thank you for helping to improve Crossplane!
-
-Please read through https://git.io/fj2m9 if this is your first time opening a
-Crossplane pull request. Find us in https://slack.crossplane.io/messages/dev if
-you need any help contributing.
+Thank you for helping to improve Crossplane! Please read the contribution docs
+(linked below) if this is your first Crossplane pull request.
 -->
 
 ### Description of your changes
 
 <!--
-Briefly describe what this pull request does. Be sure to direct your reviewers'
-attention to anything that needs special consideration.
+Briefly describe what this pull request does, and how it is covered by tests.
+Be proactive - direct your reviewers' attention to anything that needs special
+consideration.
 
-We love pull requests that resolve an open Crossplane issue. If yours does, you
-can uncomment the below line to indicate which issue your PR fixes, for example
-"Fixes #500":
-
+We love pull requests that fix an open issue. If yours does, use the below line
+to indicate which issue it fixes, for example "Fixes #500".
 -->
-Fixes #
 
-I have:
+Fixes # 
+
+I have: <!--You MUST either [x] check or [ ] ~strike through~ every item.-->
 
 - [ ] Read and followed Crossplane's [contribution process].
-- [ ] Run `make reviewable test` to ensure this PR is ready for review.
+- [ ] Run `earthly +reviewable` to ensure this PR is ready for review.
+- [ ] Added or updated unit tests.
+- [ ] Linked a PR or a [docs tracking issue] to [document this change].
+- [ ] Added `backport release-x.y` labels to auto-backport this PR.
 
-### How has this code been tested
+Need help with this checklist? See the [cheat sheet].
 
-<!--
-Before reviewers can be confident in the correctness of this pull request, it
-needs to tested and shown to be correct. Briefly describe the testing that has
-already been done or which is planned for this change.
--->
-
-[contribution process]: https://git.io/fj2m9
+[contribution process]: https://github.com/crossplane/crossplane/tree/master/contributing
+[docs tracking issue]: https://github.com/crossplane/docs/issues/new
+[document this change]: https://docs.crossplane.io/contribute/contribute
+[cheat sheet]: https://github.com/crossplane/crossplane/tree/master/contributing#checklist-cheat-sheet

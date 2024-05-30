@@ -16,6 +16,8 @@
 // 	protoc        (unknown)
 // source: proto/v1alpha1/ess.proto
 
+// buf:lint:ignore PACKAGE_DIRECTORY_MATCH
+
 package v1alpha1
 
 import (
