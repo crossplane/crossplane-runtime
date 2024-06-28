@@ -18,6 +18,7 @@ package composite
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -30,6 +31,7 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
+	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
 var _ client.Object = &Unstructured{}
@@ -69,34 +71,38 @@ func TestWithGroupVersionKind(t *testing.T) {
 
 func TestConditions(t *testing.T) {
 	cases := map[string]struct {
-		reason string
-		u      *Unstructured
-		set    []xpv1.Condition
-		get    xpv1.ConditionType
-		want   xpv1.Condition
+		reason  string
+		u       *Unstructured
+		set     []xpv1.Condition
+		get     xpv1.ConditionType
+		want    xpv1.Condition
+		wantAll []xpv1.Condition
 	}{
 		"NewCondition": {
-			reason: "It should be possible to set a condition of an empty Unstructured.",
-			u:      New(),
-			set:    []xpv1.Condition{xpv1.Available(), xpv1.ReconcileSuccess()},
-			get:    xpv1.TypeReady,
-			want:   xpv1.Available(),
+			reason:  "It should be possible to set a condition of an empty Unstructured.",
+			u:       New(),
+			set:     []xpv1.Condition{xpv1.Available(), xpv1.ReconcileSuccess()},
+			get:     xpv1.TypeReady,
+			want:    xpv1.Available(),
+			wantAll: []xpv1.Condition{xpv1.Available(), xpv1.ReconcileSuccess()},
 		},
 		"ExistingCondition": {
-			reason: "It should be possible to overwrite a condition that is already set.",
-			u:      New(WithConditions(xpv1.Creating())),
-			set:    []xpv1.Condition{xpv1.Available()},
-			get:    xpv1.TypeReady,
-			want:   xpv1.Available(),
+			reason:  "It should be possible to overwrite a condition that is already set.",
+			u:       New(WithConditions(xpv1.Creating())),
+			set:     []xpv1.Condition{xpv1.Available()},
+			get:     xpv1.TypeReady,
+			want:    xpv1.Available(),
+			wantAll: []xpv1.Condition{xpv1.Available()},
 		},
 		"WeirdStatus": {
 			reason: "It should not be possible to set a condition when status is not an object.",
 			u: &Unstructured{unstructured.Unstructured{Object: map[string]any{
 				"status": "wat",
 			}}},
-			set:  []xpv1.Condition{xpv1.Available()},
-			get:  xpv1.TypeReady,
-			want: xpv1.Condition{},
+			set:     []xpv1.Condition{xpv1.Available()},
+			get:     xpv1.TypeReady,
+			want:    xpv1.Condition{},
+			wantAll: nil,
 		},
 		"WeirdStatusConditions": {
 			reason: "Conditions should be overwritten if they are not an object.",
@@ -105,18 +111,98 @@ func TestConditions(t *testing.T) {
 					"conditions": "wat",
 				},
 			}}},
-			set:  []xpv1.Condition{xpv1.Available()},
-			get:  xpv1.TypeReady,
-			want: xpv1.Available(),
+			set:     []xpv1.Condition{xpv1.Available()},
+			get:     xpv1.TypeReady,
+			want:    xpv1.Available(),
+			wantAll: []xpv1.Condition{xpv1.Available()},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			tc.u.SetConditions(tc.set...)
+
 			got := tc.u.GetCondition(tc.get)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("\n%s\nu.GetCondition(%s): -want, +got:\n%s", tc.reason, tc.get, diff)
+			}
+
+			gotAll := tc.u.GetConditions()
+			if diff := cmp.Diff(tc.wantAll, gotAll); diff != "" {
+				t.Errorf("\n%s\nu.GetConditions(): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestClaimConditionTypes(t *testing.T) {
+	cases := map[string]struct {
+		reason  string
+		u       *Unstructured
+		set     []xpv1.ConditionType
+		want    []xpv1.ConditionType
+		wantErr error
+	}{
+		"CannotSetSystemConditionTypes": {
+			reason: "Claim conditions API should fail to set conditions if a system condition is detected.",
+			u:      New(),
+			set: []xpv1.ConditionType{
+				xpv1.ConditionType("DatabaseReady"),
+				xpv1.ConditionType("NetworkReady"),
+				// system condition
+				xpv1.ConditionType("Ready"),
+			},
+			want:    []xpv1.ConditionType{},
+			wantErr: errors.New("cannot set system condition Ready as a claim condition"),
+		},
+		"SetSingleCustomConditionType": {
+			reason: "Claim condition API should work with a single custom condition type.",
+			u:      New(),
+			set:    []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady")},
+			want:   []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady")},
+		},
+		"SetMultipleCustomConditionTypes": {
+			reason: "Claim condition API should work with multiple custom condition types.",
+			u:      New(),
+			set:    []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady"), xpv1.ConditionType("NetworkReady")},
+			want:   []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady"), xpv1.ConditionType("NetworkReady")},
+		},
+		"SetMultipleOfTheSameCustomConditionTypes": {
+			reason: "Claim condition API not add more than one of the same condition.",
+			u:      New(),
+			set:    []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady"), xpv1.ConditionType("DatabaseReady")},
+			want:   []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady")},
+		},
+		"WeirdStatus": {
+			reason: "It should not be possible to set a condition when status is not an object.",
+			u: &Unstructured{unstructured.Unstructured{Object: map[string]any{
+				"status": "wat",
+			}}},
+			set:  []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady")},
+			want: []xpv1.ConditionType{},
+		},
+		"WeirdStatusClaimConditionTypes": {
+			reason: "Claim conditions should be overwritten if they are not an object.",
+			u: &Unstructured{unstructured.Unstructured{Object: map[string]any{
+				"status": map[string]any{
+					"claimConditionTypes": "wat",
+				},
+			}}},
+			set:  []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady")},
+			want: []xpv1.ConditionType{xpv1.ConditionType("DatabaseReady")},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			gotErr := tc.u.SetClaimConditionTypes(tc.set...)
+			if diff := cmp.Diff(tc.wantErr, gotErr, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nu.SetClaimConditionTypes(): -want, +got:\n%s", tc.reason, diff)
+			}
+
+			got := tc.u.GetClaimConditionTypes()
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\n%s\nu.GetClaimConditionTypes(): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

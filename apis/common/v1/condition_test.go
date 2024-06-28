@@ -257,3 +257,35 @@ func TestConditionWithObservedGeneration(t *testing.T) {
 		})
 	}
 }
+
+func TestIsSystemConditionType(t *testing.T) {
+	cases := map[string]struct {
+		c    Condition
+		want bool
+	}{
+		"SystemReady": {
+			c:    Condition{Type: ConditionType("Ready")},
+			want: true,
+		},
+		"SystemSynced": {
+			c:    Condition{Type: ConditionType("Synced")},
+			want: true,
+		},
+		"SystemHealthy": {
+			c:    Condition{Type: ConditionType("Healthy")},
+			want: true,
+		},
+		"Custom": {
+			c:    Condition{Type: ConditionType("Custom")},
+			want: false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			if diff := cmp.Diff(tc.want, IsSystemConditionType(tc.c.Type)); diff != "" {
+				t.Errorf("IsSystemConditionType(tc.c.Type): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}

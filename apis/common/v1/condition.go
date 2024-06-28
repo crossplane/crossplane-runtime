@@ -34,6 +34,17 @@ const (
 	// TypeSynced resources are believed to be in sync with the
 	// Kubernetes resources that manage their lifecycle.
 	TypeSynced ConditionType = "Synced"
+
+	// TypeHealthy resources are believed to be in a healthy state and to have all
+	// of their child resources in a healthy state. For example, a claim is
+	// healthy when the claim is synced and the underlying composite resource is
+	// both synced and healthy. A composite resource is healthy when the composite
+	// resource is synced and all composed resources are synced and, if
+	// applicable, healthy (e.g., the composed resource is a composite resource).
+	// TODO: This condition is not yet implemented. It is currently just reserved
+	// as a system condition. See the tracking issue for more details
+	// https://github.com/crossplane/crossplane/issues/5643.
+	TypeHealthy ConditionType = "Healthy"
 )
 
 // A ConditionReason represents the reason a resource is in a condition.
@@ -105,6 +116,16 @@ func (c Condition) WithMessage(msg string) Condition {
 func (c Condition) WithObservedGeneration(gen int64) Condition {
 	c.ObservedGeneration = gen
 	return c
+}
+
+// IsSystemConditionType returns true if the condition is owned by the
+// Crossplane system (e.g, Ready, Synced, Healthy).
+func IsSystemConditionType(t ConditionType) bool {
+	switch t {
+	case TypeReady, TypeSynced, TypeHealthy:
+		return true
+	}
+	return false
 }
 
 // NOTE(negz): Conditions are implemented as a slice rather than a map to comply
