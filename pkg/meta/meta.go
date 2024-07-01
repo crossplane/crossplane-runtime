@@ -87,6 +87,7 @@ func TypedReferenceTo(o metav1.Object, of schema.GroupVersionKind) *xpv1.TypedRe
 		APIVersion: v,
 		Kind:       k,
 		Name:       o.GetName(),
+		Namespace:  o.GetNamespace(),
 		UID:        o.GetUID(),
 	}
 }
