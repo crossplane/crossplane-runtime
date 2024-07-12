@@ -230,6 +230,9 @@ type ExternalConnecter interface {
 }
 
 // An ExternalDisconnecter disconnects from a provider.
+//
+// Deprecated: Please use Disconnect() on the ExternalClient for disconnecting
+// from the provider.
 type ExternalDisconnecter interface {
 	// Disconnect from the provider and close the ExternalClient.
 	Disconnect(ctx context.Context) error
@@ -330,15 +333,22 @@ type ExternalClient interface {
 	// Delete the external resource upon deletion of its associated Managed
 	// resource. Called when the managed resource has been deleted.
 	Delete(ctx context.Context, mg resource.Managed) error
+
+	// Disconnect from the provider and close the ExternalClient.
+	// Called at the end of reconcile loop. An ExternalClient not requiring
+	// to explicitly disconnect to cleanup it resources, can provide a no-op
+	// implementation which just return nil.
+	Disconnect(ctx context.Context) error
 }
 
 // ExternalClientFns are a series of functions that satisfy the ExternalClient
 // interface.
 type ExternalClientFns struct {
-	ObserveFn func(ctx context.Context, mg resource.Managed) (ExternalObservation, error)
-	CreateFn  func(ctx context.Context, mg resource.Managed) (ExternalCreation, error)
-	UpdateFn  func(ctx context.Context, mg resource.Managed) (ExternalUpdate, error)
-	DeleteFn  func(ctx context.Context, mg resource.Managed) error
+	ObserveFn    func(ctx context.Context, mg resource.Managed) (ExternalObservation, error)
+	CreateFn     func(ctx context.Context, mg resource.Managed) (ExternalCreation, error)
+	UpdateFn     func(ctx context.Context, mg resource.Managed) (ExternalUpdate, error)
+	DeleteFn     func(ctx context.Context, mg resource.Managed) error
+	DisconnectFn func(ctx context.Context) error
 }
 
 // Observe the external resource the supplied Managed resource represents, if
@@ -363,6 +373,11 @@ func (e ExternalClientFns) Update(ctx context.Context, mg resource.Managed) (Ext
 // resource.
 func (e ExternalClientFns) Delete(ctx context.Context, mg resource.Managed) error {
 	return e.DeleteFn(ctx, mg)
+}
+
+// Disconnect the external client.
+func (e ExternalClientFns) Disconnect(ctx context.Context) error {
+	return e.DisconnectFn(ctx)
 }
 
 // A NopConnecter does nothing.
@@ -393,6 +408,9 @@ func (c *NopClient) Update(_ context.Context, _ resource.Managed) (ExternalUpdat
 
 // Delete does nothing. It never returns an error.
 func (c *NopClient) Delete(_ context.Context, _ resource.Managed) error { return nil }
+
+// Disconnect does nothing. It never returns an error.
+func (c *NopClient) Disconnect(_ context.Context) error { return nil }
 
 // An ExternalObservation is the result of an observation of an external
 // resource.
@@ -603,6 +621,8 @@ func WithExternalConnecter(c ExternalConnecter) ReconcilerOption {
 
 // WithExternalConnectDisconnecter specifies how the Reconciler should connect and disconnect to the API
 // used to sync and delete external resources.
+//
+// Deprecated: Please use Disconnect() on the ExternalClient for disconnecting from the provider.
 func WithExternalConnectDisconnecter(c ExternalConnectDisconnecter) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.external.ExternalConnectDisconnecter = c
@@ -906,6 +926,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 	}
 	defer func() {
 		if err := r.external.Disconnect(ctx); err != nil {
+			log.Debug("Cannot disconnect from provider", "error", err)
+			record.Event(managed, event.Warning(reasonCannotDisconnect, err))
+		}
+
+		if err := external.Disconnect(ctx); err != nil {
 			log.Debug("Cannot disconnect from provider", "error", err)
 			record.Event(managed, event.Warning(reasonCannotDisconnect, err))
 		}
