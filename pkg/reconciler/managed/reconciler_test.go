@@ -310,17 +310,17 @@ func TestReconciler(t *testing.T) {
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnectDisconnecter(ExternalConnectDisconnecterFns{
-						ConnectFn: func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
-							c := &ExternalClientFns{
-								ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-									return ExternalObservation{ResourceExists: true, ResourceUpToDate: true}, nil
-								},
-							}
-							return c, nil
-						},
-						DisconnectFn: func(_ context.Context) error { return errBoom },
-					}),
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+								return ExternalObservation{ResourceExists: true, ResourceUpToDate: true}, nil
+							},
+							DisconnectFn: func(_ context.Context) error {
+								return errBoom
+							},
+						}
+						return c, nil
+					})),
 					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
@@ -353,6 +353,9 @@ func TestReconciler(t *testing.T) {
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
 								return ExternalObservation{}, errBoom
 							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
+							},
 						}
 						return c, nil
 					})),
@@ -380,6 +383,9 @@ func TestReconciler(t *testing.T) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
 								return ExternalObservation{ResourceExists: false}, nil
+							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
 							},
 						}
 						return c, nil
@@ -426,6 +432,9 @@ func TestReconciler(t *testing.T) {
 							DeleteFn: func(_ context.Context, _ resource.Managed) error {
 								return errBoom
 							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
+							},
 						}
 						return c, nil
 					})),
@@ -471,6 +480,9 @@ func TestReconciler(t *testing.T) {
 							DeleteFn: func(_ context.Context, _ resource.Managed) error {
 								return nil
 							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
+							},
 						}
 						return c, nil
 					})),
@@ -512,6 +524,9 @@ func TestReconciler(t *testing.T) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
 								return ExternalObservation{ResourceExists: false}, nil
+							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
 							},
 						}
 						return c, nil
@@ -558,6 +573,9 @@ func TestReconciler(t *testing.T) {
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
 								return ExternalObservation{ResourceExists: false}, nil
 							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
+							},
 						}
 						return c, nil
 					})),
@@ -589,6 +607,9 @@ func TestReconciler(t *testing.T) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
 								return ExternalObservation{ResourceExists: false}, nil
+							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
 							},
 						}
 						return c, nil
@@ -692,6 +713,9 @@ func TestReconciler(t *testing.T) {
 							CreateFn: func(_ context.Context, _ resource.Managed) (ExternalCreation, error) {
 								return ExternalCreation{}, errBoom
 							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
+							},
 						}
 						return c, nil
 					})),
@@ -734,6 +758,9 @@ func TestReconciler(t *testing.T) {
 							},
 							CreateFn: func(_ context.Context, _ resource.Managed) (ExternalCreation, error) {
 								return ExternalCreation{}, errBoom
+							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
 							},
 						}
 						return c, nil
@@ -781,6 +808,9 @@ func TestReconciler(t *testing.T) {
 							CreateFn: func(_ context.Context, _ resource.Managed) (ExternalCreation, error) {
 								return ExternalCreation{}, nil
 							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
+							},
 						}
 						return c, nil
 					})),
@@ -824,6 +854,9 @@ func TestReconciler(t *testing.T) {
 							CreateFn: func(_ context.Context, _ resource.Managed) (ExternalCreation, error) {
 								cd := ConnectionDetails{"create": []byte{}}
 								return ExternalCreation{ConnectionDetails: cd}, nil
+							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
 							},
 						}
 						return c, nil
@@ -907,6 +940,9 @@ func TestReconciler(t *testing.T) {
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
 								return ExternalObservation{ResourceExists: true, ResourceUpToDate: true, ResourceLateInitialized: true}, nil
 							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
+							},
 						}
 						return c, nil
 					})),
@@ -943,6 +979,9 @@ func TestReconciler(t *testing.T) {
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
 								return ExternalObservation{ResourceExists: true, ResourceUpToDate: true}, nil
 							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
+							},
 						}
 						return c, nil
 					})),
@@ -972,6 +1011,9 @@ func TestReconciler(t *testing.T) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
 								return ExternalObservation{ResourceExists: true, ResourceUpToDate: true}, nil
+							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
 							},
 						}
 						return c, nil
@@ -1013,6 +1055,9 @@ func TestReconciler(t *testing.T) {
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
 								return ExternalObservation{ResourceExists: true, ResourceUpToDate: true}, nil
 							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
+							},
 						}
 						return c, nil
 					})),
@@ -1047,6 +1092,9 @@ func TestReconciler(t *testing.T) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
 								return ExternalObservation{ResourceExists: true, ResourceUpToDate: true}, nil
+							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
 							},
 						}
 						return c, nil
@@ -1096,6 +1144,9 @@ func TestReconciler(t *testing.T) {
 							UpdateFn: func(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
 								return ExternalUpdate{}, errBoom
 							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
+							},
 						}
 						return c, nil
 					})),
@@ -1135,6 +1186,9 @@ func TestReconciler(t *testing.T) {
 							UpdateFn: func(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
 								cd := ConnectionDetails{"update": []byte{}}
 								return ExternalUpdate{ConnectionDetails: cd}, nil
+							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
 							},
 						}
 						return c, nil
@@ -1184,6 +1238,9 @@ func TestReconciler(t *testing.T) {
 							},
 							UpdateFn: func(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
 								return ExternalUpdate{}, nil
+							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
 							},
 						}
 						return c, nil
@@ -1282,17 +1339,17 @@ func TestReconciler(t *testing.T) {
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithExternalConnectDisconnecter(ExternalConnectDisconnecterFns{
-						ConnectFn: func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
-							c := &ExternalClientFns{
-								ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-									return ExternalObservation{ResourceExists: true, ResourceUpToDate: true}, nil
-								},
-							}
-							return c, nil
-						},
-						DisconnectFn: func(_ context.Context) error { return errBoom },
-					}),
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+								return ExternalObservation{ResourceExists: true, ResourceUpToDate: true}, nil
+							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
+							},
+						}
+						return c, nil
+					})),
 					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
@@ -1439,6 +1496,9 @@ func TestReconciler(t *testing.T) {
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
 								return ExternalObservation{ResourceExists: false}, nil
 							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
+							},
 						}
 						return c, nil
 					})),
@@ -1477,6 +1537,9 @@ func TestReconciler(t *testing.T) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
 								return ExternalObservation{ResourceExists: true}, nil
+							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
 							},
 						}
 						return c, nil
@@ -1521,6 +1584,9 @@ func TestReconciler(t *testing.T) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
 								return ExternalObservation{ResourceExists: true}, nil
+							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
 							},
 						}
 						return c, nil
@@ -1652,6 +1718,9 @@ func TestReconciler(t *testing.T) {
 							UpdateFn: func(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
 								return ExternalUpdate{}, errBoom
 							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
+							},
 						}
 						return c, nil
 					})),
@@ -1696,6 +1765,9 @@ func TestReconciler(t *testing.T) {
 							},
 							UpdateFn: func(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
 								return ExternalUpdate{}, nil
+							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
 							},
 						}
 						return c, nil
@@ -1742,6 +1814,9 @@ func TestReconciler(t *testing.T) {
 							UpdateFn: func(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
 								return ExternalUpdate{}, nil
 							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
+							},
 						}
 						return c, nil
 					})),
@@ -1784,6 +1859,9 @@ func TestReconciler(t *testing.T) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
 								return ExternalObservation{ResourceExists: true, ResourceUpToDate: true, ResourceLateInitialized: true}, nil
+							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
 							},
 						}
 						return c, nil
