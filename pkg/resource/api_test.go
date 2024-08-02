@@ -302,7 +302,7 @@ func TestManagedRemoveFinalizer(t *testing.T) {
 		want   want
 	}{
 		"UpdateError": {
-			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(errBoom)},
+			client: &test.MockClient{MockPatch: test.NewMockPatchFn(errBoom)},
 			args: args{
 				ctx: context.Background(),
 				obj: &fake.Object{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
@@ -313,7 +313,7 @@ func TestManagedRemoveFinalizer(t *testing.T) {
 			},
 		},
 		"Successful": {
-			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil)},
+			client: &test.MockClient{MockPatch: test.NewMockPatchFn(nil)},
 			args: args{
 				ctx: context.Background(),
 				obj: &fake.Object{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{finalizer}}},
@@ -360,7 +360,7 @@ func TestAPIFinalizerAdder(t *testing.T) {
 		want   want
 	}{
 		"UpdateError": {
-			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(errBoom)},
+			client: &test.MockClient{MockPatch: test.NewMockPatchFn(errBoom)},
 			args: args{
 				ctx: context.Background(),
 				obj: &fake.Object{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{}}},
@@ -371,7 +371,7 @@ func TestAPIFinalizerAdder(t *testing.T) {
 			},
 		},
 		"Successful": {
-			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil)},
+			client: &test.MockClient{MockPatch: test.NewMockPatchFn(nil)},
 			args: args{
 				ctx: context.Background(),
 				obj: &fake.Object{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{}}},
