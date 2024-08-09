@@ -67,6 +67,9 @@ type Options struct {
 
 	// MetricOptions for recording metrics.
 	MetricOptions *MetricOptions
+
+	// ChangeLogOptions for recording change logs.
+	ChangeLogOptions *ChangeLogOptions
 }
 
 // ForControllerRuntime extracts options for controller-runtime.
@@ -96,4 +99,10 @@ type MetricOptions struct {
 
 	// MRStateMetrics to use for recording state metrics.
 	MRStateMetrics *statemetrics.MRStateMetrics
+}
+
+// ChangeLogOptions for recording changes to managed resources into the change
+// logs.
+type ChangeLogOptions struct {
+	ChangeLogger managed.ChangeLogger
 }

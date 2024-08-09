@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/crossplane/crossplane-runtime/apis/changelogs/proto/v1alpha1"
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
@@ -429,8 +430,8 @@ func TestReconciler(t *testing.T) {
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
 								return ExternalObservation{ResourceExists: true}, nil
 							},
-							DeleteFn: func(_ context.Context, _ resource.Managed) error {
-								return errBoom
+							DeleteFn: func(_ context.Context, _ resource.Managed) (ExternalDelete, error) {
+								return ExternalDelete{}, errBoom
 							},
 							DisconnectFn: func(_ context.Context) error {
 								return nil
@@ -477,8 +478,8 @@ func TestReconciler(t *testing.T) {
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
 								return ExternalObservation{ResourceExists: true}, nil
 							},
-							DeleteFn: func(_ context.Context, _ resource.Managed) error {
-								return nil
+							DeleteFn: func(_ context.Context, _ resource.Managed) (ExternalDelete, error) {
+								return ExternalDelete{}, nil
 							},
 							DisconnectFn: func(_ context.Context) error {
 								return nil
@@ -1403,7 +1404,7 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{}},
 		},
-		"ManagementPoliciyNotSupported": {
+		"ManagementPolicyNotSupported": {
 			reason: `If an unsupported management policy is used, we should throw an error.`,
 			args: args{
 				m: &fake.Manager{
@@ -1433,7 +1434,7 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{}},
 		},
-		"CustomManagementPoliciyNotSupported": {
+		"CustomManagementPolicyNotSupported": {
 			reason: `If a custom unsupported management policy is used, we should throw an error.`,
 			args: args{
 				m: &fake.Manager{
@@ -2314,6 +2315,288 @@ func TestShouldDelete(t *testing.T) {
 			r := NewManagementPoliciesResolver(tc.args.managementPoliciesEnabled, tc.args.managed.GetManagementPolicies(), tc.args.managed.GetDeletionPolicy())
 			if diff := cmp.Diff(tc.want.delete, r.ShouldDelete()); diff != "" {
 				t.Errorf("\nReason: %s\nShouldDelete(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestReconcilerChangeLogs(t *testing.T) {
+	type args struct {
+		m  manager.Manager
+		mg resource.ManagedKind
+		o  []ReconcilerOption
+		c  *changeLogServiceClient
+	}
+
+	type want struct {
+		callCount  int
+		opType     v1alpha1.OperationType
+		errMessage string
+	}
+
+	now := metav1.Now()
+	errBoom := errors.New("boom")
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"CreateSuccessfulWithChangeLogs": {
+			reason: "Successful managed resource creation should send a create change log entry when change logs are enabled.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet:          test.NewMockGetFn(nil),
+						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error { return nil }),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+								// resource doesn't exist, which should trigger a create operation
+								return ExternalObservation{ResourceExists: false, ResourceUpToDate: false}, nil
+							},
+							CreateFn: func(_ context.Context, _ resource.Managed) (ExternalCreation, error) {
+								return ExternalCreation{}, nil
+							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
+							},
+						}
+						return c, nil
+					})),
+				},
+				c: &changeLogServiceClient{},
+			},
+			want: want{
+				callCount:  1,
+				opType:     v1alpha1.OperationType_OPERATION_TYPE_CREATE,
+				errMessage: "",
+			},
+		},
+		"CreateFailureWithChangeLogs": {
+			reason: "Failed managed resource creation should send a create change log entry with the error when change logs are enabled.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet:          test.NewMockGetFn(nil),
+						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error { return nil }),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+								// resource doesn't exist, which should trigger a create operation
+								return ExternalObservation{ResourceExists: false, ResourceUpToDate: false}, nil
+							},
+							CreateFn: func(_ context.Context, _ resource.Managed) (ExternalCreation, error) {
+								// return an error from Create to simulate a failed creation
+								return ExternalCreation{}, errBoom
+							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
+							},
+						}
+						return c, nil
+					})),
+				},
+				c: &changeLogServiceClient{},
+			},
+			want: want{
+				callCount:  1,
+				opType:     v1alpha1.OperationType_OPERATION_TYPE_CREATE,
+				errMessage: errBoom.Error(),
+			},
+		},
+		"UpdateSuccessfulWithChangeLogs": {
+			reason: "Successful managed resource update should send an update change log entry when change logs are enabled.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet:          test.NewMockGetFn(nil),
+						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error { return nil }),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+								// resource exists but isn't up to date, which should trigger an update operation
+								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false}, nil
+							},
+							UpdateFn: func(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
+								return ExternalUpdate{}, nil
+							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
+							},
+						}
+						return c, nil
+					})),
+				},
+				c: &changeLogServiceClient{},
+			},
+			want: want{
+				callCount:  1,
+				opType:     v1alpha1.OperationType_OPERATION_TYPE_UPDATE,
+				errMessage: "",
+			},
+		},
+		"UpdateFailureWithChangeLogs": {
+			reason: "Failed managed resource update should send an update change log entry with the error when change logs are enabled.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet:          test.NewMockGetFn(nil),
+						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error { return nil }),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+								// resource exists but isn't up to date, which should trigger an update operation
+								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false}, nil
+							},
+							UpdateFn: func(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
+								// return an error from Update to simulate a failed update
+								return ExternalUpdate{}, errBoom
+							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
+							},
+						}
+						return c, nil
+					})),
+				},
+				c: &changeLogServiceClient{},
+			},
+			want: want{
+				callCount:  1,
+				opType:     v1alpha1.OperationType_OPERATION_TYPE_UPDATE,
+				errMessage: errBoom.Error(),
+			},
+		},
+		"DeleteSuccessfulWithChangeLogs": {
+			reason: "Successful managed resource delete should send a delete change log entry when change logs are enabled.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							// set a deletion timestamp, which should trigger a delete operation
+							mg := obj.(*fake.Managed)
+							mg.SetDeletionTimestamp(&now)
+							mg.SetDeletionPolicy(xpv1.DeletionDelete)
+							return nil
+						}),
+						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error { return nil }),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+								// resource exists but we set a deletion timestamp above, which should trigger a delete operation
+								return ExternalObservation{ResourceExists: true}, nil
+							},
+							DeleteFn: func(_ context.Context, _ resource.Managed) (ExternalDelete, error) {
+								return ExternalDelete{}, nil
+							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
+							},
+						}
+						return c, nil
+					})),
+				},
+				c: &changeLogServiceClient{},
+			},
+			want: want{
+				callCount:  1,
+				opType:     v1alpha1.OperationType_OPERATION_TYPE_DELETE,
+				errMessage: "",
+			},
+		},
+		"DeleteFailureWithChangeLogs": {
+			reason: "Failed managed resource delete should send a delete change log entry with the error when change logs are enabled.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							// set a deletion timestamp, which should trigger a delete operation
+							mg := obj.(*fake.Managed)
+							mg.SetDeletionTimestamp(&now)
+							mg.SetDeletionPolicy(xpv1.DeletionDelete)
+							return nil
+						}),
+						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error { return nil }),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+								// resource exists but we set a deletion timestamp above, which should trigger a delete operation
+								return ExternalObservation{ResourceExists: true}, nil
+							},
+							DeleteFn: func(_ context.Context, _ resource.Managed) (ExternalDelete, error) {
+								// return an error from Delete to simulate a failed delete
+								return ExternalDelete{}, errBoom
+							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
+							},
+						}
+						return c, nil
+					})),
+				},
+				c: &changeLogServiceClient{},
+			},
+			want: want{
+				callCount:  1,
+				opType:     v1alpha1.OperationType_OPERATION_TYPE_DELETE,
+				errMessage: errBoom.Error(),
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			tc.args.o = append(tc.args.o, WithChangeLogger(NewGRPCChangeLogger(tc.args.c, WithProviderVersion("provider-cool:v9.99.999"))))
+			r := NewReconciler(tc.args.m, tc.args.mg, tc.args.o...)
+			r.Reconcile(context.Background(), reconcile.Request{})
+
+			if diff := cmp.Diff(tc.want.callCount, len(tc.args.c.requests)); diff != "" {
+				t.Errorf("\nReason: %s\nr.Reconcile(...): -want callCount, +got callCount:\n%s", tc.reason, diff)
+			}
+
+			if diff := cmp.Diff(tc.want.opType, tc.args.c.requests[0].GetEntry().GetOperation()); diff != "" {
+				t.Errorf("\nReason: %s\nr.Reconcile(...): -want opType, +got opType:\n%s", tc.reason, diff)
+			}
+
+			if diff := cmp.Diff(tc.want.errMessage, tc.args.c.requests[0].GetEntry().GetErrorMessage()); diff != "" {
+				t.Errorf("\nReason: %s\nr.Reconcile(...): -want errMessage, +got errMessage:\n%s", tc.reason, diff)
 			}
 		})
 	}
