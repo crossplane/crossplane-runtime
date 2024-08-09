@@ -26,11 +26,11 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/utils/ptr"
 
 	"github.com/crossplane/crossplane-runtime/apis/changelogs/proto/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/pkg/reference"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
@@ -97,7 +97,7 @@ func TestChangeLogger(t *testing.T) {
 								Name:        "cool-managed",
 								Annotations: map[string]string{meta.AnnotationKeyExternalName: "cool-managed"},
 							}}),
-							ErrorMessage:      reference.ToPtrValue("boom"),
+							ErrorMessage:      ptr.To("boom"),
 							AdditionalDetails: AdditionalDetails{"key": "value", "key2": "value2"},
 						},
 					},
@@ -135,15 +135,15 @@ func TestChangeLogger(t *testing.T) {
 						},
 					},
 				},
-				err: errors.Wrap(errBoom, "Cannot send change log entry"),
+				err: errors.Wrap(errBoom, "cannot send change log entry"),
 			},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			changeLogger := NewGRPCChangeLogger(tc.args.c, "provider-cool:v9.99.999")
-			err := changeLogger.RecordChangeLog(context.Background(), tc.args.mr, v1alpha1.OperationType_OPERATION_TYPE_CREATE, tc.args.err, tc.args.ad)
+			change := NewGRPCChangeLogger(tc.args.c, WithProviderVersion("provider-cool:v9.99.999"))
+			err := change.Log(context.Background(), tc.args.mr, v1alpha1.OperationType_OPERATION_TYPE_CREATE, tc.args.err, tc.args.ad)
 
 			// we ignore unexported fields in the protobuf related types, we
 			// don't care much for the internals that cmp doesn't handle

@@ -83,7 +83,6 @@ const (
 	reasonCannotUpdate            event.Reason = "CannotUpdateExternalResource"
 	reasonCannotUpdateManaged     event.Reason = "CannotUpdateManagedResource"
 	reasonManagementPolicyInvalid event.Reason = "CannotUseInvalidManagementPolicy"
-	reasonCannotSendChangeLog     event.Reason = "CannotSendChangeLog"
 
 	reasonDeleted event.Reason = "DeletedExternalResource"
 	reasonCreated event.Reason = "CreatedExternalResource"
@@ -531,7 +530,7 @@ type Reconciler struct {
 	log            logging.Logger
 	record         event.Recorder
 	metricRecorder MetricRecorder
-	changeLogger   ChangeLogger
+	change         ChangeLogger
 }
 
 type mrManaged struct {
@@ -730,7 +729,7 @@ func WithReconcilerSupportedManagementPolicies(supported []sets.Set[xpv1.Managem
 // reconciliation.
 func WithChangeLogger(c ChangeLogger) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.changeLogger = c
+		r.change = c
 	}
 }
 
@@ -764,7 +763,7 @@ func NewReconciler(m manager.Manager, of resource.ManagedKind, o ...ReconcilerOp
 		log:                         logging.NewNopLogger(),
 		record:                      event.NewNopRecorder(),
 		metricRecorder:              NewNopMetricRecorder(),
-		changeLogger:                newNopChangeLogger(),
+		change:                      newNopChangeLogger(),
 	}
 
 	for _, ro := range o {
@@ -1026,9 +1025,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 				// status with the new error condition. If not, we want requeue
 				// explicitly, which will trigger backoff.
 				log.Debug("Cannot delete external resource", "error", err)
-				if err := r.changeLogger.RecordChangeLog(ctx, managedPreOp, v1alpha1.OperationType_OPERATION_TYPE_DELETE, err, deletion.AdditionalDetails); err != nil {
-					log.Debug(errRecordChangeLog, "error", err)
-					record.Event(managed, event.Warning(reasonCannotSendChangeLog, err))
+				if err := r.change.Log(ctx, managedPreOp, v1alpha1.OperationType_OPERATION_TYPE_DELETE, err, deletion.AdditionalDetails); err != nil {
+					log.Info(errRecordChangeLog, "error", err)
 				}
 				record.Event(managed, event.Warning(reasonCannotDelete, err))
 				managed.SetConditions(xpv1.Deleting(), xpv1.ReconcileError(errors.Wrap(err, errReconcileDelete)))
@@ -1043,9 +1041,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 			// unpublish and finalize. If it still exists we'll re-enter this
 			// block and try again.
 			log.Debug("Successfully requested deletion of external resource")
-			if err := r.changeLogger.RecordChangeLog(ctx, managedPreOp, v1alpha1.OperationType_OPERATION_TYPE_DELETE, nil, deletion.AdditionalDetails); err != nil {
-				log.Debug(errRecordChangeLog, "error", err)
-				record.Event(managed, event.Warning(reasonCannotSendChangeLog, err))
+			if err := r.change.Log(ctx, managedPreOp, v1alpha1.OperationType_OPERATION_TYPE_DELETE, nil, deletion.AdditionalDetails); err != nil {
+				log.Info(errRecordChangeLog, "error", err)
 			}
 			record.Event(managed, event.Normal(reasonDeleted, "Successfully requested deletion of external resource"))
 			managed.SetConditions(xpv1.Deleting(), xpv1.ReconcileSuccess())
@@ -1160,9 +1157,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 				// create failed.
 			}
 
-			if err := r.changeLogger.RecordChangeLog(ctx, managedPreOp, v1alpha1.OperationType_OPERATION_TYPE_CREATE, err, creation.AdditionalDetails); err != nil {
-				log.Debug(errRecordChangeLog, "error", err)
-				record.Event(managed, event.Warning(reasonCannotSendChangeLog, err))
+			if err := r.change.Log(ctx, managedPreOp, v1alpha1.OperationType_OPERATION_TYPE_CREATE, err, creation.AdditionalDetails); err != nil {
+				log.Info(errRecordChangeLog, "error", err)
 			}
 			managed.SetConditions(xpv1.Creating(), xpv1.ReconcileError(errors.Wrap(err, errReconcileCreate)))
 			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
@@ -1172,9 +1168,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		log = log.WithValues("external-name", meta.GetExternalName(managed))
 		record = r.record.WithAnnotations("external-name", meta.GetExternalName(managed))
 
-		if err := r.changeLogger.RecordChangeLog(ctx, managedPreOp, v1alpha1.OperationType_OPERATION_TYPE_CREATE, nil, creation.AdditionalDetails); err != nil {
-			log.Debug(errRecordChangeLog, "error", err)
-			record.Event(managed, event.Warning(reasonCannotSendChangeLog, err))
+		if err := r.change.Log(ctx, managedPreOp, v1alpha1.OperationType_OPERATION_TYPE_CREATE, nil, creation.AdditionalDetails); err != nil {
+			log.Info(errRecordChangeLog, "error", err)
 		}
 
 		// We handle annotations specially here because it's critical
@@ -1278,9 +1273,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		// requeued implicitly when we update our status with the new error
 		// condition. If not, we requeue explicitly, which will trigger backoff.
 		log.Debug("Cannot update external resource")
-		if err := r.changeLogger.RecordChangeLog(ctx, managedPreOp, v1alpha1.OperationType_OPERATION_TYPE_UPDATE, err, update.AdditionalDetails); err != nil {
-			log.Debug(errRecordChangeLog, "error", err)
-			record.Event(managed, event.Warning(reasonCannotSendChangeLog, err))
+		if err := r.change.Log(ctx, managedPreOp, v1alpha1.OperationType_OPERATION_TYPE_UPDATE, err, update.AdditionalDetails); err != nil {
+			log.Info(errRecordChangeLog, "error", err)
 		}
 		record.Event(managed, event.Warning(reasonCannotUpdate, err))
 		managed.SetConditions(xpv1.ReconcileError(errors.Wrap(err, errReconcileUpdate)))
@@ -1289,9 +1283,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 
 	// record the drift after the successful update.
 	r.metricRecorder.recordDrift(managed)
-	if err := r.changeLogger.RecordChangeLog(ctx, managedPreOp, v1alpha1.OperationType_OPERATION_TYPE_UPDATE, nil, update.AdditionalDetails); err != nil {
-		log.Debug(errRecordChangeLog, "error", err)
-		record.Event(managed, event.Warning(reasonCannotSendChangeLog, err))
+	if err := r.change.Log(ctx, managedPreOp, v1alpha1.OperationType_OPERATION_TYPE_UPDATE, nil, update.AdditionalDetails); err != nil {
+		log.Info(errRecordChangeLog, "error", err)
 	}
 
 	if _, err := r.managed.PublishConnection(ctx, managed, update.ConnectionDetails); err != nil {

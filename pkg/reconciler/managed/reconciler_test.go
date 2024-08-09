@@ -2583,7 +2583,7 @@ func TestReconcilerChangeLogs(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			tc.args.o = append(tc.args.o, WithChangeLogger(NewGRPCChangeLogger(tc.args.c, "provider-cool:v9.99.999")))
+			tc.args.o = append(tc.args.o, WithChangeLogger(NewGRPCChangeLogger(tc.args.c, WithProviderVersion("provider-cool:v9.99.999"))))
 			r := NewReconciler(tc.args.m, tc.args.mg, tc.args.o...)
 			r.Reconcile(context.Background(), reconcile.Request{})
 

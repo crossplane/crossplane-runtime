@@ -18,18 +18,25 @@ package managed
 
 import (
 	"context"
+	"time"
+
+	"google.golang.org/grpc"
+	"k8s.io/utils/ptr"
 
 	"github.com/crossplane/crossplane-runtime/apis/changelogs/proto/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
-	"github.com/crossplane/crossplane-runtime/pkg/reference"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+)
+
+const (
+	defaultSendTimeout = 10 * time.Second
 )
 
 // ChangeLogger is an interface for recording changes made to resources to the
 // change logs.
 type ChangeLogger interface {
-	RecordChangeLog(ctx context.Context, managed resource.Managed, opType v1alpha1.OperationType, changeErr error, ad AdditionalDetails) error
+	Log(ctx context.Context, managed resource.Managed, opType v1alpha1.OperationType, changeErr error, ad AdditionalDetails) error
 }
 
 // GRPCChangeLogger processes changes to resources and helps to send them to the
@@ -37,23 +44,49 @@ type ChangeLogger interface {
 type GRPCChangeLogger struct {
 	client          v1alpha1.ChangeLogServiceClient
 	providerVersion string
+	sendTimeout     time.Duration
 }
 
 // NewGRPCChangeLogger creates a new gRPC based ChangeLogger initialized with
-// the given values.
-func NewGRPCChangeLogger(client v1alpha1.ChangeLogServiceClient, providerVersion string) *GRPCChangeLogger {
-	return &GRPCChangeLogger{
-		client:          client,
-		providerVersion: providerVersion,
+// the given client.
+func NewGRPCChangeLogger(client v1alpha1.ChangeLogServiceClient, o ...GRPCChangeLoggerOption) *GRPCChangeLogger {
+	g := &GRPCChangeLogger{
+		client:      client,
+		sendTimeout: defaultSendTimeout,
+	}
+
+	for _, clo := range o {
+		clo(g)
+	}
+
+	return g
+}
+
+// A GRPCChangeLoggerOption configures a GRPCChangeLoggerOption.
+type GRPCChangeLoggerOption func(*GRPCChangeLogger)
+
+// WithProviderVersion sets the provider version to be included in the change
+// log entry.
+func WithProviderVersion(version string) GRPCChangeLoggerOption {
+	return func(g *GRPCChangeLogger) {
+		g.providerVersion = version
 	}
 }
 
-// RecordChangeLog sends the given change log entry to the change log service.
-func (g *GRPCChangeLogger) RecordChangeLog(ctx context.Context, managed resource.Managed, opType v1alpha1.OperationType, changeErr error, ad AdditionalDetails) error {
+// WithSendTimeout sets the timeout for sending and/or waiting for change log
+// entries to the change log service.
+func WithSendTimeout(timeout time.Duration) GRPCChangeLoggerOption {
+	return func(g *GRPCChangeLogger) {
+		g.sendTimeout = timeout
+	}
+}
+
+// Log sends the given change log entry to the change log service.
+func (g *GRPCChangeLogger) Log(ctx context.Context, managed resource.Managed, opType v1alpha1.OperationType, changeErr error, ad AdditionalDetails) error {
 	// get an error message from the error if it exists
 	var changeErrMessage *string
 	if changeErr != nil {
-		changeErrMessage = reference.ToPtrValue(changeErr.Error())
+		changeErrMessage = ptr.To(changeErr.Error())
 	}
 
 	// capture the full state of the managed resource from before we performed the change
@@ -76,9 +109,15 @@ func (g *GRPCChangeLogger) RecordChangeLog(ctx context.Context, managed resource
 		AdditionalDetails: ad,
 	}
 
+	// create a specific context and timeout for sending the change log entry
+	// that is different than the parent context that is for the entire
+	// reconciliation
+	sendCtx, sendCancel := context.WithTimeout(ctx, g.sendTimeout)
+	defer sendCancel()
+
 	// send everything we've got to the change log service
-	_, err = g.client.SendChangeLog(ctx, &v1alpha1.SendChangeLogRequest{Entry: entry})
-	return errors.Wrap(err, "Cannot send change log entry")
+	_, err = g.client.SendChangeLog(sendCtx, &v1alpha1.SendChangeLogRequest{Entry: entry}, grpc.WaitForReady(true))
+	return errors.Wrap(err, "cannot send change log entry")
 }
 
 // nopChangeLogger does nothing for recording change logs, this is the default
@@ -89,6 +128,6 @@ func newNopChangeLogger() *nopChangeLogger {
 	return &nopChangeLogger{}
 }
 
-func (n *nopChangeLogger) RecordChangeLog(_ context.Context, _ resource.Managed, _ v1alpha1.OperationType, _ error, _ AdditionalDetails) error {
+func (n *nopChangeLogger) Log(_ context.Context, _ resource.Managed, _ v1alpha1.OperationType, _ error, _ AdditionalDetails) error {
 	return nil
 }
