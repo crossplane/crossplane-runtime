@@ -20,3 +20,8 @@ package feature
 // Management Policies. See the below design for more details.
 // https://github.com/crossplane/crossplane/pull/3531
 const EnableBetaManagementPolicies Flag = "EnableBetaManagementPolicies"
+
+// EnableAlphaChangeLogs enables alpha support for capturing change logs during
+// reconciliation. See the following design for more details:
+// https://github.com/crossplane/crossplane/pull/5822
+const EnableAlphaChangeLogs Flag = "EnableAlphaChangeLogs"

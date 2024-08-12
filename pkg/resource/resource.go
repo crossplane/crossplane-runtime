@@ -22,12 +22,15 @@ import (
 	"sort"
 	"strings"
 
+	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -35,6 +38,7 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 )
 
 // SecretTypeConnection is the type of Crossplane connection secrets.
@@ -46,6 +50,10 @@ const (
 	ExternalResourceTagKeyKind     = "crossplane-kind"
 	ExternalResourceTagKeyName     = "crossplane-name"
 	ExternalResourceTagKeyProvider = "crossplane-providerconfig"
+
+	errMarshalJSON            = "cannot marshal to JSON"
+	errUnmarshalJSON          = "cannot unmarshal JSON data"
+	errStructFromUnstructured = "cannot create Struct"
 )
 
 // A ManagedKind contains the type metadata for a kind of managed resource.
@@ -424,4 +432,31 @@ func StableNAndSomeMore(n int, names []string) string {
 	copy(cpy, names)
 	sort.Strings(cpy)
 	return FirstNAndSomeMore(n, cpy)
+}
+
+// AsProtobufStruct converts the given object to a structpb.Struct for usage with gRPC
+// connections.
+// Copied from:
+// https://github.com/crossplane/crossplane/blob/release-1.16/internal/controller/apiextensions/composite/composition_functions.go#L761
+func AsProtobufStruct(o runtime.Object) (*structpb.Struct, error) {
+	// If the supplied object is *Unstructured we don't need to round-trip.
+	if u, ok := o.(*kunstructured.Unstructured); ok {
+		s, err := structpb.NewStruct(u.Object)
+		return s, errors.Wrap(err, errStructFromUnstructured)
+	}
+
+	// If the supplied object wraps *Unstructured we don't need to round-trip.
+	if w, ok := o.(unstructured.Wrapper); ok {
+		s, err := structpb.NewStruct(w.GetUnstructured().Object)
+		return s, errors.Wrap(err, errStructFromUnstructured)
+	}
+
+	// Fall back to a JSON round-trip.
+	b, err := json.Marshal(o)
+	if err != nil {
+		return nil, errors.Wrap(err, errMarshalJSON)
+	}
+
+	s := &structpb.Struct{}
+	return s, errors.Wrap(s.UnmarshalJSON(b), errUnmarshalJSON)
 }
