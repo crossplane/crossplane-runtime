@@ -23,19 +23,18 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/ratelimiter"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
-var _ ratelimiter.RateLimiter = &predictableRateLimiter{}
+var _ RateLimiter = &predictableRateLimiter{}
 
 type predictableRateLimiter struct{ d time.Duration }
 
-func (r *predictableRateLimiter) When(_ any) time.Duration { return r.d }
-func (r *predictableRateLimiter) Forget(_ any)             {}
-func (r *predictableRateLimiter) NumRequeues(_ any) int    { return 0 }
+func (r *predictableRateLimiter) When(_ string) time.Duration { return r.d }
+func (r *predictableRateLimiter) Forget(_ string)             {}
+func (r *predictableRateLimiter) NumRequeues(_ string) int    { return 0 }
 
 func TestReconcile(t *testing.T) {
 	type args struct {

@@ -21,9 +21,15 @@ import (
 	"sync"
 	"time"
 
-	"sigs.k8s.io/controller-runtime/pkg/ratelimiter"
+	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
+
+// BucketRateLimiter for a standard crossplane reconciler.
+type BucketRateLimiter = workqueue.TypedBucketRateLimiter[string]
+
+// RateLimiter for a standard crossplane reconciler.
+type RateLimiter = workqueue.TypedRateLimiter[string]
 
 // A Reconciler rate limits an inner, wrapped Reconciler. Requests that are rate
 // limited immediately return RequeueAfter: d without calling the wrapped
@@ -31,7 +37,7 @@ import (
 type Reconciler struct {
 	name  string
 	inner reconcile.Reconciler
-	limit ratelimiter.RateLimiter
+	limit RateLimiter
 
 	limited  map[string]struct{}
 	limitedL sync.RWMutex
@@ -40,7 +46,7 @@ type Reconciler struct {
 // NewReconciler wraps the supplied Reconciler, ensuring requests are passed to
 // it no more frequently than the supplied RateLimiter allows. Multiple uniquely
 // named Reconcilers can share the same RateLimiter.
-func NewReconciler(name string, r reconcile.Reconciler, l ratelimiter.RateLimiter) *Reconciler {
+func NewReconciler(name string, r reconcile.Reconciler, l RateLimiter) *Reconciler {
 	return &Reconciler{name: name, inner: r, limit: l, limited: make(map[string]struct{})}
 }
 

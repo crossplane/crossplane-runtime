@@ -27,8 +27,11 @@ import (
 )
 
 type adder interface {
-	Add(item any)
+	Add(item reconcile.Request)
 }
+
+// RateLimitingInterface for an EnqueueRequestForProviderConfig.
+type RateLimitingInterface = workqueue.TypedRateLimitingInterface[reconcile.Request]
 
 // EnqueueRequestForProviderConfig enqueues a reconcile.Request for a referenced
 // ProviderConfig.
@@ -36,26 +39,26 @@ type EnqueueRequestForProviderConfig struct{}
 
 // Create adds a NamespacedName for the supplied CreateEvent if its Object is a
 // ProviderConfigReferencer.
-func (e *EnqueueRequestForProviderConfig) Create(_ context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForProviderConfig) Create(_ context.Context, evt event.CreateEvent, q RateLimitingInterface) {
 	addProviderConfig(evt.Object, q)
 }
 
 // Update adds a NamespacedName for the supplied UpdateEvent if its Objects are
 // a ProviderConfigReferencer.
-func (e *EnqueueRequestForProviderConfig) Update(_ context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForProviderConfig) Update(_ context.Context, evt event.UpdateEvent, q RateLimitingInterface) {
 	addProviderConfig(evt.ObjectOld, q)
 	addProviderConfig(evt.ObjectNew, q)
 }
 
 // Delete adds a NamespacedName for the supplied DeleteEvent if its Object is a
 // ProviderConfigReferencer.
-func (e *EnqueueRequestForProviderConfig) Delete(_ context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForProviderConfig) Delete(_ context.Context, evt event.DeleteEvent, q RateLimitingInterface) {
 	addProviderConfig(evt.Object, q)
 }
 
 // Generic adds a NamespacedName for the supplied GenericEvent if its Object is
 // a ProviderConfigReferencer.
-func (e *EnqueueRequestForProviderConfig) Generic(_ context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForProviderConfig) Generic(_ context.Context, evt event.GenericEvent, q RateLimitingInterface) {
 	addProviderConfig(evt.Object, q)
 }
 

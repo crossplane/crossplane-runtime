@@ -53,7 +53,7 @@ type SecretStore struct {
 // NewSecretStore returns a new External SecretStore.
 func NewSecretStore(_ context.Context, kube client.Client, tcfg *tls.Config, cfg v1.SecretStoreConfig) (*SecretStore, error) {
 	creds := credentials.NewTLS(tcfg)
-	conn, err := grpc.Dial(cfg.Plugin.Endpoint, grpc.WithTransportCredentials(creds))
+	conn, err := grpc.NewClient(cfg.Plugin.Endpoint, grpc.WithTransportCredentials(creds))
 	if err != nil {
 		return nil, errors.Wrapf(err, errFmtCannotDial, cfg.Plugin.Endpoint)
 	}
