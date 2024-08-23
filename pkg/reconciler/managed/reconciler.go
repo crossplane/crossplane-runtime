@@ -230,10 +230,14 @@ func (m ReferenceResolverFn) ResolveReferences(ctx context.Context, mg resource.
 
 // An ExternalConnecter produces a new ExternalClient given the supplied
 // Managed resource.
-type ExternalConnecter interface {
+type ExternalConnecter = TypedExternalConnecter[resource.Managed]
+
+// A TypedExternalConnecter produces a new ExternalClient given the supplied
+// Managed resource.
+type TypedExternalConnecter[managed resource.Managed] interface {
 	// Connect to the provider specified by the supplied managed resource and
 	// produce an ExternalClient.
-	Connect(ctx context.Context, mg resource.Managed) (ExternalClient, error)
+	Connect(ctx context.Context, mg managed) (TypedExternalClient[managed], error)
 }
 
 // An ExternalDisconnecter disconnects from a provider.
@@ -247,40 +251,58 @@ type ExternalDisconnecter interface {
 
 // A NopDisconnecter converts an ExternalConnecter into an
 // ExternalConnectDisconnecter with a no-op Disconnect method.
-type NopDisconnecter struct {
-	c ExternalConnecter
+type NopDisconnecter = TypedNopDisconnecter[resource.Managed]
+
+// A TypedNopDisconnecter converts an ExternalConnecter into an
+// ExternalConnectDisconnecter with a no-op Disconnect method.
+type TypedNopDisconnecter[managed resource.Managed] struct {
+	c TypedExternalConnecter[managed]
 }
 
 // Connect calls the underlying ExternalConnecter's Connect method.
-func (c *NopDisconnecter) Connect(ctx context.Context, mg resource.Managed) (ExternalClient, error) {
+func (c *TypedNopDisconnecter[managed]) Connect(ctx context.Context, mg managed) (TypedExternalClient[managed], error) {
 	return c.c.Connect(ctx, mg)
 }
 
 // Disconnect does nothing. It never returns an error.
-func (c *NopDisconnecter) Disconnect(_ context.Context) error {
+func (c *TypedNopDisconnecter[managed]) Disconnect(_ context.Context) error {
 	return nil
 }
 
 // NewNopDisconnecter converts an ExternalConnecter into an
 // ExternalConnectDisconnecter with a no-op Disconnect method.
 func NewNopDisconnecter(c ExternalConnecter) ExternalConnectDisconnecter {
-	return &NopDisconnecter{c}
+	return NewTypedNopDisconnecter(c)
+}
+
+// NewTypedNopDisconnecter converts an TypedExternalConnecter into an
+// ExternalConnectDisconnecter with a no-op Disconnect method.
+func NewTypedNopDisconnecter[managed resource.Managed](c TypedExternalConnecter[managed]) TypedExternalConnectDisconnecter[managed] {
+	return &TypedNopDisconnecter[managed]{c}
 }
 
 // An ExternalConnectDisconnecter produces a new ExternalClient given the supplied
 // Managed resource.
-type ExternalConnectDisconnecter interface {
-	ExternalConnecter
+type ExternalConnectDisconnecter = TypedExternalConnectDisconnecter[resource.Managed]
+
+// A TypedExternalConnectDisconnecter produces a new ExternalClient given the supplied
+// Managed resource.
+type TypedExternalConnectDisconnecter[managed resource.Managed] interface {
+	TypedExternalConnecter[managed]
 	ExternalDisconnecter
 }
 
 // An ExternalConnectorFn is a function that satisfies the ExternalConnecter
 // interface.
-type ExternalConnectorFn func(ctx context.Context, mg resource.Managed) (ExternalClient, error)
+type ExternalConnectorFn = TypedExternalConnectorFn[resource.Managed]
+
+// An TypedExternalConnectorFn is a function that satisfies the
+// TypedExternalConnecter interface.
+type TypedExternalConnectorFn[managed resource.Managed] func(ctx context.Context, mg managed) (TypedExternalClient[managed], error)
 
 // Connect to the provider specified by the supplied managed resource and
 // produce an ExternalClient.
-func (ec ExternalConnectorFn) Connect(ctx context.Context, mg resource.Managed) (ExternalClient, error) {
+func (ec TypedExternalConnectorFn[managed]) Connect(ctx context.Context, mg managed) (TypedExternalClient[managed], error) {
 	return ec(ctx, mg)
 }
 
@@ -295,19 +317,23 @@ func (ed ExternalDisconnectorFn) Disconnect(ctx context.Context) error {
 
 // ExternalConnectDisconnecterFns are functions that satisfy the
 // ExternalConnectDisconnecter interface.
-type ExternalConnectDisconnecterFns struct {
-	ConnectFn    func(ctx context.Context, mg resource.Managed) (ExternalClient, error)
+type ExternalConnectDisconnecterFns = TypedExternalConnectDisconnecterFns[resource.Managed]
+
+// TypedExternalConnectDisconnecterFns are functions that satisfy the
+// TypedExternalConnectDisconnecter interface.
+type TypedExternalConnectDisconnecterFns[managed resource.Managed] struct {
+	ConnectFn    func(ctx context.Context, mg managed) (TypedExternalClient[managed], error)
 	DisconnectFn func(ctx context.Context) error
 }
 
 // Connect to the provider specified by the supplied managed resource and
 // produce an ExternalClient.
-func (fns ExternalConnectDisconnecterFns) Connect(ctx context.Context, mg resource.Managed) (ExternalClient, error) {
+func (fns TypedExternalConnectDisconnecterFns[managed]) Connect(ctx context.Context, mg managed) (TypedExternalClient[managed], error) {
 	return fns.ConnectFn(ctx, mg)
 }
 
 // Disconnect from the provider and close the ExternalClient.
-func (fns ExternalConnectDisconnecterFns) Disconnect(ctx context.Context) error {
+func (fns TypedExternalConnectDisconnecterFns[managed]) Disconnect(ctx context.Context) error {
 	return fns.DisconnectFn(ctx)
 }
 
@@ -316,30 +342,37 @@ func (fns ExternalConnectDisconnecterFns) Disconnect(ctx context.Context) error 
 // idempotent. For example, Create call should not return AlreadyExists error
 // if it's called again with the same parameters or Delete call should not
 // return error if there is an ongoing deletion or resource does not exist.
-type ExternalClient interface {
+type ExternalClient = TypedExternalClient[resource.Managed]
+
+// A TypedExternalClient manages the lifecycle of an external resource.
+// None of the calls here should be blocking. All of the calls should be
+// idempotent. For example, Create call should not return AlreadyExists error
+// if it's called again with the same parameters or Delete call should not
+// return error if there is an ongoing deletion or resource does not exist.
+type TypedExternalClient[managedType resource.Managed] interface {
 	// Observe the external resource the supplied Managed resource
 	// represents, if any. Observe implementations must not modify the
 	// external resource, but may update the supplied Managed resource to
 	// reflect the state of the external resource. Status modifications are
 	// automatically persisted unless ResourceLateInitialized is true - see
 	// ResourceLateInitialized for more detail.
-	Observe(ctx context.Context, mg resource.Managed) (ExternalObservation, error)
+	Observe(ctx context.Context, mg managedType) (ExternalObservation, error)
 
 	// Create an external resource per the specifications of the supplied
 	// Managed resource. Called when Observe reports that the associated
 	// external resource does not exist. Create implementations may update
 	// managed resource annotations, and those updates will be persisted.
 	// All other updates will be discarded.
-	Create(ctx context.Context, mg resource.Managed) (ExternalCreation, error)
+	Create(ctx context.Context, mg managedType) (ExternalCreation, error)
 
 	// Update the external resource represented by the supplied Managed
 	// resource, if necessary. Called unless Observe reports that the
 	// associated external resource is up to date.
-	Update(ctx context.Context, mg resource.Managed) (ExternalUpdate, error)
+	Update(ctx context.Context, mg managedType) (ExternalUpdate, error)
 
 	// Delete the external resource upon deletion of its associated Managed
 	// resource. Called when the managed resource has been deleted.
-	Delete(ctx context.Context, mg resource.Managed) (ExternalDelete, error)
+	Delete(ctx context.Context, mg managedType) (ExternalDelete, error)
 
 	// Disconnect from the provider and close the ExternalClient.
 	// Called at the end of reconcile loop. An ExternalClient not requiring
@@ -350,40 +383,44 @@ type ExternalClient interface {
 
 // ExternalClientFns are a series of functions that satisfy the ExternalClient
 // interface.
-type ExternalClientFns struct {
-	ObserveFn    func(ctx context.Context, mg resource.Managed) (ExternalObservation, error)
-	CreateFn     func(ctx context.Context, mg resource.Managed) (ExternalCreation, error)
-	UpdateFn     func(ctx context.Context, mg resource.Managed) (ExternalUpdate, error)
-	DeleteFn     func(ctx context.Context, mg resource.Managed) (ExternalDelete, error)
+type ExternalClientFns = TypedExternalClientFns[resource.Managed]
+
+// TypedExternalClientFns are a series of functions that satisfy the
+// ExternalClient interface.
+type TypedExternalClientFns[managed resource.Managed] struct {
+	ObserveFn    func(ctx context.Context, mg managed) (ExternalObservation, error)
+	CreateFn     func(ctx context.Context, mg managed) (ExternalCreation, error)
+	UpdateFn     func(ctx context.Context, mg managed) (ExternalUpdate, error)
+	DeleteFn     func(ctx context.Context, mg managed) (ExternalDelete, error)
 	DisconnectFn func(ctx context.Context) error
 }
 
 // Observe the external resource the supplied Managed resource represents, if
 // any.
-func (e ExternalClientFns) Observe(ctx context.Context, mg resource.Managed) (ExternalObservation, error) {
+func (e TypedExternalClientFns[managed]) Observe(ctx context.Context, mg managed) (ExternalObservation, error) {
 	return e.ObserveFn(ctx, mg)
 }
 
 // Create an external resource per the specifications of the supplied Managed
 // resource.
-func (e ExternalClientFns) Create(ctx context.Context, mg resource.Managed) (ExternalCreation, error) {
+func (e TypedExternalClientFns[managed]) Create(ctx context.Context, mg managed) (ExternalCreation, error) {
 	return e.CreateFn(ctx, mg)
 }
 
 // Update the external resource represented by the supplied Managed resource, if
 // necessary.
-func (e ExternalClientFns) Update(ctx context.Context, mg resource.Managed) (ExternalUpdate, error) {
+func (e TypedExternalClientFns[managed]) Update(ctx context.Context, mg managed) (ExternalUpdate, error) {
 	return e.UpdateFn(ctx, mg)
 }
 
 // Delete the external resource upon deletion of its associated Managed
 // resource.
-func (e ExternalClientFns) Delete(ctx context.Context, mg resource.Managed) (ExternalDelete, error) {
+func (e TypedExternalClientFns[managed]) Delete(ctx context.Context, mg managed) (ExternalDelete, error) {
 	return e.DeleteFn(ctx, mg)
 }
 
 // Disconnect the external client.
-func (e ExternalClientFns) Disconnect(ctx context.Context) error {
+func (e TypedExternalClientFns[managed]) Disconnect(ctx context.Context) error {
 	return e.DisconnectFn(ctx)
 }
 
@@ -644,6 +681,16 @@ func WithExternalConnecter(c ExternalConnecter) ReconcilerOption {
 	}
 }
 
+// WithTypedExternalConnector specifies how the Reconciler should connect to the API
+// used to sync and delete external resources.
+func WithTypedExternalConnector[managed resource.Managed](c TypedExternalConnecter[managed]) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.external.ExternalConnectDisconnecter = &typedExternalConnectDisconnecterWrapper[managed]{
+			c: NewTypedNopDisconnecter(c),
+		}
+	}
+}
+
 // WithExternalConnectDisconnecter specifies how the Reconciler should connect and disconnect to the API
 // used to sync and delete external resources.
 //
@@ -651,6 +698,16 @@ func WithExternalConnecter(c ExternalConnecter) ReconcilerOption {
 func WithExternalConnectDisconnecter(c ExternalConnectDisconnecter) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.external.ExternalConnectDisconnecter = c
+	}
+}
+
+// WithTypedExternalConnectDisconnecter specifies how the Reconciler should connect and disconnect to the API
+// used to sync and delete external resources.
+//
+// Deprecated: Please use Disconnect() on the ExternalClient for disconnecting from the provider.
+func WithTypedExternalConnectDisconnecter[managed resource.Managed](c TypedExternalConnectDisconnecter[managed]) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.external.ExternalConnectDisconnecter = &typedExternalConnectDisconnecterWrapper[managed]{c}
 	}
 }
 
