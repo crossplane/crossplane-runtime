@@ -55,7 +55,7 @@ func (r ReferenceStatus) String() string {
 type CanReference runtime.Object
 
 // An AttributeReferencer resolves cross-resource attribute references. See
-// https://github.com/crossplane/crossplane/blob/master/design/one-pager-cross-resource-referencing.md
+// https://github.com/crossplane/crossplane/blob/main/design/one-pager-cross-resource-referencing.md
 // for more information.
 type AttributeReferencer interface {
 	// GetStatus retries the referenced resource, as well as other non-managed
