@@ -89,3 +89,23 @@ jobs:
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         github_workspace: ${{ github.workspace }}
+  fresh:
+    runs-on: ubuntu-22.04
+    if: startsWith(github.event.comment.body, '/fresh')
+
+    steps:
+      - name: Extract Command
+        id: command
+        uses: xt0rted/slash-command-action@bf51f8f5f4ea3d58abc7eca58f77104182b23e88 # v2
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          command: fresh
+          reaction: "true"
+          reaction-type: "eyes"
+          allow-edits: "false"
+          permission-level: read
+      - name: Handle Command
+        uses: actions-ecosystem/action-remove-labels@2ce5d41b4b6aa8503e285553f75ed56e0a40bae0 # v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          labels: stale
