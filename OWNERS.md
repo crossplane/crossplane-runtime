@@ -5,7 +5,7 @@ Each repository in the [Crossplane organization](https://github.com/crossplane/)
 will list their repository maintainers and reviewers in their own `OWNERS.md`
 file.
 
-Please see [GOVERNANCE.md](https://github.com/crossplane/crossplane/blob/masterGOVERNANCE.md)
+Please see [GOVERNANCE.md](https://github.com/crossplane/crossplane/blob/main/GOVERNANCE.md)
 for governance guidelines and responsibilities for maintainers, and reviewers.
 
 See [CODEOWNERS](CODEOWNERS) for automatic PR assignment.
