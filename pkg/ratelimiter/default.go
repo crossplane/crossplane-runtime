@@ -23,21 +23,24 @@ import (
 	"golang.org/x/time/rate"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/workqueue"
-	"sigs.k8s.io/controller-runtime/pkg/ratelimiter"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // NewGlobal returns a token bucket rate limiter meant for limiting the number
 // of average total requeues per second for all controllers registered with a
 // controller manager. The bucket size (i.e. allowed burst) is rps * 10.
-func NewGlobal(rps int) *workqueue.BucketRateLimiter {
-	return &workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(rps), rps*10)}
+func NewGlobal(rps int) *BucketRateLimiter {
+	return &workqueue.TypedBucketRateLimiter[string]{Limiter: rate.NewLimiter(rate.Limit(rps), rps*10)}
 }
+
+// ControllerRateLimiter to work with [sigs.k8s.io/controller-runtime/pkg/controller.Options].
+type ControllerRateLimiter = workqueue.TypedRateLimiter[reconcile.Request]
 
 // NewController returns a rate limiter that takes the maximum delay between the
 // passed rate limiter and a per-item exponential backoff limiter. The
 // exponential backoff limiter has a base delay of 1s and a maximum of 60s.
-func NewController() ratelimiter.RateLimiter {
-	return workqueue.NewItemExponentialFailureRateLimiter(1*time.Second, 60*time.Second)
+func NewController() ControllerRateLimiter {
+	return workqueue.NewTypedItemExponentialFailureRateLimiter[reconcile.Request](1*time.Second, 60*time.Second)
 }
 
 // LimitRESTConfig returns a copy of the supplied REST config with rate limits

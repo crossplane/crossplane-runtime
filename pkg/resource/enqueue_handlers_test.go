@@ -33,7 +33,7 @@ var _ handler.EventHandler = &EnqueueRequestForProviderConfig{}
 
 type addFn func(item any)
 
-func (fn addFn) Add(item any) {
+func (fn addFn) Add(item reconcile.Request) {
 	fn(item)
 }
 
