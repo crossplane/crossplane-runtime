@@ -163,8 +163,9 @@ func (a *APIFinalizer) AddFinalizer(ctx context.Context, obj Object) error {
 	if meta.FinalizerExists(obj, a.finalizer) {
 		return nil
 	}
+	orig := obj.DeepCopyObject().(Object)
 	meta.AddFinalizer(obj, a.finalizer)
-	return errors.Wrap(a.client.Update(ctx, obj), errUpdateObject)
+	return errors.Wrap(a.client.Patch(ctx, obj, client.MergeFromWithOptions(orig, client.MergeFromWithOptimisticLock{})), errUpdateObject)
 }
 
 // RemoveFinalizer from the supplied Managed resource.
@@ -172,8 +173,9 @@ func (a *APIFinalizer) RemoveFinalizer(ctx context.Context, obj Object) error {
 	if !meta.FinalizerExists(obj, a.finalizer) {
 		return nil
 	}
+	orig := obj.DeepCopyObject().(Object)
 	meta.RemoveFinalizer(obj, a.finalizer)
-	return errors.Wrap(IgnoreNotFound(a.client.Update(ctx, obj)), errUpdateObject)
+	return errors.Wrap(IgnoreNotFound(a.client.Patch(ctx, obj, client.MergeFromWithOptions(orig, client.MergeFromWithOptimisticLock{}))), errUpdateObject)
 }
 
 // A FinalizerFns satisfy the Finalizer interface.
