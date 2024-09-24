@@ -23,7 +23,6 @@ import (
 	"golang.org/x/time/rate"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/util/workqueue"
-	"sigs.k8s.io/controller-runtime/pkg/ratelimiter"
 )
 
 // NewGlobal returns a token bucket rate limiter meant for limiting the number
@@ -36,7 +35,7 @@ func NewGlobal(rps int) *workqueue.BucketRateLimiter {
 // NewController returns a rate limiter that takes the maximum delay between the
 // passed rate limiter and a per-item exponential backoff limiter. The
 // exponential backoff limiter has a base delay of 1s and a maximum of 60s.
-func NewController() ratelimiter.RateLimiter {
+func NewController() workqueue.RateLimiter {
 	return workqueue.NewItemExponentialFailureRateLimiter(1*time.Second, 60*time.Second)
 }
 

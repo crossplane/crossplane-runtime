@@ -23,13 +23,13 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/ratelimiter"
+	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
-var _ ratelimiter.RateLimiter = &predictableRateLimiter{}
+var _ workqueue.RateLimiter = &predictableRateLimiter{}
 
 type predictableRateLimiter struct{ d time.Duration }
 
