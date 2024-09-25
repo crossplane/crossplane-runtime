@@ -317,6 +317,67 @@ func TestGetString(t *testing.T) {
 	}
 }
 
+func TestGetFloat(t *testing.T) {
+	type want struct {
+		value float64
+		err   error
+	}
+	cases := map[string]struct {
+		reason string
+		path   string
+		data   []byte
+		want   want
+	}{
+		"Number": {
+			reason: "It should be possible to get a field a object",
+			path:   "number",
+			data:   []byte(`{"number":12.0}`),
+			want: want{
+				value: 12.0,
+			},
+		},
+		"MetadataNumber": {
+			reason: "It should be possible to get a field from a nested object",
+			path:   "metadata.number",
+			data:   []byte(`{"metadata":{"number":100.1}}`),
+			want: want{
+				value: 100.1,
+			},
+		},
+		"MalformedPath": {
+			reason: "Requesting an invalid field path should fail",
+			path:   "spec[]",
+			want: want{
+				err: errors.Wrap(errors.New("unexpected ']' at position 5"), "cannot parse path \"spec[]\""),
+			},
+		},
+		"NotANumber": {
+			reason: "Requesting an non-number field path should fail",
+			path:   "metadata.name",
+			data:   []byte(`{"metadata":{"name":"foo"}}`),
+			want: want{
+				err: errors.New("metadata.name: not a number"),
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			in := make(map[string]any)
+			_ = json.Unmarshal(tc.data, &in)
+			p := Pave(in)
+
+			got, err := p.GetFloat(tc.path)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Fatalf("\np.GetFloat(%s): %s: -want error, +got error:\n%s", tc.path, tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.value, got); diff != "" {
+				t.Errorf("\np.GetFloat(%s): %s: -want, +got:\n%s", tc.path, tc.reason, diff)
+			}
+		})
+	}
+}
+
 func TestGetStringArray(t *testing.T) {
 	type want struct {
 		value []string
