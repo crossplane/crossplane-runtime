@@ -263,6 +263,20 @@ func (p *Paved) GetString(path string) (string, error) {
 	return s, nil
 }
 
+// GetFloat value of the supplied field path.
+func (p *Paved) GetFloat(path string) (float64, error) {
+	v, err := p.GetValue(path)
+	if err != nil {
+		return 0, err
+	}
+
+	f, ok := v.(float64)
+	if !ok {
+		return 0, errors.Errorf("%s: not a number", path)
+	}
+	return f, nil
+}
+
 // GetStringArray value of the supplied field path.
 func (p *Paved) GetStringArray(path string) ([]string, error) {
 	v, err := p.GetValue(path)
