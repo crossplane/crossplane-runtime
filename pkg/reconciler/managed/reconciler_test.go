@@ -1252,6 +1252,50 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultPollInterval}},
 		},
+		"TypedReconcilerUpdateSuccessful": {
+			reason: "A successful managed resource update should trigger a requeue after a long wait.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
+							want := &fake.Managed{}
+							want.SetConditions(xpv1.ReconcileSuccess())
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := "A successful managed resource update should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+					WithTypedExternalConnector(TypedExternalConnectorFn[*fake.Managed](func(_ context.Context, _ *fake.Managed) (TypedExternalClient[*fake.Managed], error) {
+						c := &TypedExternalClientFns[*fake.Managed]{
+							ObserveFn: func(_ context.Context, _ *fake.Managed) (ExternalObservation, error) {
+								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false}, nil
+							},
+							UpdateFn: func(_ context.Context, _ *fake.Managed) (ExternalUpdate, error) {
+								return ExternalUpdate{}, nil
+							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
+							},
+						}
+						return c, nil
+					})),
+					WithConnectionPublishers(),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
+			},
+			want: want{
+				result: reconcile.Result{RequeueAfter: defaultPollInterval},
+			},
+		},
 		"ReconciliationPausedSuccessful": {
 			reason: `If a managed resource has the pause annotation with value "true", there should be no further requeue requests.`,
 			args: args{
