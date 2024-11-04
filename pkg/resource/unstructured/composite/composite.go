@@ -18,7 +18,6 @@ limitations under the License.
 package composite
 
 import (
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/reference"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -27,6 +26,7 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/reference"
 )
 
 // An Option modifies an unstructured composite resource.
@@ -99,8 +99,8 @@ func (c *Unstructured) SetCompositionReference(ref *corev1.ObjectReference) {
 }
 
 // GetCompositionRevisionReference of this Composite resource.
-func (c *Unstructured) GetCompositionRevisionReference() *corev1.ObjectReference {
-	out := &corev1.ObjectReference{}
+func (c *Unstructured) GetCompositionRevisionReference() *corev1.LocalObjectReference {
+	out := &corev1.LocalObjectReference{}
 	if err := fieldpath.Pave(c.Object).GetValueInto("spec.compositionRevisionRef", out); err != nil {
 		return nil
 	}
@@ -108,7 +108,7 @@ func (c *Unstructured) GetCompositionRevisionReference() *corev1.ObjectReference
 }
 
 // SetCompositionRevisionReference of this Composite resource.
-func (c *Unstructured) SetCompositionRevisionReference(ref *corev1.ObjectReference) {
+func (c *Unstructured) SetCompositionRevisionReference(ref *corev1.LocalObjectReference) {
 	_ = fieldpath.Pave(c.Object).SetValue("spec.compositionRevisionRef", ref)
 }
 

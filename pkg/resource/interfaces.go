@@ -18,7 +18,6 @@ package resource
 
 import (
 	"context"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/reference"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/reference"
 )
 
 // A Conditioned may have conditions set or retrieved. Conditions are typically
@@ -120,8 +120,8 @@ type CompositionReferencer interface {
 // A CompositionRevisionReferencer may reference a specific revision of a
 // composition of resources.
 type CompositionRevisionReferencer interface {
-	SetCompositionRevisionReference(ref *corev1.ObjectReference)
-	GetCompositionRevisionReference() *corev1.ObjectReference
+	SetCompositionRevisionReference(ref *corev1.LocalObjectReference)
+	GetCompositionRevisionReference() *corev1.LocalObjectReference
 }
 
 // A CompositionRevisionSelector may reference a set of
@@ -153,8 +153,8 @@ type ComposedResourcesReferencer interface {
 
 // A CompositeResourceReferencer can reference a composite resource.
 type CompositeResourceReferencer interface {
-	SetResourceReference(r *corev1.ObjectReference)
-	GetResourceReference() *corev1.ObjectReference
+	SetResourceReference(r *reference.Composite)
+	GetResourceReference() *reference.Composite
 }
 
 // An EnvironmentConfigReferencer references a list of EnvironmentConfigs.
