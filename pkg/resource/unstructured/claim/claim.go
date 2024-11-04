@@ -18,6 +18,7 @@ limitations under the License.
 package claim
 
 import (
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/reference"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -61,21 +62,6 @@ func New(opts ...Option) *Unstructured {
 // An Unstructured composite resource claim.
 type Unstructured struct {
 	unstructured.Unstructured
-}
-
-// Reference to a claim.
-type Reference struct {
-	// APIVersion of the referenced claim.
-	APIVersion string `json:"apiVersion"`
-
-	// Kind of the referenced claim.
-	Kind string `json:"kind"`
-
-	// Name of the referenced claim.
-	Name string `json:"name"`
-
-	// Namespace of the referenced claim.
-	Namespace string `json:"namespace"`
 }
 
 // GetUnstructured returns the underlying *unstructured.Unstructured.
@@ -170,8 +156,8 @@ func (c *Unstructured) GetCompositeDeletePolicy() *xpv1.CompositeDeletePolicy {
 }
 
 // GetResourceReference of this composite resource claim.
-func (c *Unstructured) GetResourceReference() *corev1.ObjectReference {
-	out := &corev1.ObjectReference{}
+func (c *Unstructured) GetResourceReference() *reference.Composite {
+	out := &reference.Composite{}
 	if err := fieldpath.Pave(c.Object).GetValueInto("spec.resourceRef", out); err != nil {
 		return nil
 	}
@@ -179,13 +165,13 @@ func (c *Unstructured) GetResourceReference() *corev1.ObjectReference {
 }
 
 // SetResourceReference of this composite resource claim.
-func (c *Unstructured) SetResourceReference(ref *corev1.ObjectReference) {
+func (c *Unstructured) SetResourceReference(ref *reference.Composite) {
 	_ = fieldpath.Pave(c.Object).SetValue("spec.resourceRef", ref)
 }
 
 // GetReference returns reference to this claim.
-func (c *Unstructured) GetReference() *Reference {
-	return &Reference{
+func (c *Unstructured) GetReference() *reference.Claim {
+	return &reference.Claim{
 		APIVersion: c.GetAPIVersion(),
 		Kind:       c.GetKind(),
 		Name:       c.GetName(),
