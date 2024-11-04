@@ -35,7 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/reference"
 )
 
 // Conditioned is a mock that implements Conditioned interface.
@@ -50,13 +50,13 @@ func (m *Conditioned) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 }
 
 // ClaimReferencer is a mock that implements ClaimReferencer interface.
-type ClaimReferencer struct{ Ref *claim.Reference }
+type ClaimReferencer struct{ Ref *reference.Claim }
 
 // SetClaimReference sets the ClaimReference.
-func (m *ClaimReferencer) SetClaimReference(r *claim.Reference) { m.Ref = r }
+func (m *ClaimReferencer) SetClaimReference(r *reference.Claim) { m.Ref = r }
 
 // GetClaimReference gets the ClaimReference.
-func (m *ClaimReferencer) GetClaimReference() *claim.Reference { return m.Ref }
+func (m *ClaimReferencer) GetClaimReference() *reference.Claim { return m.Ref }
 
 // ManagedResourceReferencer is a mock that implements ManagedResourceReferencer interface.
 type ManagedResourceReferencer struct{ Ref *corev1.ObjectReference }
@@ -184,15 +184,15 @@ func (m *CompositionSelector) SetCompositionSelector(s *metav1.LabelSelector) { 
 func (m *CompositionSelector) GetCompositionSelector() *metav1.LabelSelector { return m.Sel }
 
 // CompositionRevisionReferencer is a mock that implements CompositionRevisionReferencer interface.
-type CompositionRevisionReferencer struct{ Ref *corev1.ObjectReference }
+type CompositionRevisionReferencer struct{ Ref *corev1.LocalObjectReference }
 
 // SetCompositionRevisionReference sets the CompositionRevisionReference.
-func (m *CompositionRevisionReferencer) SetCompositionRevisionReference(r *corev1.ObjectReference) {
+func (m *CompositionRevisionReferencer) SetCompositionRevisionReference(r *corev1.LocalObjectReference) {
 	m.Ref = r
 }
 
 // GetCompositionRevisionReference gets the CompositionRevisionReference.
-func (m *CompositionRevisionReferencer) GetCompositionRevisionReference() *corev1.ObjectReference {
+func (m *CompositionRevisionReferencer) GetCompositionRevisionReference() *corev1.LocalObjectReference {
 	return m.Ref
 }
 
@@ -236,13 +236,13 @@ func (m *CompositeResourceDeleter) GetCompositeDeletePolicy() *xpv1.CompositeDel
 }
 
 // CompositeResourceReferencer is a mock that implements CompositeResourceReferencer interface.
-type CompositeResourceReferencer struct{ Ref *corev1.ObjectReference }
+type CompositeResourceReferencer struct{ Ref *reference.Composite }
 
 // SetResourceReference sets the composite resource reference.
-func (m *CompositeResourceReferencer) SetResourceReference(p *corev1.ObjectReference) { m.Ref = p }
+func (m *CompositeResourceReferencer) SetResourceReference(p *reference.Composite) { m.Ref = p }
 
 // GetResourceReference gets the composite resource reference.
-func (m *CompositeResourceReferencer) GetResourceReference() *corev1.ObjectReference { return m.Ref }
+func (m *CompositeResourceReferencer) GetResourceReference() *reference.Composite { return m.Ref }
 
 // ComposedResourcesReferencer is a mock that implements ComposedResourcesReferencer interface.
 type ComposedResourcesReferencer struct{ Refs []corev1.ObjectReference }
