@@ -18,6 +18,7 @@ limitations under the License.
 package composite
 
 import (
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/reference"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -26,7 +27,6 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 )
 
 // An Option modifies an unstructured composite resource.
@@ -142,8 +142,8 @@ func (c *Unstructured) GetCompositionUpdatePolicy() *xpv1.UpdatePolicy {
 }
 
 // GetClaimReference of this Composite resource.
-func (c *Unstructured) GetClaimReference() *claim.Reference {
-	out := &claim.Reference{}
+func (c *Unstructured) GetClaimReference() *reference.Claim {
+	out := &reference.Claim{}
 	if err := fieldpath.Pave(c.Object).GetValueInto("spec.claimRef", out); err != nil {
 		return nil
 	}
@@ -151,7 +151,7 @@ func (c *Unstructured) GetClaimReference() *claim.Reference {
 }
 
 // SetClaimReference of this Composite resource.
-func (c *Unstructured) SetClaimReference(ref *claim.Reference) {
+func (c *Unstructured) SetClaimReference(ref *reference.Claim) {
 	_ = fieldpath.Pave(c.Object).SetValue("spec.claimRef", ref)
 }
 
@@ -175,6 +175,15 @@ func (c *Unstructured) SetResourceReferences(refs []corev1.ObjectReference) {
 		filtered = append(filtered, ref)
 	}
 	_ = fieldpath.Pave(c.Object).SetValue("spec.resourceRefs", filtered)
+}
+
+// GetReference returns reference to this composite.
+func (c *Unstructured) GetReference() *reference.Composite {
+	return &reference.Composite{
+		APIVersion: c.GetAPIVersion(),
+		Kind:       c.GetKind(),
+		Name:       c.GetName(),
+	}
 }
 
 // GetWriteConnectionSecretToReference of this Composite resource.
