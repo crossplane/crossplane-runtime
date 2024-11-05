@@ -25,7 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/reference"
 )
 
 // A Conditioned may have conditions set or retrieved. Conditions are typically
@@ -37,8 +37,8 @@ type Conditioned interface {
 
 // A ClaimReferencer may reference a resource claim.
 type ClaimReferencer interface {
-	SetClaimReference(r *claim.Reference)
-	GetClaimReference() *claim.Reference
+	SetClaimReference(r *reference.Claim)
+	GetClaimReference() *reference.Claim
 }
 
 // A ManagedResourceReferencer may reference a concrete managed resource.
@@ -120,8 +120,8 @@ type CompositionReferencer interface {
 // A CompositionRevisionReferencer may reference a specific revision of a
 // composition of resources.
 type CompositionRevisionReferencer interface {
-	SetCompositionRevisionReference(ref *corev1.ObjectReference)
-	GetCompositionRevisionReference() *corev1.ObjectReference
+	SetCompositionRevisionReference(ref *corev1.LocalObjectReference)
+	GetCompositionRevisionReference() *corev1.LocalObjectReference
 }
 
 // A CompositionRevisionSelector may reference a set of
@@ -153,8 +153,8 @@ type ComposedResourcesReferencer interface {
 
 // A CompositeResourceReferencer can reference a composite resource.
 type CompositeResourceReferencer interface {
-	SetResourceReference(r *corev1.ObjectReference)
-	GetResourceReference() *corev1.ObjectReference
+	SetResourceReference(r *reference.Composite)
+	GetResourceReference() *reference.Composite
 }
 
 // An EnvironmentConfigReferencer references a list of EnvironmentConfigs.
