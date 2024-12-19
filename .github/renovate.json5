@@ -13,10 +13,10 @@
   // The branches renovate should target
   // PLEASE UPDATE THIS WHEN RELEASING.
   "baseBranches": [
-    "main",
-    "release-1.14",
-    "release-1.15",
-    "release-1.16"
+    'main',
+    'release-1.16',
+    'release-1.17',
+    'release-1.18',
   ],
   "ignorePaths": [
     "design/**",
