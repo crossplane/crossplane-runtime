@@ -103,8 +103,10 @@
       "matchDatasources": [
         "go"
       ],
-      // Currently we only have an Earthfile on main.
-      matchBaseBranches: ["main"],
+      // Currently we only have an Earthfile on main and some release branches, so we ignore the ones we know don't have it.
+      matchBaseBranches: [
+        '!/release-1\.16/',
+      ],
       postUpgradeTasks: {
         // Post-upgrade tasks that are executed before a commit is made by Renovate.
         "commands": [
@@ -121,8 +123,10 @@
       "matchDatasources": [
         "go"
       ],
-      // Currently we only have an Earthfile on main.
-      matchBaseBranches: ["release-.+"],
+      // Currently we only have an Earthfile on main and some release branches, so we only run this on older release branches.
+      matchBaseBranches: [
+        'release-1.16',
+      ],
       postUpgradeTasks: {
         // Post-upgrade tasks that are executed before a commit is made by Renovate.
         "commands": [
@@ -139,8 +143,10 @@
       "matchDepNames": [
         "golangci/golangci-lint"
       ],
-      // Currently we only have an Earthfile on main.
-      matchBaseBranches: ["main"],
+      // Currently we only have an Earthfile on main and some release branches, so we ignore the ones we know don't have it.
+      matchBaseBranches: [
+        '!/release-1\.16/',
+      ],
       postUpgradeTasks: {
         // Post-upgrade tasks that are executed before a commit is made by Renovate.
         "commands": [
@@ -157,8 +163,10 @@
       "matchDepNames": [
         "golangci/golangci-lint"
       ],
-      // Currently we only have an Earthfile on main.
-      matchBaseBranches: ["release-.+"],
+      // Currently we only have an Earthfile on main and some release branches, so we only run this on older release branches.
+      matchBaseBranches: [
+        'release-1.16',
+      ],
       postUpgradeTasks: {
         // Post-upgrade tasks that are executed before a commit is made by Renovate.
         "commands": [
