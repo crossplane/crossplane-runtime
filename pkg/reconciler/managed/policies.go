@@ -89,6 +89,14 @@ func defaultSupportedManagementPolicies() []sets.Set[xpv1.ManagementAction] {
 		// Useful when the same external resource is managed by multiple
 		// managed resources.
 		sets.New[xpv1.ManagementAction](xpv1.ManagementActionObserve, xpv1.ManagementActionUpdate),
+		// Import mode: Allows observation of existing resources and populates spec.forProvider
+		// through late initialization, without making any changes to the external resource.
+		// Useful for safely importing existing resources to discover their current state.
+		sets.New[xpv1.ManagementAction](xpv1.ManagementActionObserve, xpv1.ManagementActionLateInitialize),
+		// No Create, no Delete. Just Observe, Update and LateInitialize.
+		// Useful when external resource lifecycle is managed elsewhere but you want
+		// to allow Crossplane to make updates and discover state changes.
+		sets.New[xpv1.ManagementAction](xpv1.ManagementActionObserve, xpv1.ManagementActionUpdate, xpv1.ManagementActionLateInitialize),
 	}
 }
 
