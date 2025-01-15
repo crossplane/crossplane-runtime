@@ -458,6 +458,7 @@ func TestResolveMultiple(t *testing.T) {
 	errBoom := errors.New("boom")
 	now := metav1.Now()
 	value := "coolv"
+	value2 := "cooler"
 	ref := xpv1.Reference{Name: "cool"}
 	optionalPolicy := xpv1.ResolutionPolicyOptional
 	alwaysPolicy := xpv1.ResolvePolicyAlways
@@ -468,6 +469,11 @@ func TestResolveMultiple(t *testing.T) {
 	controlled.SetName(value)
 	meta.SetExternalName(controlled, value)
 	meta.AddControllerReference(controlled, meta.AsController(&xpv1.TypedReference{UID: types.UID("very-unique")}))
+
+	controlled2 := &fake.Managed{}
+	controlled2.SetName(value2)
+	meta.SetExternalName(controlled2, value2)
+	meta.AddControllerReference(controlled2, meta.AsController(&xpv1.TypedReference{UID: types.UID("very-unique")}))
 
 	type args struct {
 		ctx context.Context
@@ -755,6 +761,36 @@ func TestResolveMultiple(t *testing.T) {
 					ResolvedValues:     []string{value},
 					ResolvedReferences: []xpv1.Reference{ref},
 				},
+			},
+		},
+		"OrderOutput": {
+			reason: "Output values should ordered",
+			c: &test.MockClient{
+				MockList: test.NewMockListFn(nil),
+			},
+			from: controlled,
+			args: args{
+				req: MultiResolutionRequest{
+					Selector: &xpv1.Selector{
+						MatchControllerRef: func() *bool { t := true; return &t }(),
+					},
+					To: To{List: &FakeManagedList{
+						Items: []resource.Managed{
+							&fake.Managed{}, // A resource that does not match.
+							controlled,      // A resource with a matching controller reference.
+							&fake.Managed{}, // A resource that does not match.
+							controlled2,     // A resource with a matching controller reference.
+						},
+					}},
+					Extract: ExternalName(),
+				},
+			},
+			want: want{
+				rsp: MultiResolutionResponse{
+					ResolvedValues:     []string{value2, value},
+					ResolvedReferences: []xpv1.Reference{{Name: value2}, {Name: value}},
+				},
+				err: nil,
 			},
 		},
 	}
