@@ -16,11 +16,14 @@ limitations under the License.
 
 package v1
 
+import "k8s.io/apimachinery/pkg/runtime"
+
 // See https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties
 
 // A Status reflects the observed status of a resource.
-type Status map[string]interface{}
+type Status map[string]runtime.RawExtension
 
+// A Statused resource is one that has a status.
 type Statused struct {
 	Status Status `json:"status"`
 }

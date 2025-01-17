@@ -21,7 +21,6 @@ package fake
 
 import (
 	"encoding/json"
-
 	"reflect"
 
 	"github.com/go-logr/logr"
