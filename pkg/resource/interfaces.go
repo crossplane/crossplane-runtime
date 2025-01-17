@@ -28,11 +28,18 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/reference"
 )
 
-// A Conditioned may have conditions set or retrieved. Conditions are typically
+// A Conditioned may have conditions set or retrieved. Conditions typically
 // indicate the status of both a resource and its reconciliation process.
 type Conditioned interface {
 	SetConditions(c ...xpv1.Condition)
 	GetCondition(ct xpv1.ConditionType) xpv1.Condition
+}
+
+// A Statused may have status set or retrieved. Status is typically
+// a struct containing various runtime status properties.
+type Statused interface {
+	SetStatus(c ...xpv1.Status)
+	GetStatus() xpv1.Status
 }
 
 // A ClaimReferencer may reference a resource claim.
@@ -200,6 +207,7 @@ type Managed interface { //nolint:interfacebloat // This interface has to be big
 	Orphanable
 
 	Conditioned
+	Statused
 }
 
 // A ManagedList is a list of managed resources.
