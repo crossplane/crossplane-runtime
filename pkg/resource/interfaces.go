@@ -38,7 +38,7 @@ type Conditioned interface {
 // A Statused may have status set or retrieved. Status is typically
 // a struct containing various runtime status properties.
 type Statused interface {
-	SetStatus(c ...xpv1.Status)
+	SetStatus(c xpv1.Status)
 	GetStatus() xpv1.Status
 }
 

@@ -21,6 +21,7 @@ package fake
 
 import (
 	"encoding/json"
+
 	"reflect"
 
 	"github.com/go-logr/logr"
@@ -47,6 +48,16 @@ func (m *Conditioned) SetConditions(c ...xpv1.Condition) { m.Conditions = c }
 // GetCondition get the Condition with the given ConditionType.
 func (m *Conditioned) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	return xpv1.Condition{Type: ct, Status: corev1.ConditionUnknown}
+}
+
+// GetStatus gets the status sub object.
+func (m *Managed) GetStatus() xpv1.Status {
+	return m.Status
+}
+
+// SetStatus get the Condition with the given ConditionType.
+func (m *Managed) SetStatus(s xpv1.Status) {
+	m.Status = s
 }
 
 // ClaimReferencer is a mock that implements ClaimReferencer interface.
@@ -332,6 +343,7 @@ type Managed struct {
 	Manageable
 	Orphanable
 	xpv1.ConditionedStatus
+	xpv1.Statused
 }
 
 // GetObjectKind returns schema.ObjectKind.

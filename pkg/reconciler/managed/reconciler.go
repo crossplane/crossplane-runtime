@@ -1153,9 +1153,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
-	// Save the status before calling AddFinalizer since it may be overwritten
-	// by the kube client if the resource is updated.
-	status := managed.GetStatus()
 	if err := r.managed.AddFinalizer(ctx, managed); err != nil {
 		// If this is the first time we encounter this issue we'll be requeued
 		// implicitly when we update our status with the new error condition. If
@@ -1167,8 +1164,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		managed.SetConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
-	// Set the status back to its original value
-	managed.SetStatus(status)
+	// Set the status back to its original value before the AddFinalizer call.
+	// The AddFinalizer call may overwrite the managed object with what is
+	// currently in the kube API which would make us lose information that may
+	// have been populated by the Observe call.
+	managed.SetStatus(managedPreOp.GetStatus())
 
 	if !observation.ResourceExists && policy.ShouldCreate() {
 		// We write this annotation for two reasons. Firstly, it helps

@@ -16,19 +16,11 @@ limitations under the License.
 
 package v1
 
-import "maps"
-
 // See https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties
 
 // A Status reflects the observed status of a resource.
 type Status map[string]interface{}
 
-// GetStatus returns the status.
-func (s *Status) GetStatus() Status {
-	return *s
-}
-
-// SetConditions sets the supplied status on the resource.
-func (s *Status) SetStatus(c Status) {
-	*s = maps.Clone(c)
+type Statused struct {
+	Status Status `json:"status"`
 }
