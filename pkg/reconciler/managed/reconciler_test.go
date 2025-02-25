@@ -1917,6 +1917,60 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultPollInterval}},
 		},
+		"ObserveAndLateInitializePolicy": {
+			reason: "If management policy is set to Observe and LateInitialize, reconciliation should proceed",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							mg := obj.(*fake.Managed)
+							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionLateInitialize})
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error {
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithManagementPolicies(),
+					WithReconcilerSupportedManagementPolicies(defaultSupportedManagementPolicies()),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultPollInterval}},
+		},
+		"ObserveUpdateAndLateInitializePolicy": {
+			reason: "If management policy is set to Observe, Update and LateInitialize, reconciliation should proceed",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							mg := obj.(*fake.Managed)
+							mg.SetManagementPolicies(xpv1.ManagementPolicies{
+								xpv1.ManagementActionObserve,
+								xpv1.ManagementActionUpdate,
+								xpv1.ManagementActionLateInitialize,
+							})
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error {
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithManagementPolicies(),
+					WithReconcilerSupportedManagementPolicies(defaultSupportedManagementPolicies()),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultPollInterval}},
+		},
 	}
 
 	for name, tc := range cases {
