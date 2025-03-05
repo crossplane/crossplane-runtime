@@ -20,6 +20,7 @@ package reference
 
 import (
 	"context"
+	"slices"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
@@ -238,9 +239,10 @@ func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRe
 		return MultiResolutionResponse{ResolvedValues: req.CurrentValues, ResolvedReferences: req.References}, nil
 	}
 
+	valueMap := make(map[string]xpv1.Reference)
+
 	// The references are already set - resolve them.
 	if len(req.References) > 0 {
-		vals := make([]string, len(req.References))
 		for i := range req.References {
 			if err := r.client.Get(ctx, types.NamespacedName{Name: req.References[i].Name}, req.To.Managed); err != nil {
 				if kerrors.IsNotFound(err) {
@@ -248,10 +250,12 @@ func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRe
 				}
 				return MultiResolutionResponse{}, errors.Wrap(err, errGetManaged)
 			}
-			vals[i] = req.Extract(req.To.Managed)
+			valueMap[req.Extract(req.To.Managed)] = req.References[i]
 		}
 
-		rsp := MultiResolutionResponse{ResolvedValues: vals, ResolvedReferences: req.References}
+		sortedKeys, sortedRefs := sortMapByKeys(valueMap)
+
+		rsp := MultiResolutionResponse{ResolvedValues: sortedKeys, ResolvedReferences: sortedRefs}
 		return rsp, rsp.Validate()
 	}
 
@@ -260,19 +264,17 @@ func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRe
 		return MultiResolutionResponse{}, errors.Wrap(err, errListManaged)
 	}
 
-	items := req.To.List.GetItems()
-	refs := make([]xpv1.Reference, 0, len(items))
-	vals := make([]string, 0, len(items))
 	for _, to := range req.To.List.GetItems() {
 		if ControllersMustMatch(req.Selector) && !meta.HaveSameController(r.from, to) {
 			continue
 		}
 
-		vals = append(vals, req.Extract(to))
-		refs = append(refs, xpv1.Reference{Name: to.GetName()})
+		valueMap[req.Extract(to)] = xpv1.Reference{Name: to.GetName()}
 	}
 
-	rsp := MultiResolutionResponse{ResolvedValues: vals, ResolvedReferences: refs}
+	sortedKeys, sortedRefs := sortMapByKeys(valueMap)
+
+	rsp := MultiResolutionResponse{ResolvedValues: sortedKeys, ResolvedReferences: sortedRefs}
 	return rsp, getResolutionError(req.Selector.Policy, rsp.Validate())
 }
 
@@ -281,6 +283,21 @@ func getResolutionError(p *xpv1.Policy, err error) error {
 		return err
 	}
 	return nil
+}
+
+func sortMapByKeys(m map[string]xpv1.Reference) ([]string, []xpv1.Reference) {
+	// TODO: use go 1.23 maps.Keys when available
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	slices.Sort(keys)
+
+	values := make([]xpv1.Reference, 0, len(m))
+	for _, k := range keys {
+		values = append(values, m[k])
+	}
+	return keys, values
 }
 
 // ControllersMustMatch returns true if the supplied Selector requires that a
