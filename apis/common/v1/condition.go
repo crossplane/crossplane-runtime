@@ -96,12 +96,13 @@ type Condition struct {
 }
 
 // Equal returns true if the condition is identical to the supplied condition,
-// ignoring the LastTransitionTime and ObservedGeneration.
+// ignoring the LastTransitionTime.
 func (c Condition) Equal(other Condition) bool {
 	return c.Type == other.Type &&
 		c.Status == other.Status &&
 		c.Reason == other.Reason &&
-		c.Message == other.Message
+		c.Message == other.Message &&
+		c.ObservedGeneration == other.ObservedGeneration
 }
 
 // WithMessage returns a condition by adding the provided message to existing
@@ -167,28 +168,24 @@ func (s *ConditionedStatus) GetCondition(ct ConditionType) Condition {
 // SetConditions sets the supplied conditions, replacing any existing conditions
 // of the same type. This is a no-op if all supplied conditions are identical,
 // ignoring the last transition time, to those already set.
-// Observed generation is updated if higher than the existing one.
 func (s *ConditionedStatus) SetConditions(c ...Condition) {
-	for _, new := range c {
+	for _, cond := range c {
 		exists := false
 		for i, existing := range s.Conditions {
-			if existing.Type != new.Type {
+			if existing.Type != cond.Type {
 				continue
 			}
 
-			if existing.Equal(new) {
+			if existing.Equal(cond) {
 				exists = true
-				if existing.ObservedGeneration < new.ObservedGeneration {
-					existing.ObservedGeneration = new.ObservedGeneration
-				}
 				continue
 			}
 
-			s.Conditions[i] = new
+			s.Conditions[i] = cond
 			exists = true
 		}
 		if !exists {
-			s.Conditions = append(s.Conditions, new)
+			s.Conditions = append(s.Conditions, cond)
 		}
 	}
 }

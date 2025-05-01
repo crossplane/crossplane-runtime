@@ -32,6 +32,25 @@ func TestConditionEqual(t *testing.T) {
 		b    Condition
 		want bool
 	}{
+		"Identical": {
+			a: Condition{
+				Type:               TypeReady,
+				Status:             corev1.ConditionTrue,
+				LastTransitionTime: metav1.Now(),
+				Reason:             ReasonCreating,
+				Message:            "UnitTest",
+				ObservedGeneration: 1,
+			},
+			b: Condition{
+				Type:               TypeReady,
+				Status:             corev1.ConditionTrue,
+				LastTransitionTime: metav1.Now(),
+				Reason:             ReasonCreating,
+				Message:            "UnitTest",
+				ObservedGeneration: 1,
+			},
+			want: true,
+		},
 		"IdenticalIgnoringTimestamp": {
 			a:    Condition{Type: TypeReady, LastTransitionTime: metav1.Now()},
 			b:    Condition{Type: TypeReady, LastTransitionTime: metav1.Now()},
@@ -55,6 +74,11 @@ func TestConditionEqual(t *testing.T) {
 		"DifferentMessage": {
 			a:    Condition{Message: "cool"},
 			b:    Condition{Message: "uncool"},
+			want: false,
+		},
+		"DifferentObservedGeneration": {
+			a:    Condition{ObservedGeneration: 1},
+			b:    Condition{},
 			want: false,
 		},
 		"CheckReconcilePaused": {
@@ -138,6 +162,11 @@ func TestSetConditions(t *testing.T) {
 			cs:   NewConditionedStatus(Available()),
 			c:    []Condition{Available()},
 			want: NewConditionedStatus(Available()),
+		},
+		"ObservedGenerationIsUpdated": {
+			cs:   NewConditionedStatus(Available().WithObservedGeneration(1)),
+			c:    []Condition{Available().WithObservedGeneration(2)},
+			want: NewConditionedStatus(Available().WithObservedGeneration(2)),
 		},
 		"TypeIsDifferent": {
 			cs:   NewConditionedStatus(Creating()),
