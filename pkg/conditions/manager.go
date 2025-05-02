@@ -36,19 +36,16 @@ type Manager interface {
 
 // ConditionSet holds operations for interacting with an object's conditions.
 type ConditionSet interface {
-	// Mark adds or updates the conditions onto the managed resource object. Unlike a "Set" method, this also can add
-	// contextual updates to the condition such as propagating the correct observedGeneration to the conditions being
-	// changed.
-	Mark(condition ...xpv1.Condition)
+	// MarkConditions adds or updates the conditions onto the managed resource object. Unlike a "Set" method, this also
+	// can add contextual updates to the condition such as propagating the correct observedGeneration to the conditions
+	// being changed.
+	MarkConditions(condition ...xpv1.Condition)
 }
 
 // New returns an implementation of a Manager.
 func New() Manager {
 	return &managerImpl{}
 }
-
-// Check that conditionsImpl implements ConditionManager.
-var _ Manager = (*managerImpl)(nil)
 
 // managerImpl is the top level factor for producing a ConditionSet on behalf of a ObjectWithConditions resource.
 // managerImpl implements Manager.
@@ -59,15 +56,12 @@ func (m managerImpl) For(o ObjectWithConditions) ConditionSet {
 	return &conditionSet{o: o}
 }
 
-// Check that conditionSet implements ConditionSet.
-var _ ConditionSet = (*conditionSet)(nil)
-
 type conditionSet struct {
 	o ObjectWithConditions
 }
 
-// Mark implements ConditionSet.Mark.
-func (c *conditionSet) Mark(condition ...xpv1.Condition) {
+// MarkConditions implements ConditionSet.MarkConditions.
+func (c *conditionSet) MarkConditions(condition ...xpv1.Condition) {
 	if c == nil || c.o == nil {
 		return
 	}

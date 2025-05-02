@@ -29,18 +29,26 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
+// Check that conditionSet implements ConditionSet.
+var _ ConditionSet = (*conditionSet)(nil)
+
+// Check that conditionsImpl implements ConditionManager.
+var _ Manager = (*managerImpl)(nil)
+
 func TestNew(t *testing.T) {
-	tests := []struct {
-		name string
-		want Manager
-	}{{
-		name: "New returns a non-nil manager.",
-		want: &managerImpl{},
-	}}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	tests := map[string]struct {
+		reason string
+		want   Manager
+	}{
+		"NewNonNilManager": {
+			reason: "New() should return a non-nil Manager",
+			want:   &managerImpl{},
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
 			if got := New(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("New() = %v, want %v", got, tt.want)
+				t.Errorf("\nReason: %s\nNew() = %v, want %v", tt.reason, got, tt.want)
 			}
 		})
 	}
@@ -49,45 +57,50 @@ func TestNew(t *testing.T) {
 func Test_conditionSet_Mark(t *testing.T) {
 	manager := New()
 
-	tests := []struct {
-		name  string
-		start []xpv1.Condition
-		mark  []xpv1.Condition
-		want  []xpv1.Condition
-	}{{
-		name:  "provide no conditions",
-		start: nil,
-		mark:  nil,
-		want:  nil,
-	}, {
-		name:  "empty status, a new condition is appended",
-		start: nil,
-		mark:  []xpv1.Condition{xpv1.ReconcileSuccess()},
-		want:  []xpv1.Condition{xpv1.ReconcileSuccess().WithObservedGeneration(42)},
-	}, {
-		name:  "existing status, attempt to mark nothing",
-		start: []xpv1.Condition{xpv1.Available().WithObservedGeneration(1)},
-		mark:  nil,
-		want:  []xpv1.Condition{xpv1.Available().WithObservedGeneration(1)},
-	}, {
-		name:  "existing status, an existing condition is updated",
-		start: []xpv1.Condition{xpv1.ReconcileSuccess().WithObservedGeneration(1)},
-		mark:  []xpv1.Condition{xpv1.ReconcileSuccess()},
-		want:  []xpv1.Condition{xpv1.ReconcileSuccess().WithObservedGeneration(42)},
-	}, {
-		name:  "existing status, a new condition is appended",
-		start: []xpv1.Condition{xpv1.Available().WithObservedGeneration(1)},
-		mark:  []xpv1.Condition{xpv1.ReconcileSuccess()},
-		want:  []xpv1.Condition{xpv1.Available().WithObservedGeneration(1), xpv1.ReconcileSuccess().WithObservedGeneration(42)},
-	}}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	tests := map[string]struct {
+		reason string
+		start  []xpv1.Condition
+		mark   []xpv1.Condition
+		want   []xpv1.Condition
+	}{
+		"ProvideNoConditions": {
+			reason: "If updating a resource without conditions with no new conditions, conditions should remain empty.",
+			start:  nil,
+			mark:   nil,
+			want:   nil,
+		},
+		"EmptyAppendCondition": {
+			reason: "If starting with a resource without conditions, and we mark a condition, it should propagate to conditions with the correct generation.",
+			start:  nil,
+			mark:   []xpv1.Condition{xpv1.ReconcileSuccess()},
+			want:   []xpv1.Condition{xpv1.ReconcileSuccess().WithObservedGeneration(42)},
+		},
+		"ExistingMarkNothing": {
+			reason: "If the resource has a condition and we update nothing, nothing should change.",
+			start:  []xpv1.Condition{xpv1.Available().WithObservedGeneration(1)},
+			mark:   nil,
+			want:   []xpv1.Condition{xpv1.Available().WithObservedGeneration(1)},
+		},
+		"ExistingUpdated": {
+			reason: "If a resource starts with a condition, and we update it, we should see the observedGeneration be updated",
+			start:  []xpv1.Condition{xpv1.ReconcileSuccess().WithObservedGeneration(1)},
+			mark:   []xpv1.Condition{xpv1.ReconcileSuccess()},
+			want:   []xpv1.Condition{xpv1.ReconcileSuccess().WithObservedGeneration(42)},
+		},
+		"ExistingAppended": {
+			reason: "If a resource has an existing condition and we make another condition, the new condition should merge into the conditions list.",
+			start:  []xpv1.Condition{xpv1.Available().WithObservedGeneration(1)},
+			mark:   []xpv1.Condition{xpv1.ReconcileSuccess()},
+			want:   []xpv1.Condition{xpv1.Available().WithObservedGeneration(1), xpv1.ReconcileSuccess().WithObservedGeneration(42)},
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
 			ut := newManaged(42, tt.start...)
 			c := manager.For(ut)
-			c.Mark(tt.mark...)
+			c.MarkConditions(tt.mark...)
 			if diff := cmp.Diff(tt.want, ut.Conditions, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
-				reason := "Failed to update conditions."
-				t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+				t.Errorf("\nReason: %s\n-want, +got:\n%s", tt.reason, diff)
 			}
 		})
 	}
@@ -98,31 +111,34 @@ func Test_conditionSet_Mark(t *testing.T) {
 			t.Errorf("manager.For(nil) = %v, want non-nil", c)
 		}
 		// Test that Marking on a Manager that has a nil object does not end up panicking.
-		c.Mark(xpv1.ReconcileSuccess())
+		c.MarkConditions(xpv1.ReconcileSuccess())
 		// Success!
 	})
 }
 
 func Test_managerImpl_For(t *testing.T) {
-	tests := []struct {
-		name string
-		o    ObjectWithConditions
-		want ConditionSet
-	}{{
-		name: "Nil object returns a non-nil manager.",
-		want: &conditionSet{},
-	}, {
-		name: "Object propagates into manager.",
-		o:    &fake.Managed{},
-		want: &conditionSet{
-			o: &fake.Managed{},
+	tests := map[string]struct {
+		reason string
+		o      ObjectWithConditions
+		want   ConditionSet
+	}{
+		"NilObject": {
+			reason: "Even if an object is nil, the manager should return a non-nil ConditionSet",
+			want:   &conditionSet{},
 		},
-	}}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		"Object": {
+			reason: "Object propagates into manager.",
+			o:      &fake.Managed{},
+			want: &conditionSet{
+				o: &fake.Managed{},
+			},
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
 			m := managerImpl{}
 			if got := m.For(tt.o); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("For() = %v, want %v", got, tt.want)
+				t.Errorf("\nReason: %s\nFor() = %v, want %v", tt.reason, got, tt.want)
 			}
 		})
 	}
