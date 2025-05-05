@@ -42,26 +42,25 @@ type ConditionSet interface {
 	MarkConditions(condition ...xpv1.Condition)
 }
 
-// New returns an implementation of a Manager.
-func New() Manager {
-	return &managerImpl{}
-}
-
-// managerImpl is the top level factor for producing a ConditionSet on behalf of a ObjectWithConditions resource.
-// managerImpl implements Manager.
-type managerImpl struct{}
+// ObservedGenerationPropagationManager is the top level factor for producing a ConditionSet
+// on behalf of a ObjectWithConditions resource, the ConditionSet is only currently concerned with
+// propagating observedGeneration to conditions that are being updated.
+// observedGenerationPropagationManager implements Manager.
+type ObservedGenerationPropagationManager struct{}
 
 // For implements Manager.For.
-func (m managerImpl) For(o ObjectWithConditions) ConditionSet {
-	return &conditionSet{o: o}
+func (m ObservedGenerationPropagationManager) For(o ObjectWithConditions) ConditionSet {
+	return &observedGenerationPropagationConditionSet{o: o}
 }
 
-type conditionSet struct {
+// observedGenerationPropagationConditionSet propagates the meta.generation of the given object
+// to the observedGeneration of any condition being set via the `MarkConditions` method.
+type observedGenerationPropagationConditionSet struct {
 	o ObjectWithConditions
 }
 
 // MarkConditions implements ConditionSet.MarkConditions.
-func (c *conditionSet) MarkConditions(condition ...xpv1.Condition) {
+func (c *observedGenerationPropagationConditionSet) MarkConditions(condition ...xpv1.Condition) {
 	if c == nil || c.o == nil {
 		return
 	}

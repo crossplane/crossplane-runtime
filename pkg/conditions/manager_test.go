@@ -29,33 +29,14 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
-// Check that conditionSet implements ConditionSet.
-var _ ConditionSet = (*conditionSet)(nil)
-
 // Check that conditionsImpl implements ConditionManager.
-var _ Manager = (*managerImpl)(nil)
+var _ Manager = (*ObservedGenerationPropagationManager)(nil)
 
-func TestNew(t *testing.T) {
-	tests := map[string]struct {
-		reason string
-		want   Manager
-	}{
-		"NewNonNilManager": {
-			reason: "New() should return a non-nil Manager",
-			want:   &managerImpl{},
-		},
-	}
-	for name, tt := range tests {
-		t.Run(name, func(t *testing.T) {
-			if got := New(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("\nReason: %s\nNew() = %v, want %v", tt.reason, got, tt.want)
-			}
-		})
-	}
-}
+// Check that conditionSet implements ConditionSet.
+var _ ConditionSet = (*observedGenerationPropagationConditionSet)(nil)
 
-func Test_conditionSet_Mark(t *testing.T) {
-	manager := New()
+func TestOGConditionSetMark(t *testing.T) {
+	manager := new(ObservedGenerationPropagationManager)
 
 	tests := map[string]struct {
 		reason string
@@ -105,7 +86,7 @@ func Test_conditionSet_Mark(t *testing.T) {
 		})
 	}
 
-	t.Run("Manage a nil object", func(t *testing.T) {
+	t.Run("ManageNilObject", func(t *testing.T) {
 		c := manager.For(nil)
 		if c == nil {
 			t.Errorf("manager.For(nil) = %v, want non-nil", c)
@@ -116,7 +97,7 @@ func Test_conditionSet_Mark(t *testing.T) {
 	})
 }
 
-func Test_managerImpl_For(t *testing.T) {
+func TestOGManagerFor(t *testing.T) {
 	tests := map[string]struct {
 		reason string
 		o      ObjectWithConditions
@@ -124,19 +105,19 @@ func Test_managerImpl_For(t *testing.T) {
 	}{
 		"NilObject": {
 			reason: "Even if an object is nil, the manager should return a non-nil ConditionSet",
-			want:   &conditionSet{},
+			want:   &observedGenerationPropagationConditionSet{},
 		},
 		"Object": {
 			reason: "Object propagates into manager.",
 			o:      &fake.Managed{},
-			want: &conditionSet{
+			want: &observedGenerationPropagationConditionSet{
 				o: &fake.Managed{},
 			},
 		},
 	}
 	for name, tt := range tests {
 		t.Run(name, func(t *testing.T) {
-			m := managerImpl{}
+			m := &ObservedGenerationPropagationManager{}
 			if got := m.For(tt.o); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("\nReason: %s\nFor() = %v, want %v", tt.reason, got, tt.want)
 			}
