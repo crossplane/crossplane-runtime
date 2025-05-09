@@ -52,7 +52,6 @@ func (c *typedExternalClientWrapper[managed]) Create(ctx context.Context, mg res
 	}
 	return c.c.Create(ctx, cr)
 }
-
 func (c *typedExternalClientWrapper[managed]) Update(ctx context.Context, mg resource.Managed) (ExternalUpdate, error) {
 	cr, ok := mg.(managed)
 	if !ok {
