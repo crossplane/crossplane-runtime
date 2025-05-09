@@ -1107,9 +1107,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 				log.Info(errRecordChangeLog, "error", err)
 			}
 			record.Event(managed, event.Normal(reasonDeleted, "Successfully requested deletion of external resource"))
-			managed.SetConditions(
-				xpv1.Deleting().WithObservedGeneration(managed.GetGeneration()),
-				xpv1.ReconcileSuccess().WithObservedGeneration(managed.GetGeneration()))
+			status.MarkConditions(xpv1.Deleting(), xpv1.ReconcileSuccess())
 			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 		}
 		if err := r.managed.UnpublishConnection(ctx, managed, observation.ConnectionDetails); err != nil {
@@ -1305,7 +1303,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		// https://github.com/crossplane/crossplane/issues/289
 		reconcileAfter := r.pollIntervalHook(managed, r.pollInterval)
 		log.Debug("External resource is up to date", "requeue-after", time.Now().Add(reconcileAfter))
-		managed.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(managed.GetGeneration()))
+		status.MarkConditions(xpv1.ReconcileSuccess())
 		r.metricRecorder.recordFirstTimeReady(managed)
 
 		// record that we intentionally did not update the managed resource
