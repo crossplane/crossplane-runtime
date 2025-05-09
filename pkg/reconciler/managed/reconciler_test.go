@@ -656,6 +656,52 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{Requeue: true}},
 		},
+		"AddFinalizerShouldNotClearStatus": {
+			reason: "Adding a finalizer should not clear the resource's status object.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet:    test.NewMockGetFn(nil),
+						MockUpdate: test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
+							want := &fake.Managed{}
+							want.SetConditions(xpv1.ReconcileSuccess(), xpv1.Available())
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := "Adding a finalizer should not clear the resource's status object."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.Managed{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+					WithExternalConnecter(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, obj resource.Managed) (ExternalObservation, error) {
+								obj.SetConditions(xpv1.Available())
+								return ExternalObservation{ResourceExists: true, ResourceUpToDate: true}, nil
+							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
+							},
+						}
+						return c, nil
+					})),
+					WithConnectionPublishers(),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, obj resource.Object) error {
+						// Imitate the behavior that the kube client would have when
+						// adding a finalizer to an object that does not have a status yet
+						obj.(*fake.Managed).Status = nil
+						return nil
+					}}),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultPollInterval}},
+		},
 		"AddFinalizerError": {
 			reason: "Errors adding a finalizer should trigger a requeue after a short wait.",
 			args: args{
