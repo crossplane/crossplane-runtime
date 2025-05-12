@@ -9,13 +9,13 @@ import (
 
 const errFmtUnexpectedObjectType = "unexpected object type %T"
 
-// typedExternalConnectDisconnecterWrapper wraps a TypedExternalConnecter to a
+// typedExternalConnectDisconnectorWrapper wraps a TypedExternalConnector to a
 // common ExternalConnector.
-type typedExternalConnectDisconnecterWrapper[managed resource.Managed] struct {
-	c TypedExternalConnectDisconnecter[managed]
+type typedExternalConnectDisconnectorWrapper[managed resource.Managed] struct {
+	c TypedExternalConnectDisconnector[managed]
 }
 
-func (c *typedExternalConnectDisconnecterWrapper[managed]) Connect(ctx context.Context, mg resource.Managed) (ExternalClient, error) {
+func (c *typedExternalConnectDisconnectorWrapper[managed]) Connect(ctx context.Context, mg resource.Managed) (ExternalClient, error) {
 	cr, ok := mg.(managed)
 	if !ok {
 		return nil, errors.Errorf(errFmtUnexpectedObjectType, mg)
@@ -27,7 +27,7 @@ func (c *typedExternalConnectDisconnecterWrapper[managed]) Connect(ctx context.C
 	return &typedExternalClientWrapper[managed]{c: external}, nil
 }
 
-func (c *typedExternalConnectDisconnecterWrapper[managed]) Disconnect(ctx context.Context) error {
+func (c *typedExternalConnectDisconnectorWrapper[managed]) Disconnect(ctx context.Context) error {
 	return c.c.Disconnect(ctx)
 }
 
@@ -52,6 +52,7 @@ func (c *typedExternalClientWrapper[managed]) Create(ctx context.Context, mg res
 	}
 	return c.c.Create(ctx, cr)
 }
+
 func (c *typedExternalClientWrapper[managed]) Update(ctx context.Context, mg resource.Managed) (ExternalUpdate, error) {
 	cr, ok := mg.(managed)
 	if !ok {
