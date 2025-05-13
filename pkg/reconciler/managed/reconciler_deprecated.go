@@ -60,7 +60,9 @@ type NopDisconnecter = NopDisconnector
 
 // NewNopDisconnecter an alias to NewNopDisconnector.
 // Deprecated: use NewNopDisconnector.
-var NewNopDisconnecter = NewNopDisconnector //nolint:gochecknoglobals // This is an alias.
+func NewNopDisconnecter(c ExternalConnector) ExternalConnectDisconnector {
+	return NewNopDisconnector(c)
+}
 
 // ExternalDisconnecterFn aliases ExternalDisconnectorFn.
 // Deprecated: use ExternalDisconnectorFn.
@@ -76,7 +78,9 @@ type NopConnecter = NopConnector
 
 // WithExternalConnecter aliases WithExternalConnector.
 // Deprecated: use WithExternalConnector.
-var WithExternalConnecter = WithExternalConnector //nolint:gochecknoglobals // This is an alias.
+func WithExternalConnecter(c ExternalConnector) ReconcilerOption {
+	return WithExternalConnector(c)
+}
 
 // WithExternalConnectDisconnector specifies how the Reconciler should connect and disconnect to the API
 // used to sync and delete external resources.
