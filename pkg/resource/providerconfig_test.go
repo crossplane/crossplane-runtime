@@ -261,7 +261,7 @@ func TestTrack(t *testing.T) {
 			args: args{
 				mg: &fake.Managed{},
 			},
-			want: errMissingRef{errors.New(errMissingPCRef)},
+			want: missingRefError{errors.New(errMissingPCRef)},
 		},
 		"NopUpdate": {
 			reason: "No error should be returned if the apply fails because it would be a no-op",

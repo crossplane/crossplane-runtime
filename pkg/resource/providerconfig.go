@@ -42,9 +42,9 @@ const (
 	errApplyPCU              = "cannot apply ProviderConfigUsage"
 )
 
-type errMissingRef struct{ error }
+type missingRefError struct{ error }
 
-func (m errMissingRef) MissingReference() bool { return true }
+func (m missingRefError) MissingReference() bool { return true }
 
 // IsMissingReference returns true if an error indicates that a managed
 // resource is missing a required reference..
@@ -143,7 +143,7 @@ func (u *ProviderConfigUsageTracker) Track(ctx context.Context, mg Managed) erro
 	gvk := mg.GetObjectKind().GroupVersionKind()
 	ref := mg.GetProviderConfigReference()
 	if ref == nil {
-		return errMissingRef{errors.New(errMissingPCRef)}
+		return missingRefError{errors.New(errMissingPCRef)}
 	}
 
 	pcu.SetName(string(mg.GetUID()))

@@ -3,7 +3,7 @@ VERSION --try --raw-output 0.8
 
 PROJECT crossplane/crossplane-runtime
 
-ARG --global GO_VERSION=1.22.3
+ARG --global GO_VERSION=1.23.7
 
 # reviewable checks that a branch is ready for review. Run it before opening a
 # pull request. It will catch a lot of the things our CI workflow will catch.
@@ -102,7 +102,7 @@ go-test:
 
 # go-lint lints Go code.
 go-lint:
-  ARG GOLANGCI_LINT_VERSION=v1.59.0
+  ARG GOLANGCI_LINT_VERSION=v1.64.8
   FROM +go-modules
   # This cache is private because golangci-lint doesn't support concurrent runs.
   CACHE --id go-lint --sharing private /root/.cache/golangci-lint

@@ -28,11 +28,11 @@ import (
 // DefaultMaxFieldPathIndex is the max allowed index in a field path.
 const DefaultMaxFieldPathIndex = 1024
 
-type errNotFound struct {
+type notFoundError struct {
 	error
 }
 
-func (e errNotFound) IsNotFound() bool {
+func (e notFoundError) IsNotFound() bool {
 	return true
 }
 
@@ -75,9 +75,9 @@ func Pave(object map[string]any, opts ...PavedOption) *Paved {
 }
 
 // WithMaxFieldPathIndex returns a PavedOption that sets the max allowed index for field paths, 0 means no limit.
-func WithMaxFieldPathIndex(max uint) PavedOption {
+func WithMaxFieldPathIndex(maxIndex uint) PavedOption {
 	return func(paved *Paved) {
-		paved.maxFieldPathIndex = max
+		paved.maxFieldPathIndex = maxIndex
 	}
 }
 
@@ -121,8 +121,8 @@ func getValueFromInterface(it any, s Segments) (any, error) {
 			if !ok {
 				return nil, errors.Errorf("%s: not an array", s[:i])
 			}
-			if int(current.Index) >= len(array) {
-				return nil, errNotFound{errors.Errorf("%s: no such element", s[:i+1])}
+			if current.Index >= uint(len(array)) {
+				return nil, notFoundError{errors.Errorf("%s: no such element", s[:i+1])}
 			}
 			if final {
 				return array[current.Index], nil
@@ -133,14 +133,14 @@ func getValueFromInterface(it any, s Segments) (any, error) {
 			case map[string]any:
 				v, ok := object[current.Field]
 				if !ok {
-					return nil, errNotFound{errors.Errorf("%s: no such field", s[:i+1])}
+					return nil, notFoundError{errors.Errorf("%s: no such field", s[:i+1])}
 				}
 				if final {
 					return v, nil
 				}
 				it = object[current.Field]
 			case nil:
-				return nil, errNotFound{errors.Errorf("%s: expected map, got nil", s[:i])}
+				return nil, notFoundError{errors.Errorf("%s: expected map, got nil", s[:i])}
 			default:
 				return nil, errors.Errorf("%s: not an object", s[:i])
 			}
@@ -208,7 +208,7 @@ func expandWildcards(data any, segments Segments) ([]Segments, error) { //nolint
 					res = append(res, r...)
 				}
 			case nil:
-				return nil, errNotFound{errors.Errorf("wildcard field %q is not found in the path", segments[:i])}
+				return nil, notFoundError{errors.Errorf("wildcard field %q is not found in the path", segments[:i])}
 			default:
 				return nil, errors.Errorf("%q: unexpected wildcard usage", segments[:i])
 			}
@@ -427,11 +427,11 @@ func prepareElement(array []any, current, next Segment) {
 		return
 	}
 
-	if int(next.Index) < len(na) {
+	if next.Index < uint(len(na)) {
 		return
 	}
 
-	array[current.Index] = append(na, make([]any, int(next.Index)-len(na)+1)...)
+	array[current.Index] = append(na, make([]any, next.Index-uint(len(na))+1)...)
 }
 
 func prepareField(object map[string]any, current, next Segment) {
@@ -458,11 +458,11 @@ func prepareField(object map[string]any, current, next Segment) {
 		return
 	}
 
-	if int(next.Index) < len(na) {
+	if next.Index < uint(len(na)) {
 		return
 	}
 
-	object[current.Field] = append(na, make([]any, int(next.Index)-len(na)+1)...)
+	object[current.Field] = append(na, make([]any, next.Index-uint(len(na))+1)...)
 }
 
 // SetValue at the supplied field path.
@@ -543,7 +543,7 @@ func (p *Paved) delete(segments Segments) error { //nolint:gocognit // See note 
 			}
 
 			// It doesn't exist anyway.
-			if len(array) <= int(current.Index) {
+			if uint(len(array)) <= current.Index {
 				return nil
 			}
 
@@ -593,10 +593,10 @@ func deleteField(obj any, s Segment) (any, error) {
 		if !ok {
 			return nil, errors.New("not an array")
 		}
-		if len(array) == 0 || len(array) <= int(s.Index) {
+		if len(array) == 0 || uint(len(array)) <= s.Index {
 			return array, nil
 		}
-		for i := int(s.Index); i < len(array)-1; i++ {
+		for i := s.Index; i < uint(len(array))-1; i++ {
 			array[i] = array[i+1]
 		}
 		return array[:len(array)-1], nil

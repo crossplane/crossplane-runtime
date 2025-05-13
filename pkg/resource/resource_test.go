@@ -422,7 +422,7 @@ func TestIsNotControllable(t *testing.T) {
 		},
 		"NotControllableError": {
 			reason: "An that has a 'NotControllable() bool' method indicates something is not controllable.",
-			err:    errNotControllable{errors.New("boom")},
+			err:    notControllableError{errors.New("boom")},
 			want:   true,
 		},
 	}
@@ -479,7 +479,7 @@ func TestMustBeControllableBy(t *testing.T) {
 					Controller: &controller,
 				}}}},
 			},
-			want: errNotControllable{errors.Errorf("existing object is not controlled by UID %q", uid)},
+			want: notControllableError{errors.Errorf("existing object is not controlled by UID %q", uid)},
 		},
 	}
 
@@ -543,7 +543,7 @@ func TestConnectionSecretMustBeControllableBy(t *testing.T) {
 					Type: SecretTypeConnection,
 				},
 			},
-			want: errNotControllable{errors.Errorf("existing secret is not controlled by UID %q", uid)},
+			want: notControllableError{errors.Errorf("existing secret is not controlled by UID %q", uid)},
 		},
 		"UncontrolledOpaqueSecret": {
 			reason: "A Secret of corev1.SecretTypeOpqaue with no controller is not controllable",
@@ -551,7 +551,7 @@ func TestConnectionSecretMustBeControllableBy(t *testing.T) {
 			args: args{
 				current: &corev1.Secret{Type: corev1.SecretTypeOpaque},
 			},
-			want: errNotControllable{errors.Errorf("refusing to modify uncontrolled secret of type %q", corev1.SecretTypeOpaque)},
+			want: notControllableError{errors.Errorf("refusing to modify uncontrolled secret of type %q", corev1.SecretTypeOpaque)},
 		},
 	}
 
@@ -593,7 +593,7 @@ func TestAllowUpdateIf(t *testing.T) {
 			args: args{
 				current: &object{},
 			},
-			want: errNotAllowed{errors.New("update not allowed")},
+			want: notAllowedError{errors.New("update not allowed")},
 		},
 	}
 
@@ -641,8 +641,8 @@ func TestGetExternalTags(t *testing.T) {
 }
 
 // single test case => not using tables.
-func Test_errNotControllable_NotControllable(t *testing.T) {
-	err := errNotControllable{
+func Test_notControllableError_NotControllable(t *testing.T) {
+	err := notControllableError{
 		errors.New("test-error"),
 	}
 
@@ -652,8 +652,8 @@ func Test_errNotControllable_NotControllable(t *testing.T) {
 }
 
 // single test case => not using tables.
-func Test_errNotAllowed_NotAllowed(t *testing.T) {
-	err := errNotAllowed{
+func Test_notAllowedError_NotAllowed(t *testing.T) {
+	err := notAllowedError{
 		errors.New("test-error"),
 	}
 

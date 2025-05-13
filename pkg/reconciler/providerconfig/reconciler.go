@@ -181,7 +181,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			if err := r.client.Delete(ctx, pcu); resource.IgnoreNotFound(err) != nil {
 				log.Debug(errDeletePCU, "error", err)
 				r.record.Event(pc, event.Warning(reasonAccount, errors.Wrap(err, errDeletePCU)))
-				return reconcile.Result{RequeueAfter: shortWait}, nil //nolint:nilerr // Returning err would make us requeue instantly.
+				return reconcile.Result{RequeueAfter: shortWait}, nil
 			}
 			users--
 		}
