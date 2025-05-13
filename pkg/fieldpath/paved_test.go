@@ -38,12 +38,12 @@ func TestIsNotFound(t *testing.T) {
 	}{
 		"NotFound": {
 			reason: "An error with method `IsNotFound() bool` should be considered a not found error.",
-			err:    errNotFound{errors.New("boom")},
+			err:    notFoundError{errors.New("boom")},
 			want:   true,
 		},
 		"WrapsNotFound": {
 			reason: "An error that wraps an error with method `IsNotFound() bool` should be considered a not found error.",
-			err:    errors.Wrap(errNotFound{errors.New("boom")}, "because reasons"),
+			err:    errors.Wrap(notFoundError{errors.New("boom")}, "because reasons"),
 			want:   true,
 		},
 		"SomethingElse": {
@@ -127,7 +127,7 @@ func TestGetValue(t *testing.T) {
 			path:   "metadata.name",
 			data:   []byte(`{"metadata":{"nope":"cool"}}`),
 			want: want{
-				err: errNotFound{errors.New("metadata.name: no such field")},
+				err: notFoundError{errors.New("metadata.name: no such field")},
 			},
 		},
 		"InsufficientContainers": {
@@ -135,7 +135,7 @@ func TestGetValue(t *testing.T) {
 			path:   "spec.containers[1].name",
 			data:   []byte(`{"spec":{"containers":[{"name":"cool"}]}}`),
 			want: want{
-				err: errNotFound{errors.New("spec.containers[1]: no such element")},
+				err: notFoundError{errors.New("spec.containers[1]: no such element")},
 			},
 		},
 		"NotAnArray": {
@@ -166,7 +166,7 @@ func TestGetValue(t *testing.T) {
 			path:   "spec.containers[*].name",
 			data:   []byte(`{"spec":{"containers": null}}`),
 			want: want{
-				err: errNotFound{errors.Errorf("%s: expected map, got nil", "spec.containers")},
+				err: notFoundError{errors.Errorf("%s: expected map, got nil", "spec.containers")},
 			},
 		},
 	}
@@ -242,7 +242,7 @@ func TestGetValueInto(t *testing.T) {
 			},
 			want: want{
 				out: &Struct{},
-				err: errNotFound{errors.New("s: no such field")},
+				err: notFoundError{errors.New("s: no such field")},
 			},
 		},
 	}
@@ -964,7 +964,7 @@ func TestExpandWildcards(t *testing.T) {
 			path:   "spec.containers[*].name",
 			data:   []byte(`{"spec":{"containers": null}}`),
 			want: want{
-				err: errors.Wrapf(errNotFound{errors.Errorf("wildcard field %q is not found in the path", "spec.containers")}, "cannot expand wildcards for segments: %q", "spec.containers[*].name"),
+				err: errors.Wrapf(notFoundError{errors.Errorf("wildcard field %q is not found in the path", "spec.containers")}, "cannot expand wildcards for segments: %q", "spec.containers[*].name"),
 			},
 		},
 	}

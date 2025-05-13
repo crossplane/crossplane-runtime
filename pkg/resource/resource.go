@@ -272,9 +272,9 @@ func UpdateFn(fn func(current, desired runtime.Object)) ApplyOption {
 	}
 }
 
-type errNotControllable struct{ error }
+type notControllableError struct{ error }
 
-func (e errNotControllable) NotControllable() bool {
+func (e notControllableError) NotControllable() bool {
 	return true
 }
 
@@ -297,7 +297,7 @@ func MustBeControllableBy(u types.UID) ApplyOption {
 	return func(_ context.Context, current, _ runtime.Object) error {
 		mo, ok := current.(metav1.Object)
 		if !ok {
-			return errNotControllable{errors.Errorf("existing object is missing object metadata")}
+			return notControllableError{errors.Errorf("existing object is missing object metadata")}
 		}
 		c := metav1.GetControllerOf(mo)
 		if c == nil {
@@ -305,7 +305,7 @@ func MustBeControllableBy(u types.UID) ApplyOption {
 		}
 
 		if c.UID != u {
-			return errNotControllable{errors.Errorf("existing object is not controlled by UID %q", u)}
+			return notControllableError{errors.Errorf("existing object is not controlled by UID %q", u)}
 		}
 		return nil
 	}
@@ -333,26 +333,26 @@ func ConnectionSecretMustBeControllableBy(u types.UID) ApplyOption {
 
 		switch {
 		case c == nil && s.Type != SecretTypeConnection:
-			return errNotControllable{errors.Errorf("refusing to modify uncontrolled secret of type %q", s.Type)}
+			return notControllableError{errors.Errorf("refusing to modify uncontrolled secret of type %q", s.Type)}
 		case c == nil:
 			return nil
 		case c.UID != u:
-			return errNotControllable{errors.Errorf("existing secret is not controlled by UID %q", u)}
+			return notControllableError{errors.Errorf("existing secret is not controlled by UID %q", u)}
 		}
 
 		return nil
 	}
 }
 
-type errNotAllowed struct{ error }
+type notAllowedError struct{ error }
 
-func (e errNotAllowed) NotAllowed() bool {
+func (e notAllowedError) NotAllowed() bool {
 	return true
 }
 
 // NewNotAllowed returns a new NotAllowed error.
 func NewNotAllowed(message string) error {
-	return errNotAllowed{error: errors.New(message)}
+	return notAllowedError{error: errors.New(message)}
 }
 
 // IsNotAllowed returns true if the supplied error indicates that an operation
@@ -373,7 +373,7 @@ func AllowUpdateIf(fn func(current, desired runtime.Object) bool) ApplyOption {
 		if fn(current, desired) {
 			return nil
 		}
-		return errNotAllowed{errors.New("update not allowed")}
+		return notAllowedError{errors.New("update not allowed")}
 	}
 }
 
