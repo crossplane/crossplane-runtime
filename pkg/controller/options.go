@@ -69,6 +69,8 @@ type Options struct {
 
 	// ChangeLogOptions for recording change logs.
 	ChangeLogOptions *ChangeLogOptions
+
+	NamespacedEvents bool
 }
 
 // ForControllerRuntime extracts options for controller-runtime.
