@@ -229,76 +229,67 @@ func (m ReferenceResolverFn) ResolveReferences(ctx context.Context, mg resource.
 	return m(ctx, mg)
 }
 
-// An ExternalConnecter produces a new ExternalClient given the supplied
+// An ExternalConnector produces a new ExternalClient given the supplied
 // Managed resource.
-type ExternalConnecter = TypedExternalConnecter[resource.Managed]
+type ExternalConnector = TypedExternalConnector[resource.Managed]
 
-// A TypedExternalConnecter produces a new ExternalClient given the supplied
+// A TypedExternalConnector produces a new ExternalClient given the supplied
 // Managed resource.
-type TypedExternalConnecter[managed resource.Managed] interface {
+type TypedExternalConnector[managed resource.Managed] interface {
 	// Connect to the provider specified by the supplied managed resource and
 	// produce an ExternalClient.
 	Connect(ctx context.Context, mg managed) (TypedExternalClient[managed], error)
 }
 
-// An ExternalDisconnecter disconnects from a provider.
-//
-// Deprecated: Please use Disconnect() on the ExternalClient for disconnecting
-// from the provider.
-type ExternalDisconnecter interface {
-	// Disconnect from the provider and close the ExternalClient.
-	Disconnect(ctx context.Context) error
+// A NopDisconnector converts an ExternalConnector into an
+// ExternalConnectDisconnector with a no-op Disconnect method.
+type NopDisconnector = TypedNopDisconnector[resource.Managed]
+
+// A TypedNopDisconnector converts an ExternalConnector into an
+// ExternalConnectDisconnector with a no-op Disconnect method.
+type TypedNopDisconnector[managed resource.Managed] struct {
+	c TypedExternalConnector[managed]
 }
 
-// A NopDisconnecter converts an ExternalConnecter into an
-// ExternalConnectDisconnecter with a no-op Disconnect method.
-type NopDisconnecter = TypedNopDisconnecter[resource.Managed]
-
-// A TypedNopDisconnecter converts an ExternalConnecter into an
-// ExternalConnectDisconnecter with a no-op Disconnect method.
-type TypedNopDisconnecter[managed resource.Managed] struct {
-	c TypedExternalConnecter[managed]
-}
-
-// Connect calls the underlying ExternalConnecter's Connect method.
-func (c *TypedNopDisconnecter[managed]) Connect(ctx context.Context, mg managed) (TypedExternalClient[managed], error) {
+// Connect calls the underlying ExternalConnector's Connect method.
+func (c *TypedNopDisconnector[managed]) Connect(ctx context.Context, mg managed) (TypedExternalClient[managed], error) {
 	return c.c.Connect(ctx, mg)
 }
 
 // Disconnect does nothing. It never returns an error.
-func (c *TypedNopDisconnecter[managed]) Disconnect(_ context.Context) error {
+func (c *TypedNopDisconnector[managed]) Disconnect(_ context.Context) error {
 	return nil
 }
 
-// NewNopDisconnecter converts an ExternalConnecter into an
-// ExternalConnectDisconnecter with a no-op Disconnect method.
-func NewNopDisconnecter(c ExternalConnecter) ExternalConnectDisconnecter {
-	return NewTypedNopDisconnecter(c)
+// NewNopDisconnector converts an ExternalConnector into an
+// ExternalConnectDisconnector with a no-op Disconnect method.
+func NewNopDisconnector(c ExternalConnector) ExternalConnectDisconnector {
+	return NewTypedNopDisconnector(c)
 }
 
-// NewTypedNopDisconnecter converts an TypedExternalConnecter into an
-// ExternalConnectDisconnecter with a no-op Disconnect method.
-func NewTypedNopDisconnecter[managed resource.Managed](c TypedExternalConnecter[managed]) TypedExternalConnectDisconnecter[managed] {
-	return &TypedNopDisconnecter[managed]{c}
+// NewTypedNopDisconnector converts an TypedExternalConnector into an
+// ExternalConnectDisconnector with a no-op Disconnect method.
+func NewTypedNopDisconnector[managed resource.Managed](c TypedExternalConnector[managed]) TypedExternalConnectDisconnector[managed] {
+	return &TypedNopDisconnector[managed]{c}
 }
 
-// An ExternalConnectDisconnecter produces a new ExternalClient given the supplied
+// An ExternalConnectDisconnector produces a new ExternalClient given the supplied
 // Managed resource.
-type ExternalConnectDisconnecter = TypedExternalConnectDisconnecter[resource.Managed]
+type ExternalConnectDisconnector = TypedExternalConnectDisconnector[resource.Managed]
 
-// A TypedExternalConnectDisconnecter produces a new ExternalClient given the supplied
+// A TypedExternalConnectDisconnector produces a new ExternalClient given the supplied
 // Managed resource.
-type TypedExternalConnectDisconnecter[managed resource.Managed] interface {
-	TypedExternalConnecter[managed]
-	ExternalDisconnecter
+type TypedExternalConnectDisconnector[managed resource.Managed] interface {
+	TypedExternalConnector[managed]
+	ExternalDisconnector
 }
 
-// An ExternalConnectorFn is a function that satisfies the ExternalConnecter
+// An ExternalConnectorFn is a function that satisfies the ExternalConnector
 // interface.
 type ExternalConnectorFn = TypedExternalConnectorFn[resource.Managed]
 
 // An TypedExternalConnectorFn is a function that satisfies the
-// TypedExternalConnecter interface.
+// TypedExternalConnector interface.
 type TypedExternalConnectorFn[managed resource.Managed] func(ctx context.Context, mg managed) (TypedExternalClient[managed], error)
 
 // Connect to the provider specified by the supplied managed resource and
@@ -307,7 +298,7 @@ func (ec TypedExternalConnectorFn[managed]) Connect(ctx context.Context, mg mana
 	return ec(ctx, mg)
 }
 
-// An ExternalDisconnectorFn is a function that satisfies the ExternalConnecter
+// An ExternalDisconnectorFn is a function that satisfies the ExternalConnector
 // interface.
 type ExternalDisconnectorFn func(ctx context.Context) error
 
@@ -316,25 +307,25 @@ func (ed ExternalDisconnectorFn) Disconnect(ctx context.Context) error {
 	return ed(ctx)
 }
 
-// ExternalConnectDisconnecterFns are functions that satisfy the
-// ExternalConnectDisconnecter interface.
-type ExternalConnectDisconnecterFns = TypedExternalConnectDisconnecterFns[resource.Managed]
+// ExternalConnectDisconnectorFns are functions that satisfy the
+// ExternalConnectDisconnector interface.
+type ExternalConnectDisconnectorFns = TypedExternalConnectDisconnectorFns[resource.Managed]
 
-// TypedExternalConnectDisconnecterFns are functions that satisfy the
-// TypedExternalConnectDisconnecter interface.
-type TypedExternalConnectDisconnecterFns[managed resource.Managed] struct {
+// TypedExternalConnectDisconnectorFns are functions that satisfy the
+// TypedExternalConnectDisconnector interface.
+type TypedExternalConnectDisconnectorFns[managed resource.Managed] struct {
 	ConnectFn    func(ctx context.Context, mg managed) (TypedExternalClient[managed], error)
 	DisconnectFn func(ctx context.Context) error
 }
 
 // Connect to the provider specified by the supplied managed resource and
 // produce an ExternalClient.
-func (fns TypedExternalConnectDisconnecterFns[managed]) Connect(ctx context.Context, mg managed) (TypedExternalClient[managed], error) {
+func (fns TypedExternalConnectDisconnectorFns[managed]) Connect(ctx context.Context, mg managed) (TypedExternalClient[managed], error) {
 	return fns.ConnectFn(ctx, mg)
 }
 
 // Disconnect from the provider and close the ExternalClient.
-func (fns TypedExternalConnectDisconnecterFns[managed]) Disconnect(ctx context.Context) error {
+func (fns TypedExternalConnectDisconnectorFns[managed]) Disconnect(ctx context.Context) error {
 	return fns.DisconnectFn(ctx)
 }
 
@@ -425,11 +416,11 @@ func (e TypedExternalClientFns[managed]) Disconnect(ctx context.Context) error {
 	return e.DisconnectFn(ctx)
 }
 
-// A NopConnecter does nothing.
-type NopConnecter struct{}
+// A NopConnector does nothing.
+type NopConnector struct{}
 
 // Connect returns a NopClient. It never returns an error.
-func (c *NopConnecter) Connect(_ context.Context, _ resource.Managed) (ExternalClient, error) {
+func (c *NopConnector) Connect(_ context.Context, _ resource.Managed) (ExternalClient, error) {
 	return &NopClient{}, nil
 }
 
@@ -595,12 +586,12 @@ func defaultMRManaged(m manager.Manager) mrManaged {
 }
 
 type mrExternal struct {
-	ExternalConnectDisconnecter
+	ExternalConnectDisconnector
 }
 
 func defaultMRExternal() mrExternal {
 	return mrExternal{
-		ExternalConnectDisconnecter: NewNopDisconnecter(&NopConnecter{}),
+		ExternalConnectDisconnector: NewNopDisconnector(&NopConnector{}),
 	}
 }
 
@@ -676,41 +667,21 @@ func WithCreationGracePeriod(d time.Duration) ReconcilerOption {
 	}
 }
 
-// WithExternalConnecter specifies how the Reconciler should connect to the API
+// WithExternalConnector specifies how the Reconciler should connect to the API
 // used to sync and delete external resources.
-func WithExternalConnecter(c ExternalConnecter) ReconcilerOption {
+func WithExternalConnector(c ExternalConnector) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.external.ExternalConnectDisconnecter = NewNopDisconnecter(c)
+		r.external.ExternalConnectDisconnector = NewNopDisconnector(c)
 	}
 }
 
 // WithTypedExternalConnector specifies how the Reconciler should connect to the API
 // used to sync and delete external resources.
-func WithTypedExternalConnector[managed resource.Managed](c TypedExternalConnecter[managed]) ReconcilerOption {
+func WithTypedExternalConnector[managed resource.Managed](c TypedExternalConnector[managed]) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.external.ExternalConnectDisconnecter = &typedExternalConnectDisconnecterWrapper[managed]{
-			c: NewTypedNopDisconnecter(c),
+		r.external.ExternalConnectDisconnector = &typedExternalConnectDisconnectorWrapper[managed]{
+			c: NewTypedNopDisconnector(c),
 		}
-	}
-}
-
-// WithExternalConnectDisconnecter specifies how the Reconciler should connect and disconnect to the API
-// used to sync and delete external resources.
-//
-// Deprecated: Please use Disconnect() on the ExternalClient for disconnecting from the provider.
-func WithExternalConnectDisconnecter(c ExternalConnectDisconnecter) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.external.ExternalConnectDisconnecter = c
-	}
-}
-
-// WithTypedExternalConnectDisconnecter specifies how the Reconciler should connect and disconnect to the API
-// used to sync and delete external resources.
-//
-// Deprecated: Please use Disconnect() on the ExternalClient for disconnecting from the provider.
-func WithTypedExternalConnectDisconnecter[managed resource.Managed](c TypedExternalConnectDisconnecter[managed]) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.external.ExternalConnectDisconnecter = &typedExternalConnectDisconnecterWrapper[managed]{c}
 	}
 }
 
