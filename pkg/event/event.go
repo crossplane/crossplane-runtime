@@ -87,7 +87,7 @@ func NewAPIRecorder(r record.EventRecorder) *APIRecorder {
 
 // Event records the supplied event.
 func (r *APIRecorder) Event(obj runtime.Object, e Event) {
-	r.kube.AnnotatedEventf(obj, r.annotations, string(e.Type), string(e.Reason), e.Message)
+	r.kube.AnnotatedEventf(obj, r.annotations, string(e.Type), string(e.Reason), "%s", e.Message)
 }
 
 // WithAnnotations returns a new *APIRecorder that includes the supplied
