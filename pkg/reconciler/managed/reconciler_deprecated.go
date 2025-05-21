@@ -36,6 +36,8 @@ type TypedExternalConnecter[managed resource.Managed] interface {
 //
 // Deprecated: Please use Disconnect() on the ExternalClient for disconnecting
 // from the provider.
+//
+//nolint:iface // We know it is a redundant interface.
 type ExternalDisconnector interface {
 	// Disconnect from the provider and close the ExternalClient.
 	Disconnect(ctx context.Context) error
@@ -45,6 +47,8 @@ type ExternalDisconnector interface {
 //
 // Deprecated: Please use Disconnect() on the ExternalClient for disconnecting
 // from the provider.
+//
+//nolint:iface // We know it is a redundant interface
 type ExternalDisconnecter interface {
 	ExternalDisconnector
 }
