@@ -18,6 +18,7 @@ limitations under the License.
 package event
 
 import (
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 )
@@ -99,6 +100,40 @@ func (r *APIRecorder) WithAnnotations(keysAndValues ...string) Recorder {
 	}
 	sliceMap(keysAndValues, ar.annotations)
 	return ar
+}
+
+// A NamespacedAPIRecorder records Kubernetes events to an API server for and only for
+// namespaced resources.
+type NamespacedAPIRecorder struct {
+	APIRecorder
+}
+
+// NewNamespacedAPIRecorder returns an NamespacedAPIRecorder that records Kubernetes events to an
+// APIServer using the supplied EventRecorder, only for namespaced resources.
+func NewNamespacedAPIRecorder(r record.EventRecorder) *NamespacedAPIRecorder {
+	return &NamespacedAPIRecorder{
+		APIRecorder{kube: r, annotations: map[string]string{}},
+	}
+}
+
+// Event records the supplied event.
+func (r *NamespacedAPIRecorder) Event(obj runtime.Object, e Event) {
+	m, err := meta.Accessor(obj)
+	// If we cannot determine if the object is namespace (i.e. err is not nil), don't do anything
+	if err == nil && m.GetNamespace() != "" && m.GetNamespace() != "default" {
+		r.APIRecorder.Event(obj, e)
+	}
+}
+
+// WithAnnotations returns a new *NamespacedAPIRecorder that includes the supplied
+// annotations with all recorded events.
+func (r *NamespacedAPIRecorder) WithAnnotations(keysAndValues ...string) Recorder {
+	nar := NewNamespacedAPIRecorder(r.kube)
+	for k, v := range r.annotations {
+		nar.annotations[k] = v
+	}
+	sliceMap(keysAndValues, nar.annotations)
+	return nar
 }
 
 func sliceMap(from []string, to map[string]string) {
