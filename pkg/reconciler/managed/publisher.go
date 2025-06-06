@@ -62,16 +62,11 @@ type DisabledSecretStoreManager struct{}
 // PublishConnection returns a proper error when API used but the feature was
 // not enabled.
 func (m *DisabledSecretStoreManager) PublishConnection(_ context.Context, so resource.ConnectionSecretOwner, _ ConnectionDetails) (bool, error) {
-	if so.GetPublishConnectionDetailsTo() != nil {
-		return false, errors.New(errSecretStoreDisabled)
-	}
-	return false, nil
+	return false, errors.New(errSecretStoreDisabled)
 }
 
 // UnpublishConnection returns a proper error when API used but the feature was
 // not enabled.
 func (m *DisabledSecretStoreManager) UnpublishConnection(_ context.Context, so resource.ConnectionSecretOwner, _ ConnectionDetails) error {
-	{
-		return errors.New(errSecretStoreDisabled)
-	}
+	return errors.New(errSecretStoreDisabled)
 }
