@@ -29,17 +29,17 @@ import (
 // A LocalConnectionSecretOwner owns and writes a connection secret to its own
 // namespace.
 type LocalConnectionSecretOwner interface {
-	resource.Object
+	Object
 
-	resource.LocalConnectionSecretWriterTo
+	LocalConnectionSecretWriterTo
 }
 
 // A ConnectionSecretOwner owns and writes a connection secret to a specified
 // namespace.
 type ConnectionSecretOwner interface {
-	resource.Object
+	Object
 
-	resource.ConnectionSecretWriterTo
+	ConnectionSecretWriterTo
 }
 
 // LocalConnectionSecretFor creates a connection secret in the namespace of the
@@ -52,7 +52,7 @@ func LocalConnectionSecretFor(o LocalConnectionSecretOwner, kind schema.GroupVer
 			Name:            o.GetWriteConnectionSecretToReference().Name,
 			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(o, kind))},
 		},
-		Type: resource.SecretTypeConnection,
+		Type: SecretTypeConnection,
 		Data: make(map[string][]byte),
 	}
 }
@@ -74,7 +74,7 @@ func ConnectionSecretFor(o ConnectionSecretOwner, kind schema.GroupVersionKind) 
 			Name:            o.GetWriteConnectionSecretToReference().Name,
 			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(o, kind))},
 		},
-		Type: resource.SecretTypeConnection,
+		Type: SecretTypeConnection,
 		Data: make(map[string][]byte),
 	}
 }

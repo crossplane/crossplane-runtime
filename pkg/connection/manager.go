@@ -103,89 +103,23 @@ func NewDetailsManager(c client.Client, of schema.GroupVersionKind, o ...Details
 // PublishConnection publishes the supplied ConnectionDetails to a secret on
 // the configured connection Store.
 func (m *DetailsManager) PublishConnection(ctx context.Context, so resource.ConnectionSecretOwner, conn managed.ConnectionDetails) (bool, error) {
-	// This resource does not want to expose a connection secret.
-	p := so.GetPublishConnectionDetailsTo()
-	if p == nil {
-		return false, nil
-	}
-
-	ss, err := m.connectStore(ctx, p)
-	if err != nil {
-		return false, errors.Wrap(err, errConnectStore)
-	}
-
-	changed, err := ss.WriteKeyValues(ctx, store.NewSecret(so, store.KeyValues(conn)), SecretToWriteMustBeOwnedBy(so))
-	return changed, errors.Wrap(err, errWriteStore)
+	return false, nil
 }
 
 // UnpublishConnection deletes connection details secret to the configured
 // connection Store.
 func (m *DetailsManager) UnpublishConnection(ctx context.Context, so resource.ConnectionSecretOwner, conn managed.ConnectionDetails) error {
-	// This resource didn't expose a connection secret.
-	p := so.GetPublishConnectionDetailsTo()
-	if p == nil {
-		return nil
-	}
-
-	ss, err := m.connectStore(ctx, p)
-	if err != nil {
-		return errors.Wrap(err, errConnectStore)
-	}
-
-	return errors.Wrap(ss.DeleteKeyValues(ctx, store.NewSecret(so, store.KeyValues(conn)), SecretToDeleteMustBeOwnedBy(so)), errDeleteFromStore)
+	return nil
 }
 
 // FetchConnection fetches connection details of a given ConnectionSecretOwner.
 func (m *DetailsManager) FetchConnection(ctx context.Context, so resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
-	// This resource does not want to expose a connection secret.
-	p := so.GetPublishConnectionDetailsTo()
-	if p == nil {
-		return nil, nil
-	}
-
-	ss, err := m.connectStore(ctx, p)
-	if err != nil {
-		return nil, errors.Wrap(err, errConnectStore)
-	}
-
-	s := &store.Secret{}
-	return managed.ConnectionDetails(s.Data), errors.Wrap(ss.ReadKeyValues(ctx, store.ScopedName{Name: p.Name, Scope: so.GetNamespace()}, s), errReadStore)
+	return nil, nil
 }
 
 // PropagateConnection propagate connection details from one resource to another.
 func (m *DetailsManager) PropagateConnection(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
-	// Either from does not expose a connection secret, or to does not want one.
-	if from.GetPublishConnectionDetailsTo() == nil || to.GetPublishConnectionDetailsTo() == nil {
-		return false, nil
-	}
-
-	ssFrom, err := m.connectStore(ctx, from.GetPublishConnectionDetailsTo())
-	if err != nil {
-		return false, errors.Wrap(err, errConnectStore)
-	}
-
-	sFrom := &store.Secret{}
-	if err = ssFrom.ReadKeyValues(ctx, store.ScopedName{
-		Name:  from.GetPublishConnectionDetailsTo().Name,
-		Scope: from.GetNamespace(),
-	}, sFrom); err != nil {
-		return false, errors.Wrap(err, errReadStore)
-	}
-
-	// Make sure 'from' is the controller of the connection secret it references
-	// before we propagate it. This ensures a resource cannot use Crossplane to
-	// circumvent RBAC by propagating a secret it does not own.
-	if sFrom.GetOwner() != string(from.GetUID()) {
-		return false, errors.New(errSecretConflict)
-	}
-
-	ssTo, err := m.connectStore(ctx, to.GetPublishConnectionDetailsTo())
-	if err != nil {
-		return false, errors.Wrap(err, errConnectStore)
-	}
-
-	changed, err := ssTo.WriteKeyValues(ctx, store.NewSecret(to, sFrom.Data), SecretToWriteMustBeOwnedBy(to))
-	return changed, errors.Wrap(err, errWriteStore)
+	return false, nil
 }
 
 func (m *DetailsManager) connectStore(ctx context.Context, p *v1.PublishConnectionDetailsTo) (Store, error) {

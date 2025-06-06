@@ -71,8 +71,7 @@ func (m *DisabledSecretStoreManager) PublishConnection(_ context.Context, so res
 // UnpublishConnection returns a proper error when API used but the feature was
 // not enabled.
 func (m *DisabledSecretStoreManager) UnpublishConnection(_ context.Context, so resource.ConnectionSecretOwner, _ ConnectionDetails) error {
-	if so.GetPublishConnectionDetailsTo() != nil {
+	{
 		return errors.New(errSecretStoreDisabled)
 	}
-	return nil
 }
