@@ -286,6 +286,30 @@ func TestResolve(t *testing.T) {
 				},
 			},
 		},
+		"SuccessfulResolveNamespaced": {
+			reason: "Resolve should be successful when a namespace is given",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+					meta.SetExternalName(obj.(metav1.Object), value)
+					return nil
+				}),
+			},
+			from: &fake.Managed{},
+			args: args{
+				req: ResolutionRequest{
+					Reference: ref,
+					To:        To{Managed: &fake.Managed{}},
+					Extract:   ExternalName(),
+					Namespace: "cool-ns",
+				},
+			},
+			want: want{
+				rsp: ResolutionResponse{
+					ResolvedValue:     value,
+					ResolvedReference: ref,
+				},
+			},
+		},
 		"OptionalReference": {
 			reason: "No error should be returned when the resolution policy is Optional",
 			c: &test.MockClient{
@@ -374,6 +398,33 @@ func TestResolve(t *testing.T) {
 						controlled,      // A resource with a matching controller reference.
 					}}},
 					Extract: ExternalName(),
+				},
+			},
+			want: want{
+				rsp: ResolutionResponse{
+					ResolvedValue:     value,
+					ResolvedReference: &xpv1.Reference{Name: value},
+				},
+				err: nil,
+			},
+		},
+		"SuccessfulSelectNamespaced": {
+			reason: "Resolve should be successful when a namespace is given",
+			c: &test.MockClient{
+				MockList: test.NewMockListFn(nil),
+			},
+			from: controlled,
+			args: args{
+				req: ResolutionRequest{
+					Selector: &xpv1.Selector{
+						MatchControllerRef: func() *bool { t := true; return &t }(),
+					},
+					To: To{List: &FakeManagedList{Items: []resource.Managed{
+						&fake.Managed{}, // A resource that does not match.
+						controlled,      // A resource with a matching controller reference.
+					}}},
+					Extract:   ExternalName(),
+					Namespace: "cool-ns",
 				},
 			},
 			want: want{
@@ -609,6 +660,30 @@ func TestResolveMultiple(t *testing.T) {
 				},
 			},
 		},
+		"SuccessfulResolveNamespaced": {
+			reason: "Resolve should be successful when a namespace is given",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+					meta.SetExternalName(obj.(metav1.Object), value)
+					return nil
+				}),
+			},
+			from: &fake.Managed{},
+			args: args{
+				req: MultiResolutionRequest{
+					References: []xpv1.Reference{ref},
+					To:         To{Managed: &fake.Managed{}},
+					Extract:    ExternalName(),
+					Namespace:  "cool-ns",
+				},
+			},
+			want: want{
+				rsp: MultiResolutionResponse{
+					ResolvedValues:     []string{value},
+					ResolvedReferences: []xpv1.Reference{ref},
+				},
+			},
+		},
 		"OptionalReference": {
 			reason: "No error should be returned when the resolution policy is Optional",
 			c: &test.MockClient{
@@ -698,6 +773,33 @@ func TestResolveMultiple(t *testing.T) {
 						controlled,      // A resource with a matching controller reference.
 					}}},
 					Extract: ExternalName(),
+				},
+			},
+			want: want{
+				rsp: MultiResolutionResponse{
+					ResolvedValues:     []string{value},
+					ResolvedReferences: []xpv1.Reference{{Name: value}},
+				},
+				err: nil,
+			},
+		},
+		"SuccessfulSelectNamespaced": {
+			reason: "Resolve should be successful when a namespace is given",
+			c: &test.MockClient{
+				MockList: test.NewMockListFn(nil),
+			},
+			from: controlled,
+			args: args{
+				req: MultiResolutionRequest{
+					Selector: &xpv1.Selector{
+						MatchControllerRef: func() *bool { t := true; return &t }(),
+					},
+					To: To{List: &FakeManagedList{Items: []resource.Managed{
+						&fake.Managed{}, // A resource that does not match.
+						controlled,      // A resource with a matching controller reference.
+					}}},
+					Extract:   ExternalName(),
+					Namespace: "cool-ns",
 				},
 			},
 			want: want{
