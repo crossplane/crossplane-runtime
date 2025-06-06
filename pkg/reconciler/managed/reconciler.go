@@ -941,10 +941,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 
 	// If we started but never completed creation of an external resource we
 	// may have lost critical information. For example if we didn't persist
-	// an updated external name which is non-determinisitc, we have leaked a
-	// resource. The safest thing to do is to refuse to proceed. However, if
-	// the resource has a deterministic external name, it is safe to proceed.
-	if meta.ExternalCreateIncomplete(managed) && !meta.ExternalNameIsDeterministic(managed) {
+	// an updated external name we've leaked a resource. The safest thing to
+	// do is to refuse to proceed.
+	if meta.ExternalCreateIncomplete(managed) {
 		log.Debug(errCreateIncomplete)
 		record.Event(managed, event.Warning(reasonCannotInitialize, errors.New(errCreateIncomplete)))
 		status.MarkConditions(xpv1.Creating(), xpv1.ReconcileError(errors.New(errCreateIncomplete)))
