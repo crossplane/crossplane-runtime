@@ -558,10 +558,11 @@ type Reconciler struct {
 
 	supportedManagementPolicies []sets.Set[xpv1.ManagementAction]
 
-	log            logging.Logger
-	record         event.Recorder
-	metricRecorder MetricRecorder
-	change         ChangeLogger
+	log                       logging.Logger
+	record                    event.Recorder
+	metricRecorder            MetricRecorder
+	change                    ChangeLogger
+	deterministicExternalName bool
 }
 
 type mrManaged struct {
@@ -764,6 +765,19 @@ func WithChangeLogger(c ChangeLogger) ReconcilerOption {
 	}
 }
 
+// WithDeterministicExternalName specifies that the external name of the MR is
+// deterministic. If this value is not "true", the provider will not re-queue the
+// managed resource in scenarios where creation is deemed incomplete. This behaviour
+// is a safeguard to avoid a leaked resource due to a non-deterministic name generated
+// by the external system. Conversely, if this value is "true", signifying that the
+// managed resources is deterministically named by the external system, then this
+// safeguard is ignored as it is safe to re-queue a deterministically named resource.
+func WithDeterministicExternalName(b bool) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.deterministicExternalName = b
+	}
+}
+
 // NewReconciler returns a Reconciler that reconciles managed resources of the
 // supplied ManagedKind with resources in an external system such as a cloud
 // provider API. It panics if asked to reconcile a managed resource kind that is
@@ -941,13 +955,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 
 	// If we started but never completed creation of an external resource we
 	// may have lost critical information. For example if we didn't persist
-	// an updated external name we've leaked a resource. The safest thing to
-	// do is to refuse to proceed.
+	// an updated external name which is non-deterministic, we have leaked a
+	// resource. The safest thing to do is to refuse to proceed. However, if
+	// the resource has a deterministic external name, it is safe to proceed.
 	if meta.ExternalCreateIncomplete(managed) {
-		log.Debug(errCreateIncomplete)
-		record.Event(managed, event.Warning(reasonCannotInitialize, errors.New(errCreateIncomplete)))
-		status.MarkConditions(xpv1.Creating(), xpv1.ReconcileError(errors.New(errCreateIncomplete)))
-		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		if !r.deterministicExternalName {
+			log.Debug(errCreateIncomplete)
+			record.Event(managed, event.Warning(reasonCannotInitialize, errors.New(errCreateIncomplete)))
+			status.MarkConditions(xpv1.Creating(), xpv1.ReconcileError(errors.New(errCreateIncomplete)))
+			return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		}
+		log.Debug("Cannot determine creation result, but proceeding due to deterministic external name")
 	}
 
 	// We resolve any references before observing our external resource because
