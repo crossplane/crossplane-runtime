@@ -190,6 +190,7 @@ type ResolutionRequest struct {
 	Selector     *xpv1.Selector
 	To           To
 	Extract      ExtractValueFn
+	Namespace    string
 }
 
 // IsNoOp returns true if the supplied ResolutionRequest cannot or should not be
@@ -244,6 +245,7 @@ type MultiResolutionRequest struct {
 	Selector      *xpv1.Selector
 	To            To
 	Extract       ExtractValueFn
+	Namespace     string
 }
 
 // IsNoOp returns true if the supplied MultiResolutionRequest cannot or should
@@ -325,7 +327,7 @@ func (r *APIResolver) Resolve(ctx context.Context, req ResolutionRequest) (Resol
 
 	// The reference is already set - resolve it.
 	if req.Reference != nil {
-		if err := r.client.Get(ctx, types.NamespacedName{Name: req.Reference.Name}, req.To.Managed); err != nil {
+		if err := r.client.Get(ctx, types.NamespacedName{Name: req.Reference.Name, Namespace: req.Namespace}, req.To.Managed); err != nil {
 			if kerrors.IsNotFound(err) {
 				return ResolutionResponse{}, getResolutionError(req.Reference.Policy, errors.Wrap(err, errGetManaged))
 			}
@@ -336,8 +338,9 @@ func (r *APIResolver) Resolve(ctx context.Context, req ResolutionRequest) (Resol
 		return rsp, getResolutionError(req.Reference.Policy, rsp.Validate())
 	}
 
-	// The reference was not set, but a selector was. Select a reference.
-	if err := r.client.List(ctx, req.To.List, client.MatchingLabels(req.Selector.MatchLabels)); err != nil {
+	// The reference was not set, but a selector was. Select a reference. If the
+	// request has no namespace, then InNamespace is a no-op.
+	if err := r.client.List(ctx, req.To.List, client.MatchingLabels(req.Selector.MatchLabels), client.InNamespace(req.Namespace)); err != nil {
 		return ResolutionResponse{}, errors.Wrap(err, errListManaged)
 	}
 
@@ -368,7 +371,7 @@ func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRe
 	// The references are already set - resolve them.
 	if len(req.References) > 0 {
 		for i := range req.References {
-			if err := r.client.Get(ctx, types.NamespacedName{Name: req.References[i].Name}, req.To.Managed); err != nil {
+			if err := r.client.Get(ctx, types.NamespacedName{Name: req.References[i].Name, Namespace: req.Namespace}, req.To.Managed); err != nil {
 				if kerrors.IsNotFound(err) {
 					return MultiResolutionResponse{}, getResolutionError(req.References[i].Policy, errors.Wrap(err, errGetManaged))
 				}
@@ -383,8 +386,9 @@ func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRe
 		return rsp, rsp.Validate()
 	}
 
-	// No references were set, but a selector was. Select and resolve references.
-	if err := r.client.List(ctx, req.To.List, client.MatchingLabels(req.Selector.MatchLabels)); err != nil {
+	// No references were set, but a selector was. Select and resolve
+	// references. If the request has no namespace, then InNamespace is a no-op.
+	if err := r.client.List(ctx, req.To.List, client.MatchingLabels(req.Selector.MatchLabels), client.InNamespace(req.Namespace)); err != nil {
 		return MultiResolutionResponse{}, errors.Wrap(err, errListManaged)
 	}
 
