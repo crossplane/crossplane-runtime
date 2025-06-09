@@ -958,11 +958,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 	// an updated external name which is non-deterministic, we have leaked a
 	// resource. The safest thing to do is to refuse to proceed. However, if
 	// the resource has a deterministic external name, it is safe to proceed.
-	if meta.ExternalCreateIncomplete(managed) && !r.deterministicExternalName {
-		log.Debug(errCreateIncomplete)
-		record.Event(managed, event.Warning(reasonCannotInitialize, errors.New(errCreateIncomplete)))
-		status.MarkConditions(xpv1.Creating(), xpv1.ReconcileError(errors.New(errCreateIncomplete)))
-		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+	if meta.ExternalCreateIncomplete(managed) {
+		if !r.deterministicExternalName {
+			log.Debug(errCreateIncomplete)
+			record.Event(managed, event.Warning(reasonCannotInitialize, errors.New(errCreateIncomplete)))
+			status.MarkConditions(xpv1.Creating(), xpv1.ReconcileError(errors.New(errCreateIncomplete)))
+			return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+		}
+		log.Debug("Cannot determine creation result, but proceeding due to deterministic external name")
 	}
 
 	// We resolve any references before observing our external resource because
