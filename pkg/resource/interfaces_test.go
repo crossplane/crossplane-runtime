@@ -31,11 +31,11 @@ var (
 	_ ProviderConfig      = &fake.ProviderConfig{}
 	_ ProviderConfigUsage = &fake.ProviderConfigUsage{}
 
-	_ CompositeClaim = &fake.CompositeClaim{}
-	_ Composite      = &fake.Composite{}
-	_ Composed       = &fake.Composed{}
+	_ Claim     = &fake.Claim{}
+	_ Composite = &fake.Composite{}
+	_ Composed  = &fake.Composed{}
 
-	_ CompositeClaim = &claim.Unstructured{}
-	_ Composite      = &composite.Unstructured{}
-	_ Composed       = &composed.Unstructured{}
+	_ Claim     = &claim.Unstructured{}
+	_ Composite = &composite.Unstructured{}
+	_ Composed  = &composed.Unstructured{}
 )

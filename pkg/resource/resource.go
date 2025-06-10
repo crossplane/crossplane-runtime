@@ -37,7 +37,6 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 )
 
@@ -71,54 +70,6 @@ type ProviderConfigKinds struct {
 	Config    schema.GroupVersionKind
 	Usage     schema.GroupVersionKind
 	UsageList schema.GroupVersionKind
-}
-
-// A ConnectionSecretOwner is a Kubernetes object that owns a connection secret.
-type ConnectionSecretOwner interface {
-	Object
-
-	ConnectionSecretWriterTo
-	ConnectionDetailsPublisherTo
-}
-
-// A LocalConnectionSecretOwner may create and manage a connection secret in its
-// own namespace.
-type LocalConnectionSecretOwner interface {
-	runtime.Object
-	metav1.Object
-
-	LocalConnectionSecretWriterTo
-	ConnectionDetailsPublisherTo
-}
-
-// LocalConnectionSecretFor creates a connection secret in the namespace of the
-// supplied LocalConnectionSecretOwner, assumed to be of the supplied kind.
-func LocalConnectionSecretFor(o LocalConnectionSecretOwner, kind schema.GroupVersionKind) *corev1.Secret {
-	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace:       o.GetNamespace(),
-			Name:            o.GetWriteConnectionSecretToReference().Name,
-			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(o, kind))},
-		},
-		Type: SecretTypeConnection,
-		Data: make(map[string][]byte),
-	}
-}
-
-// ConnectionSecretFor creates a connection for the supplied
-// ConnectionSecretOwner, assumed to be of the supplied kind. The secret is
-// written to 'default' namespace if the ConnectionSecretOwner does not specify
-// a namespace.
-func ConnectionSecretFor(o ConnectionSecretOwner, kind schema.GroupVersionKind) *corev1.Secret {
-	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace:       o.GetWriteConnectionSecretToReference().Namespace,
-			Name:            o.GetWriteConnectionSecretToReference().Name,
-			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(o, kind))},
-		},
-		Type: SecretTypeConnection,
-		Data: make(map[string][]byte),
-	}
 }
 
 // MustCreateObject returns a new Object of the supplied kind. It panics if the

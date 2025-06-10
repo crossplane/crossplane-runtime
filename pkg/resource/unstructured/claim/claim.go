@@ -25,6 +25,7 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
+
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/reference"
 )
 
@@ -191,20 +192,6 @@ func (c *Unstructured) GetWriteConnectionSecretToReference() *xpv1.LocalSecretRe
 // SetWriteConnectionSecretToReference of this composite resource claim.
 func (c *Unstructured) SetWriteConnectionSecretToReference(ref *xpv1.LocalSecretReference) {
 	_ = fieldpath.Pave(c.Object).SetValue("spec.writeConnectionSecretToRef", ref)
-}
-
-// GetPublishConnectionDetailsTo of this composite resource claim.
-func (c *Unstructured) GetPublishConnectionDetailsTo() *xpv1.PublishConnectionDetailsTo {
-	out := &xpv1.PublishConnectionDetailsTo{}
-	if err := fieldpath.Pave(c.Object).GetValueInto("spec.publishConnectionDetailsTo", out); err != nil {
-		return nil
-	}
-	return out
-}
-
-// SetPublishConnectionDetailsTo of this composite resource claim.
-func (c *Unstructured) SetPublishConnectionDetailsTo(ref *xpv1.PublishConnectionDetailsTo) {
-	_ = fieldpath.Pave(c.Object).SetValue("spec.publishConnectionDetailsTo", ref)
 }
 
 // GetCondition of this composite resource claim.

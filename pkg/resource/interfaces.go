@@ -238,36 +238,38 @@ type ProviderConfigUsageList interface {
 type Composite interface { //nolint:interfacebloat // This interface has to be big.
 	Object
 
+	ConnectionSecretWriterTo
 	CompositionSelector
 	CompositionReferencer
 	CompositionUpdater
 	CompositionRevisionReferencer
 	CompositionRevisionSelector
 	ComposedResourcesReferencer
-	EnvironmentConfigReferencer
-	ClaimReferencer
-	ConnectionSecretWriterTo
-	ConnectionDetailsPublisherTo
 
 	Conditioned
 	ConnectionDetailsPublishedTimer
-	ReconciliationObserver
+}
+
+// A LegacyComposite resource is a composite resource that can be claimed.
+type LegacyComposite interface {
+	Composite
+	ClaimReferencer
 }
 
 // Composed resources can be a composed into a Composite resource.
 type Composed interface {
 	Object
 
-	Conditioned
 	ConnectionSecretWriterTo
-	ConnectionDetailsPublisherTo
-	ReconciliationObserver
+
+	Conditioned
 }
 
-// A CompositeClaim for a Composite resource.
-type CompositeClaim interface { //nolint:interfacebloat // This interface has to be big.
+// A Claim for a composite resource.
+type Claim interface { //nolint:interfacebloat // This interface has to be big.
 	Object
 
+	LocalConnectionSecretWriterTo
 	CompositionSelector
 	CompositionReferencer
 	CompositionUpdater
@@ -275,10 +277,7 @@ type CompositeClaim interface { //nolint:interfacebloat // This interface has to
 	CompositionRevisionSelector
 	CompositeResourceDeleter
 	CompositeResourceReferencer
-	LocalConnectionSecretWriterTo
-	ConnectionDetailsPublisherTo
 
 	Conditioned
 	ConnectionDetailsPublishedTimer
-	ReconciliationObserver
 }
