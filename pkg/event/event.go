@@ -77,16 +77,26 @@ type Recorder interface {
 type APIRecorder struct {
 	kube        record.EventRecorder
 	annotations map[string]string
+	filterFns   []FilterFn
 }
+
+// FilterFn is a function used to filter events.
+// It should return false when events should not be sent.
+type FilterFn func(obj runtime.Object, e Event) bool
 
 // NewAPIRecorder returns an APIRecorder that records Kubernetes events to an
 // APIServer using the supplied EventRecorder.
-func NewAPIRecorder(r record.EventRecorder) *APIRecorder {
-	return &APIRecorder{kube: r, annotations: map[string]string{}}
+func NewAPIRecorder(r record.EventRecorder, fns ...FilterFn) *APIRecorder {
+	return &APIRecorder{kube: r, annotations: map[string]string{}, filterFns: fns}
 }
 
 // Event records the supplied event.
 func (r *APIRecorder) Event(obj runtime.Object, e Event) {
+	for _, filter := range r.filterFns {
+		if filter(obj, e) {
+			return
+		}
+	}
 	r.kube.AnnotatedEventf(obj, r.annotations, string(e.Type), string(e.Reason), "%s", e.Message)
 }
 
