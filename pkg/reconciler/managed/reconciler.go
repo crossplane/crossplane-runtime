@@ -22,6 +22,8 @@ import (
 	"strings"
 	"time"
 
+	v1 "k8s.io/api/core/v1"
+
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -632,7 +634,13 @@ func WithMetricRecorder(recorder MetricRecorder) ReconcilerOption {
 // interval.
 type PollIntervalHook func(managed resource.Managed, pollInterval time.Duration) time.Duration
 
-func defaultPollIntervalHook(_ resource.Managed, pollInterval time.Duration) time.Duration {
+func defaultPollIntervalHook(managed resource.Managed, pollInterval time.Duration) time.Duration {
+	if managed != nil &&
+		managed.GetCondition(xpv1.TypeSynced).Status == v1.ConditionTrue &&
+		managed.GetCondition(xpv1.TypeReady).Status == v1.ConditionTrue {
+		jitter := 30 * time.Minute
+		return time.Hour + time.Duration((rand.Float64()-0.5)*2*float64(jitter)).Round(time.Second)
+	}
 	return pollInterval
 }
 
@@ -1353,9 +1361,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 	// changes, so we requeue a speculative reconcile after the specified poll
 	// interval in order to observe it and react accordingly.
 	// https://github.com/crossplane/crossplane/issues/289
-	reconcileAfter := r.pollIntervalHook(managed, r.pollInterval)
-	log.Debug("Successfully requested update of external resource", "requeue-after", time.Now().Add(reconcileAfter))
+	log.Debug("Successfully requested update of external resource", "requeue-after", time.Now().Add(r.pollInterval))
 	record.Event(managed, event.Normal(reasonUpdated, "Successfully requested update of external resource"))
 	status.MarkConditions(xpv1.ReconcileSuccess())
-	return reconcile.Result{RequeueAfter: reconcileAfter}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+	return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 }
