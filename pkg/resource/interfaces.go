@@ -234,7 +234,7 @@ type ProviderConfigUsageList interface {
 	GetItems() []ProviderConfigUsage
 }
 
-// A Composite resource composes one or more Composed resources.
+// A Composite resource (or XR) is composed of other resources.
 type Composite interface { //nolint:interfacebloat // This interface has to be big.
 	Object
 
@@ -244,14 +244,17 @@ type Composite interface { //nolint:interfacebloat // This interface has to be b
 	CompositionRevisionReferencer
 	CompositionRevisionSelector
 	ComposedResourcesReferencer
-	EnvironmentConfigReferencer
-	ClaimReferencer
-	ConnectionSecretWriterTo
-	ConnectionDetailsPublisherTo
 
 	Conditioned
-	ConnectionDetailsPublishedTimer
 	ReconciliationObserver
+}
+
+// A LegacyComposite is a Crossplane v1 style legacy XR.
+type LegacyComposite interface {
+	Composite
+	ClaimReferencer
+	ConnectionSecretWriterTo
+	ConnectionDetailsPublishedTimer
 }
 
 // Composed resources can be a composed into a Composite resource.
@@ -260,11 +263,10 @@ type Composed interface {
 
 	Conditioned
 	ConnectionSecretWriterTo
-	ConnectionDetailsPublisherTo
 	ReconciliationObserver
 }
 
-// A CompositeClaim for a Composite resource.
+// A CompositeClaim of a composite resource (XR).
 type CompositeClaim interface { //nolint:interfacebloat // This interface has to be big.
 	Object
 
@@ -276,9 +278,11 @@ type CompositeClaim interface { //nolint:interfacebloat // This interface has to
 	CompositeResourceDeleter
 	CompositeResourceReferencer
 	LocalConnectionSecretWriterTo
-	ConnectionDetailsPublisherTo
 
 	Conditioned
 	ConnectionDetailsPublishedTimer
 	ReconciliationObserver
 }
+
+// A Claim of a composite resource (XR).
+type Claim = CompositeClaim
