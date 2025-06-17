@@ -68,13 +68,15 @@ func (m *ManagedResourceReferencer) SetResourceReference(r *corev1.ObjectReferen
 func (m *ManagedResourceReferencer) GetResourceReference() *corev1.ObjectReference { return m.Ref }
 
 // ProviderConfigReferencer is a mock that implements ProviderConfigReferencer interface.
-type ProviderConfigReferencer struct{ Ref *xpv1.Reference }
+type ProviderConfigReferencer struct{ Ref *xpv1.TypedReference }
 
-// SetProviderConfigReference sets the ProviderConfigReference.
-func (m *ProviderConfigReferencer) SetProviderConfigReference(p *xpv1.Reference) { m.Ref = p }
+// SetProviderConfigTypedReference sets the ProviderConfigReference.
+func (m *ProviderConfigReferencer) SetProviderConfigTypedReference(p *xpv1.TypedReference) { m.Ref = p }
 
-// GetProviderConfigReference gets the ProviderConfigReference.
-func (m *ProviderConfigReferencer) GetProviderConfigReference() *xpv1.Reference { return m.Ref }
+// GetProviderConfigTypedReference gets the ProviderConfigReference.
+func (m *ProviderConfigReferencer) GetProviderConfigTypedReference() *xpv1.TypedReference {
+	return m.Ref
+}
 
 // RequiredProviderConfigReferencer is a mock that implements the
 // RequiredProviderConfigReferencer interface.
@@ -130,21 +132,6 @@ func (m *ConnectionSecretWriterTo) SetWriteConnectionSecretToReference(r *xpv1.S
 // GetWriteConnectionSecretToReference gets the WriteConnectionSecretToReference.
 func (m *ConnectionSecretWriterTo) GetWriteConnectionSecretToReference() *xpv1.SecretReference {
 	return m.Ref
-}
-
-// ConnectionDetailsPublisherTo is a mock that implements ConnectionDetailsPublisherTo interface.
-type ConnectionDetailsPublisherTo struct {
-	To *xpv1.PublishConnectionDetailsTo
-}
-
-// SetPublishConnectionDetailsTo sets the PublishConnectionDetailsTo.
-func (m *ConnectionDetailsPublisherTo) SetPublishConnectionDetailsTo(to *xpv1.PublishConnectionDetailsTo) {
-	m.To = to
-}
-
-// GetPublishConnectionDetailsTo gets the PublishConnectionDetailsTo.
-func (m *ConnectionDetailsPublisherTo) GetPublishConnectionDetailsTo() *xpv1.PublishConnectionDetailsTo {
-	return m.To
 }
 
 // Manageable implements the Manageable interface.
@@ -331,7 +318,6 @@ type Managed struct {
 	metav1.ObjectMeta
 	ProviderConfigReferencer
 	ConnectionSecretWriterTo
-	ConnectionDetailsPublisherTo
 	Manageable
 	Orphanable
 	xpv1.ConditionedStatus
@@ -368,7 +354,6 @@ type Composite struct {
 	EnvironmentConfigReferencer
 	ClaimReferencer
 	ConnectionSecretWriterTo
-	ConnectionDetailsPublisherTo
 
 	xpv1.ResourceStatus
 	ConnectionDetailsLastPublishedTimer
@@ -397,7 +382,6 @@ func (m *Composite) DeepCopyObject() runtime.Object {
 type Composed struct {
 	metav1.ObjectMeta
 	ConnectionSecretWriterTo
-	ConnectionDetailsPublisherTo
 	xpv1.ResourceStatus
 }
 
@@ -431,7 +415,6 @@ type CompositeClaim struct {
 	CompositionUpdater
 	CompositeResourceReferencer
 	LocalConnectionSecretWriterTo
-	ConnectionDetailsPublisherTo
 
 	xpv1.ResourceStatus
 	ConnectionDetailsLastPublishedTimer
@@ -516,18 +499,7 @@ type MockConnectionSecretOwner struct {
 	runtime.Object
 	metav1.ObjectMeta
 
-	To       *xpv1.PublishConnectionDetailsTo
 	WriterTo *xpv1.SecretReference
-}
-
-// GetPublishConnectionDetailsTo returns the publish connection details to reference.
-func (m *MockConnectionSecretOwner) GetPublishConnectionDetailsTo() *xpv1.PublishConnectionDetailsTo {
-	return m.To
-}
-
-// SetPublishConnectionDetailsTo sets the publish connection details to reference.
-func (m *MockConnectionSecretOwner) SetPublishConnectionDetailsTo(t *xpv1.PublishConnectionDetailsTo) {
-	m.To = t
 }
 
 // GetWriteConnectionSecretToReference returns the connection secret reference.
@@ -566,7 +538,6 @@ type MockLocalConnectionSecretOwner struct {
 	metav1.ObjectMeta
 
 	Ref *xpv1.LocalSecretReference
-	To  *xpv1.PublishConnectionDetailsTo
 }
 
 // GetWriteConnectionSecretToReference returns the connection secret reference.
@@ -577,16 +548,6 @@ func (m *MockLocalConnectionSecretOwner) GetWriteConnectionSecretToReference() *
 // SetWriteConnectionSecretToReference sets the connection secret reference.
 func (m *MockLocalConnectionSecretOwner) SetWriteConnectionSecretToReference(r *xpv1.LocalSecretReference) {
 	m.Ref = r
-}
-
-// SetPublishConnectionDetailsTo sets the publish connectionDetails to.
-func (m *MockLocalConnectionSecretOwner) SetPublishConnectionDetailsTo(r *xpv1.PublishConnectionDetailsTo) {
-	m.To = r
-}
-
-// GetPublishConnectionDetailsTo returns the publish connectionDetails to.
-func (m *MockLocalConnectionSecretOwner) GetPublishConnectionDetailsTo() *xpv1.PublishConnectionDetailsTo {
-	return m.To
 }
 
 // GetObjectKind returns schema.ObjectKind.
