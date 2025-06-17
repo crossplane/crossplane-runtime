@@ -39,6 +39,7 @@ const (
 	errGetCredentialsSecret  = "cannot get credentials secret"
 	errNoHandlerForSourceFmt = "no extraction handler registered for source: %s"
 	errMissingPCRef          = "managed resource does not reference a ProviderConfig"
+	errMissingPCRefKind      = "managed resource ProviderConfig reference has no Kind"
 	errApplyPCU              = "cannot apply ProviderConfigUsage"
 )
 
@@ -133,7 +134,7 @@ type ProviderConfigUsageTracker struct {
 }
 
 // NewProviderConfigUsageTracker creates a ProviderConfigUsageTracker.
-func NewProviderConfigUsageTracker(c client.Client, of ProviderConfigUsage) *ProviderConfigUsageTracker {
+func NewProviderConfigUsageTracker(c client.Client, of TypedProviderConfigUsage) *ProviderConfigUsageTracker {
 	return &ProviderConfigUsageTracker{c: NewAPIUpdatingApplicator(c), of: of}
 }
 
@@ -142,9 +143,64 @@ func NewProviderConfigUsageTracker(c client.Client, of ProviderConfigUsage) *Pro
 // called _before_ attempting to use the ProviderConfig. This ensures the
 // managed resource's usage is updated if the managed resource is updated to
 // reference a misconfigured ProviderConfig.
-func (u *ProviderConfigUsageTracker) Track(ctx context.Context, mg Managed) error {
+func (u *ProviderConfigUsageTracker) Track(ctx context.Context, mg ModernManaged) error {
 	//nolint:forcetypeassert // Will always be a PCU.
-	pcu := u.of.DeepCopyObject().(ProviderConfigUsage)
+	pcu := u.of.DeepCopyObject().(TypedProviderConfigUsage)
+	gvk := mg.GetObjectKind().GroupVersionKind()
+
+	ref := mg.GetProviderConfigReference()
+	if ref == nil {
+		return missingRefError{errors.New(errMissingPCRef)}
+	}
+
+	if ref.Kind == "" {
+		return missingRefError{errors.New(errMissingPCRefKind)}
+	}
+
+	pcu.SetName(string(mg.GetUID()))
+	pcu.SetNamespace(mg.GetNamespace())
+	pcu.SetLabels(map[string]string{xpv1.LabelKeyProviderName: ref.Name, xpv1.LabelKeyProviderKind: ref.Kind})
+	pcu.SetOwnerReferences([]metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(mg, gvk))})
+	pcu.SetProviderConfigReference(xpv1.ProviderConfigReference{Name: ref.Name, Kind: ref.Kind})
+	pcu.SetResourceReference(xpv1.TypedReference{
+		APIVersion: gvk.GroupVersion().String(),
+		Kind:       gvk.Kind,
+		Name:       mg.GetName(),
+	})
+
+	err := u.c.Apply(ctx, pcu,
+		MustBeControllableBy(mg.GetUID()),
+		AllowUpdateIf(func(current, _ runtime.Object) bool {
+			//nolint:forcetypeassert // Will always be a PCU.
+			return current.(TypedProviderConfigUsage).GetProviderConfigReference() != pcu.GetProviderConfigReference()
+		}),
+	)
+
+	return errors.Wrap(Ignore(IsNotAllowed, err), errApplyPCU)
+}
+
+// A LegacyProviderConfigUsageTracker tracks usages of a by creating or
+// updating the appropriate LegacyProviderConfigUsage.
+type LegacyProviderConfigUsageTracker struct {
+	c  Applicator
+	of LegacyProviderConfigUsage
+}
+
+// NewLegacyProviderConfigUsageTracker tracks usages of a by creating or
+// updating the appropriate LegacyProviderConfigUsage.
+func NewLegacyProviderConfigUsageTracker(c client.Client, of LegacyProviderConfigUsage) *LegacyProviderConfigUsageTracker {
+	return &LegacyProviderConfigUsageTracker{c: NewAPIUpdatingApplicator(c), of: of}
+}
+
+// Track that the supplied LegacyManaged resource is using the ProviderConfig it
+// references by creating or updating a ProviderConfigUsage. Track should be
+// called _before_ attempting to use the ProviderConfig. This ensures the
+// managed resource's usage is updated if the managed resource is updated to
+// reference a misconfigured ProviderConfig.
+func (u *LegacyProviderConfigUsageTracker) Track(ctx context.Context, mg LegacyManaged) error {
+	//nolint:forcetypeassert // Will always be a legacy PCU.
+	pcu := u.of.DeepCopyObject().(LegacyProviderConfigUsage)
+
 	gvk := mg.GetObjectKind().GroupVersionKind()
 
 	ref := mg.GetProviderConfigReference()
@@ -166,7 +222,7 @@ func (u *ProviderConfigUsageTracker) Track(ctx context.Context, mg Managed) erro
 		MustBeControllableBy(mg.GetUID()),
 		AllowUpdateIf(func(current, _ runtime.Object) bool {
 			//nolint:forcetypeassert // Will always be a PCU.
-			return current.(ProviderConfigUsage).GetProviderConfigReference() != pcu.GetProviderConfigReference()
+			return current.(LegacyProviderConfigUsage).GetProviderConfigReference() != pcu.GetProviderConfigReference()
 		}),
 	)
 

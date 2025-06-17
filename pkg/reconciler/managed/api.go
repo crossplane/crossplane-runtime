@@ -134,6 +134,65 @@ func (a *APISecretPublisher) UnpublishConnection(_ context.Context, _ resource.C
 	return nil
 }
 
+// An APILocalSecretPublisher publishes ConnectionDetails by submitting a Secret to a
+// Kubernetes API server.
+type APILocalSecretPublisher struct {
+	secret resource.Applicator
+	typer  runtime.ObjectTyper
+}
+
+// NewAPILocalSecretPublisher returns a new APILocalSecretPublisher.
+func NewAPILocalSecretPublisher(c client.Client, ot runtime.ObjectTyper) *APILocalSecretPublisher {
+	// NOTE(negz): We transparently inject an APIPatchingApplicator in order to maintain
+	// backward compatibility with the original API of this function.
+	return &APILocalSecretPublisher{
+		secret: resource.NewApplicatorWithRetry(resource.NewAPIPatchingApplicator(c),
+			resource.IsAPIErrorWrapped, nil),
+		typer: ot,
+	}
+}
+
+// PublishConnection publishes the supplied ConnectionDetails to a Secret in the
+// same namespace as the supplied Managed resource. It is a no-op if the secret
+// already exists with the supplied ConnectionDetails.
+func (a *APILocalSecretPublisher) PublishConnection(ctx context.Context, o resource.LocalConnectionSecretOwner, c ConnectionDetails) (bool, error) {
+	// This resource does not want to expose a connection secret.
+	if o.GetWriteConnectionSecretToReference() == nil {
+		return false, nil
+	}
+
+	s := resource.LocalConnectionSecretFor(o, resource.MustGetKind(o, a.typer))
+	s.Data = c
+
+	err := a.secret.Apply(ctx, s,
+		resource.ConnectionSecretMustBeControllableBy(o.GetUID()),
+		resource.AllowUpdateIf(func(current, desired runtime.Object) bool {
+			// We consider the update to be a no-op and don't allow it if the
+			// current and existing secret data are identical.
+			//nolint:forcetypeassert // Will always be a secret.
+			// NOTE(erhancagirici): cmp package is not recommended for production use
+			return !cmp.Equal(current.(*corev1.Secret).Data, desired.(*corev1.Secret).Data, cmpopts.EquateEmpty())
+		}),
+	)
+	if resource.IsNotAllowed(err) {
+		// The update was not allowed because it was a no-op.
+		return false, nil
+	}
+
+	if err != nil {
+		return false, errors.Wrap(err, errCreateOrUpdateSecret)
+	}
+
+	return true, nil
+}
+
+// UnpublishConnection is no-op since PublishConnection only creates resources
+// that will be garbage collected by Kubernetes when the managed resource is
+// deleted.
+func (a *APILocalSecretPublisher) UnpublishConnection(_ context.Context, _ resource.LocalConnectionSecretOwner, _ ConnectionDetails) error {
+	return nil
+}
+
 // An APISimpleReferenceResolver resolves references from one managed resource
 // to others by calling the referencing resource's ResolveReferences method, if
 // any.

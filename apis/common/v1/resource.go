@@ -43,6 +43,10 @@ const (
 	ResourceCredentialsSecretKubeconfigKey = "kubeconfig"
 )
 
+// LabelKeyProviderKind is added to ProviderConfigUsages to relate them to their
+// ProviderConfig.
+const LabelKeyProviderKind = "crossplane.io/provider-config-kind"
+
 // LabelKeyProviderName is added to ProviderConfigUsages to relate them to their
 // ProviderConfig.
 const LabelKeyProviderName = "crossplane.io/provider-config"
@@ -63,7 +67,6 @@ type LocalSecretReference struct {
 type SecretReference struct {
 	// Name of the secret.
 	Name string `json:"name"`
-
 	// Namespace of the secret.
 	Namespace string `json:"namespace"`
 }
@@ -74,6 +77,26 @@ type SecretKeySelector struct {
 
 	// The key to select.
 	Key string `json:"key"`
+}
+
+// A LocalSecretKeySelector is a reference to a secret key
+// in the same namespace with the referencing object.
+type LocalSecretKeySelector struct {
+	LocalSecretReference `json:",inline"`
+
+	Key string `json:"key"`
+}
+
+// ToSecretKeySelector is a convenience method for converting the
+// LocalSecretKeySelector to a SecretKeySelector with the given namespace.
+func (ls *LocalSecretKeySelector) ToSecretKeySelector(namespace string) *SecretKeySelector {
+	return &SecretKeySelector{
+		SecretReference: SecretReference{
+			Name:      ls.Name,
+			Namespace: namespace,
+		},
+		Key: ls.Key,
+	}
 }
 
 // Policy represents the Resolve and Resolution policies of Reference instance.
@@ -124,6 +147,19 @@ type Reference struct {
 	Policy *Policy `json:"policy,omitempty"`
 }
 
+// A NamespacedReference to a named object.
+type NamespacedReference struct {
+	// Name of the referenced object.
+	Name string `json:"name"`
+
+	// Namespace of the referenced object
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+	// Policies for referencing.
+	// +optional
+	Policy *Policy `json:"policy,omitempty"`
+}
+
 // A TypedReference refers to an object by Name, Kind, and APIVersion. It is
 // commonly used to reference cluster-scoped objects or objects where the
 // namespace is already known.
@@ -156,6 +192,34 @@ type Selector struct {
 	Policy *Policy `json:"policy,omitempty"`
 }
 
+// NamespacedSelector selects a namespaced object.
+type NamespacedSelector struct {
+	// MatchLabels ensures an object with matching labels is selected.
+	MatchLabels map[string]string `json:"matchLabels,omitempty"`
+
+	// MatchControllerRef ensures an object with the same controller reference
+	// as the selecting object is selected.
+	MatchControllerRef *bool `json:"matchControllerRef,omitempty"`
+
+	// Policies for selection.
+	// +optional
+	Policy *Policy `json:"policy,omitempty"`
+
+	// Namespace for the selector
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+}
+
+// ProviderConfigReference is a typed reference to a ProviderConfig
+// object, with a known api group.
+type ProviderConfigReference struct {
+	// Kind of the referenced object.
+	Kind string `json:"kind"`
+
+	// Name of the referenced object.
+	Name string `json:"name"`
+}
+
 // SetGroupVersionKind sets the Kind and APIVersion of a TypedReference.
 func (obj *TypedReference) SetGroupVersionKind(gvk schema.GroupVersionKind) {
 	obj.APIVersion, obj.Kind = gvk.ToAPIVersionAndKind()
@@ -178,20 +242,8 @@ type ResourceSpec struct {
 	// Secret to which any connection details for this managed resource should
 	// be written. Connection details frequently include the endpoint, username,
 	// and password required to connect to the managed resource.
-	// This field is planned to be replaced in a future release in favor of
-	// PublishConnectionDetailsTo. Currently, both could be set independently
-	// and connection details would be published to both without affecting
-	// each other.
 	// +optional
 	WriteConnectionSecretToReference *SecretReference `json:"writeConnectionSecretToRef,omitempty"`
-
-	// PublishConnectionDetailsTo specifies the connection secret config which
-	// contains a name, metadata and a reference to secret store config to
-	// which any connection details for this managed resource should be written.
-	// Connection details frequently include the endpoint, username,
-	// and password required to connect to the managed resource.
-	// +optional
-	PublishConnectionDetailsTo *PublishConnectionDetailsTo `json:"publishConnectionDetailsTo,omitempty"`
 
 	// ProviderConfigReference specifies how the provider that will be used to
 	// create, observe, update, and delete this managed resource should be
