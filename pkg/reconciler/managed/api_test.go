@@ -551,12 +551,12 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 		o   client.Object
 	}
 
-	setLabels := func(obj client.Object) error {
-		obj.SetLabels(map[string]string{"getcalled": "true"})
+	setAnnotations := func(obj client.Object) error {
+		obj.SetAnnotations(map[string]string{"getcalled": "true"})
 		return nil
 	}
 	objectReturnedByGet := &fake.LegacyManaged{}
-	setLabels(objectReturnedByGet)
+	setAnnotations(objectReturnedByGet)
 
 	cases := map[string]struct {
 		reason string
@@ -567,7 +567,7 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 		"UpdateConflictGetError": {
 			reason: "We should return any error we encounter getting the supplied object",
 			c: &test.MockClient{
-				MockGet: test.NewMockGetFn(errBoom, setLabels),
+				MockGet: test.NewMockGetFn(errBoom, setAnnotations),
 				MockPatch: test.NewMockPatchFn(kerrors.NewConflict(schema.GroupResource{
 					Group:    "foo.com",
 					Resource: "bars",
@@ -584,7 +584,7 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 		"UpdateError": {
 			reason: "We should return any error we encounter updating the supplied object",
 			c: &test.MockClient{
-				MockGet:   test.NewMockGetFn(nil, setLabels),
+				MockGet:   test.NewMockGetFn(nil, setAnnotations),
 				MockPatch: test.NewMockPatchFn(errBoom),
 			},
 			args: args{
@@ -598,7 +598,7 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 		"SuccessfulGetAfterAConflict": {
 			reason: "A successful get after a conflict should not hide the conflict error and prevent retries",
 			c: &test.MockClient{
-				MockGet: test.NewMockGetFn(nil, setLabels),
+				MockGet: test.NewMockGetFn(nil, setAnnotations),
 				MockPatch: test.NewMockPatchFn(kerrors.NewConflict(schema.GroupResource{
 					Group:    "foo.com",
 					Resource: "bars",
@@ -618,7 +618,7 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 		"Success": {
 			reason: "We should return without error if we successfully update our annotations",
 			c: &test.MockClient{
-				MockGet:   test.NewMockGetFn(nil, setLabels),
+				MockGet:   test.NewMockGetFn(nil, setAnnotations),
 				MockPatch: test.NewMockPatchFn(errBoom),
 			},
 			args: args{
