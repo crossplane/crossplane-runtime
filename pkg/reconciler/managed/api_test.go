@@ -428,7 +428,7 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 			reason: "We should return any error we encounter getting the supplied object",
 			c: &test.MockClient{
 				MockGet: test.NewMockGetFn(errBoom, setLabels),
-				MockUpdate: test.NewMockUpdateFn(kerrors.NewConflict(schema.GroupResource{
+				MockPatch: test.NewMockPatchFn(kerrors.NewConflict(schema.GroupResource{
 					Group:    "foo.com",
 					Resource: "bars",
 				}, "abc", errBoom)),
@@ -444,8 +444,8 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 		"UpdateError": {
 			reason: "We should return any error we encounter updating the supplied object",
 			c: &test.MockClient{
-				MockGet:    test.NewMockGetFn(nil, setLabels),
-				MockUpdate: test.NewMockUpdateFn(errBoom),
+				MockGet:   test.NewMockGetFn(nil, setLabels),
+				MockPatch: test.NewMockPatchFn(errBoom),
 			},
 			args: args{
 				o: &fake.Managed{},
@@ -459,7 +459,7 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 			reason: "A successful get after a conflict should not hide the conflict error and prevent retries",
 			c: &test.MockClient{
 				MockGet: test.NewMockGetFn(nil, setLabels),
-				MockUpdate: test.NewMockUpdateFn(kerrors.NewConflict(schema.GroupResource{
+				MockPatch: test.NewMockPatchFn(kerrors.NewConflict(schema.GroupResource{
 					Group:    "foo.com",
 					Resource: "bars",
 				}, "abc", errBoom)),
@@ -478,8 +478,8 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 		"Success": {
 			reason: "We should return without error if we successfully update our annotations",
 			c: &test.MockClient{
-				MockGet:    test.NewMockGetFn(nil, setLabels),
-				MockUpdate: test.NewMockUpdateFn(errBoom),
+				MockGet:   test.NewMockGetFn(nil, setLabels),
+				MockPatch: test.NewMockPatchFn(errBoom),
 			},
 			args: args{
 				o: &fake.Managed{},
