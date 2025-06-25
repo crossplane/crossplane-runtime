@@ -1408,6 +1408,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
+	if observation.ResourceExists {
+		// When a resource exists or is just created, it might have received
+		// a non-deterministic external name, which we need to persist.
+		// We do this by updating the critical annotations.
+		if err := r.managed.UpdateCriticalAnnotations(ctx, managed); err != nil {
+			log.Debug(errUpdateManagedAnnotations, "error", err)
+			record.Event(managed, event.Warning(reasonCannotUpdateManaged, errors.Wrap(err, errUpdateManagedAnnotations)))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedAnnotations)
+		}
+	}
+
 	if observation.ResourceLateInitialized && policy.ShouldLateInitialize() {
 		// Note that this update may reset any pending updates to the status of
 		// the managed resource from when it was observed above. This is because
