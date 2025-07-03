@@ -71,6 +71,7 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 		client resource.ClientApplicator
 		n      store.ScopedName
 	}
+
 	type want struct {
 		result store.KeyValues
 		err    error
@@ -139,17 +140,18 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			ss := &SecretStore{
-				client: tc.args.client,
+				client: tc.client,
 			}
 
 			s := &store.Secret{}
-			s.ScopedName = tc.args.n
-			err := ss.ReadKeyValues(context.Background(), tc.args.n, s)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			s.ScopedName = tc.n
+
+			err := ss.ReadKeyValues(context.Background(), tc.n, s)
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nss.ReadKeyValues(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
-			if diff := cmp.Diff(tc.want.result, s.Data); diff != "" {
+			if diff := cmp.Diff(tc.result, s.Data); diff != "" {
 				t.Errorf("\n%s\nss.ReadKeyValues(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
@@ -158,6 +160,7 @@ func TestSecretStoreReadKeyValues(t *testing.T) {
 
 func TestSecretStoreWriteKeyValues(t *testing.T) {
 	secretTypeOpaque := corev1.SecretTypeOpaque
+
 	type args struct {
 		client           resource.ClientApplicator
 		defaultNamespace string
@@ -165,6 +168,7 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 
 		wo []store.WriteOption
 	}
+
 	type want struct {
 		changed bool
 		err     error
@@ -465,14 +469,16 @@ func TestSecretStoreWriteKeyValues(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			ss := &SecretStore{
-				client:           tc.args.client,
-				defaultNamespace: tc.args.defaultNamespace,
+				client:           tc.client,
+				defaultNamespace: tc.defaultNamespace,
 			}
-			changed, err := ss.WriteKeyValues(context.Background(), tc.args.secret, tc.args.wo...)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+
+			changed, err := ss.WriteKeyValues(context.Background(), tc.secret, tc.wo...)
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nss.WriteKeyValues(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
-			if diff := cmp.Diff(tc.want.changed, changed); diff != "" {
+
+			if diff := cmp.Diff(tc.changed, changed); diff != "" {
 				t.Errorf("\n%s\nss.WriteKeyValues(...): -want changed, +got changed:\n%s", tc.reason, diff)
 			}
 		})
@@ -487,6 +493,7 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 
 		do []store.DeleteOption
 	}
+
 	type want struct {
 		err error
 	}
@@ -655,11 +662,12 @@ func TestSecretStoreDeleteKeyValues(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			ss := &SecretStore{
-				client:           tc.args.client,
-				defaultNamespace: tc.args.defaultNamespace,
+				client:           tc.client,
+				defaultNamespace: tc.defaultNamespace,
 			}
-			err := ss.DeleteKeyValues(context.Background(), tc.args.secret, tc.args.do...)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+
+			err := ss.DeleteKeyValues(context.Background(), tc.secret, tc.do...)
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nss.DeleteKeyValues(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
@@ -671,6 +679,7 @@ func TestNewSecretStore(t *testing.T) {
 		client resource.ClientApplicator
 		cfg    v1.SecretStoreConfig
 	}
+
 	type want struct {
 		err error
 	}
@@ -836,8 +845,8 @@ users:
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			_, err := NewSecretStore(context.Background(), tc.args.client, nil, tc.args.cfg)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			_, err := NewSecretStore(context.Background(), tc.client, nil, tc.cfg)
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nNewSecretStore(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})

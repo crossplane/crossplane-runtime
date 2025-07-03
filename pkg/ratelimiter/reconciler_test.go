@@ -41,6 +41,7 @@ func TestReconcile(t *testing.T) {
 		ctx context.Context
 		req reconcile.Request
 	}
+
 	type want struct {
 		res reconcile.Result
 		err error
@@ -101,6 +102,7 @@ func TestReconcile(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("%s\nr.Reconcile(...): -want, +got error:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.res, got); diff != "" {
 				t.Errorf("%s\nr.Reconcile(...): -want, +got result:\n%s", tc.reason, diff)
 			}

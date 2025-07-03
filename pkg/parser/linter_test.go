@@ -119,7 +119,6 @@ func TestLinter(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := tc.args.linter.Lint(tc.args.pkg)
-
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nl.Lint(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -175,7 +174,6 @@ func TestOr(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			err := Or(tc.args.one, tc.args.two)(crd)
-
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nOr(...): -want error, +got error:\n%s", tc.reason, diff)
 			}

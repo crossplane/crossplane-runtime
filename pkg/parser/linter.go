@@ -78,6 +78,7 @@ func (l *PackageLinter) Lint(pkg Lintable) error {
 			return err
 		}
 	}
+
 	for _, o := range pkg.GetMeta() {
 		for _, fn := range l.perMeta {
 			if err := fn(o); err != nil {
@@ -85,6 +86,7 @@ func (l *PackageLinter) Lint(pkg Lintable) error {
 			}
 		}
 	}
+
 	for _, o := range pkg.GetObjects() {
 		for _, fn := range l.perObject {
 			if err := fn(o); err != nil {
@@ -92,6 +94,7 @@ func (l *PackageLinter) Lint(pkg Lintable) error {
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -100,16 +103,20 @@ func (l *PackageLinter) Lint(pkg Lintable) error {
 func Or(linters ...ObjectLinterFn) ObjectLinterFn {
 	return func(o runtime.Object) error {
 		var errs []string
+
 		for _, l := range linters {
 			if l == nil {
 				return errors.New(errNilLinterFn)
 			}
+
 			err := l(o)
 			if err == nil {
 				return nil
 			}
+
 			errs = append(errs, err.Error())
 		}
+
 		return errors.Errorf(errOrFmt, strings.Join(errs, ", "))
 	}
 }

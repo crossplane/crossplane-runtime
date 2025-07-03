@@ -53,7 +53,9 @@ func (s Settings) Generate() (string, error) {
 		if err != nil {
 			return "", err
 		}
+
 		pw[i] = s.CharacterSet[n.Int64()]
 	}
+
 	return string(pw), nil
 }

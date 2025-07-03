@@ -101,6 +101,7 @@ func (p *Policy) IsResolutionPolicyOptional() bool {
 	if p == nil || p.Resolution == nil {
 		return false
 	}
+
 	return *p.Resolution == ResolutionPolicyOptional
 }
 
@@ -109,6 +110,7 @@ func (p *Policy) IsResolvePolicyAlways() bool {
 	if p == nil || p.Resolve == nil {
 		return false
 	}
+
 	return *p.Resolve == ResolvePolicyAlways
 }
 

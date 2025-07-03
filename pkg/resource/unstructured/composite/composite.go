@@ -76,6 +76,7 @@ func New(opts ...Option) *Unstructured {
 	for _, f := range opts {
 		f(c)
 	}
+
 	return c
 }
 
@@ -105,6 +106,7 @@ func (c *Unstructured) GetCompositionSelector() *metav1.LabelSelector {
 	if err := fieldpath.Pave(c.Object).GetValueInto(path, out); err != nil {
 		return nil
 	}
+
 	return out
 }
 
@@ -129,6 +131,7 @@ func (c *Unstructured) GetCompositionReference() *corev1.ObjectReference {
 	if err := fieldpath.Pave(c.Object).GetValueInto(path, out); err != nil {
 		return nil
 	}
+
 	return out
 }
 
@@ -153,6 +156,7 @@ func (c *Unstructured) GetCompositionRevisionReference() *corev1.LocalObjectRefe
 	if err := fieldpath.Pave(c.Object).GetValueInto(path, out); err != nil {
 		return nil
 	}
+
 	return out
 }
 
@@ -177,6 +181,7 @@ func (c *Unstructured) GetCompositionRevisionSelector() *metav1.LabelSelector {
 	if err := fieldpath.Pave(c.Object).GetValueInto(path, out); err != nil {
 		return nil
 	}
+
 	return out
 }
 
@@ -211,7 +216,9 @@ func (c *Unstructured) GetCompositionUpdatePolicy() *xpv1.UpdatePolicy {
 	if err != nil {
 		return nil
 	}
+
 	out := xpv1.UpdatePolicy(p)
+
 	return &out
 }
 
@@ -226,6 +233,7 @@ func (c *Unstructured) GetClaimReference() *reference.Claim {
 	if err := fieldpath.Pave(c.Object).GetValueInto("spec.claimRef", out); err != nil {
 		return nil
 	}
+
 	return out
 }
 
@@ -248,6 +256,7 @@ func (c *Unstructured) GetResourceReferences() []corev1.ObjectReference {
 
 	out := &[]corev1.ObjectReference{}
 	_ = fieldpath.Pave(c.Object).GetValueInto(path, out)
+
 	return *out
 }
 
@@ -259,6 +268,7 @@ func (c *Unstructured) SetResourceReferences(refs []corev1.ObjectReference) {
 	}
 
 	empty := corev1.ObjectReference{}
+
 	filtered := make([]corev1.ObjectReference, 0, len(refs))
 	for _, ref := range refs {
 		// TODO(negz): Ask muvaf to explain what this is working around. :)
@@ -266,8 +276,10 @@ func (c *Unstructured) SetResourceReferences(refs []corev1.ObjectReference) {
 		if ref.String() == empty.String() {
 			continue
 		}
+
 		filtered = append(filtered, ref)
 	}
+
 	_ = fieldpath.Pave(c.Object).SetValue(path, filtered)
 }
 
@@ -301,6 +313,7 @@ func (c *Unstructured) GetWriteConnectionSecretToReference() *xpv1.SecretReferen
 	if err := fieldpath.Pave(c.Object).GetValueInto("spec.writeConnectionSecretToRef", out); err != nil {
 		return nil
 	}
+
 	return out
 }
 
@@ -321,6 +334,7 @@ func (c *Unstructured) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	if err := fieldpath.Pave(c.Object).GetValueInto("status", &conditioned); err != nil {
 		return xpv1.Condition{}
 	}
+
 	return conditioned.GetCondition(ct)
 }
 
@@ -338,6 +352,7 @@ func (c *Unstructured) GetConditions() []xpv1.Condition {
 	conditioned := xpv1.ConditionedStatus{}
 	// The path is directly `status` because conditions are inline.
 	_ = fieldpath.Pave(c.Object).GetValueInto("status", &conditioned)
+
 	return conditioned.Conditions
 }
 
@@ -352,6 +367,7 @@ func (c *Unstructured) GetConnectionDetailsLastPublishedTime() *metav1.Time {
 	if err := fieldpath.Pave(c.Object).GetValueInto(path, out); err != nil {
 		return nil
 	}
+
 	return out
 }
 
@@ -377,6 +393,7 @@ func (c *Unstructured) SetObservedGeneration(generation int64) {
 func (c *Unstructured) GetObservedGeneration() int64 {
 	status := &xpv1.ObservedStatus{}
 	_ = fieldpath.Pave(c.Object).GetValueInto("status", status)
+
 	return status.GetObservedGeneration()
 }
 
@@ -387,7 +404,9 @@ func (c *Unstructured) SetClaimConditionTypes(in ...xpv1.ConditionType) error {
 	if c.Schema != SchemaLegacy {
 		return nil
 	}
+
 	ts := c.GetClaimConditionTypes()
+
 	m := make(map[xpv1.ConditionType]bool, len(ts))
 	for _, t := range ts {
 		m[t] = true
@@ -397,13 +416,17 @@ func (c *Unstructured) SetClaimConditionTypes(in ...xpv1.ConditionType) error {
 		if xpv1.IsSystemConditionType(t) {
 			return errors.Errorf("cannot set system condition %s as a claim condition", t)
 		}
+
 		if m[t] {
 			continue
 		}
+
 		m[t] = true
 		ts = append(ts, t)
 	}
+
 	_ = fieldpath.Pave(c.Object).SetValue("status.claimConditionTypes", ts)
+
 	return nil
 }
 
@@ -413,7 +436,9 @@ func (c *Unstructured) GetClaimConditionTypes() []xpv1.ConditionType {
 	if c.Schema != SchemaLegacy {
 		return nil
 	}
+
 	cs := []xpv1.ConditionType{}
 	_ = fieldpath.Pave(c.Object).GetValueInto("status.claimConditionTypes", &cs)
+
 	return cs
 }

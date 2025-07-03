@@ -105,21 +105,27 @@ func (p *PackageParser) Parse(_ context.Context, reader io.ReadCloser) (*Package
 	if reader == nil {
 		return pkg, nil
 	}
+
 	defer func() { _ = reader.Close() }()
+
 	yr := yaml.NewYAMLReader(bufio.NewReader(reader))
 	dm := json.NewSerializerWithOptions(json.DefaultMetaFactory, p.metaScheme, p.metaScheme, json.SerializerOptions{Yaml: true})
 	do := json.NewSerializerWithOptions(json.DefaultMetaFactory, p.objScheme, p.objScheme, json.SerializerOptions{Yaml: true})
+
 	for {
 		content, err := yr.Read()
 		if err != nil && !errors.Is(err, io.EOF) {
 			return pkg, err
 		}
+
 		if errors.Is(err, io.EOF) {
 			break
 		}
+
 		if isEmptyYAML(content) {
 			continue
 		}
+
 		m, _, err := dm.Decode(content, nil, nil)
 		if err != nil {
 			// NOTE(hasheddan): we only try to decode with object scheme if the
@@ -127,15 +133,20 @@ func (p *PackageParser) Parse(_ context.Context, reader io.ReadCloser) (*Package
 			if !runtime.IsNotRegisteredError(err) {
 				return pkg, annotateErr(err, reader)
 			}
+
 			o, _, err := do.Decode(content, nil, nil)
 			if err != nil {
 				return pkg, annotateErr(err, reader)
 			}
+
 			pkg.objects = append(pkg.objects, o)
+
 			continue
 		}
+
 		pkg.meta = append(pkg.meta, m)
 	}
+
 	return pkg, nil
 }
 
@@ -151,6 +162,7 @@ func isEmptyYAML(y []byte) bool {
 			return false
 		}
 	}
+
 	return true
 }
 
@@ -159,6 +171,7 @@ func annotateErr(err error, reader io.ReadCloser) error {
 	if anno, ok := reader.(AnnotatedReadCloser); ok {
 		return errors.Wrapf(err, "%+v", anno.Annotate())
 	}
+
 	return err
 }
 
@@ -184,6 +197,7 @@ func NewPodLogBackend(bo ...BackendOption) *PodLogBackend {
 	for _, o := range bo {
 		o(p)
 	}
+
 	return p
 }
 
@@ -192,11 +206,14 @@ func (p *PodLogBackend) Init(ctx context.Context, bo ...BackendOption) (io.ReadC
 	for _, o := range bo {
 		o(p)
 	}
+
 	logs := p.client.CoreV1().Pods(p.namespace).GetLogs(p.name, &corev1.PodLogOptions{})
+
 	reader, err := logs.Stream(ctx)
 	if err != nil {
 		return nil, err
 	}
+
 	return reader, nil
 }
 
@@ -207,6 +224,7 @@ func PodName(name string) BackendOption {
 		if !ok {
 			return
 		}
+
 		pl.name = name
 	}
 }
@@ -218,6 +236,7 @@ func PodNamespace(namespace string) BackendOption {
 		if !ok {
 			return
 		}
+
 		pl.namespace = namespace
 	}
 }
@@ -229,6 +248,7 @@ func PodClient(client kubernetes.Interface) BackendOption {
 		if !ok {
 			return
 		}
+
 		pl.client = client
 	}
 }
@@ -261,6 +281,7 @@ func NewFsBackend(fs afero.Fs, bo ...BackendOption) *FsBackend {
 	for _, o := range bo {
 		o(f)
 	}
+
 	return f
 }
 
@@ -269,6 +290,7 @@ func (p *FsBackend) Init(_ context.Context, bo ...BackendOption) (io.ReadCloser,
 	for _, o := range bo {
 		o(p)
 	}
+
 	return NewFsReadCloser(p.fs, p.dir, p.skips...)
 }
 
@@ -279,6 +301,7 @@ func FsDir(dir string) BackendOption {
 		if !ok {
 			return
 		}
+
 		f.dir = dir
 	}
 }
@@ -290,6 +313,7 @@ func FsFilters(skips ...FilterFn) BackendOption {
 		if !ok {
 			return
 		}
+
 		f.skips = skips
 	}
 }
@@ -311,5 +335,6 @@ func (p *EchoBackend) Init(_ context.Context, bo ...BackendOption) (io.ReadClose
 	for _, o := range bo {
 		o(p)
 	}
+
 	return io.NopCloser(strings.NewReader(p.echo)), nil
 }

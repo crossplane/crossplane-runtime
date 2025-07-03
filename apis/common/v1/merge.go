@@ -40,9 +40,11 @@ func (mo *MergeOptions) MergoConfiguration() []func(*mergo.Config) {
 	if mo.KeepMapValues != nil && *mo.KeepMapValues {
 		config = config[:0]
 	}
+
 	if mo.AppendSlice != nil && *mo.AppendSlice {
 		config = append(config, mergo.WithAppendSlice)
 	}
+
 	return config
 }
 

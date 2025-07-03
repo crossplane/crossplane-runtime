@@ -54,6 +54,7 @@ func New(opts ...Option) *Unstructured {
 	for _, f := range opts {
 		f(cr)
 	}
+
 	return cr
 }
 
@@ -77,6 +78,7 @@ func (cr *Unstructured) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	if err := fieldpath.Pave(cr.Object).GetValueInto("status", &conditioned); err != nil {
 		return xpv1.Condition{}
 	}
+
 	return conditioned.GetCondition(ct)
 }
 
@@ -95,6 +97,7 @@ func (cr *Unstructured) GetWriteConnectionSecretToReference() *xpv1.SecretRefere
 	if err := fieldpath.Pave(cr.Object).GetValueInto("spec.writeConnectionSecretToRef", out); err != nil {
 		return nil
 	}
+
 	return out
 }
 
@@ -110,6 +113,7 @@ func (cr *Unstructured) OwnedBy(u types.UID) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -142,6 +146,7 @@ func NewList(opts ...ListOption) *UnstructuredList {
 	for _, f := range opts {
 		f(cr)
 	}
+
 	return cr
 }
 
@@ -167,5 +172,6 @@ func (cr *Unstructured) SetObservedGeneration(generation int64) {
 func (cr *Unstructured) GetObservedGeneration() int64 {
 	status := &xpv1.ObservedStatus{}
 	_ = fieldpath.Pave(cr.Object).GetValueInto("status", status)
+
 	return status.GetObservedGeneration()
 }

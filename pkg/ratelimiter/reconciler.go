@@ -56,7 +56,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if d := r.when(req); d > 0 {
 		return reconcile.Result{RequeueAfter: d}, nil
 	}
+
 	r.limit.Forget(item)
+
 	return r.inner.Reconcile(ctx, req)
 }
 
@@ -78,6 +80,7 @@ func (r *Reconciler) when(req reconcile.Request) time.Duration {
 		r.limitedL.Lock()
 		delete(r.limited, item)
 		r.limitedL.Unlock()
+
 		return 0
 	}
 

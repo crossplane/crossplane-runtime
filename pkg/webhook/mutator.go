@@ -45,6 +45,7 @@ func NewMutator(opts ...MutatorOption) *Mutator {
 	for _, f := range opts {
 		f(m)
 	}
+
 	return m
 }
 
@@ -62,5 +63,6 @@ func (m *Mutator) Default(ctx context.Context, obj runtime.Object) error {
 			return err
 		}
 	}
+
 	return nil
 }

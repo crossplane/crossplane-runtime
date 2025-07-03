@@ -69,6 +69,7 @@ func NewValidator(opts ...ValidatorOption) *Validator {
 	for _, f := range opts {
 		f(vc)
 	}
+
 	return vc
 }
 
@@ -82,38 +83,47 @@ type Validator struct {
 // ValidateCreate runs functions in creation chain in order.
 func (vc *Validator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 	warnings := []string{}
+
 	for _, f := range vc.CreationChain {
 		warns, err := f(ctx, obj)
 		if err != nil {
 			return append(warnings, warns...), err
 		}
+
 		warnings = append(warnings, warns...)
 	}
+
 	return warnings, nil
 }
 
 // ValidateUpdate runs functions in update chain in order.
 func (vc *Validator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
 	warnings := []string{}
+
 	for _, f := range vc.UpdateChain {
 		warns, err := f(ctx, oldObj, newObj)
 		if err != nil {
 			return append(warnings, warns...), err
 		}
+
 		warnings = append(warnings, warns...)
 	}
+
 	return warnings, nil
 }
 
 // ValidateDelete runs functions in deletion chain in order.
 func (vc *Validator) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 	warnings := []string{}
+
 	for _, f := range vc.DeletionChain {
 		warns, err := f(ctx, obj)
 		if err != nil {
 			return append(warnings, warns...), err
 		}
+
 		warnings = append(warnings, warns...)
 	}
+
 	return warnings, nil
 }

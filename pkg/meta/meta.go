@@ -70,6 +70,7 @@ const (
 // See https://github.com/crossplane/crossplane-runtime/issues/49
 func ReferenceTo(o metav1.Object, of schema.GroupVersionKind) *corev1.ObjectReference {
 	v, k := of.ToAPIVersionAndKind()
+
 	return &corev1.ObjectReference{
 		APIVersion: v,
 		Kind:       k,
@@ -83,6 +84,7 @@ func ReferenceTo(o metav1.Object, of schema.GroupVersionKind) *corev1.ObjectRefe
 // presumed to be of the supplied group, version, and kind.
 func TypedReferenceTo(o metav1.Object, of schema.GroupVersionKind) *xpv1.TypedReference {
 	v, k := of.ToAPIVersionAndKind()
+
 	return &xpv1.TypedReference{
 		APIVersion: v,
 		Kind:       k,
@@ -108,6 +110,7 @@ func AsController(r *xpv1.TypedReference) metav1.OwnerReference {
 	ref := AsOwner(r)
 	ref.Controller = &t
 	ref.BlockOwnerDeletion = &t
+
 	return ref
 }
 
@@ -139,9 +142,11 @@ func AddOwnerReference(o metav1.Object, r metav1.OwnerReference) {
 		if refs[i].UID == r.UID {
 			refs[i] = r
 			o.SetOwnerReferences(refs)
+
 			return
 		}
 	}
+
 	o.SetOwnerReferences(append(refs, r))
 }
 
@@ -154,6 +159,7 @@ func AddControllerReference(o metav1.Object, r metav1.OwnerReference) error {
 	}
 
 	AddOwnerReference(o, r)
+
 	return nil
 }
 
@@ -165,6 +171,7 @@ func AddFinalizer(o metav1.Object, finalizer string) {
 			return
 		}
 	}
+
 	o.SetFinalizers(append(f, finalizer))
 }
 
@@ -176,6 +183,7 @@ func RemoveFinalizer(o metav1.Object, finalizer string) {
 			f = append(f[:i], f[i+1:]...)
 		}
 	}
+
 	o.SetFinalizers(f)
 }
 
@@ -187,6 +195,7 @@ func FinalizerExists(o metav1.Object, finalizer string) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -197,9 +206,11 @@ func AddLabels(o metav1.Object, labels map[string]string) {
 		o.SetLabels(labels)
 		return
 	}
+
 	for k, v := range labels {
 		l[k] = v
 	}
+
 	o.SetLabels(l)
 }
 
@@ -209,9 +220,11 @@ func RemoveLabels(o metav1.Object, labels ...string) {
 	if l == nil {
 		return
 	}
+
 	for _, k := range labels {
 		delete(l, k)
 	}
+
 	o.SetLabels(l)
 }
 
@@ -222,9 +235,11 @@ func AddAnnotations(o metav1.Object, annotations map[string]string) {
 		o.SetAnnotations(annotations)
 		return
 	}
+
 	for k, v := range annotations {
 		a[k] = v
 	}
+
 	o.SetAnnotations(a)
 }
 
@@ -234,9 +249,11 @@ func RemoveAnnotations(o metav1.Object, annotations ...string) {
 	if a == nil {
 		return
 	}
+
 	for _, k := range annotations {
 		delete(a, k)
 	}
+
 	o.SetAnnotations(a)
 }
 
@@ -267,10 +284,12 @@ func SetExternalName(o metav1.Object, name string) {
 // was most recently pending creation.
 func GetExternalCreatePending(o metav1.Object) time.Time {
 	a := o.GetAnnotations()[AnnotationKeyExternalCreatePending]
+
 	t, err := time.Parse(time.RFC3339, a)
 	if err != nil {
 		return time.Time{}
 	}
+
 	return t
 }
 
@@ -284,10 +303,12 @@ func SetExternalCreatePending(o metav1.Object, t time.Time) {
 // was most recently created.
 func GetExternalCreateSucceeded(o metav1.Object) time.Time {
 	a := o.GetAnnotations()[AnnotationKeyExternalCreateSucceeded]
+
 	t, err := time.Parse(time.RFC3339, a)
 	if err != nil {
 		return time.Time{}
 	}
+
 	return t
 }
 
@@ -301,10 +322,12 @@ func SetExternalCreateSucceeded(o metav1.Object, t time.Time) {
 // recently failed to create.
 func GetExternalCreateFailed(o metav1.Object) time.Time {
 	a := o.GetAnnotations()[AnnotationKeyExternalCreateFailed]
+
 	t, err := time.Parse(time.RFC3339, a)
 	if err != nil {
 		return time.Time{}
 	}
+
 	return t
 }
 
@@ -344,6 +367,7 @@ func ExternalCreateSucceededDuring(o metav1.Object, d time.Duration) bool {
 	if t.IsZero() {
 		return false
 	}
+
 	return time.Since(t) < d
 }
 

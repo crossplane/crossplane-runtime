@@ -128,6 +128,7 @@ func MustCreateObject(kind schema.GroupVersionKind, oc runtime.ObjectCreater) ru
 	if err != nil {
 		panic(err)
 	}
+
 	return obj
 }
 
@@ -139,12 +140,15 @@ func GetKind(obj runtime.Object, ot runtime.ObjectTyper) (schema.GroupVersionKin
 	if err != nil {
 		return schema.GroupVersionKind{}, errors.Wrap(err, "cannot get kind of supplied object")
 	}
+
 	if unversioned {
 		return schema.GroupVersionKind{}, errors.New("supplied object is unversioned")
 	}
+
 	if len(kinds) != 1 {
 		return schema.GroupVersionKind{}, errors.New("supplied object does not have exactly one kind")
 	}
+
 	return kinds[0], nil
 }
 
@@ -156,6 +160,7 @@ func MustGetKind(obj runtime.Object, ot runtime.ObjectTyper) schema.GroupVersion
 	if err != nil {
 		panic(err)
 	}
+
 	return gvk
 }
 
@@ -168,6 +173,7 @@ func Ignore(is ErrorIs, err error) error {
 	if is(err) {
 		return nil
 	}
+
 	return err
 }
 
@@ -180,6 +186,7 @@ func IgnoreAny(err error, is ...ErrorIs) error {
 			return nil
 		}
 	}
+
 	return err
 }
 
@@ -215,6 +222,7 @@ type shouldRetryFunc func(error) bool
 // An ApplicatorWithRetry applies changes to an object, retrying on transient failures.
 type ApplicatorWithRetry struct {
 	Applicator
+
 	shouldRetry shouldRetryFunc
 	backoff     wait.Backoff
 }
@@ -285,6 +293,7 @@ func IsNotControllable(err error) bool {
 	_, ok := err.(interface {
 		NotControllable() bool
 	})
+
 	return ok
 }
 
@@ -299,6 +308,7 @@ func MustBeControllableBy(u types.UID) ApplyOption {
 		if !ok {
 			return notControllableError{errors.Errorf("existing object is missing object metadata")}
 		}
+
 		c := metav1.GetControllerOf(mo)
 		if c == nil {
 			return nil
@@ -307,6 +317,7 @@ func MustBeControllableBy(u types.UID) ApplyOption {
 		if c.UID != u {
 			return notControllableError{errors.Errorf("existing object is not controlled by UID %q", u)}
 		}
+
 		return nil
 	}
 }
@@ -329,6 +340,7 @@ func ConnectionSecretMustBeControllableBy(u types.UID) ApplyOption {
 		if !ok {
 			return errors.New("current resource is not a Secret")
 		}
+
 		c := metav1.GetControllerOf(s)
 
 		switch {
@@ -361,6 +373,7 @@ func IsNotAllowed(err error) bool {
 	_, ok := err.(interface {
 		NotAllowed() bool
 	})
+
 	return ok
 }
 
@@ -373,6 +386,7 @@ func AllowUpdateIf(fn func(current, desired runtime.Object) bool) ApplyOption {
 		if fn(current, desired) {
 			return nil
 		}
+
 		return notAllowedError{errors.New("update not allowed")}
 	}
 }
@@ -386,7 +400,9 @@ func StoreCurrentRV(origRV *string) ApplyOption {
 		if !ok {
 			return errors.New("current resource is missing object metadata")
 		}
+
 		*origRV = mo.GetResourceVersion()
+
 		return nil
 	}
 }
@@ -402,6 +418,7 @@ func GetExternalTags(mg Managed) map[string]string {
 	if mg.GetProviderConfigReference() != nil && mg.GetProviderConfigReference().Name != "" {
 		tags[ExternalResourceTagKeyProvider] = mg.GetProviderConfigReference().Name
 	}
+
 	return tags
 }
 
@@ -416,12 +433,15 @@ func FirstNAndSomeMore(n int, names []string) string {
 	if n <= 0 {
 		return fmt.Sprintf("%d", len(names))
 	}
+
 	if len(names) > n {
 		return fmt.Sprintf("%s, and %d more", strings.Join(names[:n], ", "), len(names)-n)
 	}
+
 	if len(names) == n {
 		return fmt.Sprintf("%s, and %s", strings.Join(names[:n-1], ", "), names[n-1])
 	}
+
 	return strings.Join(names, ", ")
 }
 
@@ -431,6 +451,7 @@ func StableNAndSomeMore(n int, names []string) string {
 	cpy := make([]string, len(names))
 	copy(cpy, names)
 	sort.Strings(cpy)
+
 	return FirstNAndSomeMore(n, cpy)
 }
 
@@ -458,5 +479,6 @@ func AsProtobufStruct(o runtime.Object) (*structpb.Struct, error) {
 	}
 
 	s := &structpb.Struct{}
+
 	return s, errors.Wrap(s.UnmarshalJSON(b), errUnmarshalJSON)
 }

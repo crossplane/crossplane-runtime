@@ -79,6 +79,7 @@ func TestExtractEnv(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\npc.ExtractEnv(...): -want error, +got error:\n%s\n", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.b, got); diff != "" {
 				t.Errorf("\n%s\npc.ExtractEnv(...): -want, +got:\n%s\n", tc.reason, diff)
 			}
@@ -138,6 +139,7 @@ func TestExtractFs(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\npc.ExtractFs(...): -want error, +got error:\n%s\n", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.b, got); diff != "" {
 				t.Errorf("\n%s\npc.ExtractFs(...): -want, +got:\n%s\n", tc.reason, diff)
 			}
@@ -226,6 +228,7 @@ func TestExtractSecret(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\npc.ExtractSecret(...): -want error, +got error:\n%s\n", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.b, got); diff != "" {
 				t.Errorf("\n%s\npc.ExtractSecret(...): -want, +got:\n%s\n", tc.reason, diff)
 			}
@@ -318,6 +321,7 @@ func TestTrack(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			ut := &ProviderConfigUsageTracker{c: tc.fields.c, of: tc.fields.of}
+
 			got := ut.Track(tc.args.ctx, tc.args.mg)
 			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nut.Track(...): -want error, +got error:\n%s\n", tc.reason, diff)

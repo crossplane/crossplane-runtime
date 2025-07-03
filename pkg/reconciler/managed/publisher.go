@@ -32,15 +32,18 @@ type PublisherChain []ConnectionPublisher
 // encounters, if any.
 func (pc PublisherChain) PublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) (bool, error) {
 	published := false
+
 	for _, p := range pc {
 		pb, err := p.PublishConnection(ctx, o, c)
 		if err != nil {
 			return published, err
 		}
+
 		if pb {
 			published = true
 		}
 	}
+
 	return published, nil
 }
 
@@ -52,6 +55,7 @@ func (pc PublisherChain) UnpublishConnection(ctx context.Context, o resource.Con
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -65,6 +69,7 @@ func (m *DisabledSecretStoreManager) PublishConnection(_ context.Context, so res
 	if so.GetPublishConnectionDetailsTo() != nil {
 		return false, errors.New(errSecretStoreDisabled)
 	}
+
 	return false, nil
 }
 
@@ -74,5 +79,6 @@ func (m *DisabledSecretStoreManager) UnpublishConnection(_ context.Context, so r
 	if so.GetPublishConnectionDetailsTo() != nil {
 		return errors.New(errSecretStoreDisabled)
 	}
+
 	return nil
 }

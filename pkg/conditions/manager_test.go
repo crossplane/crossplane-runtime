@@ -80,6 +80,7 @@ func TestOGConditionSetMark(t *testing.T) {
 			ut := newManaged(42, tt.start...)
 			c := manager.For(ut)
 			c.MarkConditions(tt.mark...)
+
 			if diff := cmp.Diff(tt.want, ut.Conditions, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
 				t.Errorf("\nReason: %s\n-want, +got:\n%s", tt.reason, diff)
 			}
@@ -129,5 +130,6 @@ func newManaged(generation int64, conditions ...xpv1.Condition) *fake.Managed {
 	mg := &fake.Managed{}
 	mg.Generation = generation
 	mg.SetConditions(conditions...)
+
 	return mg
 }

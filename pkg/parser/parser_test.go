@@ -195,18 +195,22 @@ func TestParser(t *testing.T) {
 			if err != nil {
 				t.Errorf("backend.Init(...): unexpected error: %s", err)
 			}
+
 			pkg, err := tc.parser.Parse(context.TODO(), r)
 			if err != nil && !tc.wantErr {
 				t.Errorf("parser.Parse(...): unexpected error: %s", err)
 			}
+
 			if tc.wantErr {
 				return
 			}
+
 			if diff := cmp.Diff(tc.pkg.GetObjects(), pkg.GetObjects(), cmpopts.SortSlices(func(i, j runtime.Object) bool {
 				return i.GetObjectKind().GroupVersionKind().String() > j.GetObjectKind().GroupVersionKind().String()
 			})); diff != "" {
 				t.Errorf("Objects: -want, +got:\n%s", diff)
 			}
+
 			if diff := cmp.Diff(tc.pkg.GetMeta(), pkg.GetMeta(), cmpopts.SortSlices(func(i, j runtime.Object) bool {
 				return i.GetObjectKind().GroupVersionKind().String() > j.GetObjectKind().GroupVersionKind().String()
 			})); diff != "" {
@@ -220,9 +224,11 @@ func TestCleanYAML(t *testing.T) {
 	type args struct {
 		in []byte
 	}
+
 	type want struct {
 		out bool
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args

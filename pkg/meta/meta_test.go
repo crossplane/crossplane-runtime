@@ -46,6 +46,7 @@ func TestReferenceTo(t *testing.T) {
 		o  metav1.Object
 		of schema.GroupVersionKind
 	}
+
 	tests := map[string]struct {
 		args
 		want *corev1.ObjectReference
@@ -77,7 +78,7 @@ func TestReferenceTo(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			got := ReferenceTo(tc.args.o, tc.args.of)
+			got := ReferenceTo(tc.o, tc.of)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("ReferenceTo(): -want, +got:\n%s", diff)
 			}
@@ -90,6 +91,7 @@ func TestTypedReferenceTo(t *testing.T) {
 		o  metav1.Object
 		of schema.GroupVersionKind
 	}
+
 	tests := map[string]struct {
 		args
 		want *xpv1.TypedReference
@@ -120,7 +122,7 @@ func TestTypedReferenceTo(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			got := TypedReferenceTo(tc.args.o, tc.args.of)
+			got := TypedReferenceTo(tc.o, tc.of)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("TypedReferenceTo(): -want, +got:\n%s", diff)
 			}
@@ -895,6 +897,7 @@ func TestSetExternalName(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			SetExternalName(tc.o, tc.name)
+
 			if diff := cmp.Diff(tc.want, tc.o); diff != "" {
 				t.Errorf("SetExternalName(...): -want, +got:\n%s", diff)
 			}
@@ -947,6 +950,7 @@ func TestSetExternalCreatePending(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			SetExternalCreatePending(tc.o, tc.t)
+
 			if diff := cmp.Diff(tc.want, tc.o); diff != "" {
 				t.Errorf("SetExternalCreatePending(...): -want, +got:\n%s", diff)
 			}
@@ -999,6 +1003,7 @@ func TestSetExternalCreateSucceeded(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			SetExternalCreateSucceeded(tc.o, tc.t)
+
 			if diff := cmp.Diff(tc.want, tc.o); diff != "" {
 				t.Errorf("SetExternalCreateSucceeded(...): -want, +got:\n%s", diff)
 			}
@@ -1051,6 +1056,7 @@ func TestSetExternalCreateFailed(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			SetExternalCreateFailed(tc.o, tc.t)
+
 			if diff := cmp.Diff(tc.want, tc.o); diff != "" {
 				t.Errorf("SetExternalCreateFailed(...): -want, +got:\n%s", diff)
 			}

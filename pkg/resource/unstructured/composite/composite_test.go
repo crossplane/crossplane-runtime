@@ -231,6 +231,7 @@ func TestCompositionSelector(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			tc.u.SetCompositionSelector(tc.set)
+
 			got := tc.u.GetCompositionSelector()
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("\nu.GetCompositionSelector(): -want, +got:\n%s", diff)
@@ -256,6 +257,7 @@ func TestCompositionReference(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			tc.u.SetCompositionReference(tc.set)
+
 			got := tc.u.GetCompositionReference()
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("\nu.GetCompositionReference(): -want, +got:\n%s", diff)
@@ -281,6 +283,7 @@ func TestCompositionRevisionReference(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			tc.u.SetCompositionRevisionReference(tc.set)
+
 			got := tc.u.GetCompositionRevisionReference()
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("\nu.GetCompositionRevisionReference(): -want, +got:\n%s", diff)
@@ -306,6 +309,7 @@ func TestCompositionRevisionSelector(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			tc.u.SetCompositionRevisionSelector(tc.set)
+
 			got := tc.u.GetCompositionRevisionSelector()
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("\nu.GetCompositionRevisionSelector(): -want, +got:\n%s", diff)
@@ -331,6 +335,7 @@ func TestCompositionUpdatePolicy(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			tc.u.SetCompositionUpdatePolicy(tc.set)
+
 			got := tc.u.GetCompositionUpdatePolicy()
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("\nu.GetCompositionUpdatePolicy(): -want, +got:\n%s", diff)
@@ -356,6 +361,7 @@ func TestClaimReference(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			tc.u.SetClaimReference(tc.set)
+
 			got := tc.u.GetClaimReference()
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("\nu.GetClaimReference(): -want, +got:\n%s", diff)
@@ -381,6 +387,7 @@ func TestResourceReferences(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			tc.u.SetResourceReferences(tc.set)
+
 			got := tc.u.GetResourceReferences()
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("\nu.GetResourceReferences(): -want, +got:\n%s", diff)
@@ -406,6 +413,7 @@ func TestWriteConnectionSecretToReference(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			tc.u.SetWriteConnectionSecretToReference(tc.set)
+
 			got := tc.u.GetWriteConnectionSecretToReference()
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("\nu.GetWriteConnectionSecretToReference(): -want, +got:\n%s", diff)
@@ -423,6 +431,7 @@ func TestConnectionDetailsLastPublishedTime(t *testing.T) {
 		out := &metav1.Time{}
 		j, _ := json.Marshal(t) //nolint:errchkjson // No encoding error in practice.
 		_ = json.Unmarshal(j, out)
+
 		return out
 	}
 
@@ -441,6 +450,7 @@ func TestConnectionDetailsLastPublishedTime(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			tc.u.SetConnectionDetailsLastPublishedTime(tc.set)
+
 			got := tc.u.GetConnectionDetailsLastPublishedTime()
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("\nu.GetConnectionDetailsLastPublishedTime(): -want, +got:\n%s", diff)

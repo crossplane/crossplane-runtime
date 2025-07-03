@@ -144,10 +144,10 @@ func TestManagerConnectStore(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			m := NewDetailsManager(tc.args.c, resourcefake.GVK(&fake.StoreConfig{}), WithStoreBuilder(tc.args.sb))
+			m := NewDetailsManager(tc.c, resourcefake.GVK(&fake.StoreConfig{}), WithStoreBuilder(tc.sb))
 
-			_, err := m.connectStore(context.Background(), tc.args.p)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			_, err := m.connectStore(context.Background(), tc.p)
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\nReason: %s\nm.connectStore(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
@@ -289,13 +289,14 @@ func TestManagerPublishConnection(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			m := NewDetailsManager(tc.args.c, resourcefake.GVK(&fake.StoreConfig{}), WithStoreBuilder(tc.args.sb))
+			m := NewDetailsManager(tc.c, resourcefake.GVK(&fake.StoreConfig{}), WithStoreBuilder(tc.sb))
 
-			published, err := m.PublishConnection(context.Background(), tc.args.so, tc.args.conn)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			published, err := m.PublishConnection(context.Background(), tc.so, tc.conn)
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\nReason: %s\nm.publishConnection(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
-			if diff := cmp.Diff(tc.want.published, published); diff != "" {
+
+			if diff := cmp.Diff(tc.published, published); diff != "" {
 				t.Errorf("\nReason: %s\nm.publishConnection(...): -want published, +got published:\n%s", tc.reason, diff)
 			}
 		})
@@ -489,10 +490,10 @@ func TestManagerUnpublishConnection(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			m := NewDetailsManager(tc.args.c, resourcefake.GVK(&fake.StoreConfig{}), WithStoreBuilder(tc.args.sb))
+			m := NewDetailsManager(tc.c, resourcefake.GVK(&fake.StoreConfig{}), WithStoreBuilder(tc.sb))
 
-			err := m.UnpublishConnection(context.Background(), tc.args.so, tc.args.conn)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			err := m.UnpublishConnection(context.Background(), tc.so, tc.conn)
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\nReason: %s\nm.unpublishConnection(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
@@ -632,13 +633,14 @@ func TestManagerFetchConnection(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			m := NewDetailsManager(tc.args.c, resourcefake.GVK(&fake.StoreConfig{}), WithStoreBuilder(tc.args.sb))
+			m := NewDetailsManager(tc.c, resourcefake.GVK(&fake.StoreConfig{}), WithStoreBuilder(tc.sb))
 
-			got, err := m.FetchConnection(context.Background(), tc.args.so)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			got, err := m.FetchConnection(context.Background(), tc.so)
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\nReason: %s\nm.FetchConnection(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
-			if diff := cmp.Diff(tc.want.conn, got); diff != "" {
+
+			if diff := cmp.Diff(tc.conn, got); diff != "" {
 				t.Errorf("\nReason: %s\nm.FetchConnection(...): -want connDetails, +got connDetails:\n%s", tc.reason, diff)
 			}
 		})
@@ -1213,13 +1215,14 @@ func TestManagerPropagateConnection(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			m := NewDetailsManager(tc.args.c, resourcefake.GVK(&fake.StoreConfig{}), WithStoreBuilder(tc.args.sb))
+			m := NewDetailsManager(tc.c, resourcefake.GVK(&fake.StoreConfig{}), WithStoreBuilder(tc.sb))
 
-			got, err := m.PropagateConnection(context.Background(), tc.args.to, tc.args.from)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			got, err := m.PropagateConnection(context.Background(), tc.to, tc.from)
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\nReason: %s\nm.PropagateConnection(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
-			if diff := cmp.Diff(tc.want.propagated, got); diff != "" {
+
+			if diff := cmp.Diff(tc.propagated, got); diff != "" {
 				t.Errorf("\nReason: %s\nm.PropagateConnection(...): -want propagated, +got propagated:\n%s", tc.reason, diff)
 			}
 		})
@@ -1231,6 +1234,7 @@ func fakeStoreBuilderFn(ss fake.SecretStore) StoreBuilderFn {
 		if *cfg.Type == fakeStore {
 			return &ss, nil
 		}
+
 		return nil, errors.Errorf(errFmtUnknownSecretStore, *cfg.Type)
 	}
 }

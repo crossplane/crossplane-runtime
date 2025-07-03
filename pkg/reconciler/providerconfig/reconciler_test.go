@@ -50,11 +50,14 @@ func (p *ProviderConfigUsageList) GetObjectKind() schema.ObjectKind {
 
 func (p *ProviderConfigUsageList) DeepCopyObject() runtime.Object {
 	out := &ProviderConfigUsageList{}
+
 	j, err := json.Marshal(p) //nolint:musttag // We're just using this to round-trip convert.
 	if err != nil {
 		panic(err)
 	}
+
 	_ = json.Unmarshal(j, out) //nolint:musttag // We're just using this to round-trip convert.
+
 	return out
 }
 
@@ -320,8 +323,8 @@ func TestReconciler(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewReconciler(tc.args.m, tc.args.of)
-			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
+			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
 			}

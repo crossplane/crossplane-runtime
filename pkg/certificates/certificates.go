@@ -36,12 +36,14 @@ const (
 func LoadMTLSConfig(caPath, certPath, keyPath string, isServer bool) (*tls.Config, error) {
 	tlsCertFilePath := filepath.Clean(certPath)
 	tlsKeyFilePath := filepath.Clean(keyPath)
+
 	certificate, err := tls.LoadX509KeyPair(tlsCertFilePath, tlsKeyFilePath)
 	if err != nil {
 		return nil, errors.Wrap(err, errLoadCert)
 	}
 
 	caCertFilePath := filepath.Clean(caPath)
+
 	ca, err := os.ReadFile(caCertFilePath)
 	if err != nil {
 		return nil, errors.Wrap(err, errLoadCA)

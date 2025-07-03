@@ -72,6 +72,7 @@ func DesiredStateChanged() predicate.Predicate {
 // being able to ignore certain annotations.
 type AnnotationChangedPredicate struct {
 	predicate.Funcs
+
 	ignored []string
 }
 
@@ -80,6 +81,7 @@ func copyAnnotations(an map[string]string) map[string]string {
 	for k, v := range an {
 		r[k] = v
 	}
+
 	return r
 }
 
@@ -89,6 +91,7 @@ func (a AnnotationChangedPredicate) Update(e event.UpdateEvent) bool {
 		// Update event has no old object to update
 		return false
 	}
+
 	if e.ObjectNew == nil {
 		// Update event has no new object for update
 		return false

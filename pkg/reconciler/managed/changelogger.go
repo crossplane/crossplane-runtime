@@ -119,6 +119,7 @@ func (g *GRPCChangeLogger) Log(ctx context.Context, managed resource.Managed, op
 
 	// send everything we've got to the change log service
 	_, err = g.client.SendChangeLog(sendCtx, &v1alpha1.SendChangeLogRequest{Entry: entry}, grpc.WaitForReady(true))
+
 	return errors.Wrap(err, "cannot send change log entry")
 }
 

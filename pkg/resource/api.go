@@ -67,6 +67,7 @@ func (a *APIPatchingApplicator) Apply(ctx context.Context, o client.Object, ao .
 		// TODO(negz): Apply ApplyOptions here too?
 		return errors.Wrap(a.client.Create(ctx, o), "cannot create object")
 	}
+
 	if err != nil {
 		return errors.Wrap(err, "cannot get object")
 	}
@@ -118,6 +119,7 @@ func (a *APIUpdatingApplicator) Apply(ctx context.Context, o client.Object, ao .
 		// TODO(negz): Apply ApplyOptions here too?
 		return errors.Wrap(a.client.Create(ctx, m), "cannot create object")
 	}
+
 	if err != nil {
 		return errors.Wrap(err, "cannot get object")
 	}
@@ -131,6 +133,7 @@ func (a *APIUpdatingApplicator) Apply(ctx context.Context, o client.Object, ao .
 	// NOTE(hasheddan): we must set the resource version of the desired object
 	// to that of the current or the update will always fail.
 	m.SetResourceVersion(current.GetResourceVersion())
+
 	return errors.Wrap(a.client.Update(ctx, m), "cannot update object")
 }
 
@@ -163,7 +166,9 @@ func (a *APIFinalizer) AddFinalizer(ctx context.Context, obj Object) error {
 	if meta.FinalizerExists(obj, a.finalizer) {
 		return nil
 	}
+
 	meta.AddFinalizer(obj, a.finalizer)
+
 	return errors.Wrap(a.client.Update(ctx, obj), errUpdateObject)
 }
 
@@ -172,7 +177,9 @@ func (a *APIFinalizer) RemoveFinalizer(ctx context.Context, obj Object) error {
 	if !meta.FinalizerExists(obj, a.finalizer) {
 		return nil
 	}
+
 	meta.RemoveFinalizer(obj, a.finalizer)
+
 	return errors.Wrap(IgnoreNotFound(a.client.Update(ctx, obj)), errUpdateObject)
 }
 

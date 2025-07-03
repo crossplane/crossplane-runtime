@@ -68,6 +68,7 @@ func TestGetValue(t *testing.T) {
 		value any
 		err   error
 	}
+
 	cases := map[string]struct {
 		reason string
 		path   string
@@ -181,6 +182,7 @@ func TestGetValue(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Fatalf("\np.GetValue(%s): %s: -want error, +got error:\n%s", tc.path, tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.value, got); diff != "" {
 				t.Errorf("\np.GetValue(%s): %s: -want, +got:\n%s", tc.path, tc.reason, diff)
 			}
@@ -201,10 +203,12 @@ func TestGetValueInto(t *testing.T) {
 		path string
 		out  any
 	}
+
 	type want struct {
 		out any
 		err error
 	}
+
 	cases := map[string]struct {
 		reason string
 		data   []byte
@@ -257,6 +261,7 @@ func TestGetValueInto(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Fatalf("\np.GetValueInto(%s): %s: -want error, +got error:\n%s", tc.args.path, tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.out, tc.args.out); diff != "" {
 				t.Errorf("\np.GetValueInto(%s): %s: -want, +got:\n%s", tc.args.path, tc.reason, diff)
 			}
@@ -269,6 +274,7 @@ func TestGetString(t *testing.T) {
 		value string
 		err   error
 	}
+
 	cases := map[string]struct {
 		reason string
 		path   string
@@ -310,6 +316,7 @@ func TestGetString(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Fatalf("\np.GetString(%s): %s: -want error, +got error:\n%s", tc.path, tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.value, got); diff != "" {
 				t.Errorf("\np.GetString(%s): %s: -want, +got:\n%s", tc.path, tc.reason, diff)
 			}
@@ -322,6 +329,7 @@ func TestGetStringArray(t *testing.T) {
 		value []string
 		err   error
 	}
+
 	cases := map[string]struct {
 		reason string
 		path   string
@@ -371,6 +379,7 @@ func TestGetStringArray(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Fatalf("\np.GetStringArray(%s): %s: -want error, +got error:\n%s", tc.path, tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.value, got); diff != "" {
 				t.Errorf("\np.GetStringArray(%s): %s: -want, +got:\n%s", tc.path, tc.reason, diff)
 			}
@@ -383,6 +392,7 @@ func TestGetStringObject(t *testing.T) {
 		value map[string]string
 		err   error
 	}
+
 	cases := map[string]struct {
 		reason string
 		path   string
@@ -432,6 +442,7 @@ func TestGetStringObject(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Fatalf("\np.GetStringObject(%s): %s: -want error, +got error:\n%s", tc.path, tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.value, got); diff != "" {
 				t.Errorf("\np.GetStringObject(%s): %s: -want, +got:\n%s", tc.path, tc.reason, diff)
 			}
@@ -444,6 +455,7 @@ func TestGetBool(t *testing.T) {
 		value bool
 		err   error
 	}
+
 	cases := map[string]struct {
 		reason string
 		path   string
@@ -485,6 +497,7 @@ func TestGetBool(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Fatalf("\np.GetBool(%s): %s: -want error, +got error:\n%s", tc.path, tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.value, got); diff != "" {
 				t.Errorf("\np.GetBool(%s): %s: -want, +got:\n%s", tc.path, tc.reason, diff)
 			}
@@ -497,6 +510,7 @@ func TestGetInteger(t *testing.T) {
 		value int64
 		err   error
 	}
+
 	cases := map[string]struct {
 		reason string
 		path   string
@@ -538,6 +552,7 @@ func TestGetInteger(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Fatalf("\np.GetNumber(%s): %s: -want error, +got error:\n%s", tc.path, tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.value, got); diff != "" {
 				t.Errorf("\np.GetNumber(%s): %s: -want, +got:\n%s", tc.path, tc.reason, diff)
 			}
@@ -551,10 +566,12 @@ func TestSetValue(t *testing.T) {
 		value any
 		opts  []PavedOption
 	}
+
 	type want struct {
 		object map[string]any
 		err    error
 	}
+
 	cases := map[string]struct {
 		reason string
 		data   []byte
@@ -814,6 +831,7 @@ func TestSetValue(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Fatalf("\np.SetValue(%s, %v): %s: -want error, +got error:\n%s", tc.args.path, tc.args.value, tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.object, p.object); diff != "" {
 				t.Fatalf("\np.SetValue(%s, %v): %s: -want, +got:\n%s", tc.args.path, tc.args.value, tc.reason, diff)
 			}
@@ -826,6 +844,7 @@ func TestExpandWildcards(t *testing.T) {
 		expanded []string
 		err      error
 	}
+
 	cases := map[string]struct {
 		reason string
 		path   string
@@ -979,6 +998,7 @@ func TestExpandWildcards(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Fatalf("\np.ExpandWildcards(%s): %s: -want error, +got error:\n%s", tc.path, tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.expanded, got, cmpopts.SortSlices(func(x, y string) bool {
 				return x < y
 			})); diff != "" {
@@ -992,10 +1012,12 @@ func TestDeleteField(t *testing.T) {
 	type args struct {
 		path string
 	}
+
 	type want struct {
 		object map[string]any
 		err    error
 	}
+
 	cases := map[string]struct {
 		reason string
 		data   []byte
@@ -1267,6 +1289,7 @@ func TestDeleteField(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Fatalf("\np.DeleteField(%s): %s: -want error, +got error:\n%s", tc.args.path, tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.object, p.object); diff != "" {
 				t.Fatalf("\np.DeleteField(%s): %s: -want, +got:\n%s", tc.args.path, tc.reason, diff)
 			}

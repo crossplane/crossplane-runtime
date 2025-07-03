@@ -49,6 +49,7 @@ func (l *requestThrottlingFilter) klogToLogrLevel(klogLvl int) int {
 	if klogLvl >= 3 {
 		return klogLvl - 3
 	}
+
 	return 0
 }
 

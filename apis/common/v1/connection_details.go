@@ -72,6 +72,7 @@ func (in *ConnectionSecretMetadata) SetOwnerUID(uid types.UID) {
 	if in.Labels == nil {
 		in.Labels = map[string]string{}
 	}
+
 	in.Labels[LabelKeyOwnerUID] = string(uid)
 }
 
@@ -80,6 +81,7 @@ func (in *ConnectionSecretMetadata) GetOwnerUID() string {
 	if u, ok := in.Labels[LabelKeyOwnerUID]; ok {
 		return u
 	}
+
 	return ""
 }
 

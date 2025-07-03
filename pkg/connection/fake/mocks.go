@@ -74,10 +74,13 @@ func (s *StoreConfig) GetObjectKind() schema.ObjectKind {
 // DeepCopyObject returns a copy of the object as runtime.Object.
 func (s *StoreConfig) DeepCopyObject() runtime.Object {
 	out := &StoreConfig{}
+
 	j, err := json.Marshal(s)
 	if err != nil {
 		panic(err)
 	}
+
 	_ = json.Unmarshal(j, out)
+
 	return out
 }

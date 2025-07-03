@@ -168,6 +168,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err := r.client.List(ctx, l, client.MatchingLabels{xpv1.LabelKeyProviderName: pc.GetName()}); err != nil {
 		log.Debug(errListPCUs, "error", err)
 		r.record.Event(pc, event.Warning(reasonAccount, errors.Wrap(err, errListPCUs)))
+
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
@@ -181,11 +182,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			if err := r.client.Delete(ctx, pcu); resource.IgnoreNotFound(err) != nil {
 				log.Debug(errDeletePCU, "error", err)
 				r.record.Event(pc, event.Warning(reasonAccount, errors.Wrap(err, errDeletePCU)))
+
 				return reconcile.Result{RequeueAfter: shortWait}, nil
 			}
+
 			users--
 		}
 	}
+
 	log = log.WithValues("usages", users)
 
 	if meta.WasDeleted(pc) {
@@ -198,10 +202,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			// We're watching our usages, so we'll be requeued when they go.
 			pc.SetUsers(users)
 			pc.SetConditions(Terminating().WithMessage(msg))
+
 			return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pc), errUpdateStatus)
 		}
 
 		meta.RemoveFinalizer(pc, finalizer)
+
 		if err := r.client.Update(ctx, pc); err != nil {
 			r.log.Debug(errUpdate, "error", err)
 			return reconcile.Result{RequeueAfter: shortWait}, nil
@@ -212,6 +218,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	meta.AddFinalizer(pc, finalizer)
+
 	if err := r.client.Update(ctx, pc); err != nil {
 		r.log.Debug(errUpdate, "error", err)
 		return reconcile.Result{RequeueAfter: shortWait}, nil
@@ -219,5 +226,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// There's no need to requeue explicitly - we're watching all PCs.
 	pc.SetUsers(users)
+
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pc), errUpdateStatus)
 }

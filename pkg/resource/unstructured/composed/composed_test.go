@@ -114,6 +114,7 @@ func TestConditions(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			tc.u.SetConditions(tc.set...)
+
 			got := tc.u.GetCondition(tc.get)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("\n%s\nu.GetCondition(%s): -want, +got:\n%s", tc.reason, tc.get, diff)
@@ -139,6 +140,7 @@ func TestWriteConnectionSecretToReference(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			tc.u.SetWriteConnectionSecretToReference(tc.set)
+
 			got := tc.u.GetWriteConnectionSecretToReference()
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("\nu.GetWriteConnectionSecretToReference(): -want, +got:\n%s", diff)

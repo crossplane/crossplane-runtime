@@ -53,6 +53,7 @@ func New(opts ...Option) *Unstructured {
 	for _, f := range opts {
 		f(c)
 	}
+
 	return c
 }
 
@@ -75,6 +76,7 @@ func (c *Unstructured) GetCompositionSelector() *metav1.LabelSelector {
 	if err := fieldpath.Pave(c.Object).GetValueInto("spec.compositionSelector", out); err != nil {
 		return nil
 	}
+
 	return out
 }
 
@@ -89,6 +91,7 @@ func (c *Unstructured) GetCompositionReference() *corev1.ObjectReference {
 	if err := fieldpath.Pave(c.Object).GetValueInto("spec.compositionRef", out); err != nil {
 		return nil
 	}
+
 	return out
 }
 
@@ -103,6 +106,7 @@ func (c *Unstructured) GetCompositionRevisionReference() *corev1.LocalObjectRefe
 	if err := fieldpath.Pave(c.Object).GetValueInto("spec.compositionRevisionRef", out); err != nil {
 		return nil
 	}
+
 	return out
 }
 
@@ -117,6 +121,7 @@ func (c *Unstructured) GetCompositionRevisionSelector() *metav1.LabelSelector {
 	if err := fieldpath.Pave(c.Object).GetValueInto("spec.compositionRevisionSelector", out); err != nil {
 		return nil
 	}
+
 	return out
 }
 
@@ -136,7 +141,9 @@ func (c *Unstructured) GetCompositionUpdatePolicy() *xpv1.UpdatePolicy {
 	if err != nil {
 		return nil
 	}
+
 	out := xpv1.UpdatePolicy(p)
+
 	return &out
 }
 
@@ -151,7 +158,9 @@ func (c *Unstructured) GetCompositeDeletePolicy() *xpv1.CompositeDeletePolicy {
 	if err != nil {
 		return nil
 	}
+
 	out := xpv1.CompositeDeletePolicy(p)
+
 	return &out
 }
 
@@ -161,6 +170,7 @@ func (c *Unstructured) GetResourceReference() *reference.Composite {
 	if err := fieldpath.Pave(c.Object).GetValueInto("spec.resourceRef", out); err != nil {
 		return nil
 	}
+
 	return out
 }
 
@@ -185,6 +195,7 @@ func (c *Unstructured) GetWriteConnectionSecretToReference() *xpv1.LocalSecretRe
 	if err := fieldpath.Pave(c.Object).GetValueInto("spec.writeConnectionSecretToRef", out); err != nil {
 		return nil
 	}
+
 	return out
 }
 
@@ -200,6 +211,7 @@ func (c *Unstructured) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	if err := fieldpath.Pave(c.Object).GetValueInto("status", &conditioned); err != nil {
 		return xpv1.Condition{}
 	}
+
 	return conditioned.GetCondition(ct)
 }
 
@@ -218,6 +230,7 @@ func (c *Unstructured) GetConnectionDetailsLastPublishedTime() *metav1.Time {
 	if err := fieldpath.Pave(c.Object).GetValueInto("status.connectionDetails.lastPublishedTime", out); err != nil {
 		return nil
 	}
+
 	return out
 }
 
@@ -238,5 +251,6 @@ func (c *Unstructured) SetObservedGeneration(generation int64) {
 func (c *Unstructured) GetObservedGeneration() int64 {
 	status := &xpv1.ObservedStatus{}
 	_ = fieldpath.Pave(c.Object).GetValueInto("status", status)
+
 	return status.GetObservedGeneration()
 }

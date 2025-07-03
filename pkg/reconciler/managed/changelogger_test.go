@@ -52,6 +52,7 @@ func (c *changeLogServiceClient) SendChangeLog(ctx context.Context, in *v1alpha1
 	if c.sendFn != nil {
 		return c.sendFn(ctx, in, opts...)
 	}
+
 	return nil, nil
 }
 
@@ -167,6 +168,7 @@ func mustObjectAsProtobufStruct(o runtime.Object) *structpb.Struct {
 	if err != nil {
 		panic(err)
 	}
+
 	return s
 }
 
@@ -183,6 +185,7 @@ func equateApproxTimepb(margin time.Duration) []cmp.Option {
 					a, b := p.Last().Values()
 					return msgIsTimestamp(a) && msgIsTimestamp(b)
 				}
+
 				return false
 			},
 			cmp.Transformer("timestamppb", func(t protocmp.Message) time.Time {

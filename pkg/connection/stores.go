@@ -43,5 +43,6 @@ func RuntimeStoreBuilder(ctx context.Context, local client.Client, tcfg *tls.Con
 	case v1.SecretStorePlugin:
 		return plugin.NewSecretStore(ctx, local, tcfg, cfg)
 	}
+
 	return nil, errors.Errorf(errFmtUnknownSecretStore, *cfg.Type)
 }

@@ -52,6 +52,7 @@ func Normal(r Reason, message string, keysAndValues ...string) Event {
 		Annotations: map[string]string{},
 	}
 	sliceMap(keysAndValues, e.Annotations)
+
 	return e
 }
 
@@ -64,6 +65,7 @@ func Warning(r Reason, err error, keysAndValues ...string) Event {
 		Annotations: map[string]string{},
 	}
 	sliceMap(keysAndValues, e.Annotations)
+
 	return e
 }
 
@@ -97,7 +99,9 @@ func (r *APIRecorder) WithAnnotations(keysAndValues ...string) Recorder {
 	for k, v := range r.annotations {
 		ar.annotations[k] = v
 	}
+
 	sliceMap(keysAndValues, ar.annotations)
+
 	return ar
 }
 

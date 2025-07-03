@@ -315,11 +315,14 @@ func (o *Object) GetObjectKind() schema.ObjectKind {
 // DeepCopyObject returns a copy of the object as runtime.Object.
 func (o *Object) DeepCopyObject() runtime.Object {
 	out := &Object{}
+
 	j, err := json.Marshal(o)
 	if err != nil {
 		panic(err)
 	}
+
 	_ = json.Unmarshal(j, out)
+
 	return out
 }
 
@@ -342,11 +345,14 @@ func (m *Managed) GetObjectKind() schema.ObjectKind {
 // DeepCopyObject returns a copy of the object as runtime.Object.
 func (m *Managed) DeepCopyObject() runtime.Object {
 	out := &Managed{}
+
 	j, err := json.Marshal(m)
 	if err != nil {
 		panic(err)
 	}
+
 	_ = json.Unmarshal(j, out)
+
 	return out
 }
 
@@ -376,11 +382,14 @@ func (m *Composite) GetObjectKind() schema.ObjectKind {
 // DeepCopyObject returns a copy of the object as runtime.Object.
 func (m *Composite) DeepCopyObject() runtime.Object {
 	out := &Composite{}
+
 	j, err := json.Marshal(m)
 	if err != nil {
 		panic(err)
 	}
+
 	_ = json.Unmarshal(j, out)
+
 	return out
 }
 
@@ -400,11 +409,14 @@ func (m *Composed) GetObjectKind() schema.ObjectKind {
 // DeepCopyObject returns a copy of the object as runtime.Object.
 func (m *Composed) DeepCopyObject() runtime.Object {
 	out := &Composed{}
+
 	j, err := json.Marshal(m)
 	if err != nil {
 		panic(err)
 	}
+
 	_ = json.Unmarshal(j, out)
+
 	return out
 }
 
@@ -433,11 +445,14 @@ func (m *CompositeClaim) GetObjectKind() schema.ObjectKind {
 // DeepCopyObject returns a copy of the object as runtime.Object.
 func (m *CompositeClaim) DeepCopyObject() runtime.Object {
 	out := &CompositeClaim{}
+
 	j, err := json.Marshal(m)
 	if err != nil {
 		panic(err)
 	}
+
 	_ = json.Unmarshal(j, out)
+
 	return out
 }
 
@@ -457,6 +472,7 @@ type Manager struct {
 func (m *Manager) Elected() <-chan struct{} {
 	e := make(chan struct{})
 	close(e)
+
 	return e
 }
 
@@ -490,6 +506,7 @@ func GVK(o runtime.Object) schema.GroupVersionKind {
 func SchemeWith(o ...runtime.Object) *runtime.Scheme {
 	s := runtime.NewScheme()
 	s.AddKnownTypes(GV, o...)
+
 	return s
 }
 
@@ -531,11 +548,14 @@ func (m *MockConnectionSecretOwner) GetObjectKind() schema.ObjectKind {
 // DeepCopyObject returns a copy of the object as runtime.Object.
 func (m *MockConnectionSecretOwner) DeepCopyObject() runtime.Object {
 	out := &MockConnectionSecretOwner{}
+
 	j, err := json.Marshal(m)
 	if err != nil {
 		panic(err)
 	}
+
 	_ = json.Unmarshal(j, out)
+
 	return out
 }
 
@@ -577,11 +597,14 @@ func (m *MockLocalConnectionSecretOwner) GetObjectKind() schema.ObjectKind {
 // DeepCopyObject returns a copy of the object as runtime.Object.
 func (m *MockLocalConnectionSecretOwner) DeepCopyObject() runtime.Object {
 	out := &MockLocalConnectionSecretOwner{}
+
 	j, err := json.Marshal(m)
 	if err != nil {
 		panic(err)
 	}
+
 	_ = json.Unmarshal(j, out)
+
 	return out
 }
 
@@ -601,11 +624,14 @@ func (p *ProviderConfig) GetObjectKind() schema.ObjectKind {
 // DeepCopyObject returns a copy of the object as runtime.Object.
 func (p *ProviderConfig) DeepCopyObject() runtime.Object {
 	out := &ProviderConfig{}
+
 	j, err := json.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
+
 	_ = json.Unmarshal(j, out)
+
 	return out
 }
 
@@ -626,10 +652,13 @@ func (p *ProviderConfigUsage) GetObjectKind() schema.ObjectKind {
 // DeepCopyObject returns a copy of the object as runtime.Object.
 func (p *ProviderConfigUsage) DeepCopyObject() runtime.Object {
 	out := &ProviderConfigUsage{}
+
 	j, err := json.Marshal(p)
 	if err != nil {
 		panic(err)
 	}
+
 	_ = json.Unmarshal(j, out)
+
 	return out
 }

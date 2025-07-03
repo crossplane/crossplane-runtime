@@ -114,6 +114,7 @@ func (r *MRStateRecorder) Record(ctx context.Context) error {
 	r.metrics.Exists.With(labels).Set(float64(len(mrs)))
 
 	var numReady, numSynced float64 = 0, 0
+
 	for _, o := range mrs {
 		if o.GetCondition(xpv1.TypeReady).Status == corev1.ConditionTrue {
 			numReady++
@@ -133,6 +134,7 @@ func (r *MRStateRecorder) Record(ctx context.Context) error {
 // Start records state of managed resources with given interval.
 func (r *MRStateRecorder) Start(ctx context.Context) error {
 	ticker := time.NewTicker(r.interval)
+
 	for {
 		select {
 		case <-ticker.C:

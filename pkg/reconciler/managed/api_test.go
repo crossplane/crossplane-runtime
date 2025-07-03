@@ -106,10 +106,12 @@ func TestNameAsExternalName(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			api := NewNameAsExternalName(tc.client)
+
 			err := api.Initialize(tc.args.ctx, tc.args.mg)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("api.Initialize(...): -want error, +got error:\n%s", diff)
 			}
+
 			if diff := cmp.Diff(tc.want.mg, tc.args.mg, test.EquateConditions()); diff != "" {
 				t.Errorf("api.Initialize(...) Managed: -want, +got:\n%s", diff)
 			}
@@ -144,6 +146,7 @@ func TestAPISecretPublisher(t *testing.T) {
 		err       error
 		published bool
 	}
+
 	cases := map[string]struct {
 		reason string
 		fields fields
@@ -223,10 +226,12 @@ func TestAPISecretPublisher(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			a := &APISecretPublisher{tc.fields.secret, tc.fields.typer}
+
 			got, gotErr := a.PublishConnection(tc.args.ctx, tc.args.mg, tc.args.c)
 			if diff := cmp.Diff(tc.want.err, gotErr, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nPublish(...): -wantErr, +gotErr:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.published, got); diff != "" {
 				t.Errorf("\n%s\nPublish(...): -wantPublished, +gotPublished:\n%s", tc.reason, diff)
 			}
@@ -347,6 +352,7 @@ func TestResolveReferences(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewAPISimpleReferenceResolver(tc.c)
+
 			got := r.ResolveReferences(tc.args.ctx, tc.args.mg)
 			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.ResolveReferences(...): -want, +got:\n%s", tc.reason, diff)
@@ -360,6 +366,7 @@ func TestPrepareJSONMerge(t *testing.T) {
 		existing runtime.Object
 		resolved runtime.Object
 	}
+
 	type want struct {
 		patch string
 		err   error
@@ -392,6 +399,7 @@ func TestPrepareJSONMerge(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nprepareJSONMerge(...): -wantErr, +gotErr:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.patch, string(patch)); diff != "" {
 				t.Errorf("\n%s\nprepareJSONMerge(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -406,6 +414,7 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 		ctx context.Context
 		o   client.Object
 	}
+
 	type want struct {
 		err error
 		o   client.Object
@@ -494,10 +503,12 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			u := NewRetryingCriticalAnnotationUpdater(tc.c)
+
 			got := u.UpdateCriticalAnnotations(tc.args.ctx, tc.args.o)
 			if diff := cmp.Diff(tc.want.err, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nu.UpdateCriticalAnnotations(...): -want, +got:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.o, tc.args.o); diff != "" {
 				t.Errorf("\n%s\nu.UpdateCriticalAnnotations(...): -want, +got:\n%s", tc.reason, diff)
 			}

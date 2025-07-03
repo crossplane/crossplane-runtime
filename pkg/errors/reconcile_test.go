@@ -33,10 +33,12 @@ func TestSilentlyRequeueOnConflict(t *testing.T) {
 		result reconcile.Result
 		err    error
 	}
+
 	type want struct {
 		result reconcile.Result
 		err    error
 	}
+
 	tests := []struct {
 		reason string
 		args   args
@@ -91,6 +93,7 @@ func TestSilentlyRequeueOnConflict(t *testing.T) {
 			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nIgnoreConflict(...): -want error, +got error:\n%s", tt.reason, diff)
 			}
+
 			if diff := cmp.Diff(tt.want.result, got); diff != "" {
 				t.Errorf("\n%s\nIgnoreConflict(...): -want result, +got result:\n%s", tt.reason, diff)
 			}
