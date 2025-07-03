@@ -243,7 +243,6 @@ formatters:
         - standard
         - default
         - prefix(github.com/crossplane/crossplane-runtime)
-        - prefix(github.com/crossplane/crossplane)
         - blank
         - dot
       custom-order: true
