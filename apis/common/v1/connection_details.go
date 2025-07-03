@@ -145,13 +145,13 @@ type Config struct {
 // KubernetesAuthConfig required to authenticate to a K8s API. It expects
 // a "kubeconfig" file to be provided.
 type KubernetesAuthConfig struct {
-	// Source of the credentials.
-	// +kubebuilder:validation:Enum=None;Secret;Environment;Filesystem
-	Source CredentialsSource `json:"source"`
-
 	// CommonCredentialSelectors provides common selectors for extracting
 	// credentials.
 	CommonCredentialSelectors `json:",inline"`
+
+	// Source of the credentials.
+	// +kubebuilder:validation:Enum=None;Secret;Environment;Filesystem
+	Source CredentialsSource `json:"source"`
 }
 
 // KubernetesSecretStoreConfig represents the required configuration
