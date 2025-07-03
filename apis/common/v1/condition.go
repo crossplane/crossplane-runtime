@@ -68,7 +68,7 @@ const (
 // See https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties
 
 // A Condition that may apply to a resource.
-type Condition struct {
+type Condition struct { //nolint:recvcheck // False positive - only has non-pointer methods AFAICT.
 	// Type of this condition. At most one of each condition type may apply to
 	// a resource at any point in time.
 	Type ConditionType `json:"type"`
