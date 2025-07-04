@@ -56,9 +56,9 @@ func (ss *SecretStore) DeleteKeyValues(ctx context.Context, s *store.Secret, do 
 // StoreConfig is a mock implementation of the StoreConfig interface.
 type StoreConfig struct {
 	metav1.ObjectMeta
+	v1.ConditionedStatus
 
 	Config v1.SecretStoreConfig
-	v1.ConditionedStatus
 }
 
 // GetStoreConfig returns SecretStoreConfig.
@@ -74,10 +74,13 @@ func (s *StoreConfig) GetObjectKind() schema.ObjectKind {
 // DeepCopyObject returns a copy of the object as runtime.Object.
 func (s *StoreConfig) DeepCopyObject() runtime.Object {
 	out := &StoreConfig{}
+
 	j, err := json.Marshal(s)
 	if err != nil {
 		panic(err)
 	}
+
 	_ = json.Unmarshal(j, out)
+
 	return out
 }

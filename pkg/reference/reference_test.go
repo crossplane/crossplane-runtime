@@ -157,10 +157,12 @@ func TestResolve(t *testing.T) {
 		ctx context.Context
 		req ResolutionRequest
 	}
+
 	type want struct {
 		rsp ResolutionResponse
 		err error
 	}
+
 	cases := map[string]struct {
 		reason string
 		c      client.Reader
@@ -494,10 +496,12 @@ func TestResolve(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewAPIResolver(tc.c, tc.from)
+
 			got, err := r.Resolve(tc.args.ctx, tc.args.req)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nControllersMustMatch(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.rsp, got); diff != "" {
 				t.Errorf("\n%s\nControllersMustMatch(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -530,10 +534,12 @@ func TestResolveMultiple(t *testing.T) {
 		ctx context.Context
 		req MultiResolutionRequest
 	}
+
 	type want struct {
 		rsp MultiResolutionResponse
 		err error
 	}
+
 	cases := map[string]struct {
 		reason string
 		c      client.Reader
@@ -899,10 +905,12 @@ func TestResolveMultiple(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewAPIResolver(tc.c, tc.from)
+
 			got, err := r.ResolveMultiple(tc.args.ctx, tc.args.req)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nControllersMustMatch(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.rsp, got, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("\n%s\nControllersMustMatch(...): -want, +got:\n%s", tc.reason, diff)
 			}

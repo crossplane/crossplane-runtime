@@ -30,6 +30,7 @@ func SilentlyRequeueOnConflict(result reconcile.Result, err error) (reconcile.Re
 	if kerrors.IsConflict(Cause(err)) {
 		return reconcile.Result{Requeue: true}, nil
 	}
+
 	return result, err
 }
 

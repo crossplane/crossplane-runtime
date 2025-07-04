@@ -115,6 +115,7 @@ func (m *DetailsManager) PublishConnection(ctx context.Context, so resource.Conn
 	}
 
 	changed, err := ss.WriteKeyValues(ctx, store.NewSecret(so, store.KeyValues(conn)), SecretToWriteMustBeOwnedBy(so))
+
 	return changed, errors.Wrap(err, errWriteStore)
 }
 
@@ -149,6 +150,7 @@ func (m *DetailsManager) FetchConnection(ctx context.Context, so resource.Connec
 	}
 
 	s := &store.Secret{}
+
 	return managed.ConnectionDetails(s.Data), errors.Wrap(ss.ReadKeyValues(ctx, store.ScopedName{Name: p.Name, Scope: so.GetNamespace()}, s), errReadStore)
 }
 
@@ -185,6 +187,7 @@ func (m *DetailsManager) PropagateConnection(ctx context.Context, to resource.Lo
 	}
 
 	changed, err := ssTo.WriteKeyValues(ctx, store.NewSecret(to, sFrom.Data), SecretToWriteMustBeOwnedBy(to))
+
 	return changed, errors.Wrap(err, errWriteStore)
 }
 
@@ -217,5 +220,6 @@ func secretMustBeOwnedBy(so metav1.Object, secret *store.Secret) error {
 	if secret.Metadata == nil || secret.Metadata.GetOwnerUID() != string(so.GetUID()) {
 		return errors.Errorf(errFmtNotOwnedBy, string(so.GetUID()))
 	}
+
 	return nil
 }

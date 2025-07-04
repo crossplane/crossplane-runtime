@@ -142,10 +142,12 @@ func TestAPIPatchingApplicator(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			a := NewAPIPatchingApplicator(tc.c)
+
 			err := a.Apply(tc.args.ctx, tc.args.o, tc.args.ao...)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nApply(...): -want error, +got error\n%s\n", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.o, tc.args.o); diff != "" {
 				t.Errorf("\n%s\nApply(...): -want, +got\n%s\n", tc.reason, diff)
 			}
@@ -157,6 +159,7 @@ func TestAPIUpdatingApplicator(t *testing.T) {
 	errBoom := errors.New("boom")
 	desired := &object{}
 	desired.SetName("desired")
+
 	current := &object{}
 	current.SetName("current")
 
@@ -270,10 +273,12 @@ func TestAPIUpdatingApplicator(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			a := NewAPIUpdatingApplicator(tc.c)
+
 			err := a.Apply(tc.args.ctx, tc.args.o, tc.args.ao...)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nApply(...): -want error, +got error\n%s\n", tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.o, tc.args.o); diff != "" {
 				t.Errorf("\n%s\nApply(...): -want, +got\n%s\n", tc.reason, diff)
 			}
@@ -328,10 +333,12 @@ func TestManagedRemoveFinalizer(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			api := NewAPIFinalizer(tc.client, finalizer)
+
 			err := api.RemoveFinalizer(tc.args.ctx, tc.args.obj)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("api.RemoveFinalizer(...): -want error, +got error:\n%s", diff)
 			}
+
 			if diff := cmp.Diff(tc.want.obj, tc.args.obj, test.EquateConditions()); diff != "" {
 				t.Errorf("api.RemoveFinalizer(...) Managed: -want, +got:\n%s", diff)
 			}
@@ -386,10 +393,12 @@ func TestAPIFinalizerAdder(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			api := NewAPIFinalizer(tc.client, finalizer)
+
 			err := api.AddFinalizer(tc.args.ctx, tc.args.obj)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("api.Initialize(...): -want error, +got error:\n%s", diff)
 			}
+
 			if diff := cmp.Diff(tc.want.obj, tc.args.obj, test.EquateConditions()); diff != "" {
 				t.Errorf("api.Initialize(...) Managed: -want, +got:\n%s", diff)
 			}

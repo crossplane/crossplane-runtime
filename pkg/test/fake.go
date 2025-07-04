@@ -89,6 +89,7 @@ func NewMockGetFn(err error, ofn ...ObjectFn) MockGetFn {
 				return err
 			}
 		}
+
 		return err
 	}
 }
@@ -101,6 +102,7 @@ func NewMockListFn(err error, ofn ...ObjectListFn) MockListFn {
 				return err
 			}
 		}
+
 		return err
 	}
 }
@@ -113,6 +115,7 @@ func NewMockCreateFn(err error, ofn ...ObjectFn) MockCreateFn {
 				return err
 			}
 		}
+
 		return err
 	}
 }
@@ -125,6 +128,7 @@ func NewMockDeleteFn(err error, ofn ...ObjectFn) MockDeleteFn {
 				return err
 			}
 		}
+
 		return err
 	}
 }
@@ -137,6 +141,7 @@ func NewMockDeleteAllOfFn(err error, ofn ...ObjectFn) MockDeleteAllOfFn {
 				return err
 			}
 		}
+
 		return err
 	}
 }
@@ -149,6 +154,7 @@ func NewMockUpdateFn(err error, ofn ...ObjectFn) MockUpdateFn {
 				return err
 			}
 		}
+
 		return err
 	}
 }
@@ -161,6 +167,7 @@ func NewMockPatchFn(err error, ofn ...ObjectFn) MockPatchFn {
 				return err
 			}
 		}
+
 		return err
 	}
 }
@@ -173,6 +180,7 @@ func NewMockSubResourceCreateFn(err error, ofn ...ObjectFn) MockSubResourceCreat
 				return err
 			}
 		}
+
 		return err
 	}
 }
@@ -185,6 +193,7 @@ func NewMockSubResourceUpdateFn(err error, ofn ...ObjectFn) MockSubResourceUpdat
 				return err
 			}
 		}
+
 		return err
 	}
 }
@@ -197,6 +206,7 @@ func NewMockSubResourcePatchFn(err error, ofn ...ObjectFn) MockSubResourcePatchF
 				return err
 			}
 		}
+
 		return err
 	}
 }
@@ -216,6 +226,7 @@ func NewMockGroupVersionKindForFn(err error, gvk schema.GroupVersionKind, rofn .
 				return gvk, err
 			}
 		}
+
 		return gvk, err
 	}
 }
@@ -228,6 +239,7 @@ func NewMockIsObjectNamespacedFn(err error, isNamespaced bool, rofn ...RuntimeOb
 				return isNamespaced, err
 			}
 		}
+
 		return isNamespaced, err
 	}
 }

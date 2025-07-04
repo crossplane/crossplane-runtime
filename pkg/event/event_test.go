@@ -28,6 +28,7 @@ func TestSliceMap(t *testing.T) {
 		from []string
 		to   map[string]string
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args

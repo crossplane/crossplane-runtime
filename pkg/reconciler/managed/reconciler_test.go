@@ -2020,8 +2020,8 @@ func TestReconciler(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewReconciler(tc.args.m, tc.args.mg, tc.args.o...)
-			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
+			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\nReason: %s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -2038,6 +2038,7 @@ func TestTestManagementPoliciesResolverIsPaused(t *testing.T) {
 		enabled bool
 		policy  xpv1.ManagementPolicies
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -2083,6 +2084,7 @@ func TestManagementPoliciesResolverValidate(t *testing.T) {
 		enabled bool
 		policy  xpv1.ManagementPolicies
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -2144,6 +2146,7 @@ func TestManagementPoliciesResolverShouldCreate(t *testing.T) {
 		managementPoliciesEnabled bool
 		policy                    xpv1.ManagementPolicies
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -2196,6 +2199,7 @@ func TestManagementPoliciesResolverShouldUpdate(t *testing.T) {
 		managementPoliciesEnabled bool
 		policy                    xpv1.ManagementPolicies
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -2248,6 +2252,7 @@ func TestManagementPoliciesResolverShouldLateInitialize(t *testing.T) {
 		managementPoliciesEnabled bool
 		policy                    xpv1.ManagementPolicies
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -2300,6 +2305,7 @@ func TestManagementPoliciesResolverOnlyObserve(t *testing.T) {
 		managementPoliciesEnabled bool
 		policy                    xpv1.ManagementPolicies
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -2344,9 +2350,11 @@ func TestShouldDelete(t *testing.T) {
 		managementPoliciesEnabled bool
 		managed                   resource.Managed
 	}
+
 	type want struct {
 		delete bool
 	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -2747,12 +2755,14 @@ func TestReconcilerChangeLogs(t *testing.T) {
 func asManaged(obj client.Object, generation int64) *fake.Managed {
 	mg := obj.(*fake.Managed)
 	mg.Generation = generation
+
 	return mg
 }
 
 func newManaged(generation int64) *fake.Managed {
 	mg := &fake.Managed{}
 	mg.Generation = generation
+
 	return mg
 }
 

@@ -70,7 +70,9 @@ func (a *NameAsExternalName) Initialize(ctx context.Context, mg resource.Managed
 	if meta.GetExternalName(mg) != "" {
 		return nil
 	}
+
 	meta.SetExternalName(mg, mg.GetName())
+
 	return errors.Wrap(a.client.Update(ctx, mg), errUpdateManaged)
 }
 
@@ -103,6 +105,7 @@ func (a *APISecretPublisher) PublishConnection(ctx context.Context, o resource.C
 
 	s := resource.ConnectionSecretFor(o, resource.MustGetKind(o, a.typer))
 	s.Data = c
+
 	err := a.secret.Apply(ctx, s,
 		resource.ConnectionSecretMustBeControllableBy(o.GetUID()),
 		resource.AllowUpdateIf(func(current, desired runtime.Object) bool {
@@ -116,6 +119,7 @@ func (a *APISecretPublisher) PublishConnection(ctx context.Context, o resource.C
 		// The update was not allowed because it was a no-op.
 		return false, nil
 	}
+
 	if err != nil {
 		return false, errors.Wrap(err, errCreateOrUpdateSecret)
 	}
@@ -153,15 +157,19 @@ func prepareJSONMerge(existing, resolved runtime.Object) ([]byte, error) {
 	// in the first place, instead of an unmarshal/marshal from the prepared
 	// patch []byte later.
 	existing.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{})
+
 	eBuff, err := json.Marshal(existing)
 	if err != nil {
 		return nil, errors.Wrap(err, errMarshalExisting)
 	}
+
 	rBuff, err := json.Marshal(resolved)
 	if err != nil {
 		return nil, errors.Wrap(err, errMarshalResolved)
 	}
+
 	patch, err := jsonpatch.CreateMergePatch(eBuff, rBuff)
+
 	return patch, errors.Wrap(err, errPreparePatch)
 }
 
@@ -177,6 +185,7 @@ func (a *APISimpleReferenceResolver) ResolveReferences(ctx context.Context, mg r
 	}
 
 	existing := mg.DeepCopyObject()
+
 	if err := rr.ResolveReferences(ctx, a.client); err != nil {
 		return errors.Wrap(err, errResolveReferences)
 	}
@@ -190,6 +199,7 @@ func (a *APISimpleReferenceResolver) ResolveReferences(ctx context.Context, mg r
 	if err != nil {
 		return err
 	}
+
 	return errors.Wrap(a.client.Patch(ctx, mg, client.RawPatch(types.ApplyPatchType, patch), client.FieldOwner(fieldOwnerAPISimpleRefResolver), client.ForceOwnership), errPatchManaged)
 }
 
@@ -221,9 +231,12 @@ func (u *RetryingCriticalAnnotationUpdater) UpdateCriticalAnnotations(ctx contex
 			if getErr := u.client.Get(ctx, client.ObjectKeyFromObject(o), o); getErr != nil {
 				return getErr
 			}
+
 			meta.AddAnnotations(o, a)
 		}
+
 		return err
 	})
+
 	return errors.Wrap(err, errUpdateCriticalAnnotations)
 }

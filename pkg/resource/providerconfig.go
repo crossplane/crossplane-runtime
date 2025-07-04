@@ -52,6 +52,7 @@ func IsMissingReference(err error) bool {
 	_, ok := err.(interface {
 		MissingReference() bool
 	})
+
 	return ok
 }
 
@@ -63,6 +64,7 @@ func ExtractEnv(_ context.Context, e EnvLookupFn, s xpv1.CommonCredentialSelecto
 	if s.Env == nil {
 		return nil, errors.New(errExtractEnv)
 	}
+
 	return []byte(e(s.Env.Name)), nil
 }
 
@@ -71,6 +73,7 @@ func ExtractFs(_ context.Context, fs afero.Fs, s xpv1.CommonCredentialSelectors)
 	if s.Fs == nil {
 		return nil, errors.New(errExtractFs)
 	}
+
 	return afero.ReadFile(fs, s.Fs.Path)
 }
 
@@ -79,10 +82,12 @@ func ExtractSecret(ctx context.Context, client client.Client, s xpv1.CommonCrede
 	if s.SecretRef == nil {
 		return nil, errors.New(errExtractSecretKey)
 	}
+
 	secret := &corev1.Secret{}
 	if err := client.Get(ctx, types.NamespacedName{Namespace: s.SecretRef.Namespace, Name: s.SecretRef.Name}, secret); err != nil {
 		return nil, errors.Wrap(err, errGetCredentialsSecret)
 	}
+
 	return secret.Data[s.SecretRef.Key], nil
 }
 
@@ -141,6 +146,7 @@ func (u *ProviderConfigUsageTracker) Track(ctx context.Context, mg Managed) erro
 	//nolint:forcetypeassert // Will always be a PCU.
 	pcu := u.of.DeepCopyObject().(ProviderConfigUsage)
 	gvk := mg.GetObjectKind().GroupVersionKind()
+
 	ref := mg.GetProviderConfigReference()
 	if ref == nil {
 		return missingRefError{errors.New(errMissingPCRef)}
@@ -163,5 +169,6 @@ func (u *ProviderConfigUsageTracker) Track(ctx context.Context, mg Managed) erro
 			return current.(ProviderConfigUsage).GetProviderConfigReference() != pcu.GetProviderConfigReference()
 		}),
 	)
+
 	return errors.Wrap(Ignore(IsNotAllowed, err), errApplyPCU)
 }

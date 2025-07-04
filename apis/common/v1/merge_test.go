@@ -33,12 +33,15 @@ func (arr mergoOptArr) names() []string {
 	for i, opt := range arr {
 		names[i] = runtime.FuncForPC(reflect.ValueOf(opt).Pointer()).Name()
 	}
+
 	sort.Strings(names)
+
 	return names
 }
 
 func TestMergoConfiguration(t *testing.T) {
 	valTrue := true
+
 	tests := map[string]struct {
 		mo   *MergeOptions
 		want mergoOptArr

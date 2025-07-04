@@ -20,10 +20,12 @@ func (c *typedExternalConnectDisconnectorWrapper[managed]) Connect(ctx context.C
 	if !ok {
 		return nil, errors.Errorf(errFmtUnexpectedObjectType, mg)
 	}
+
 	external, err := c.c.Connect(ctx, cr)
 	if err != nil {
 		return nil, err
 	}
+
 	return &typedExternalClientWrapper[managed]{c: external}, nil
 }
 
@@ -42,6 +44,7 @@ func (c *typedExternalClientWrapper[managed]) Observe(ctx context.Context, mg re
 	if !ok {
 		return ExternalObservation{}, errors.Errorf(errFmtUnexpectedObjectType, mg)
 	}
+
 	return c.c.Observe(ctx, cr)
 }
 
@@ -50,6 +53,7 @@ func (c *typedExternalClientWrapper[managed]) Create(ctx context.Context, mg res
 	if !ok {
 		return ExternalCreation{}, errors.Errorf(errFmtUnexpectedObjectType, mg)
 	}
+
 	return c.c.Create(ctx, cr)
 }
 
@@ -58,6 +62,7 @@ func (c *typedExternalClientWrapper[managed]) Update(ctx context.Context, mg res
 	if !ok {
 		return ExternalUpdate{}, errors.Errorf(errFmtUnexpectedObjectType, mg)
 	}
+
 	return c.c.Update(ctx, cr)
 }
 
@@ -66,6 +71,7 @@ func (c *typedExternalClientWrapper[managed]) Delete(ctx context.Context, mg res
 	if !ok {
 		return ExternalDelete{}, errors.Errorf(errFmtUnexpectedObjectType, mg)
 	}
+
 	return c.c.Delete(ctx, cr)
 }
 

@@ -109,6 +109,7 @@ func TestPublisherChain(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, gotErr, test.EquateErrors()); diff != "" {
 				t.Errorf("Publish(...): -want, +got:\n%s", diff)
 			}
+
 			if diff := cmp.Diff(tc.want.published, got); diff != "" {
 				t.Errorf("Publish(...): -wantPublished, +gotPublished:\n%s", diff)
 			}
@@ -120,6 +121,7 @@ func TestDisabledSecretStorePublish(t *testing.T) {
 	type args struct {
 		mg resource.Managed
 	}
+
 	type want struct {
 		published bool
 		err       error
@@ -151,10 +153,12 @@ func TestDisabledSecretStorePublish(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			ss := &DisabledSecretStoreManager{}
+
 			got, gotErr := ss.PublishConnection(context.Background(), tc.args.mg, nil)
 			if diff := cmp.Diff(tc.want.err, gotErr, test.EquateErrors()); diff != "" {
 				t.Errorf("Publish(...): -want, +got:\n%s", diff)
 			}
+
 			if diff := cmp.Diff(tc.want.published, got); diff != "" {
 				t.Errorf("Publish(...): -wantPublished, +gotPublished:\n%s", diff)
 			}
@@ -166,6 +170,7 @@ func TestDisabledSecretStoreUnpublish(t *testing.T) {
 	type args struct {
 		mg resource.Managed
 	}
+
 	type want struct {
 		err error
 	}
@@ -196,6 +201,7 @@ func TestDisabledSecretStoreUnpublish(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			ss := &DisabledSecretStoreManager{}
+
 			gotErr := ss.UnpublishConnection(context.Background(), tc.args.mg, nil)
 			if diff := cmp.Diff(tc.want.err, gotErr, test.EquateErrors()); diff != "" {
 				t.Errorf("Publish(...): -want, +got:\n%s", diff)

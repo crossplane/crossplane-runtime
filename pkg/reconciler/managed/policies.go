@@ -139,6 +139,7 @@ func (m *ManagementPoliciesResolver) Validate() error {
 			return nil
 		}
 	}
+
 	return fmt.Errorf(errFmtManagementPolicyNotSupported, m.managementPolicies.UnsortedList())
 }
 
@@ -148,6 +149,7 @@ func (m *ManagementPoliciesResolver) IsPaused() bool {
 	if !m.enabled {
 		return false
 	}
+
 	return m.managementPolicies.Len() == 0
 }
 
@@ -157,6 +159,7 @@ func (m *ManagementPoliciesResolver) ShouldCreate() bool {
 	if !m.enabled {
 		return true
 	}
+
 	return m.managementPolicies.HasAny(xpv1.ManagementActionCreate, xpv1.ManagementActionAll)
 }
 
@@ -166,6 +169,7 @@ func (m *ManagementPoliciesResolver) ShouldUpdate() bool {
 	if !m.enabled {
 		return true
 	}
+
 	return m.managementPolicies.HasAny(xpv1.ManagementActionUpdate, xpv1.ManagementActionAll)
 }
 
@@ -175,6 +179,7 @@ func (m *ManagementPoliciesResolver) ShouldLateInitialize() bool {
 	if !m.enabled {
 		return true
 	}
+
 	return m.managementPolicies.HasAny(xpv1.ManagementActionLateInitialize, xpv1.ManagementActionAll)
 }
 
@@ -185,6 +190,7 @@ func (m *ManagementPoliciesResolver) ShouldOnlyObserve() bool {
 	if !m.enabled {
 		return false
 	}
+
 	return m.managementPolicies.Equal(sets.New[xpv1.ManagementAction](xpv1.ManagementActionObserve))
 }
 

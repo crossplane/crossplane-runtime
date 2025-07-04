@@ -181,6 +181,7 @@ func TestGetKind(t *testing.T) {
 		obj runtime.Object
 		ot  runtime.ObjectTyper
 	}
+
 	type want struct {
 		kind schema.GroupVersionKind
 		err  error
@@ -243,6 +244,7 @@ func TestGetKind(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("GetKind(...): -want error, +got error:\n%s", diff)
 			}
+
 			if diff := cmp.Diff(tc.want.kind, got); diff != "" {
 				t.Errorf("GetKind(...): -want, +got:\n%s", diff)
 			}
@@ -255,6 +257,7 @@ func TestMustCreateObject(t *testing.T) {
 		kind schema.GroupVersionKind
 		oc   runtime.ObjectCreater
 	}
+
 	cases := map[string]struct {
 		args args
 		want runtime.Object
@@ -285,6 +288,7 @@ func TestIgnore(t *testing.T) {
 		is  ErrorIs
 		err error
 	}
+
 	cases := map[string]struct {
 		args args
 		want error
@@ -322,6 +326,7 @@ func TestIgnoreAny(t *testing.T) {
 		is  []ErrorIs
 		err error
 	}
+
 	cases := map[string]struct {
 		args args
 		want error
@@ -401,7 +406,7 @@ type object struct {
 }
 
 func (o *object) DeepCopyObject() runtime.Object {
-	return &object{ObjectMeta: *o.ObjectMeta.DeepCopy()}
+	return &object{ObjectMeta: *o.DeepCopy()}
 }
 
 func TestIsNotControllable(t *testing.T) {
@@ -486,8 +491,8 @@ func TestMustBeControllableBy(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			ao := MustBeControllableBy(tc.u)
-			err := ao(tc.args.ctx, tc.args.current, tc.args.desired)
 
+			err := ao(tc.args.ctx, tc.args.current, tc.args.desired)
 			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nMustBeControllableBy(...)(...): -want error, +got error\n%s\n", tc.reason, diff)
 			}
@@ -558,8 +563,8 @@ func TestConnectionSecretMustBeControllableBy(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			ao := ConnectionSecretMustBeControllableBy(tc.u)
-			err := ao(tc.args.ctx, tc.args.current, tc.args.desired)
 
+			err := ao(tc.args.ctx, tc.args.current, tc.args.desired)
 			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nConnectionSecretMustBeControllableBy(...)(...): -want error, +got error\n%s\n", tc.reason, diff)
 			}
@@ -600,8 +605,8 @@ func TestAllowUpdateIf(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			ao := AllowUpdateIf(tc.fn)
-			err := ao(tc.args.ctx, tc.args.current, tc.args.desired)
 
+			err := ao(tc.args.ctx, tc.args.current, tc.args.desired)
 			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nAllowUpdateIf(...)(...): -want error, +got error\n%s\n", tc.reason, diff)
 			}
@@ -645,7 +650,6 @@ func Test_notControllableError_NotControllable(t *testing.T) {
 	err := notControllableError{
 		errors.New("test-error"),
 	}
-
 	if !err.NotControllable() {
 		t.Errorf("NotControllable(): false")
 	}
@@ -656,7 +660,6 @@ func Test_notAllowedError_NotAllowed(t *testing.T) {
 	err := notAllowedError{
 		errors.New("test-error"),
 	}
-
 	if !err.NotAllowed() {
 		t.Errorf("NotAllowed(): false")
 	}
@@ -884,6 +887,7 @@ func TestFirstNAndSomeMore(t *testing.T) {
 		n     int
 		names []string
 	}
+
 	tests := []struct {
 		name string
 		args args

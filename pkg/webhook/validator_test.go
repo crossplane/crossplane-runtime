@@ -44,10 +44,12 @@ func TestValidateCreate(t *testing.T) {
 		obj runtime.Object
 		fns []ValidateCreateFn
 	}
+
 	type want struct {
 		err      error
 		warnings admission.Warnings
 	}
+
 	cases := map[string]struct {
 		reason string
 		args
@@ -107,11 +109,13 @@ func TestValidateCreate(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			v := NewValidator(WithValidateCreationFns(tc.fns...))
-			warn, err := v.ValidateCreate(context.TODO(), tc.args.obj)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+
+			warn, err := v.ValidateCreate(context.TODO(), tc.obj)
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nValidateCreate(...): -want error, +got error\n%s\n", tc.reason, diff)
 			}
-			if diff := cmp.Diff(tc.want.warnings, warn, cmpopts.EquateEmpty()); diff != "" {
+
+			if diff := cmp.Diff(tc.warnings, warn, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("\n%s\nValidateCreate(...): -want warnings, +got warnings\n%s\n", tc.reason, diff)
 			}
 		})
@@ -124,10 +128,12 @@ func TestValidateUpdate(t *testing.T) {
 		newObj runtime.Object
 		fns    []ValidateUpdateFn
 	}
+
 	type want struct {
 		err      error
 		warnings admission.Warnings
 	}
+
 	cases := map[string]struct {
 		reason string
 		args
@@ -187,11 +193,13 @@ func TestValidateUpdate(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			v := NewValidator(WithValidateUpdateFns(tc.fns...))
-			warn, err := v.ValidateUpdate(context.TODO(), tc.args.oldObj, tc.args.newObj)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+
+			warn, err := v.ValidateUpdate(context.TODO(), tc.oldObj, tc.newObj)
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nValidateUpdate(...): -want error, +got error\n%s\n", tc.reason, diff)
 			}
-			if diff := cmp.Diff(tc.want.warnings, warn, cmpopts.EquateEmpty()); diff != "" {
+
+			if diff := cmp.Diff(tc.warnings, warn, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("\n%s\nValidateUpdate(...): -want warnings, +got warnings\n%s\n", tc.reason, diff)
 			}
 		})
@@ -203,10 +211,12 @@ func TestValidateDelete(t *testing.T) {
 		obj runtime.Object
 		fns []ValidateDeleteFn
 	}
+
 	type want struct {
 		err      error
 		warnings admission.Warnings
 	}
+
 	cases := map[string]struct {
 		reason string
 		args
@@ -266,11 +276,13 @@ func TestValidateDelete(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			v := NewValidator(WithValidateDeletionFns(tc.fns...))
-			warn, err := v.ValidateDelete(context.TODO(), tc.args.obj)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+
+			warn, err := v.ValidateDelete(context.TODO(), tc.obj)
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nValidateDelete(...): -want error, +got error\n%s\n", tc.reason, diff)
 			}
-			if diff := cmp.Diff(tc.want.warnings, warn, cmpopts.EquateEmpty()); diff != "" {
+
+			if diff := cmp.Diff(tc.warnings, warn, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("\n%s\nValidateDelete(...): -want warnings, +got warnings\n%s\n", tc.reason, diff)
 			}
 		})

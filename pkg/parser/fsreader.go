@@ -62,6 +62,7 @@ func SkipDirs() FilterFn {
 		if info.IsDir() {
 			return true, nil
 		}
+
 		return false, nil
 	}
 }
@@ -79,6 +80,7 @@ func SkipNotYAML() FilterFn {
 		if filepath.Ext(path) != ".yaml" && filepath.Ext(path) != ".yml" {
 			return true, nil
 		}
+
 		return false, nil
 	}
 }
@@ -92,18 +94,23 @@ func NewFsReadCloser(fs afero.Fs, dir string, fns ...FilterFn) (*FsReadCloser, e
 		if err != nil {
 			return err
 		}
+
 		for _, fn := range fns {
 			filter, err := fn(path, info)
 			if err != nil {
 				return err
 			}
+
 			if filter {
 				return nil
 			}
 		}
+
 		paths = append(paths, path)
+
 		return nil
 	})
+
 	return &FsReadCloser{
 		fs:         fs,
 		dir:        dir,
@@ -121,24 +128,31 @@ func (r *FsReadCloser) Read(p []byte) (n int, err error) {
 		r.position = 0
 		r.wroteBreak = false
 		n = copy(p, "\n---\n")
+
 		return n, nil
 	}
+
 	if r.index == len(r.paths) {
 		return 0, io.EOF
 	}
+
 	if r.writeBreak {
 		n = copy(p, "\n...\n")
 		r.writeBreak = false
 		r.wroteBreak = true
+
 		return n, nil
 	}
+
 	b, err := afero.ReadFile(r.fs, r.paths[r.index])
 	n = copy(p, b[r.position:])
+
 	r.position += n
 	if errors.Is(err, io.EOF) || n == 0 {
 		r.writeBreak = true
 		err = nil
 	}
+
 	return n, err
 }
 
@@ -155,6 +169,7 @@ func (r *FsReadCloser) Annotate() any {
 	if index == len(r.paths) {
 		index--
 	}
+
 	return FsReadCloserAnnotation{
 		path:     r.paths[index],
 		position: r.position,

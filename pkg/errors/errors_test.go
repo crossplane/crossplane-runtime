@@ -29,6 +29,7 @@ func TestWrap(t *testing.T) {
 		err     error
 		message string
 	}
+
 	cases := map[string]struct {
 		args args
 		want error
@@ -65,6 +66,7 @@ func TestWrapf(t *testing.T) {
 		message string
 		args    []any
 	}
+
 	cases := map[string]struct {
 		args args
 		want error

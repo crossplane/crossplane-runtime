@@ -44,6 +44,7 @@ func IsNotFound(err error) bool {
 	_, ok := cause.(interface {
 		IsNotFound() bool
 	})
+
 	return ok
 }
 
@@ -100,6 +101,7 @@ func (p *Paved) UnstructuredContent() map[string]any {
 	if p.object == nil {
 		return make(map[string]any)
 	}
+
 	return p.object
 }
 
@@ -115,18 +117,22 @@ func (p *Paved) getValue(s Segments) (any, error) {
 func getValueFromInterface(it any, s Segments) (any, error) {
 	for i, current := range s {
 		final := i == len(s)-1
+
 		switch current.Type {
 		case SegmentIndex:
 			array, ok := it.([]any)
 			if !ok {
 				return nil, errors.Errorf("%s: not an array", s[:i])
 			}
+
 			if current.Index >= uint(len(array)) {
 				return nil, notFoundError{errors.Errorf("%s: no such element", s[:i+1])}
 			}
+
 			if final {
 				return array[current.Index], nil
 			}
+
 			it = array[current.Index]
 		case SegmentField:
 			switch object := it.(type) {
@@ -135,9 +141,11 @@ func getValueFromInterface(it any, s Segments) (any, error) {
 				if !ok {
 					return nil, notFoundError{errors.Errorf("%s: no such field", s[:i+1])}
 				}
+
 				if final {
 					return v, nil
 				}
+
 				it = object[current.Field]
 			case nil:
 				return nil, notFoundError{errors.Errorf("%s: expected map, got nil", s[:i])}
@@ -165,14 +173,17 @@ func (p *Paved) ExpandWildcards(path string) ([]string, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot parse path %q", path)
 	}
+
 	segmentsArray, err := expandWildcards(p.object, segments)
 	if err != nil {
 		return nil, errors.Wrapf(err, "cannot expand wildcards for segments: %q", segments)
 	}
+
 	paths := make([]string, len(segmentsArray))
 	for i, s := range segmentsArray {
 		paths[i] = s.String()
 	}
+
 	return paths, nil
 }
 
@@ -180,7 +191,9 @@ func expandWildcards(data any, segments Segments) ([]Segments, error) { //nolint
 	// Even complexity turns out to be high, it is mostly because we have duplicate
 	// logic for arrays and maps and a couple of error handling.
 	var res []Segments
+
 	it := data
+
 	for i, current := range segments {
 		// wildcards are regular fields with "*" as string
 		if current.Type == SegmentField && current.Field == wildcard {
@@ -190,10 +203,12 @@ func expandWildcards(data any, segments Segments) ([]Segments, error) { //nolint
 					expanded := make(Segments, len(segments))
 					copy(expanded, segments)
 					expanded = append(append(expanded[:i], FieldOrIndex(strconv.Itoa(ix))), expanded[i+1:]...)
+
 					r, err := expandWildcards(data, expanded)
 					if err != nil {
 						return nil, errors.Wrapf(err, "%q: cannot expand wildcards", expanded)
 					}
+
 					res = append(res, r...)
 				}
 			case map[string]any:
@@ -201,10 +216,12 @@ func expandWildcards(data any, segments Segments) ([]Segments, error) { //nolint
 					expanded := make(Segments, len(segments))
 					copy(expanded, segments)
 					expanded = append(append(expanded[:i], Field(k)), expanded[i+1:]...)
+
 					r, err := expandWildcards(data, expanded)
 					if err != nil {
 						return nil, errors.Wrapf(err, "%q: cannot expand wildcards", expanded)
 					}
+
 					res = append(res, r...)
 				}
 			case nil:
@@ -212,17 +229,22 @@ func expandWildcards(data any, segments Segments) ([]Segments, error) { //nolint
 			default:
 				return nil, errors.Errorf("%q: unexpected wildcard usage", segments[:i])
 			}
+
 			return res, nil
 		}
+
 		var err error
+
 		it, err = getValueFromInterface(data, segments[:i+1])
 		if IsNotFound(err) {
 			return nil, nil
 		}
+
 		if err != nil {
 			return nil, err
 		}
 	}
+
 	return append(res, segments), nil
 }
 
@@ -242,10 +264,12 @@ func (p *Paved) GetValueInto(path string, out any) error {
 	if err != nil {
 		return err
 	}
+
 	js, err := json.Marshal(val)
 	if err != nil {
 		return errors.Wrap(err, "cannot marshal value to JSON")
 	}
+
 	return errors.Wrap(json.Unmarshal(js, out), "cannot unmarshal value from JSON")
 }
 
@@ -260,6 +284,7 @@ func (p *Paved) GetString(path string) (string, error) {
 	if !ok {
 		return "", errors.Errorf("%s: not a string", path)
 	}
+
 	return s, nil
 }
 
@@ -281,6 +306,7 @@ func (p *Paved) GetStringArray(path string) ([]string, error) {
 		if !ok {
 			return nil, errors.Errorf("%s: not an array of strings", path)
 		}
+
 		sa[i] = s
 	}
 
@@ -305,6 +331,7 @@ func (p *Paved) GetStringObject(path string) (map[string]string, error) {
 		if !ok {
 			return nil, errors.Errorf("%s: not an object with string field values", path)
 		}
+
 		so[k] = s
 	}
 
@@ -322,6 +349,7 @@ func (p *Paved) GetBool(path string) (bool, error) {
 	if !ok {
 		return false, errors.Errorf("%s: not a bool", path)
 	}
+
 	return b, nil
 }
 
@@ -336,6 +364,7 @@ func (p *Paved) GetInteger(path string) (int64, error) {
 	if !ok {
 		return 0, errors.Errorf("%s: not a (int64) number", path)
 	}
+
 	return f, nil
 }
 
@@ -354,6 +383,7 @@ func (p *Paved) setValue(s Segments, value any) error {
 	}
 
 	var in any = p.object
+
 	for i, current := range s {
 		final := i == len(s)-1
 
@@ -393,13 +423,16 @@ func (p *Paved) setValue(s Segments, value any) error {
 
 func toValidJSON(value any) (any, error) {
 	var v any
+
 	j, err := json.Marshal(value)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot marshal value to JSON")
 	}
+
 	if err := json.Unmarshal(j, &v); err != nil {
 		return nil, errors.Wrap(err, "cannot unmarshal value from JSON")
 	}
+
 	return v, nil
 }
 
@@ -413,6 +446,7 @@ func prepareElement(array []any, current, next Segment) {
 		case SegmentField:
 			array[current.Index] = make(map[string]any)
 		}
+
 		return
 	}
 
@@ -444,6 +478,7 @@ func prepareField(object map[string]any, current, next Segment) {
 		case SegmentField:
 			object[current.Field] = make(map[string]any)
 		}
+
 		return
 	}
 
@@ -471,6 +506,7 @@ func (p *Paved) SetValue(path string, value any) error {
 	if err != nil {
 		return errors.Wrapf(err, "cannot parse path %q", path)
 	}
+
 	return p.setValue(segments, value)
 }
 
@@ -478,11 +514,13 @@ func (p *Paved) validateSegments(s Segments) error {
 	if !p.maxFieldPathIndexEnabled() {
 		return nil
 	}
+
 	for _, segment := range s {
 		if segment.Type == SegmentIndex && segment.Index > p.maxFieldPathIndex {
 			return errors.Errorf("index %v is greater than max allowed index %d", segment.Index, p.maxFieldPathIndex)
 		}
 	}
+
 	return nil
 }
 
@@ -511,6 +549,7 @@ func (p *Paved) DeleteField(path string) error {
 	if err != nil {
 		return errors.Wrapf(err, "cannot parse path %q", path)
 	}
+
 	return p.delete(segments)
 }
 
@@ -522,10 +561,14 @@ func (p *Paved) delete(segments Segments) error { //nolint:gocognit // See note 
 		if err != nil {
 			return errors.Wrapf(err, "cannot delete %s", segments)
 		}
+
 		p.object = o.(map[string]any) //nolint:forcetypeassert // We're deleting from the root of the paved object, which is always a map[string]any.
+
 		return nil
 	}
+
 	var in any = p.object
+
 	for i, current := range segments {
 		// beforeLast is true for the element before the last one because
 		// slices cannot be changed in place and Go does not allow
@@ -535,6 +578,7 @@ func (p *Paved) delete(segments Segments) error { //nolint:gocognit // See note 
 		// until the element before the last one as opposed to
 		// Set/Get functions in this file.
 		beforeLast := i == len(segments)-2
+
 		switch current.Type {
 		case SegmentIndex:
 			array, ok := in.([]any)
@@ -552,7 +596,9 @@ func (p *Paved) delete(segments Segments) error { //nolint:gocognit // See note 
 				if err != nil {
 					return errors.Wrapf(err, "cannot delete %s", segments)
 				}
+
 				array[current.Index] = o
+
 				return nil
 			}
 
@@ -573,13 +619,16 @@ func (p *Paved) delete(segments Segments) error { //nolint:gocognit // See note 
 				if err != nil {
 					return errors.Wrapf(err, "cannot delete %s", segments)
 				}
+
 				object[current.Field] = o
+
 				return nil
 			}
 
 			in = object[current.Field]
 		}
 	}
+
 	return nil
 }
 
@@ -593,20 +642,26 @@ func deleteField(obj any, s Segment) (any, error) {
 		if !ok {
 			return nil, errors.New("not an array")
 		}
+
 		if len(array) == 0 || uint(len(array)) <= s.Index {
 			return array, nil
 		}
+
 		for i := s.Index; i < uint(len(array))-1; i++ {
 			array[i] = array[i+1]
 		}
+
 		return array[:len(array)-1], nil
 	case SegmentField:
 		object, ok := obj.(map[string]any)
 		if !ok {
 			return nil, errors.New("not an object")
 		}
+
 		delete(object, s.Field)
+
 		return object, nil
 	}
+
 	return nil, nil
 }

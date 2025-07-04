@@ -36,9 +36,11 @@ func TestDefault(t *testing.T) {
 		obj runtime.Object
 		fns []MutateFn
 	}
+
 	type want struct {
 		err error
 	}
+
 	cases := map[string]struct {
 		reason string
 		args
@@ -71,8 +73,9 @@ func TestDefault(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			v := NewMutator(WithMutationFns(tc.fns...))
-			err := v.Default(context.TODO(), tc.args.obj)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+
+			err := v.Default(context.TODO(), tc.obj)
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nDefault(...): -want, +got\n%s\n", tc.reason, diff)
 			}
 		})

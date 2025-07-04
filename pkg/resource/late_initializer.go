@@ -52,7 +52,9 @@ func (li *LateInitializer) LateInitializeStringPtr(org *string, from *string) *s
 	if org != nil || from == nil {
 		return org
 	}
+
 	li.SetChanged()
+
 	return from
 }
 
@@ -61,7 +63,9 @@ func (li *LateInitializer) LateInitializeInt64Ptr(org *int64, from *int64) *int6
 	if org != nil || from == nil {
 		return org
 	}
+
 	li.SetChanged()
+
 	return from
 }
 
@@ -70,7 +74,9 @@ func (li *LateInitializer) LateInitializeBoolPtr(org *bool, from *bool) *bool {
 	if org != nil || from == nil {
 		return org
 	}
+
 	li.SetChanged()
+
 	return from
 }
 
@@ -80,7 +86,10 @@ func (li *LateInitializer) LateInitializeTimePtr(org *metav1.Time, from *time.Ti
 	if org != nil || from == nil {
 		return org
 	}
+
 	li.SetChanged()
+
 	t := metav1.NewTime(*from)
+
 	return &t
 }

@@ -83,10 +83,12 @@ func buildClient(ctx context.Context, local client.Client, cfg v1.SecretStoreCon
 	if err != nil {
 		return nil, errors.Wrap(err, errExtractKubernetesAuthCreds)
 	}
+
 	config, err := clientcmd.RESTConfigFromKubeConfig(kfg)
 	if err != nil {
 		return nil, errors.Wrap(err, errBuildRestConfig)
 	}
+
 	return client.New(config, client.Options{})
 }
 
@@ -96,12 +98,14 @@ func (ss *SecretStore) ReadKeyValues(ctx context.Context, n store.ScopedName, s 
 	if err := ss.client.Get(ctx, types.NamespacedName{Name: n.Name, Namespace: ss.namespaceForSecret(n)}, ks); resource.IgnoreNotFound(err) != nil {
 		return errors.Wrap(err, errGetSecret)
 	}
+
 	s.Data = ks.Data
 	s.Metadata = &v1.ConnectionSecretMetadata{
 		Labels:      ks.Labels,
 		Annotations: ks.Annotations,
 		Type:        &ks.Type,
 	}
+
 	return nil
 }
 
@@ -118,6 +122,7 @@ func (ss *SecretStore) WriteKeyValues(ctx context.Context, s *store.Secret, wo .
 
 	if s.Metadata != nil {
 		ks.Labels = s.Metadata.Labels
+
 		ks.Annotations = s.Metadata.Annotations
 		if s.Metadata.Type != nil {
 			ks.Type = *s.Metadata.Type
@@ -136,9 +141,11 @@ func (ss *SecretStore) WriteKeyValues(ctx context.Context, s *store.Secret, wo .
 		// The update was not allowed because it was a no-op.
 		return false, nil
 	}
+
 	if err != nil {
 		return false, errors.Wrap(err, errApplySecret)
 	}
+
 	return true, nil
 }
 
@@ -156,11 +163,13 @@ func (ss *SecretStore) DeleteKeyValues(ctx context.Context, s *store.Secret, do 
 	// deletion, I opted for unifying both instead of adding conditional logic
 	// like add owner references if not remote and not call delete etc.
 	ks := &corev1.Secret{}
+
 	err := ss.client.Get(ctx, types.NamespacedName{Name: s.Name, Namespace: ss.namespaceForSecret(s.ScopedName)}, ks)
 	if kerrors.IsNotFound(err) {
 		// Secret already deleted, nothing to do.
 		return nil
 	}
+
 	if err != nil {
 		return errors.Wrap(err, errGetSecret)
 	}
@@ -175,6 +184,7 @@ func (ss *SecretStore) DeleteKeyValues(ctx context.Context, s *store.Secret, do 
 	for k := range s.Data {
 		delete(ks.Data, k)
 	}
+
 	if len(s.Data) == 0 || len(ks.Data) == 0 {
 		// Secret is deleted only if:
 		// - No kv to delete specified as input
@@ -189,6 +199,7 @@ func (ss *SecretStore) namespaceForSecret(n store.ScopedName) string {
 	if n.Scope == "" {
 		return ss.defaultNamespace
 	}
+
 	return n.Scope
 }
 
@@ -244,6 +255,7 @@ func applyOptions(wo ...store.WriteOption) []resource.ApplyOption {
 
 			desiredSecret.Data = ds.Data
 			desiredSecret.Labels = ds.Metadata.Labels
+
 			desiredSecret.Annotations = ds.Metadata.Annotations
 			if ds.Metadata.Type != nil {
 				desiredSecret.Type = *ds.Metadata.Type
@@ -252,5 +264,6 @@ func applyOptions(wo ...store.WriteOption) []resource.ApplyOption {
 			return nil
 		}
 	}
+
 	return ao
 }

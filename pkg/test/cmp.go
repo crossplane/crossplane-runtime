@@ -40,6 +40,7 @@ func EquateErrors() cmp.Option {
 		}
 
 		av := reflect.ValueOf(a)
+
 		bv := reflect.ValueOf(b)
 		if av.Type() != bv.Type() {
 			return false

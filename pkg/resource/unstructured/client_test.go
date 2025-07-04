@@ -79,6 +79,7 @@ func TestGet(t *testing.T) {
 		key client.ObjectKey
 		obj client.Object
 	}
+
 	cases := map[string]struct {
 		c    client.Client
 		args args
@@ -107,6 +108,7 @@ func TestGet(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			c := NewClient(tc.c)
+
 			got := c.Get(tc.args.ctx, tc.args.key, tc.args.obj)
 			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\nc.Get(...): -want error, +got error:\n %s", diff)
@@ -120,6 +122,7 @@ func TestList(t *testing.T) {
 		ctx context.Context
 		obj client.ObjectList
 	}
+
 	cases := map[string]struct {
 		c    client.Client
 		args args
@@ -150,6 +153,7 @@ func TestList(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			c := NewClient(tc.c)
+
 			got := c.List(tc.args.ctx, tc.args.obj)
 			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\nc.List(...): -want error, +got error:\n %s", diff)
@@ -163,6 +167,7 @@ func TestCreate(t *testing.T) {
 		ctx context.Context
 		obj client.Object
 	}
+
 	cases := map[string]struct {
 		c    client.Client
 		args args
@@ -191,6 +196,7 @@ func TestCreate(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			c := NewClient(tc.c)
+
 			got := c.Create(tc.args.ctx, tc.args.obj)
 			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\nc.Create(...): -want error, +got error:\n %s", diff)
@@ -204,6 +210,7 @@ func TestDelete(t *testing.T) {
 		ctx context.Context
 		obj client.Object
 	}
+
 	cases := map[string]struct {
 		c    client.Client
 		args args
@@ -232,6 +239,7 @@ func TestDelete(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			c := NewClient(tc.c)
+
 			got := c.Delete(tc.args.ctx, tc.args.obj)
 			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\nc.Delete(...): -want error, +got error:\n %s", diff)
@@ -245,6 +253,7 @@ func TestUpdate(t *testing.T) {
 		ctx context.Context
 		obj client.Object
 	}
+
 	cases := map[string]struct {
 		c    client.Client
 		args args
@@ -273,6 +282,7 @@ func TestUpdate(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			c := NewClient(tc.c)
+
 			got := c.Update(tc.args.ctx, tc.args.obj)
 			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\nc.Update(...): -want error, +got error:\n %s", diff)
@@ -287,6 +297,7 @@ func TestPatch(t *testing.T) {
 		obj   client.Object
 		patch client.Patch
 	}
+
 	cases := map[string]struct {
 		c    client.Client
 		args args
@@ -315,6 +326,7 @@ func TestPatch(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			c := NewClient(tc.c)
+
 			got := c.Patch(tc.args.ctx, tc.args.obj, tc.args.patch)
 			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\nc.Patch(...): -want error, +got error:\n %s", diff)
@@ -328,6 +340,7 @@ func TestDeleteAllOf(t *testing.T) {
 		ctx context.Context
 		obj client.Object
 	}
+
 	cases := map[string]struct {
 		c    client.Client
 		args args
@@ -356,6 +369,7 @@ func TestDeleteAllOf(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			c := NewClient(tc.c)
+
 			got := c.DeleteAllOf(tc.args.ctx, tc.args.obj)
 			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\nc.DeleteAllOf(...): -want error, +got error:\n %s", diff)
@@ -370,6 +384,7 @@ func TestStatusCreate(t *testing.T) {
 		obj client.Object
 		sub client.Object
 	}
+
 	cases := map[string]struct {
 		c    client.Client
 		args args
@@ -398,6 +413,7 @@ func TestStatusCreate(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			c := NewClient(tc.c)
+
 			got := c.Status().Create(tc.args.ctx, tc.args.obj, tc.args.sub)
 			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\nc.Status().Create(...): -want error, +got error:\n %s", diff)
@@ -411,6 +427,7 @@ func TestStatusUpdate(t *testing.T) {
 		ctx context.Context
 		obj client.Object
 	}
+
 	cases := map[string]struct {
 		c    client.Client
 		args args
@@ -439,6 +456,7 @@ func TestStatusUpdate(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			c := NewClient(tc.c)
+
 			got := c.Status().Update(tc.args.ctx, tc.args.obj)
 			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\nc.Status().Update(...): -want error, +got error:\n %s", diff)
@@ -453,6 +471,7 @@ func TestStatusPatch(t *testing.T) {
 		obj   client.Object
 		patch client.Patch
 	}
+
 	cases := map[string]struct {
 		c    client.Client
 		args args
@@ -481,6 +500,7 @@ func TestStatusPatch(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			c := NewClient(tc.c)
+
 			got := c.Status().Patch(tc.args.ctx, tc.args.obj, tc.args.patch)
 			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\nc.StatusPatch(...): -want error, +got error:\n %s", diff)

@@ -36,6 +36,7 @@ func TestMergeValue(t *testing.T) {
 		valSrc2  = "e1-from-source-2"
 		valDst   = "e1-from-destination"
 	)
+
 	formatArr := func(arr []string) string {
 		return fmt.Sprintf(`{"%s": ["%s"]}`, pathTest, strings.Join(arr, `", "`))
 	}
@@ -59,15 +60,18 @@ func TestMergeValue(t *testing.T) {
 	type fields struct {
 		object map[string]any
 	}
+
 	type args struct {
 		path  string
 		value any
 		mo    *xpv1.MergeOptions
 	}
+
 	type want struct {
 		serialized string
 		err        error
 	}
+
 	tests := map[string]struct {
 		reason string
 		fields fields
@@ -199,11 +203,13 @@ func TestMergeValue(t *testing.T) {
 			p := &Paved{
 				object: tc.fields.object,
 			}
+
 			err := p.MergeValue(tc.args.path, tc.args.value, tc.args.mo)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Fatalf("\np.MergeValue(%s, %v): %s: -want error, +got error:\n%s",
 					tc.args.path, tc.args.value, tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(want, p.object); diff != "" {
 				t.Fatalf("\np.MergeValue(%s, %v): %s: -want, +got:\n%s",
 					tc.args.path, tc.args.value, tc.reason, diff)

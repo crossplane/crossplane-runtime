@@ -68,7 +68,7 @@ const (
 // See https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties
 
 // A Condition that may apply to a resource.
-type Condition struct {
+type Condition struct { //nolint:recvcheck // False positive - only has non-pointer methods AFAICT.
 	// Type of this condition. At most one of each condition type may apply to
 	// a resource at any point in time.
 	Type ConditionType `json:"type"`
@@ -126,6 +126,7 @@ func IsSystemConditionType(t ConditionType) bool {
 	case TypeReady, TypeSynced, TypeHealthy:
 		return true
 	}
+
 	return false
 }
 
@@ -150,6 +151,7 @@ type ConditionedStatus struct {
 func NewConditionedStatus(c ...Condition) *ConditionedStatus {
 	s := &ConditionedStatus{}
 	s.SetConditions(c...)
+
 	return s
 }
 
@@ -171,6 +173,7 @@ func (s *ConditionedStatus) GetCondition(ct ConditionType) Condition {
 func (s *ConditionedStatus) SetConditions(c ...Condition) {
 	for _, cond := range c {
 		exists := false
+
 		for i, existing := range s.Conditions {
 			if existing.Type != cond.Type {
 				continue
@@ -184,6 +187,7 @@ func (s *ConditionedStatus) SetConditions(c ...Condition) {
 			s.Conditions[i] = cond
 			exists = true
 		}
+
 		if !exists {
 			s.Conditions = append(s.Conditions, cond)
 		}

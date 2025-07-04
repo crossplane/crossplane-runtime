@@ -34,9 +34,11 @@ func TestDesiredStateChanged(t *testing.T) {
 		old client.Object
 		new client.Object
 	}
+
 	type want struct {
 		desiredStateChanged bool
 	}
+
 	cases := map[string]struct {
 		args
 		want
@@ -142,11 +144,11 @@ func TestDesiredStateChanged(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			got := DesiredStateChanged().Update(event.UpdateEvent{
-				ObjectOld: tc.args.old,
-				ObjectNew: tc.args.new,
+				ObjectOld: tc.old,
+				ObjectNew: tc.new,
 			})
 
-			if diff := cmp.Diff(tc.want.desiredStateChanged, got); diff != "" {
+			if diff := cmp.Diff(tc.desiredStateChanged, got); diff != "" {
 				t.Errorf("DesiredStateChanged(...): -want, +got:\n%s", diff)
 			}
 		})

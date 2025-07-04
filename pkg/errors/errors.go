@@ -85,6 +85,7 @@ func WithMessage(err error, message string) error {
 	if err == nil {
 		return nil
 	}
+
 	return fmt.Errorf("%s: %w", message, err)
 }
 
@@ -94,6 +95,7 @@ func WithMessagef(err error, format string, args ...any) error {
 	if err == nil {
 		return nil
 	}
+
 	return fmt.Errorf("%s: %w", fmt.Sprintf(format, args...), err)
 }
 
@@ -120,6 +122,7 @@ func Cause(err error) error {
 		if !ok {
 			return err
 		}
+
 		err = w.Unwrap()
 	}
 
@@ -146,6 +149,7 @@ func Join(errs ...error) MultiError {
 	if err == nil {
 		return nil
 	}
+
 	return multiError{aggregate: err}
 }
 

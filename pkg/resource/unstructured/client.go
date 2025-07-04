@@ -59,6 +59,7 @@ func (c *WrapperClient) Get(ctx context.Context, key client.ObjectKey, obj clien
 	if u, ok := obj.(Wrapper); ok {
 		return c.kube.Get(ctx, key, u.GetUnstructured(), opts...)
 	}
+
 	return c.kube.Get(ctx, key, obj, opts...)
 }
 
@@ -69,6 +70,7 @@ func (c *WrapperClient) List(ctx context.Context, list client.ObjectList, opts .
 	if u, ok := list.(ListWrapper); ok {
 		return c.kube.List(ctx, u.GetUnstructuredList(), opts...)
 	}
+
 	return c.kube.List(ctx, list, opts...)
 }
 
@@ -77,6 +79,7 @@ func (c *WrapperClient) Create(ctx context.Context, obj client.Object, opts ...c
 	if u, ok := obj.(Wrapper); ok {
 		return c.kube.Create(ctx, u.GetUnstructured(), opts...)
 	}
+
 	return c.kube.Create(ctx, obj, opts...)
 }
 
@@ -85,6 +88,7 @@ func (c *WrapperClient) Delete(ctx context.Context, obj client.Object, opts ...c
 	if u, ok := obj.(Wrapper); ok {
 		return c.kube.Delete(ctx, u.GetUnstructured(), opts...)
 	}
+
 	return c.kube.Delete(ctx, obj, opts...)
 }
 
@@ -94,6 +98,7 @@ func (c *WrapperClient) Update(ctx context.Context, obj client.Object, opts ...c
 	if u, ok := obj.(Wrapper); ok {
 		return c.kube.Update(ctx, u.GetUnstructured(), opts...)
 	}
+
 	return c.kube.Update(ctx, obj, opts...)
 }
 
@@ -103,6 +108,7 @@ func (c *WrapperClient) Patch(ctx context.Context, obj client.Object, patch clie
 	if u, ok := obj.(Wrapper); ok {
 		return c.kube.Patch(ctx, u.GetUnstructured(), patch, opts...)
 	}
+
 	return c.kube.Patch(ctx, obj, patch, opts...)
 }
 
@@ -111,6 +117,7 @@ func (c *WrapperClient) DeleteAllOf(ctx context.Context, obj client.Object, opts
 	if u, ok := obj.(Wrapper); ok {
 		return c.kube.DeleteAllOf(ctx, u.GetUnstructured(), opts...)
 	}
+
 	return c.kube.DeleteAllOf(ctx, obj, opts...)
 }
 
@@ -142,6 +149,7 @@ func (c *WrapperClient) GroupVersionKindFor(obj runtime.Object) (schema.GroupVer
 	if u, ok := obj.(Wrapper); ok {
 		return c.kube.GroupVersionKindFor(u.GetUnstructured())
 	}
+
 	return c.kube.GroupVersionKindFor(obj)
 }
 
@@ -150,6 +158,7 @@ func (c *WrapperClient) IsObjectNamespaced(obj runtime.Object) (bool, error) {
 	if u, ok := obj.(Wrapper); ok {
 		return c.kube.IsObjectNamespaced(u.GetUnstructured())
 	}
+
 	return c.kube.IsObjectNamespaced(obj)
 }
 
@@ -165,6 +174,7 @@ func (c *wrapperStatusClient) Create(ctx context.Context, obj, subResource clien
 	if u, ok := obj.(Wrapper); ok {
 		return c.kube.Create(ctx, u.GetUnstructured(), subResource, opts...)
 	}
+
 	return c.kube.Create(ctx, obj, subResource, opts...)
 }
 
@@ -175,6 +185,7 @@ func (c *wrapperStatusClient) Update(ctx context.Context, obj client.Object, opt
 	if u, ok := obj.(Wrapper); ok {
 		return c.kube.Update(ctx, u.GetUnstructured(), opts...)
 	}
+
 	return c.kube.Update(ctx, obj, opts...)
 }
 
@@ -185,5 +196,6 @@ func (c *wrapperStatusClient) Patch(ctx context.Context, obj client.Object, patc
 	if u, ok := obj.(Wrapper); ok {
 		return c.kube.Patch(ctx, u.GetUnstructured(), patch, opts...)
 	}
+
 	return c.kube.Patch(ctx, obj, patch, opts...)
 }

@@ -57,6 +57,7 @@ func merge(dst, src any, mergeOptions *xpv1.MergeOptions) (any, error) {
 	// because mergo currently supports merging only maps or structs,
 	// we wrap the argument to be passed to mergo.Merge in a map.
 	const keyArg = "arg"
+
 	argWrap := func(arg any) map[string]any {
 		return map[string]any{
 			keyArg: arg,
@@ -77,6 +78,7 @@ func merge(dst, src any, mergeOptions *xpv1.MergeOptions) (any, error) {
 	if err := mergo.Merge(&mDst, argWrap(src), mergeOptions.MergoConfiguration()...); err != nil {
 		return nil, errors.Wrap(err, errInvalidMerge)
 	}
+
 	return mDst[keyArg], nil
 }
 
@@ -85,9 +87,11 @@ func removeSourceDuplicates(dst, src any) any {
 	if sliceDst.Kind() == reflect.Ptr {
 		sliceDst = sliceDst.Elem()
 	}
+
 	if sliceSrc.Kind() == reflect.Ptr {
 		sliceSrc = sliceSrc.Elem()
 	}
+
 	if sliceDst.Kind() != reflect.Slice || sliceSrc.Kind() != reflect.Slice {
 		return src
 	}
@@ -95,6 +99,7 @@ func removeSourceDuplicates(dst, src any) any {
 	result := reflect.New(sliceSrc.Type()).Elem() // we will not modify src
 	for i := range sliceSrc.Len() {
 		itemSrc := sliceSrc.Index(i)
+
 		found := false
 		for j := 0; j < sliceDst.Len() && !found; j++ {
 			// if src item is found in the dst array
@@ -102,10 +107,12 @@ func removeSourceDuplicates(dst, src any) any {
 				found = true
 			}
 		}
+
 		if !found {
 			// then put src item into result
 			result = reflect.Append(result, itemSrc)
 		}
 	}
+
 	return result.Interface()
 }

@@ -82,6 +82,7 @@ func (sg Segments) String() string {
 				b.WriteString(fmt.Sprintf("[%s]", s.Field))
 				continue
 			}
+
 			b.WriteString(fmt.Sprintf(".%s", s.Field))
 		case SegmentIndex:
 			b.WriteString(fmt.Sprintf("[%d]", s.Index))
@@ -120,6 +121,7 @@ func Parse(path string) (Segments, error) {
 	go l.run()
 
 	segments := make(Segments, 0, 1)
+
 	for i := range l.items {
 		switch i.typ { //nolint:exhaustive // We're only worried about names, not separators.
 		case itemField:
@@ -130,6 +132,7 @@ func Parse(path string) (Segments, error) {
 			return nil, errors.Errorf("%s at position %d", i.val, i.pos)
 		}
 	}
+
 	return segments, nil
 }
 
@@ -174,6 +177,7 @@ func (l *lexer) run() {
 	for state := lexField; state != nil; {
 		state = state(l)
 	}
+
 	close(l.items)
 }
 
@@ -182,7 +186,9 @@ func (l *lexer) emit(t itemType) {
 	if l.pos <= l.start {
 		return
 	}
+
 	l.items <- item{typ: t, pos: l.start, val: l.input[l.start:l.pos]}
+
 	l.start = l.pos
 }
 
@@ -202,12 +208,14 @@ func lexField(l *lexer) stateFn {
 		case leftBracket:
 			l.pos += i
 			l.emit(itemField)
+
 			return lexLeftBracket
 
 		// A period indicates the end of the field name.
 		case period:
 			l.pos += i
 			l.emit(itemField)
+
 			return lexPeriod
 		}
 	}
@@ -216,6 +224,7 @@ func lexField(l *lexer) stateFn {
 	l.pos = len(l.input)
 	l.emit(itemField)
 	l.emit(itemEOL)
+
 	return nil
 }
 
@@ -234,6 +243,7 @@ func lexPeriod(l *lexer) stateFn {
 	if r == period {
 		return l.errorf(l.pos, "unexpected %q", period)
 	}
+
 	if r == leftBracket {
 		return l.errorf(l.pos, "unexpected %q", leftBracket)
 	}
@@ -249,6 +259,7 @@ func lexLeftBracket(l *lexer) stateFn {
 
 	l.pos += utf8.RuneLen(leftBracket)
 	l.emit(itemLeftBracket)
+
 	return lexFieldOrIndex
 }
 
@@ -272,11 +283,13 @@ func lexFieldOrIndex(l *lexer) stateFn {
 	// Periods are not considered field separators when we're inside brackets.
 	l.pos += rbi
 	l.emit(itemFieldOrIndex)
+
 	return lexRightBracket
 }
 
 func lexRightBracket(l *lexer) stateFn {
 	l.pos += utf8.RuneLen(rightBracket)
 	l.emit(itemRightBracket)
+
 	return lexField
 }

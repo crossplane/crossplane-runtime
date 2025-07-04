@@ -43,6 +43,7 @@ type ScopedName struct {
 // A Secret is an entity representing a set of sensitive Key Values.
 type Secret struct {
 	ScopedName
+
 	Metadata *v1.ConnectionSecretMetadata
 	Data     KeyValues
 }
@@ -53,11 +54,14 @@ func NewSecret(so SecretOwner, data KeyValues) *Secret {
 	if so.GetPublishConnectionDetailsTo() == nil {
 		return nil
 	}
+
 	p := so.GetPublishConnectionDetailsTo()
 	if p.Metadata == nil {
 		p.Metadata = &v1.ConnectionSecretMetadata{}
 	}
+
 	p.Metadata.SetOwnerUID(so.GetUID())
+
 	return &Secret{
 		ScopedName: ScopedName{
 			Name:  p.Name,
@@ -73,6 +77,7 @@ func (s *Secret) GetOwner() string {
 	if s.Metadata == nil {
 		return ""
 	}
+
 	return s.Metadata.GetOwnerUID()
 }
 
@@ -81,6 +86,7 @@ func (s *Secret) GetLabels() map[string]string {
 	if s.Metadata == nil {
 		return nil
 	}
+
 	return s.Metadata.Labels
 }
 

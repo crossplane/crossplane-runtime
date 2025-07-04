@@ -68,5 +68,6 @@ func (c *observedGenerationPropagationConditionSet) MarkConditions(condition ...
 	for i := range condition {
 		condition[i].ObservedGeneration = c.o.GetGeneration()
 	}
+
 	c.o.SetConditions(condition...)
 }

@@ -51,6 +51,7 @@ func FromPtrValue(v *string) string {
 	if v == nil {
 		return ""
 	}
+
 	return *v
 }
 
@@ -59,6 +60,7 @@ func FromFloatPtrValue(v *float64) string {
 	if v == nil {
 		return ""
 	}
+
 	return strconv.FormatFloat(*v, 'f', 0, 64)
 }
 
@@ -67,6 +69,7 @@ func FromIntPtrValue(v *int64) string {
 	if v == nil {
 		return ""
 	}
+
 	return strconv.FormatInt(*v, 10)
 }
 
@@ -75,6 +78,7 @@ func ToPtrValue(v string) *string {
 	if v == "" {
 		return nil
 	}
+
 	return &v
 }
 
@@ -83,10 +87,12 @@ func ToFloatPtrValue(v string) *float64 {
 	if v == "" {
 		return nil
 	}
+
 	vParsed, err := strconv.ParseFloat(v, 64)
 	if err != nil {
 		return nil
 	}
+
 	return &vParsed
 }
 
@@ -95,10 +101,12 @@ func ToIntPtrValue(v string) *int64 {
 	if v == "" {
 		return nil
 	}
+
 	vParsed, err := strconv.ParseInt(v, 10, 64)
 	if err != nil {
 		return nil
 	}
+
 	return &vParsed
 }
 
@@ -112,6 +120,7 @@ func FromPtrValues(v []*string) []string {
 	for i := range v {
 		res[i] = FromPtrValue(v[i])
 	}
+
 	return res
 }
 
@@ -121,6 +130,7 @@ func FromFloatPtrValues(v []*float64) []string {
 	for i := range v {
 		res[i] = FromFloatPtrValue(v[i])
 	}
+
 	return res
 }
 
@@ -130,6 +140,7 @@ func FromIntPtrValues(v []*int64) []string {
 	for i := range v {
 		res[i] = FromIntPtrValue(v[i])
 	}
+
 	return res
 }
 
@@ -143,6 +154,7 @@ func ToPtrValues(v []string) []*string {
 	for i := range v {
 		res[i] = ToPtrValue(v[i])
 	}
+
 	return res
 }
 
@@ -152,6 +164,7 @@ func ToFloatPtrValues(v []string) []*float64 {
 	for i := range v {
 		res[i] = ToFloatPtrValue(v[i])
 	}
+
 	return res
 }
 
@@ -161,6 +174,7 @@ func ToIntPtrValues(v []string) []*int64 {
 	for i := range v {
 		res[i] = ToIntPtrValue(v[i])
 	}
+
 	return res
 }
 
@@ -197,6 +211,7 @@ type ResolutionRequest struct {
 // processed.
 func (rr *ResolutionRequest) IsNoOp() bool {
 	isAlways := false
+
 	if rr.Selector != nil {
 		if rr.Selector.Policy.IsResolvePolicyAlways() {
 			rr.Reference = nil
@@ -252,6 +267,7 @@ type MultiResolutionRequest struct {
 // not be processed.
 func (rr *MultiResolutionRequest) IsNoOp() bool {
 	isAlways := false
+
 	if rr.Selector != nil {
 		if rr.Selector.Policy.IsResolvePolicyAlways() {
 			rr.References = nil
@@ -331,10 +347,12 @@ func (r *APIResolver) Resolve(ctx context.Context, req ResolutionRequest) (Resol
 			if kerrors.IsNotFound(err) {
 				return ResolutionResponse{}, getResolutionError(req.Reference.Policy, errors.Wrap(err, errGetManaged))
 			}
+
 			return ResolutionResponse{}, errors.Wrap(err, errGetManaged)
 		}
 
 		rsp := ResolutionResponse{ResolvedValue: req.Extract(req.To.Managed), ResolvedReference: req.Reference}
+
 		return rsp, getResolutionError(req.Reference.Policy, rsp.Validate())
 	}
 
@@ -350,6 +368,7 @@ func (r *APIResolver) Resolve(ctx context.Context, req ResolutionRequest) (Resol
 		}
 
 		rsp := ResolutionResponse{ResolvedValue: req.Extract(to), ResolvedReference: &xpv1.Reference{Name: to.GetName()}}
+
 		return rsp, getResolutionError(req.Selector.Policy, rsp.Validate())
 	}
 
@@ -375,14 +394,17 @@ func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRe
 				if kerrors.IsNotFound(err) {
 					return MultiResolutionResponse{}, getResolutionError(req.References[i].Policy, errors.Wrap(err, errGetManaged))
 				}
+
 				return MultiResolutionResponse{}, errors.Wrap(err, errGetManaged)
 			}
+
 			valueMap[req.Extract(req.To.Managed)] = req.References[i]
 		}
 
 		sortedKeys, sortedRefs := sortMapByKeys(valueMap)
 
 		rsp := MultiResolutionResponse{ResolvedValues: sortedKeys, ResolvedReferences: sortedRefs}
+
 		return rsp, rsp.Validate()
 	}
 
@@ -403,6 +425,7 @@ func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRe
 	sortedKeys, sortedRefs := sortMapByKeys(valueMap)
 
 	rsp := MultiResolutionResponse{ResolvedValues: sortedKeys, ResolvedReferences: sortedRefs}
+
 	return rsp, getResolutionError(req.Selector.Policy, rsp.Validate())
 }
 
@@ -410,15 +433,18 @@ func getResolutionError(p *xpv1.Policy, err error) error {
 	if !p.IsResolutionPolicyOptional() {
 		return err
 	}
+
 	return nil
 }
 
 func sortMapByKeys(m map[string]xpv1.Reference) ([]string, []xpv1.Reference) {
 	keys := slices.Sorted(maps.Keys(m))
+
 	values := make([]xpv1.Reference, 0, len(keys))
 	for _, k := range keys {
 		values = append(values, m[k])
 	}
+
 	return keys, values
 }
 
@@ -429,5 +455,6 @@ func ControllersMustMatch(s *xpv1.Selector) bool {
 	if s == nil {
 		return false
 	}
+
 	return s.MatchControllerRef != nil && *s.MatchControllerRef
 }

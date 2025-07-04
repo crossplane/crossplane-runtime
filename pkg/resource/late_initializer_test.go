@@ -27,14 +27,17 @@ import (
 func TestLateInitializeStringPtr(t *testing.T) {
 	s1 := "desired"
 	s2 := "observed"
+
 	type args struct {
 		org  *string
 		from *string
 	}
+
 	type want struct {
 		result  *string
 		changed bool
 	}
+
 	cases := map[string]struct {
 		args
 		want
@@ -74,11 +77,13 @@ func TestLateInitializeStringPtr(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			li := NewLateInitializer()
+
 			got := li.LateInitializeStringPtr(tc.org, tc.from)
-			if diff := cmp.Diff(tc.want.result, got); diff != "" {
+			if diff := cmp.Diff(tc.result, got); diff != "" {
 				t.Errorf("LateInitializeStringPtr(...): -want, +got:\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.want.changed, li.IsChanged()); diff != "" {
+
+			if diff := cmp.Diff(tc.changed, li.IsChanged()); diff != "" {
 				t.Errorf("IsChanged(...): -want, +got:\n%s", diff)
 			}
 		})
@@ -88,14 +93,17 @@ func TestLateInitializeStringPtr(t *testing.T) {
 func TestLateInitializeInt64Ptr(t *testing.T) {
 	i1 := int64(10)
 	i2 := int64(20)
+
 	type args struct {
 		org  *int64
 		from *int64
 	}
+
 	type want struct {
 		result  *int64
 		changed bool
 	}
+
 	cases := map[string]struct {
 		args
 		want
@@ -135,11 +143,13 @@ func TestLateInitializeInt64Ptr(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			li := NewLateInitializer()
+
 			got := li.LateInitializeInt64Ptr(tc.org, tc.from)
-			if diff := cmp.Diff(tc.want.result, got); diff != "" {
+			if diff := cmp.Diff(tc.result, got); diff != "" {
 				t.Errorf("LateInitializeBoolPtr(...): -want, +got:\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.want.changed, li.IsChanged()); diff != "" {
+
+			if diff := cmp.Diff(tc.changed, li.IsChanged()); diff != "" {
 				t.Errorf("IsChanged(...): -want, +got:\n%s", diff)
 			}
 		})
@@ -149,14 +159,17 @@ func TestLateInitializeInt64Ptr(t *testing.T) {
 func TestLateInitializeBoolPtr(t *testing.T) {
 	trueVal := true
 	falseVal := false
+
 	type args struct {
 		org  *bool
 		from *bool
 	}
+
 	type want struct {
 		result  *bool
 		changed bool
 	}
+
 	cases := map[string]struct {
 		args
 		want
@@ -196,11 +209,13 @@ func TestLateInitializeBoolPtr(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			li := NewLateInitializer()
+
 			got := li.LateInitializeBoolPtr(tc.org, tc.from)
-			if diff := cmp.Diff(tc.want.result, got); diff != "" {
+			if diff := cmp.Diff(tc.result, got); diff != "" {
 				t.Errorf("LateInitializeBoolPtr(...): -want, +got:\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.want.changed, li.IsChanged()); diff != "" {
+
+			if diff := cmp.Diff(tc.changed, li.IsChanged()); diff != "" {
 				t.Errorf("IsChanged(...): -want, +got:\n%s", diff)
 			}
 		})
@@ -211,14 +226,17 @@ func TestLateInitializeTimePtr(t *testing.T) {
 	t1 := metav1.Now()
 	t2 := time.Now().Add(time.Minute)
 	t2m := metav1.NewTime(t2)
+
 	type args struct {
 		org  *metav1.Time
 		from *time.Time
 	}
+
 	type want struct {
 		result  *metav1.Time
 		changed bool
 	}
+
 	cases := map[string]struct {
 		args
 		want
@@ -258,11 +276,13 @@ func TestLateInitializeTimePtr(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			li := NewLateInitializer()
+
 			got := li.LateInitializeTimePtr(tc.org, tc.from)
-			if diff := cmp.Diff(tc.want.result, got); diff != "" {
+			if diff := cmp.Diff(tc.result, got); diff != "" {
 				t.Errorf("LateInitializeTimePtr(...): -want, +got:\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.want.changed, li.IsChanged()); diff != "" {
+
+			if diff := cmp.Diff(tc.changed, li.IsChanged()); diff != "" {
 				t.Errorf("IsChanged(...): -want, +got:\n%s", diff)
 			}
 		})

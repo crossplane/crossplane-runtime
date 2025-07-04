@@ -299,6 +299,7 @@ func TestParse(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Fatalf("\nParse(%s): %s: -want error, +got error:\n%s", tc.path, tc.reason, diff)
 			}
+
 			if diff := cmp.Diff(tc.want.s, got); diff != "" {
 				t.Errorf("\nParse(%s): %s: -want, +got:\n%s", tc.path, tc.reason, diff)
 			}

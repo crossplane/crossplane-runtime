@@ -53,6 +53,7 @@ type SecretStore struct {
 // NewSecretStore returns a new External SecretStore.
 func NewSecretStore(_ context.Context, kube client.Client, tcfg *tls.Config, cfg v1.SecretStoreConfig) (*SecretStore, error) {
 	creds := credentials.NewTLS(tcfg)
+
 	conn, err := grpc.NewClient(cfg.Plugin.Endpoint, grpc.WithTransportCredentials(creds))
 	if err != nil {
 		return nil, errors.Wrapf(err, errFmtCannotDial, cfg.Plugin.Endpoint)
@@ -81,6 +82,7 @@ func (ss *SecretStore) ReadKeyValues(ctx context.Context, n store.ScopedName, s 
 	}
 
 	respSecretData := respSecret.GetData()
+
 	s.Data = make(map[string][]byte, len(respSecretData))
 	for d := range respSecretData {
 		s.Data[d] = respSecretData[d]
@@ -89,6 +91,7 @@ func (ss *SecretStore) ReadKeyValues(ctx context.Context, n store.ScopedName, s 
 	respSecretMetadata := respSecret.GetMetadata()
 	if len(respSecretMetadata) != 0 {
 		s.Metadata = new(v1.ConnectionSecretMetadata)
+
 		s.Metadata.Labels = make(map[string]string, len(respSecretMetadata))
 		for k, v := range respSecretMetadata {
 			s.Metadata.Labels[k] = v
@@ -102,6 +105,7 @@ func (ss *SecretStore) ReadKeyValues(ctx context.Context, n store.ScopedName, s 
 func (ss *SecretStore) WriteKeyValues(ctx context.Context, s *store.Secret, _ ...store.WriteOption) (changed bool, err error) {
 	sec := &essproto.Secret{}
 	sec.ScopedName = ss.getScopedName(s.ScopedName)
+
 	sec.Data = make(map[string][]byte, len(s.Data))
 	for k, v := range s.Data {
 		sec.Data[k] = v
@@ -141,5 +145,6 @@ func (ss *SecretStore) getScopedName(n store.ScopedName) string {
 	if n.Scope == "" {
 		n.Scope = ss.defaultScope
 	}
+
 	return filepath.Join(n.Scope, n.Name)
 }

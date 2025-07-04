@@ -116,10 +116,12 @@ func (r *MRMetricRecorder) recordFirstTimeReconciled(managed resource.Managed) {
 
 func (r *MRMetricRecorder) recordDrift(managed resource.Managed) {
 	name := managed.GetName()
+
 	last, ok := r.lastObservation.Load(name)
 	if !ok {
 		return
 	}
+
 	lt, ok := last.(time.Time)
 	if !ok {
 		return
@@ -142,6 +144,7 @@ func (r *MRMetricRecorder) recordFirstTimeReady(managed resource.Managed) {
 		if !ok {
 			return
 		}
+
 		r.mrFirstTimeReady.With(getLabels(managed)).Observe(time.Since(managed.GetCreationTimestamp().Time).Seconds())
 		r.firstObservation.Delete(managed.GetName())
 	}
