@@ -1207,6 +1207,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
+	// Set the status back to its original value before the AddFinalizer call.
+	// The AddFinalizer call may overwrite the managed object with what is
+	// currently in the kube API which would make us lose information that may
+	// have been populated by the Observe call.
+	managed.SetStatus(managedPreOp.GetStatus())
 
 	if !observation.ResourceExists && policy.ShouldCreate() {
 		// We write this annotation for two reasons. Firstly, it helps

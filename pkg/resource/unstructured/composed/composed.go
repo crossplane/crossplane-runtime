@@ -91,6 +91,20 @@ func (cr *Unstructured) SetConditions(c ...xpv1.Condition) {
 	_ = fieldpath.Pave(cr.Object).SetValue("status.conditions", conditioned.Conditions)
 }
 
+// GetStatus of this Composed resource.
+func (cr *Unstructured) GetStatus() xpv1.Status {
+	status := xpv1.Statused{}
+	if err := fieldpath.Pave(cr.Object).GetValueInto("status", &status); err != nil {
+		return xpv1.Status{}
+	}
+	return status.Status
+}
+
+// SetStatus of this Composed resource.
+func (cr *Unstructured) SetStatus(s xpv1.Status) {
+	_ = fieldpath.Pave(cr.Object).SetValue("status", s)
+}
+
 // GetWriteConnectionSecretToReference of this Composed resource.
 func (cr *Unstructured) GetWriteConnectionSecretToReference() *xpv1.SecretReference {
 	out := &xpv1.SecretReference{}
