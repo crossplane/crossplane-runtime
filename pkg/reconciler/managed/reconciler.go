@@ -68,6 +68,8 @@ const (
 	errRecordChangeLog          = "cannot record change log entry"
 
 	errExternalResourceNotExist = "external resource does not exist"
+
+	errManagedNotImplemented = "managed resource does not implement connection details"
 )
 
 // Event reasons.
@@ -173,6 +175,19 @@ func (fn ConnectionPublisherFns) PublishConnection(ctx context.Context, o resour
 // UnpublishConnection details for the supplied Managed resource.
 func (fn ConnectionPublisherFns) UnpublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) error {
 	return fn.UnpublishConnectionFn(ctx, o, c)
+}
+
+// A LocalConnectionPublisher manages the supplied ConnectionDetails for the
+// supplied Managed resource. ManagedPublishers must handle the case in which
+// the supplied ConnectionDetails are empty.
+type LocalConnectionPublisher interface {
+	// PublishConnection details for the supplied Managed resource. Publishing
+	// must be additive; i.e. if details (a, b, c) are published, subsequently
+	// publicing details (b, c, d) should update (b, c) but not remove a.
+	PublishConnection(ctx context.Context, lso resource.LocalConnectionSecretOwner, c ConnectionDetails) (published bool, err error)
+
+	// UnpublishConnection details for the supplied Managed resource.
+	UnpublishConnection(ctx context.Context, lso resource.LocalConnectionSecretOwner, c ConnectionDetails) error
 }
 
 // A ConnectionDetailsFetcher fetches connection details for the supplied
@@ -572,6 +587,7 @@ type mrManaged struct {
 	resource.Finalizer
 	Initializer
 	ReferenceResolver
+	LocalConnectionPublisher
 }
 
 func defaultMRManaged(m manager.Manager) mrManaged {
@@ -580,10 +596,30 @@ func defaultMRManaged(m manager.Manager) mrManaged {
 		Finalizer:                 resource.NewAPIFinalizer(m.GetClient(), FinalizerName),
 		Initializer:               NewNameAsExternalName(m.GetClient()),
 		ReferenceResolver:         NewAPISimpleReferenceResolver(m.GetClient()),
-		ConnectionPublisher: PublisherChain([]ConnectionPublisher{
-			NewAPISecretPublisher(m.GetClient(), m.GetScheme()),
-			&DisabledSecretStoreManager{},
-		}),
+		ConnectionPublisher:       NewAPISecretPublisher(m.GetClient(), m.GetScheme()),
+		LocalConnectionPublisher:  NewAPILocalSecretPublisher(m.GetClient(), m.GetScheme()),
+	}
+}
+
+func (m mrManaged) PublishConnection(ctx context.Context, managed resource.Managed, c ConnectionDetails) (bool, error) {
+	switch so := managed.(type) {
+	case resource.LocalConnectionSecretOwner:
+		return m.LocalConnectionPublisher.PublishConnection(ctx, so, c)
+	case resource.ConnectionSecretOwner:
+		return m.ConnectionPublisher.PublishConnection(ctx, so, c)
+	default:
+		return false, errors.New(errManagedNotImplemented)
+	}
+}
+
+func (m mrManaged) UnpublishConnection(ctx context.Context, managed resource.Managed, c ConnectionDetails) error {
+	switch so := managed.(type) {
+	case resource.LocalConnectionSecretOwner:
+		return m.LocalConnectionPublisher.UnpublishConnection(ctx, so, c)
+	case resource.ConnectionSecretOwner:
+		return m.ConnectionPublisher.UnpublishConnection(ctx, so, c)
+	default:
+		return errors.New(errManagedNotImplemented)
 	}
 }
 
@@ -702,6 +738,14 @@ func WithCriticalAnnotationUpdater(u CriticalAnnotationUpdater) ReconcilerOption
 func WithConnectionPublishers(p ...ConnectionPublisher) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.managed.ConnectionPublisher = PublisherChain(p)
+	}
+}
+
+// WithLocalConnectionPublishers specifies how the Reconciler should publish
+// its connection details such as credentials and endpoints.
+func WithLocalConnectionPublishers(p ...LocalConnectionPublisher) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.managed.LocalConnectionPublisher = LocalPublisherChain(p)
 	}
 }
 
@@ -861,7 +905,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 	// Create the management policy resolver which will assist us in determining
 	// what actions to take on the managed resource based on the management
 	// and deletion policies.
-	policy := NewManagementPoliciesResolver(managementPoliciesEnabled, managed.GetManagementPolicies(), managed.GetDeletionPolicy(), WithSupportedManagementPolicies(r.supportedManagementPolicies))
+	var policy ManagementPoliciesChecker
+
+	switch mg := managed.(type) {
+	case resource.LegacyManaged:
+		policy = NewLegacyManagementPoliciesResolver(managementPoliciesEnabled, mg.GetManagementPolicies(), mg.GetDeletionPolicy(), WithSupportedManagementPolicies(r.supportedManagementPolicies))
+	default:
+		policy = NewManagementPoliciesResolver(managementPoliciesEnabled, managed.GetManagementPolicies(), WithSupportedManagementPolicies(r.supportedManagementPolicies))
+	}
 
 	// Check if the resource has paused reconciliation based on the
 	// annotation or the management policies.

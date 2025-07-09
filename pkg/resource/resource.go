@@ -51,6 +51,8 @@ const (
 	ExternalResourceTagKeyName     = "crossplane-name"
 	ExternalResourceTagKeyProvider = "crossplane-providerconfig"
 
+	ExternalResourceTagKeyProviderConfigKind = "crossplane-providerconfig-kind"
+
 	errMarshalJSON            = "cannot marshal to JSON"
 	errUnmarshalJSON          = "cannot unmarshal JSON data"
 	errStructFromUnstructured = "cannot create Struct"
@@ -78,7 +80,6 @@ type ConnectionSecretOwner interface {
 	Object
 
 	ConnectionSecretWriterTo
-	ConnectionDetailsPublisherTo
 }
 
 // A LocalConnectionSecretOwner may create and manage a connection secret in its
@@ -88,7 +89,6 @@ type LocalConnectionSecretOwner interface {
 	metav1.Object
 
 	LocalConnectionSecretWriterTo
-	ConnectionDetailsPublisherTo
 }
 
 // LocalConnectionSecretFor creates a connection secret in the namespace of the
@@ -415,8 +415,21 @@ func GetExternalTags(mg Managed) map[string]string {
 		ExternalResourceTagKeyName: mg.GetName(),
 	}
 
-	if mg.GetProviderConfigReference() != nil && mg.GetProviderConfigReference().Name != "" {
-		tags[ExternalResourceTagKeyProvider] = mg.GetProviderConfigReference().Name
+	switch mg := mg.(type) {
+	case TypedProviderConfigReferencer:
+		if pcRef := mg.GetProviderConfigReference(); pcRef != nil {
+			if pcRef.Name != "" {
+				tags[ExternalResourceTagKeyProvider] = pcRef.Name
+			}
+
+			if pcRef.Kind != "" {
+				tags[ExternalResourceTagKeyProviderConfigKind] = pcRef.Kind
+			}
+		}
+	case ProviderConfigReferencer:
+		if pcRef := mg.GetProviderConfigReference(); pcRef != nil && pcRef.Name != "" {
+			tags[ExternalResourceTagKeyProvider] = pcRef.Name
+		}
 	}
 
 	return tags
