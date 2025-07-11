@@ -317,43 +317,6 @@ func TestReconcile(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"NilGateSkipsReconciliation": {
-			reason: "Should skip reconciliation when gate is nil",
-			fields: fields{
-				gate: nil,
-			},
-			args: args{
-				ctx: context.Background(),
-				crd: &apiextensionsv1.CustomResourceDefinition{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "testresources.example.com",
-					},
-					Spec: apiextensionsv1.CustomResourceDefinitionSpec{
-						Group: "example.com",
-						Names: apiextensionsv1.CustomResourceDefinitionNames{
-							Kind: "TestResource",
-						},
-						Versions: []apiextensionsv1.CustomResourceDefinitionVersion{
-							{Name: "v1", Served: true},
-						},
-					},
-					Status: apiextensionsv1.CustomResourceDefinitionStatus{
-						Conditions: []apiextensionsv1.CustomResourceDefinitionCondition{
-							{
-								Type:   apiextensionsv1.Established,
-								Status: apiextensionsv1.ConditionTrue,
-							},
-						},
-					},
-				},
-			},
-			want: want{
-				result:     ctrl.Result{},
-				err:        nil,
-				trueCalls:  []schema.GroupVersionKind{},
-				falseCalls: []schema.GroupVersionKind{},
-			},
-		},
 		"EstablishedCRDCallsGateTrue": {
 			reason: "Should call gate.True for all GVKs when CRD is established",
 			fields: fields{

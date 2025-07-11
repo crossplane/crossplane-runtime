@@ -17,6 +17,9 @@ limitations under the License.
 package customresourcesgate
 
 import (
+	"errors"
+	"reflect"
+
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -27,6 +30,10 @@ import (
 // Setup adds a controller that reconciles CustomResourceDefinitions to support delayed start of controllers.
 // o.Gate is expected to be something like *gate.Gate[schema.GroupVersionKind].
 func Setup(mgr ctrl.Manager, o controller.Options) error {
+	if o.Gate == nil || reflect.ValueOf(o.Gate).IsNil() {
+		return errors.New("gate is required")
+	}
+
 	r := &Reconciler{
 		log:  o.Logger,
 		gate: o.Gate,

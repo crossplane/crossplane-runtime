@@ -20,8 +20,6 @@ package customresourcesgate
 
 import (
 	"context"
-	"reflect"
-
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -39,12 +37,6 @@ type Reconciler struct {
 
 // Reconcile reconciles CustomResourceDefinitions and reports ready and unready GVKs to the gate.
 func (r *Reconciler) Reconcile(_ context.Context, crd *apiextensionsv1.CustomResourceDefinition) (ctrl.Result, error) {
-	// If there is no gate, then we don't need to do work.
-	if r.gate == nil || reflect.ValueOf(r.gate).IsNil() {
-		r.log.Debug("Gate is not set, skipping reconciliation")
-		return ctrl.Result{}, nil
-	}
-
 	established := isEstablished(crd)
 	gkvs := toGVKs(crd)
 
