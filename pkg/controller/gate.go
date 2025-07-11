@@ -9,8 +9,7 @@ type Gate interface {
 	// Register to call a callback function when all given GVKs are marked true. If the callback is unblocked, the
 	// registration is removed.
 	Register(callback func(), gvks ...schema.GroupVersionKind)
-	// True marks a given gvk true, and then looks for unlocked callbacks. Returns if there was an update or not.
-	True(gvk schema.GroupVersionKind) bool
-	// False marks a given gvk false. Returns if there was an update or not.
-	False(gkv schema.GroupVersionKind) bool
+	// Set marks the associated condition to the given value. If the condition is already set as
+	// that value, then this is a no-op. Returns true if there was an update detected.
+	Set(gvk schema.GroupVersionKind, ready bool) bool
 }

@@ -18,6 +18,8 @@ package customresourcesgate
 
 import (
 	"context"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -271,23 +273,20 @@ func NewMockGate() *MockGate {
 	}
 }
 
-func (m *MockGate) True(gvk schema.GroupVersionKind) bool {
-	if m.TrueCalls == nil {
-		m.TrueCalls = make([]schema.GroupVersionKind, 0)
+func (m *MockGate) Set(gvk schema.GroupVersionKind, value bool) bool {
+	if value {
+		if m.TrueCalls == nil {
+			m.TrueCalls = make([]schema.GroupVersionKind, 0)
+		}
+
+		m.TrueCalls = append(m.TrueCalls, gvk)
+	} else {
+		if m.FalseCalls == nil {
+			m.FalseCalls = make([]schema.GroupVersionKind, 0)
+		}
+
+		m.FalseCalls = append(m.FalseCalls, gvk)
 	}
-
-	m.TrueCalls = append(m.TrueCalls, gvk)
-
-	return true
-}
-
-func (m *MockGate) False(gvk schema.GroupVersionKind) bool {
-	if m.FalseCalls == nil {
-		m.FalseCalls = make([]schema.GroupVersionKind, 0)
-	}
-
-	m.FalseCalls = append(m.FalseCalls, gvk)
-
 	return true
 }
 
@@ -570,10 +569,22 @@ func TestReconcile(t *testing.T) {
 
 			// Only check gate calls if gate is not nil
 			if tc.fields.gate != nil {
+				slices.SortFunc(tc.want.trueCalls, func(a, b schema.GroupVersionKind) int {
+					return strings.Compare(a.Kind, b.Kind)
+				})
+				slices.SortFunc(tc.fields.gate.TrueCalls, func(a, b schema.GroupVersionKind) int {
+					return strings.Compare(a.Kind, b.Kind)
+				})
 				if diff := cmp.Diff(tc.want.trueCalls, tc.fields.gate.TrueCalls); diff != "" {
 					t.Errorf("\n%s\ngate.True calls: -want, +got:\n%s", tc.reason, diff)
 				}
 
+				slices.SortFunc(tc.want.falseCalls, func(a, b schema.GroupVersionKind) int {
+					return strings.Compare(a.Kind, b.Kind)
+				})
+				slices.SortFunc(tc.fields.gate.FalseCalls, func(a, b schema.GroupVersionKind) int {
+					return strings.Compare(a.Kind, b.Kind)
+				})
 				if diff := cmp.Diff(tc.want.falseCalls, tc.fields.gate.FalseCalls); diff != "" {
 					t.Errorf("\n%s\ngate.False calls: -want, +got:\n%s", tc.reason, diff)
 				}

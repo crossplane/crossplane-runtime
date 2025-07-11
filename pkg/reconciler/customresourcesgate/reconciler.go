@@ -37,8 +37,6 @@ type Reconciler struct {
 	gate controller.Gate
 }
 
-// +kubebuilder:rbac:groups=apiextensions.k8s.io,resources=customresourcedefinitions,verbs=get;list;watch
-
 // Reconcile reconciles CustomResourceDefinitions and reports ready and unready GVKs to the gate.
 func (r *Reconciler) Reconcile(_ context.Context, crd *apiextensionsv1.CustomResourceDefinition) (ctrl.Result, error) {
 	// If there is no gate, then we don't need to do work.
@@ -55,7 +53,7 @@ func (r *Reconciler) Reconcile(_ context.Context, crd *apiextensionsv1.CustomRes
 	case !established || !crd.GetDeletionTimestamp().IsZero():
 		for gvk := range gkvs {
 			r.log.Debug("gvk is not ready", "gvk", gvk)
-			r.gate.False(gvk)
+			r.gate.Set(gvk, false)
 		}
 
 		return ctrl.Result{}, nil
@@ -65,7 +63,7 @@ func (r *Reconciler) Reconcile(_ context.Context, crd *apiextensionsv1.CustomRes
 		for gvk, served := range gkvs {
 			if served {
 				r.log.Debug("gvk is ready", "gvk", gvk)
-				r.gate.True(gvk)
+				r.gate.Set(gvk, true)
 			}
 		}
 	}

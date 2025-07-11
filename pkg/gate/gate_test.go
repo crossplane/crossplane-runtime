@@ -108,7 +108,7 @@ func TestGate_Integration(t *testing.T) {
 				}, "condition1")
 
 				// Set condition to true (will be initialized as false first)
-				g.True("condition1")
+				g.Set("condition1", true)
 				return called
 			},
 			want: want{
@@ -124,8 +124,8 @@ func TestGate_Integration(t *testing.T) {
 				}, "condition1", "condition2")
 
 				// Set both conditions to true
-				g.True("condition1")
-				g.True("condition2")
+				g.Set("condition1", true)
+				g.Set("condition2", true)
 				return called
 			},
 			want: want{
@@ -141,7 +141,7 @@ func TestGate_Integration(t *testing.T) {
 				}, "condition1", "condition2")
 
 				// Set only one condition to true
-				g.True("condition1")
+				g.Set("condition1", true)
 				return called
 			},
 			want: want{
@@ -153,8 +153,8 @@ func TestGate_Integration(t *testing.T) {
 			setup: func(g *gate.Gate[string]) chan bool {
 				called := make(chan bool, 1)
 
-				g.True("condition1")
-				g.True("condition2")
+				g.Set("condition1", true)
+				g.Set("condition2", true)
 
 				g.Register(func() {
 					called <- true
@@ -175,8 +175,8 @@ func TestGate_Integration(t *testing.T) {
 				}, "condition1")
 
 				// Set condition to true then false (function already called when true)
-				g.True("condition1")
-				g.False("condition1")
+				g.Set("condition1", true)
+				g.Set("condition1", false)
 				return called
 			},
 			want: want{
@@ -192,9 +192,9 @@ func TestGate_Integration(t *testing.T) {
 				}, "condition1")
 
 				// Set condition multiple times
-				g.True("condition1")
-				g.False("condition1")
-				g.True("condition1")
+				g.Set("condition1", true)
+				g.Set("condition1", false)
+				g.Set("condition1", true)
 				return called
 			},
 			want: want{
@@ -259,7 +259,7 @@ func TestGate_Concurrency(t *testing.T) {
 	wg.Wait()
 
 	// Set condition to true once
-	g.True("shared-condition")
+	g.Set("shared-condition", true)
 
 	// Give some time for goroutines to execute
 	time.Sleep(100 * time.Millisecond)
@@ -286,9 +286,9 @@ func TestGate_TypeSafety(t *testing.T) {
 		called = true
 	}, 1, 2, 3)
 
-	intGate.True(1)
-	intGate.True(2)
-	intGate.True(3)
+	intGate.Set(1, true)
+	intGate.Set(2, true)
+	intGate.Set(3, true)
 
 	// Give some time for goroutine to execute
 	time.Sleep(10 * time.Millisecond)
