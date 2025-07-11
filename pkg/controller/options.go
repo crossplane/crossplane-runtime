@@ -69,6 +69,9 @@ type Options struct {
 
 	// ChangeLogOptions for recording change logs.
 	ChangeLogOptions *ChangeLogOptions
+
+	// Gate implements a gated function callback pattern.
+	Gate Gate
 }
 
 // ForControllerRuntime extracts options for controller-runtime.
