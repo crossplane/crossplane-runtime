@@ -24,9 +24,9 @@ import (
 
 // Gate implements a gated function callback registration with comparable conditions.
 type Gate[T comparable] struct {
-	mux        sync.RWMutex
-	conditions map[T]bool
-	fns        []gated[T]
+	mux       sync.RWMutex
+	satisfied map[T]bool
+	fns       []gated[T]
 }
 
 // gated is an internal tracking resource.
@@ -55,16 +55,16 @@ func (g *Gate[T]) Register(fn func(), depends ...T) {
 func (g *Gate[T]) Set(condition T, value bool) bool {
 	g.mux.Lock()
 
-	if g.conditions == nil {
-		g.conditions = make(map[T]bool)
+	if g.satisfied == nil {
+		g.satisfied = make(map[T]bool)
 	}
 
-	old, found := g.conditions[condition]
+	old, found := g.satisfied[condition]
 
 	updated := false
 	if !found || old != value {
 		updated = true
-		g.conditions[condition] = value
+		g.satisfied[condition] = value
 	}
 	// process() would also like to lock the mux, so we must unlock here directly and not use defer.
 	g.mux.Unlock()
@@ -85,7 +85,7 @@ func (g *Gate[T]) process() {
 		release := true
 
 		for _, dep := range g.fns[i].depends {
-			if !g.conditions[dep] {
+			if !g.satisfied[dep] {
 				release = false
 			}
 		}
