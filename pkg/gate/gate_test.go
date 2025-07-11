@@ -26,7 +26,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/gate"
 )
 
-func TestGate_Register(t *testing.T) {
+func TestGateRegister(t *testing.T) {
 	type args struct {
 		depends []string
 	}
@@ -89,7 +89,7 @@ func TestGate_Register(t *testing.T) {
 	}
 }
 
-func TestGate_Integration(t *testing.T) {
+func TestGateIntegration(t *testing.T) {
 	type want struct {
 		called bool
 	}
@@ -233,7 +233,7 @@ func TestGate_Integration(t *testing.T) {
 	}
 }
 
-func TestGate_Concurrency(t *testing.T) {
+func TestGateConcurrency(t *testing.T) {
 	g := new(gate.Gate[string])
 
 	const numGoroutines = 100
@@ -277,7 +277,7 @@ func TestGate_Concurrency(t *testing.T) {
 	}
 }
 
-func TestGate_TypeSafety(t *testing.T) {
+func TestGateTypeSafety(t *testing.T) {
 	intGate := new(gate.Gate[int])
 
 	called := false
