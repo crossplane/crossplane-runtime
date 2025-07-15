@@ -30,6 +30,12 @@ var (
 	_ Managed             = &fake.Managed{}
 	_ ProviderConfig      = &fake.ProviderConfig{}
 	_ ProviderConfigUsage = &fake.ProviderConfigUsage{}
+	_ ProviderConfigUsage = &fake.LegacyProviderConfigUsage{}
+
+	_ ModernManaged             = &fake.ModernManaged{}
+	_ TypedProviderConfigUsage  = &fake.ProviderConfigUsage{}
+	_ LegacyManaged             = &fake.LegacyManaged{}
+	_ LegacyProviderConfigUsage = &fake.LegacyProviderConfigUsage{}
 
 	_ CompositeClaim = &fake.CompositeClaim{}
 	_ Composite      = &fake.Composite{}

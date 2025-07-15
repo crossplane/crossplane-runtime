@@ -69,9 +69,9 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 			},
 			want: want{err: errors.Wrap(errBoom, errGetManaged)},
 		},
@@ -80,9 +80,9 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, ""))},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 			},
 			want: want{result: reconcile.Result{}},
 		},
@@ -92,13 +92,13 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							mg := asManaged(obj, 42)
+							mg := asLegacyManaged(obj, 42)
 							mg.SetDeletionTimestamp(&now)
 							mg.SetDeletionPolicy(xpv1.DeletionOrphan)
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetDeletionTimestamp(&now)
 							want.SetDeletionPolicy(xpv1.DeletionOrphan)
 							want.SetConditions(xpv1.Deleting().WithObservedGeneration(42))
@@ -110,11 +110,11 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
-					WithConnectionPublishers(ConnectionPublisherFns{
+					withConnectionPublishers(ConnectionPublisherFns{
 						UnpublishConnectionFn: func(_ context.Context, _ resource.ConnectionSecretOwner, _ ConnectionDetails) error { return errBoom },
 					}),
 				},
@@ -127,13 +127,13 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							mg := asManaged(obj, 42)
+							mg := asLegacyManaged(obj, 42)
 							mg.SetDeletionTimestamp(&now)
 							mg.SetDeletionPolicy(xpv1.DeletionOrphan)
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetDeletionTimestamp(&now)
 							want.SetDeletionPolicy(xpv1.DeletionOrphan)
 							want.SetConditions(xpv1.Deleting().WithObservedGeneration(42))
@@ -145,11 +145,10 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
-					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error { return errBoom }}),
 				},
 			},
@@ -161,17 +160,16 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							mg := asManaged(obj, 42)
+							mg := asLegacyManaged(obj, 42)
 							mg.SetDeletionTimestamp(&now)
 							mg.SetDeletionPolicy(xpv1.DeletionOrphan)
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
-					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
@@ -182,9 +180,9 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: managedMockGetFn(nil, 42),
+						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors initializing the managed resource should be reported as a conditioned status."
@@ -193,9 +191,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(InitializerFn(func(_ context.Context, _ resource.Managed) error {
 						return errBoom
@@ -210,12 +208,12 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							asManaged(obj, 42)
+							asLegacyManaged(obj, 42)
 							meta.SetExternalCreatePending(obj, now.Time)
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							meta.SetExternalCreatePending(want, now.Time)
 							want.SetConditions(
 								xpv1.Creating().WithObservedGeneration(42),
@@ -227,9 +225,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(InitializerFn(func(_ context.Context, _ resource.Managed) error { return nil })),
 				},
@@ -241,9 +239,9 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: managedMockGetFn(nil, 42),
+						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors during reference resolution should be reported as a conditioned status."
@@ -252,9 +250,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error {
@@ -269,9 +267,9 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: managedMockGetFn(nil, 42),
+						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, got client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileConnect)).WithObservedGeneration(42))
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 								reason := "Errors connecting to the provider should be reported as a conditioned status."
@@ -280,9 +278,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
@@ -297,9 +295,9 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: managedMockGetFn(nil, 42),
+						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful no-op reconcile should be reported as a conditioned status."
@@ -308,9 +306,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
@@ -325,7 +323,6 @@ func TestReconciler(t *testing.T) {
 						}
 						return c, nil
 					})),
-					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
@@ -336,9 +333,9 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: managedMockGetFn(nil, 42),
+						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileObserve)).WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors observing the managed resource should be reported as a conditioned status."
@@ -347,9 +344,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
@@ -377,9 +374,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithCreationGracePeriod(1 * time.Minute),
@@ -404,15 +401,13 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							mg := asManaged(obj, 42)
+							mg := asLegacyManaged(obj, 42)
 							mg.SetDeletionTimestamp(&now)
-							mg.SetDeletionPolicy(xpv1.DeletionDelete)
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetDeletionTimestamp(&now)
-							want.SetDeletionPolicy(xpv1.DeletionDelete)
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileDelete)).WithObservedGeneration(42))
 							want.SetConditions(xpv1.Deleting().WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -422,9 +417,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
@@ -452,15 +447,13 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							mg := asManaged(obj, 42)
+							mg := asLegacyManaged(obj, 42)
 							mg.SetDeletionTimestamp(&now)
-							mg.SetDeletionPolicy(xpv1.DeletionDelete)
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetDeletionTimestamp(&now)
-							want.SetDeletionPolicy(xpv1.DeletionDelete)
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
 							want.SetConditions(xpv1.Deleting().WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -470,9 +463,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
@@ -500,15 +493,13 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							mg := asManaged(obj, 42)
+							mg := asLegacyManaged(obj, 42)
 							mg.SetDeletionTimestamp(&now)
-							mg.SetDeletionPolicy(xpv1.DeletionDelete)
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetDeletionTimestamp(&now)
-							want.SetDeletionPolicy(xpv1.DeletionDelete)
 							want.SetConditions(xpv1.Deleting().WithObservedGeneration(42))
 							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -518,9 +509,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
@@ -535,7 +526,7 @@ func TestReconciler(t *testing.T) {
 						}
 						return c, nil
 					})),
-					WithConnectionPublishers(ConnectionPublisherFns{
+					withConnectionPublishers(ConnectionPublisherFns{
 						UnpublishConnectionFn: func(_ context.Context, _ resource.ConnectionSecretOwner, _ ConnectionDetails) error { return errBoom },
 					}),
 				},
@@ -548,15 +539,13 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							mg := asManaged(obj, 42)
+							mg := asLegacyManaged(obj, 42)
 							mg.SetDeletionTimestamp(&now)
-							mg.SetDeletionPolicy(xpv1.DeletionDelete)
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetDeletionTimestamp(&now)
-							want.SetDeletionPolicy(xpv1.DeletionDelete)
 							want.SetConditions(xpv1.Deleting().WithObservedGeneration(42))
 							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -566,9 +555,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
@@ -583,7 +572,6 @@ func TestReconciler(t *testing.T) {
 						}
 						return c, nil
 					})),
-					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error { return errBoom }}),
 				},
 			},
@@ -595,15 +583,14 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							mg := asManaged(obj, 42)
+							mg := asLegacyManaged(obj, 42)
 							mg.SetDeletionTimestamp(&now)
-							mg.SetDeletionPolicy(xpv1.DeletionDelete)
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
@@ -618,7 +605,6 @@ func TestReconciler(t *testing.T) {
 						}
 						return c, nil
 					})),
-					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
@@ -629,9 +615,9 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: managedMockGetFn(nil, 42),
+						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors publishing connection details after observation should be reported as a conditioned status."
@@ -640,14 +626,14 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
 					WithExternalConnector(&NopConnector{}),
-					WithConnectionPublishers(ConnectionPublisherFns{
+					withConnectionPublishers(ConnectionPublisherFns{
 						PublishConnectionFn: func(_ context.Context, _ resource.ConnectionSecretOwner, _ ConnectionDetails) (bool, error) {
 							return false, errBoom
 						},
@@ -661,9 +647,9 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: managedMockGetFn(nil, 42),
+						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors adding a finalizer should be reported as a conditioned status."
@@ -672,14 +658,13 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
 					WithExternalConnector(&NopConnector{}),
-					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return errBoom }}),
 				},
 			},
@@ -690,10 +675,10 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet:    managedMockGetFn(nil, 42),
+						MockGet:    legacyManagedMockGetFn(nil, 42),
 						MockUpdate: test.NewMockUpdateFn(errBoom),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							meta.SetExternalCreatePending(want, time.Now())
 							want.SetConditions(
 								xpv1.Creating().WithObservedGeneration(42),
@@ -705,9 +690,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
@@ -725,7 +710,6 @@ func TestReconciler(t *testing.T) {
 						}
 						return c, nil
 					})),
-					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
@@ -736,10 +720,10 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet:    managedMockGetFn(nil, 42),
+						MockGet:    legacyManagedMockGetFn(nil, 42),
 						MockUpdate: test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							meta.SetExternalCreatePending(want, time.Now())
 							meta.SetExternalCreateFailed(want, time.Now())
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileCreate)).WithObservedGeneration(42))
@@ -751,9 +735,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
@@ -774,7 +758,6 @@ func TestReconciler(t *testing.T) {
 					// We simulate our critical annotation update failing too here.
 					// This is mostly just to exercise the code, which just creates a log and an event.
 					WithCriticalAnnotationUpdater(CriticalAnnotationUpdateFn(func(_ context.Context, _ client.Object) error { return errBoom })),
-					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
@@ -785,10 +768,10 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet:    managedMockGetFn(nil, 42),
+						MockGet:    legacyManagedMockGetFn(nil, 42),
 						MockUpdate: test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							meta.SetExternalCreatePending(want, time.Now())
 							meta.SetExternalCreateSucceeded(want, time.Now())
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateManagedAnnotations)).WithObservedGeneration(42))
@@ -800,9 +783,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
@@ -831,10 +814,10 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet:    managedMockGetFn(nil, 42),
+						MockGet:    legacyManagedMockGetFn(nil, 42),
 						MockUpdate: test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							meta.SetExternalCreatePending(want, time.Now())
 							meta.SetExternalCreateSucceeded(want, time.Now())
 							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
@@ -846,9 +829,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
@@ -868,7 +851,7 @@ func TestReconciler(t *testing.T) {
 						return c, nil
 					})),
 					WithCriticalAnnotationUpdater(CriticalAnnotationUpdateFn(func(_ context.Context, _ client.Object) error { return nil })),
-					WithConnectionPublishers(ConnectionPublisherFns{
+					withConnectionPublishers(ConnectionPublisherFns{
 						PublishConnectionFn: func(_ context.Context, _ resource.ConnectionSecretOwner, cd ConnectionDetails) (bool, error) {
 							// We're called after observe, create, and update
 							// but we only want to fail when publishing details
@@ -889,30 +872,29 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet:    managedMockGetFn(nil, 42),
+						MockGet:    legacyManagedMockGetFn(nil, 42),
 						MockUpdate: test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							meta.SetExternalCreatePending(want, time.Now())
 							meta.SetExternalCreateSucceeded(want, time.Now())
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
 							want.SetConditions(xpv1.Creating().WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
-								reason := "Successful managed resource creation should be reported as a conditioned status."
+								reason := "Successful managed resource creation should be reported as a conditioned status." //nolint:goconst // used only in tests
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
 					WithExternalConnector(&NopConnector{}),
 					WithCriticalAnnotationUpdater(CriticalAnnotationUpdateFn(func(_ context.Context, _ client.Object) error { return nil })),
-					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
@@ -924,13 +906,13 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							asManaged(obj, 42)
+							asLegacyManaged(obj, 42)
 							meta.SetExternalCreatePending(obj, now.Time)
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							meta.SetExternalCreatePending(want, time.Now())
 							meta.SetExternalCreateSucceeded(want, time.Now())
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
@@ -942,15 +924,14 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
 					WithExternalConnector(&NopConnector{}),
 					WithCriticalAnnotationUpdater(CriticalAnnotationUpdateFn(func(_ context.Context, _ client.Object) error { return nil })),
-					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 					WithDeterministicExternalName(true),
 				},
@@ -962,10 +943,10 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet:    managedMockGetFn(nil, 42),
+						MockGet:    legacyManagedMockGetFn(nil, 42),
 						MockUpdate: test.NewMockUpdateFn(errBoom),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateManaged)).WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors updating a managed resource should be reported as a conditioned status."
@@ -974,9 +955,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
@@ -991,7 +972,6 @@ func TestReconciler(t *testing.T) {
 						}
 						return c, nil
 					})),
-					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
@@ -1002,9 +982,9 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: managedMockGetFn(nil, 42),
+						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful no-op reconcile should be reported as a conditioned status."
@@ -1013,9 +993,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
@@ -1030,7 +1010,6 @@ func TestReconciler(t *testing.T) {
 						}
 						return c, nil
 					})),
-					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
@@ -1041,14 +1020,14 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: managedMockGetFn(nil, 42),
+						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
@@ -1063,7 +1042,6 @@ func TestReconciler(t *testing.T) {
 						}
 						return c, nil
 					})),
-					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 					WithPollJitterHook(time.Second),
 				},
@@ -1084,14 +1062,14 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: managedMockGetFn(nil, 42),
+						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
@@ -1106,7 +1084,6 @@ func TestReconciler(t *testing.T) {
 						}
 						return c, nil
 					})),
-					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 					WithPollIntervalHook(func(_ resource.Managed, pollInterval time.Duration) time.Duration {
 						return 2 * pollInterval
@@ -1122,14 +1099,14 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: managedMockGetFn(nil, 42),
+						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
@@ -1144,7 +1121,6 @@ func TestReconciler(t *testing.T) {
 						}
 						return c, nil
 					})),
-					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 					WithPollJitterHook(time.Second),
 					WithPollIntervalHook(func(_ resource.Managed, pollInterval time.Duration) time.Duration {
@@ -1164,9 +1140,9 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: managedMockGetFn(nil, 42),
+						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileUpdate)).WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors while updating an external resource should be reported as a conditioned status."
@@ -1175,9 +1151,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
@@ -1195,7 +1171,6 @@ func TestReconciler(t *testing.T) {
 						}
 						return c, nil
 					})),
-					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
@@ -1206,9 +1181,9 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: managedMockGetFn(nil, 42),
+						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors publishing connection details after an update should be reported as a conditioned status."
@@ -1217,9 +1192,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
@@ -1238,7 +1213,7 @@ func TestReconciler(t *testing.T) {
 						}
 						return c, nil
 					})),
-					WithConnectionPublishers(ConnectionPublisherFns{
+					withConnectionPublishers(ConnectionPublisherFns{
 						PublishConnectionFn: func(_ context.Context, _ resource.ConnectionSecretOwner, cd ConnectionDetails) (bool, error) {
 							// We're called after observe, create, and update
 							// but we only want to fail when publishing details
@@ -1259,20 +1234,20 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: managedMockGetFn(nil, 42),
+						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
-								reason := "A successful managed resource update should be reported as a conditioned status."
+								reason := "A successful managed resource update should be reported as a conditioned status." //nolint:goconst // used only in tests
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
@@ -1290,7 +1265,6 @@ func TestReconciler(t *testing.T) {
 						}
 						return c, nil
 					})),
-					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
@@ -1301,9 +1275,9 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: managedMockGetFn(nil, 42),
+						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful managed resource update should be reported as a conditioned status."
@@ -1312,18 +1286,18 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					WithTypedExternalConnector(TypedExternalConnectorFn[*fake.Managed](func(_ context.Context, _ *fake.Managed) (TypedExternalClient[*fake.Managed], error) {
-						c := &TypedExternalClientFns[*fake.Managed]{
-							ObserveFn: func(_ context.Context, _ *fake.Managed) (ExternalObservation, error) {
+					WithTypedExternalConnector(TypedExternalConnectorFn[*fake.LegacyManaged](func(_ context.Context, _ *fake.LegacyManaged) (TypedExternalClient[*fake.LegacyManaged], error) {
+						c := &TypedExternalClientFns[*fake.LegacyManaged]{
+							ObserveFn: func(_ context.Context, _ *fake.LegacyManaged) (ExternalObservation, error) {
 								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false}, nil
 							},
-							UpdateFn: func(_ context.Context, _ *fake.Managed) (ExternalUpdate, error) {
+							UpdateFn: func(_ context.Context, _ *fake.LegacyManaged) (ExternalUpdate, error) {
 								return ExternalUpdate{}, nil
 							},
 							DisconnectFn: func(_ context.Context) error {
@@ -1332,7 +1306,6 @@ func TestReconciler(t *testing.T) {
 						}
 						return c, nil
 					})),
-					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
@@ -1346,12 +1319,12 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							mg := asManaged(obj, 42)
+							mg := asLegacyManaged(obj, 42)
 							mg.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
 							want.SetConditions(xpv1.ReconcilePaused().WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -1361,9 +1334,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 			},
 			want: want{result: reconcile.Result{}},
 		},
@@ -1373,12 +1346,12 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							mg := asManaged(obj, 42)
+							mg := asLegacyManaged(obj, 42)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{})
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{})
 							want.SetConditions(xpv1.ReconcilePaused().WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -1388,13 +1361,12 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithManagementPolicies(),
 					WithInitializers(),
-					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
@@ -1406,13 +1378,13 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							mg := asManaged(obj, 42)
+							mg := asLegacyManaged(obj, 42)
 							mg.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "false"})
 							mg.SetConditions(xpv1.ReconcilePaused())
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "false"})
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -1422,9 +1394,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
@@ -1439,7 +1411,6 @@ func TestReconciler(t *testing.T) {
 						}
 						return c, nil
 					})),
-					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
@@ -1451,7 +1422,7 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							mg := asManaged(obj, 42)
+							mg := asLegacyManaged(obj, 42)
 							mg.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
 							return nil
 						}),
@@ -1459,9 +1430,9 @@ func TestReconciler(t *testing.T) {
 							return errBoom
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 			},
 			want: want{err: errors.Wrap(errBoom, errUpdateManagedStatus)},
 		},
@@ -1471,12 +1442,12 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							mg := asManaged(obj, 42)
+							mg := asLegacyManaged(obj, 42)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionCreate})
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionCreate})
 							want.SetConditions(xpv1.ReconcileError(fmt.Errorf(errFmtManagementPolicyNonDefault, xpv1.ManagementPolicies{xpv1.ManagementActionCreate})).WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -1486,9 +1457,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 			},
 			want: want{result: reconcile.Result{}},
 		},
@@ -1498,12 +1469,12 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							mg := asManaged(obj, 42)
+							mg := asLegacyManaged(obj, 42)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionCreate})
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionCreate})
 							want.SetConditions(xpv1.ReconcileError(fmt.Errorf(errFmtManagementPolicyNotSupported, xpv1.ManagementPolicies{xpv1.ManagementActionCreate})).WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -1513,9 +1484,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithManagementPolicies(),
 				},
@@ -1528,12 +1499,12 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							mg := asManaged(obj, 42)
+							mg := asLegacyManaged(obj, 42)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
 							want.SetConditions(xpv1.ReconcileError(fmt.Errorf(errFmtManagementPolicyNotSupported, xpv1.ManagementPolicies{xpv1.ManagementActionAll})).WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -1543,9 +1514,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithManagementPolicies(),
 					WithReconcilerSupportedManagementPolicies([]sets.Set[xpv1.ManagementAction]{sets.New(xpv1.ManagementActionObserve)}),
@@ -1559,12 +1530,12 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							mg := asManaged(obj, 42)
+							mg := asLegacyManaged(obj, 42)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errors.New(errExternalResourceNotExist), errReconcileObserve)).WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -1574,9 +1545,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithManagementPolicies(),
@@ -1601,12 +1572,12 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							mg := asManaged(obj, 42)
+							mg := asLegacyManaged(obj, 42)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
 							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -1616,9 +1587,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithManagementPolicies(),
@@ -1633,7 +1604,7 @@ func TestReconciler(t *testing.T) {
 						}
 						return c, nil
 					})),
-					WithConnectionPublishers(ConnectionPublisherFns{
+					withConnectionPublishers(ConnectionPublisherFns{
 						PublishConnectionFn: func(_ context.Context, _ resource.ConnectionSecretOwner, _ ConnectionDetails) (bool, error) {
 							return false, errBoom
 						},
@@ -1648,12 +1619,12 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							mg := asManaged(obj, 42)
+							mg := asLegacyManaged(obj, 42)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42).WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -1663,9 +1634,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithManagementPolicies(),
@@ -1680,7 +1651,7 @@ func TestReconciler(t *testing.T) {
 						}
 						return c, nil
 					})),
-					WithConnectionPublishers(ConnectionPublisherFns{
+					withConnectionPublishers(ConnectionPublisherFns{
 						PublishConnectionFn: func(_ context.Context, _ resource.ConnectionSecretOwner, _ ConnectionDetails) (bool, error) {
 							return false, nil
 						},
@@ -1696,13 +1667,13 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							mg := asManaged(obj, 42)
+							mg := asLegacyManaged(obj, 42)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
 							meta.SetExternalCreatePending(want, time.Now())
 							meta.SetExternalCreateSucceeded(want, time.Now())
@@ -1715,16 +1686,15 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithManagementPolicies(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
 					WithExternalConnector(&NopConnector{}),
 					WithCriticalAnnotationUpdater(CriticalAnnotationUpdateFn(func(_ context.Context, _ client.Object) error { return nil })),
-					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
@@ -1736,13 +1706,13 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							mg := asManaged(obj, 42)
+							mg := asLegacyManaged(obj, 42)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
 							meta.SetExternalCreatePending(want, time.Now())
 							meta.SetExternalCreateSucceeded(want, time.Now())
@@ -1755,16 +1725,15 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithManagementPolicies(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
 					WithExternalConnector(&NopConnector{}),
 					WithCriticalAnnotationUpdater(CriticalAnnotationUpdateFn(func(_ context.Context, _ client.Object) error { return nil })),
-					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
@@ -1776,13 +1745,13 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							mg := asManaged(obj, 42)
+							mg := asLegacyManaged(obj, 42)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionLateInitialize, xpv1.ManagementActionCreate, xpv1.ManagementActionDelete})
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(errBoom),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionLateInitialize, xpv1.ManagementActionCreate, xpv1.ManagementActionDelete})
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -1792,9 +1761,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithManagementPolicies(),
@@ -1813,7 +1782,6 @@ func TestReconciler(t *testing.T) {
 						}
 						return c, nil
 					})),
-					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
@@ -1825,12 +1793,12 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							mg := asManaged(obj, 42)
+							mg := asLegacyManaged(obj, 42)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42).WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -1840,9 +1808,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithManagementPolicies(),
@@ -1861,7 +1829,6 @@ func TestReconciler(t *testing.T) {
 						}
 						return c, nil
 					})),
-					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
@@ -1873,12 +1840,12 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							mg := asManaged(obj, 42)
+							mg := asLegacyManaged(obj, 42)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -1888,9 +1855,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithManagementPolicies(),
@@ -1909,7 +1876,6 @@ func TestReconciler(t *testing.T) {
 						}
 						return c, nil
 					})),
-					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
@@ -1921,13 +1887,13 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							mg := asManaged(obj, 42)
+							mg := asLegacyManaged(obj, 42)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionUpdate, xpv1.ManagementActionCreate, xpv1.ManagementActionDelete})
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(errBoom),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-							want := newManaged(42)
+							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionUpdate, xpv1.ManagementActionCreate, xpv1.ManagementActionDelete})
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
@@ -1937,9 +1903,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithManagementPolicies(),
@@ -1955,7 +1921,6 @@ func TestReconciler(t *testing.T) {
 						}
 						return c, nil
 					})),
-					WithConnectionPublishers(),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
@@ -1967,7 +1932,7 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							mg := asManaged(obj, 42)
+							mg := asLegacyManaged(obj, 42)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionLateInitialize})
 							return nil
 						}),
@@ -1976,9 +1941,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithManagementPolicies(),
 					WithReconcilerSupportedManagementPolicies(defaultSupportedManagementPolicies()),
@@ -1992,7 +1957,7 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							mg := asManaged(obj, 42)
+							mg := asLegacyManaged(obj, 42)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{
 								xpv1.ManagementActionObserve,
 								xpv1.ManagementActionUpdate,
@@ -2005,9 +1970,9 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithManagementPolicies(),
 					WithReconcilerSupportedManagementPolicies(defaultSupportedManagementPolicies()),
@@ -2033,7 +1998,7 @@ func TestReconciler(t *testing.T) {
 	}
 }
 
-func TestTestManagementPoliciesResolverIsPaused(t *testing.T) {
+func TestTestLegacyManagementPoliciesResolverIsPaused(t *testing.T) {
 	type args struct {
 		enabled bool
 		policy  xpv1.ManagementPolicies
@@ -2071,7 +2036,7 @@ func TestTestManagementPoliciesResolverIsPaused(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewManagementPoliciesResolver(tc.args.enabled, tc.args.policy, xpv1.DeletionDelete)
+			r := NewLegacyManagementPoliciesResolver(tc.args.enabled, tc.args.policy, xpv1.DeletionDelete)
 			if diff := cmp.Diff(tc.want, r.IsPaused()); diff != "" {
 				t.Errorf("\nReason: %s\nIsPaused(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -2079,7 +2044,7 @@ func TestTestManagementPoliciesResolverIsPaused(t *testing.T) {
 	}
 }
 
-func TestManagementPoliciesResolverValidate(t *testing.T) {
+func TestLegacyManagementPoliciesResolverValidate(t *testing.T) {
 	type args struct {
 		enabled bool
 		policy  xpv1.ManagementPolicies
@@ -2133,7 +2098,7 @@ func TestManagementPoliciesResolverValidate(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewManagementPoliciesResolver(tc.args.enabled, tc.args.policy, xpv1.DeletionDelete)
+			r := NewLegacyManagementPoliciesResolver(tc.args.enabled, tc.args.policy, xpv1.DeletionDelete)
 			if diff := cmp.Diff(tc.want, r.Validate(), test.EquateErrors()); diff != "" {
 				t.Errorf("\nReason: %s\nIsNonDefault(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -2141,7 +2106,7 @@ func TestManagementPoliciesResolverValidate(t *testing.T) {
 	}
 }
 
-func TestManagementPoliciesResolverShouldCreate(t *testing.T) {
+func TestLegacyManagementPoliciesResolverShouldCreate(t *testing.T) {
 	type args struct {
 		managementPoliciesEnabled bool
 		policy                    xpv1.ManagementPolicies
@@ -2186,7 +2151,7 @@ func TestManagementPoliciesResolverShouldCreate(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewManagementPoliciesResolver(tc.args.managementPoliciesEnabled, tc.args.policy, xpv1.DeletionOrphan)
+			r := NewLegacyManagementPoliciesResolver(tc.args.managementPoliciesEnabled, tc.args.policy, xpv1.DeletionOrphan)
 			if diff := cmp.Diff(tc.want, r.ShouldCreate()); diff != "" {
 				t.Errorf("\nReason: %s\nShouldCreate(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -2194,7 +2159,7 @@ func TestManagementPoliciesResolverShouldCreate(t *testing.T) {
 	}
 }
 
-func TestManagementPoliciesResolverShouldUpdate(t *testing.T) {
+func TestLegacyManagementPoliciesResolverShouldUpdate(t *testing.T) {
 	type args struct {
 		managementPoliciesEnabled bool
 		policy                    xpv1.ManagementPolicies
@@ -2239,7 +2204,7 @@ func TestManagementPoliciesResolverShouldUpdate(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewManagementPoliciesResolver(tc.args.managementPoliciesEnabled, tc.args.policy, xpv1.DeletionOrphan)
+			r := NewLegacyManagementPoliciesResolver(tc.args.managementPoliciesEnabled, tc.args.policy, xpv1.DeletionOrphan)
 			if diff := cmp.Diff(tc.want, r.ShouldUpdate()); diff != "" {
 				t.Errorf("\nReason: %s\nShouldUpdate(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -2247,7 +2212,7 @@ func TestManagementPoliciesResolverShouldUpdate(t *testing.T) {
 	}
 }
 
-func TestManagementPoliciesResolverShouldLateInitialize(t *testing.T) {
+func TestLegacyManagementPoliciesResolverShouldLateInitialize(t *testing.T) {
 	type args struct {
 		managementPoliciesEnabled bool
 		policy                    xpv1.ManagementPolicies
@@ -2292,7 +2257,7 @@ func TestManagementPoliciesResolverShouldLateInitialize(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewManagementPoliciesResolver(tc.args.managementPoliciesEnabled, tc.args.policy, xpv1.DeletionOrphan)
+			r := NewLegacyManagementPoliciesResolver(tc.args.managementPoliciesEnabled, tc.args.policy, xpv1.DeletionOrphan)
 			if diff := cmp.Diff(tc.want, r.ShouldLateInitialize()); diff != "" {
 				t.Errorf("\nReason: %s\nShouldLateInitialize(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -2300,7 +2265,7 @@ func TestManagementPoliciesResolverShouldLateInitialize(t *testing.T) {
 	}
 }
 
-func TestManagementPoliciesResolverOnlyObserve(t *testing.T) {
+func TestLegacyManagementPoliciesResolverOnlyObserve(t *testing.T) {
 	type args struct {
 		managementPoliciesEnabled bool
 		policy                    xpv1.ManagementPolicies
@@ -2337,7 +2302,7 @@ func TestManagementPoliciesResolverOnlyObserve(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewManagementPoliciesResolver(tc.args.managementPoliciesEnabled, tc.args.policy, xpv1.DeletionOrphan)
+			r := NewLegacyManagementPoliciesResolver(tc.args.managementPoliciesEnabled, tc.args.policy, xpv1.DeletionOrphan)
 			if diff := cmp.Diff(tc.want, r.ShouldOnlyObserve()); diff != "" {
 				t.Errorf("\nReason: %s\nShouldOnlyObserve(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -2345,10 +2310,10 @@ func TestManagementPoliciesResolverOnlyObserve(t *testing.T) {
 	}
 }
 
-func TestShouldDelete(t *testing.T) {
+func TestLegacyShouldDelete(t *testing.T) {
 	type args struct {
 		managementPoliciesEnabled bool
-		managed                   resource.Managed
+		managed                   resource.LegacyManaged
 	}
 
 	type want struct {
@@ -2364,7 +2329,7 @@ func TestShouldDelete(t *testing.T) {
 			reason: "Should orphan if management policies are disabled and deletion policy is set to Orphan.",
 			args: args{
 				managementPoliciesEnabled: false,
-				managed: &fake.Managed{
+				managed: &fake.LegacyManaged{
 					Orphanable: fake.Orphanable{
 						Policy: xpv1.DeletionOrphan,
 					},
@@ -2376,7 +2341,7 @@ func TestShouldDelete(t *testing.T) {
 			reason: "Should delete if management policies are disabled and deletion policy is set to Delete.",
 			args: args{
 				managementPoliciesEnabled: false,
-				managed: &fake.Managed{
+				managed: &fake.LegacyManaged{
 					Orphanable: fake.Orphanable{
 						Policy: xpv1.DeletionDelete,
 					},
@@ -2388,7 +2353,7 @@ func TestShouldDelete(t *testing.T) {
 			reason: "Should delete if management policies are enabled and deletion policy is set to Delete and management policy is set to All.",
 			args: args{
 				managementPoliciesEnabled: true,
-				managed: &fake.Managed{
+				managed: &fake.LegacyManaged{
 					Orphanable: fake.Orphanable{
 						Policy: xpv1.DeletionDelete,
 					},
@@ -2403,7 +2368,7 @@ func TestShouldDelete(t *testing.T) {
 			reason: "Should orphan if management policies are enabled and deletion policy is set to Orphan and management policy is set to All.",
 			args: args{
 				managementPoliciesEnabled: true,
-				managed: &fake.Managed{
+				managed: &fake.LegacyManaged{
 					Orphanable: fake.Orphanable{
 						Policy: xpv1.DeletionOrphan,
 					},
@@ -2418,7 +2383,7 @@ func TestShouldDelete(t *testing.T) {
 			reason: "Should delete if management policies are enabled and deletion policy is set to Delete and management policy has action Delete.",
 			args: args{
 				managementPoliciesEnabled: true,
-				managed: &fake.Managed{
+				managed: &fake.LegacyManaged{
 					Orphanable: fake.Orphanable{
 						Policy: xpv1.DeletionDelete,
 					},
@@ -2433,7 +2398,7 @@ func TestShouldDelete(t *testing.T) {
 			reason: "Should delete if management policies are enabled and deletion policy is set to Orphan and management policy has action Delete.",
 			args: args{
 				managementPoliciesEnabled: true,
-				managed: &fake.Managed{
+				managed: &fake.LegacyManaged{
 					Orphanable: fake.Orphanable{
 						Policy: xpv1.DeletionOrphan,
 					},
@@ -2448,7 +2413,7 @@ func TestShouldDelete(t *testing.T) {
 			reason: "Should orphan if management policies are enabled and deletion policy is set to Delete and management policy does not have action Delete.",
 			args: args{
 				managementPoliciesEnabled: true,
-				managed: &fake.Managed{
+				managed: &fake.LegacyManaged{
 					Orphanable: fake.Orphanable{
 						Policy: xpv1.DeletionDelete,
 					},
@@ -2462,7 +2427,7 @@ func TestShouldDelete(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewManagementPoliciesResolver(tc.args.managementPoliciesEnabled, tc.args.managed.GetManagementPolicies(), tc.args.managed.GetDeletionPolicy())
+			r := NewLegacyManagementPoliciesResolver(tc.args.managementPoliciesEnabled, tc.args.managed.GetManagementPolicies(), tc.args.managed.GetDeletionPolicy())
 			if diff := cmp.Diff(tc.want.delete, r.ShouldDelete()); diff != "" {
 				t.Errorf("\nReason: %s\nShouldDelete(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -2470,7 +2435,7 @@ func TestShouldDelete(t *testing.T) {
 	}
 }
 
-func TestReconcilerChangeLogs(t *testing.T) {
+func TestLegacyReconcilerChangeLogs(t *testing.T) {
 	type args struct {
 		m  manager.Manager
 		mg resource.ManagedKind
@@ -2497,13 +2462,13 @@ func TestReconcilerChangeLogs(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet:          managedMockGetFn(nil, 42),
+						MockGet:          legacyManagedMockGetFn(nil, 42),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error { return nil }),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
@@ -2534,13 +2499,13 @@ func TestReconcilerChangeLogs(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet:          managedMockGetFn(nil, 42),
+						MockGet:          legacyManagedMockGetFn(nil, 42),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error { return nil }),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
@@ -2572,13 +2537,13 @@ func TestReconcilerChangeLogs(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet:          managedMockGetFn(nil, 42),
+						MockGet:          legacyManagedMockGetFn(nil, 42),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error { return nil }),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
@@ -2609,13 +2574,13 @@ func TestReconcilerChangeLogs(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet:          managedMockGetFn(nil, 42),
+						MockGet:          legacyManagedMockGetFn(nil, 42),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error { return nil }),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
@@ -2649,17 +2614,16 @@ func TestReconcilerChangeLogs(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							// set a deletion timestamp, which should trigger a delete operation
-							mg := asManaged(obj, 42)
+							mg := asLegacyManaged(obj, 42)
 							mg.SetDeletionTimestamp(&now)
-							mg.SetDeletionPolicy(xpv1.DeletionDelete)
 							return nil
 						}),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error { return nil }),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
@@ -2692,17 +2656,16 @@ func TestReconcilerChangeLogs(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							// set a deletion timestamp, which should trigger a delete operation
-							mg := asManaged(obj, 42)
+							mg := asLegacyManaged(obj, 42)
 							mg.SetDeletionTimestamp(&now)
-							mg.SetDeletionPolicy(xpv1.DeletionDelete)
 							return nil
 						}),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error { return nil }),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
@@ -2752,23 +2715,23 @@ func TestReconcilerChangeLogs(t *testing.T) {
 	}
 }
 
-func asManaged(obj client.Object, generation int64) *fake.Managed {
-	mg := obj.(*fake.Managed)
+func asLegacyManaged(obj client.Object, generation int64) *fake.LegacyManaged {
+	mg := obj.(*fake.LegacyManaged)
 	mg.Generation = generation
 
 	return mg
 }
 
-func newManaged(generation int64) *fake.Managed {
-	mg := &fake.Managed{}
+func newLegacyManaged(generation int64) *fake.LegacyManaged {
+	mg := &fake.LegacyManaged{}
 	mg.Generation = generation
 
 	return mg
 }
 
-func managedMockGetFn(err error, generation int64) test.MockGetFn {
+func legacyManagedMockGetFn(err error, generation int64) test.MockGetFn {
 	return test.NewMockGetFn(err, func(obj client.Object) error {
-		asManaged(obj, generation)
+		asLegacyManaged(obj, generation)
 		return nil
 	})
 }

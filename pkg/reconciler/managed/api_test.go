@@ -35,7 +35,11 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
-var _ Initializer = &NameAsExternalName{}
+var (
+	_ Initializer              = &NameAsExternalName{}
+	_ ConnectionPublisher      = &APISecretPublisher{}
+	_ LocalConnectionPublisher = &APILocalSecretPublisher{}
+)
 
 func TestNameAsExternalName(t *testing.T) {
 	type args struct {
@@ -61,11 +65,11 @@ func TestNameAsExternalName(t *testing.T) {
 			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(errBoom)},
 			args: args{
 				ctx: context.Background(),
-				mg:  &fake.Managed{ObjectMeta: metav1.ObjectMeta{Name: testExternalName}},
+				mg:  &fake.LegacyManaged{ObjectMeta: metav1.ObjectMeta{Name: testExternalName}},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateManaged),
-				mg: &fake.Managed{ObjectMeta: metav1.ObjectMeta{
+				mg: &fake.LegacyManaged{ObjectMeta: metav1.ObjectMeta{
 					Name:        testExternalName,
 					Annotations: map[string]string{meta.AnnotationKeyExternalName: testExternalName},
 				}},
@@ -75,11 +79,11 @@ func TestNameAsExternalName(t *testing.T) {
 			client: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil)},
 			args: args{
 				ctx: context.Background(),
-				mg:  &fake.Managed{ObjectMeta: metav1.ObjectMeta{Name: testExternalName}},
+				mg:  &fake.LegacyManaged{ObjectMeta: metav1.ObjectMeta{Name: testExternalName}},
 			},
 			want: want{
 				err: nil,
-				mg: &fake.Managed{ObjectMeta: metav1.ObjectMeta{
+				mg: &fake.LegacyManaged{ObjectMeta: metav1.ObjectMeta{
 					Name:        testExternalName,
 					Annotations: map[string]string{meta.AnnotationKeyExternalName: testExternalName},
 				}},
@@ -88,14 +92,14 @@ func TestNameAsExternalName(t *testing.T) {
 		"UpdateNotNeeded": {
 			args: args{
 				ctx: context.Background(),
-				mg: &fake.Managed{ObjectMeta: metav1.ObjectMeta{
+				mg: &fake.LegacyManaged{ObjectMeta: metav1.ObjectMeta{
 					Name:        testExternalName,
 					Annotations: map[string]string{meta.AnnotationKeyExternalName: "some-name"},
 				}},
 			},
 			want: want{
 				err: nil,
-				mg: &fake.Managed{ObjectMeta: metav1.ObjectMeta{
+				mg: &fake.LegacyManaged{ObjectMeta: metav1.ObjectMeta{
 					Name:        testExternalName,
 					Annotations: map[string]string{meta.AnnotationKeyExternalName: "some-name"},
 				}},
@@ -122,7 +126,7 @@ func TestNameAsExternalName(t *testing.T) {
 func TestAPISecretPublisher(t *testing.T) {
 	errBoom := errors.New("boom")
 
-	mg := &fake.Managed{
+	mg := &fake.LegacyManaged{
 		ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: &xpv1.SecretReference{
 			Namespace: "coolnamespace",
 			Name:      "coolsecret",
@@ -138,7 +142,7 @@ func TestAPISecretPublisher(t *testing.T) {
 
 	type args struct {
 		ctx context.Context
-		mg  resource.Managed
+		mg  resource.LegacyManaged
 		c   ConnectionDetails
 	}
 
@@ -157,14 +161,14 @@ func TestAPISecretPublisher(t *testing.T) {
 			reason: "A managed resource with a nil GetWriteConnectionSecretToReference should not publish a secret",
 			args: args{
 				ctx: context.Background(),
-				mg:  &fake.Managed{},
+				mg:  &fake.LegacyManaged{},
 			},
 		},
 		"ApplyError": {
 			reason: "An error applying the connection secret should be returned",
 			fields: fields{
 				secret: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error { return errBoom }),
-				typer:  fake.SchemeWith(&fake.Managed{}),
+				typer:  fake.SchemeWith(&fake.LegacyManaged{}),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -187,7 +191,7 @@ func TestAPISecretPublisher(t *testing.T) {
 					}
 					return nil
 				}),
-				typer: fake.SchemeWith(&fake.Managed{}),
+				typer: fake.SchemeWith(&fake.LegacyManaged{}),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -210,7 +214,7 @@ func TestAPISecretPublisher(t *testing.T) {
 					}
 					return nil
 				}),
-				typer: fake.SchemeWith(&fake.Managed{}),
+				typer: fake.SchemeWith(&fake.LegacyManaged{}),
 			},
 			args: args{
 				ctx: context.Background(),
@@ -226,6 +230,125 @@ func TestAPISecretPublisher(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			a := &APISecretPublisher{tc.fields.secret, tc.fields.typer}
+
+			got, gotErr := a.PublishConnection(tc.args.ctx, tc.args.mg, tc.args.c)
+			if diff := cmp.Diff(tc.want.err, gotErr, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nPublish(...): -wantErr, +gotErr:\n%s", tc.reason, diff)
+			}
+
+			if diff := cmp.Diff(tc.want.published, got); diff != "" {
+				t.Errorf("\n%s\nPublish(...): -wantPublished, +gotPublished:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestAPILocalSecretPublisher(t *testing.T) {
+	errBoom := errors.New("boom")
+
+	mg := &fake.ModernManaged{
+		LocalConnectionSecretWriterTo: fake.LocalConnectionSecretWriterTo{Ref: &xpv1.LocalSecretReference{
+			Name: "coolsecret",
+		}},
+	}
+
+	cd := ConnectionDetails{"cool": {42}}
+
+	type fields struct {
+		secret resource.Applicator
+		typer  runtime.ObjectTyper
+	}
+
+	type args struct {
+		ctx context.Context
+		mg  resource.ModernManaged
+		c   ConnectionDetails
+	}
+
+	type want struct {
+		err       error
+		published bool
+	}
+
+	cases := map[string]struct {
+		reason string
+		fields fields
+		args   args
+		want   want
+	}{
+		"ResourceDoesNotPublishSecret": {
+			reason: "A managed resource with a nil GetWriteConnectionSecretToReference should not publish a secret",
+			args: args{
+				ctx: context.Background(),
+				mg:  &fake.ModernManaged{},
+			},
+		},
+		"ApplyError": {
+			reason: "An error applying the connection secret should be returned",
+			fields: fields{
+				secret: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error { return errBoom }),
+				typer:  fake.SchemeWith(&fake.ModernManaged{}),
+			},
+			args: args{
+				ctx: context.Background(),
+				mg:  mg,
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errCreateOrUpdateSecret),
+			},
+		},
+		"AlreadyPublished": {
+			reason: "An up to date connection secret should result in no error and not being published",
+			fields: fields{
+				secret: resource.ApplyFn(func(ctx context.Context, o client.Object, ao ...resource.ApplyOption) error {
+					want := resource.LocalConnectionSecretFor(mg, fake.GVK(mg))
+					want.Data = cd
+					for _, fn := range ao {
+						if err := fn(ctx, o, want); err != nil {
+							return err
+						}
+					}
+					return nil
+				}),
+				typer: fake.SchemeWith(&fake.ModernManaged{}),
+			},
+			args: args{
+				ctx: context.Background(),
+				mg:  mg,
+				c:   cd,
+			},
+			want: want{
+				published: false,
+				err:       nil,
+			},
+		},
+		"Success": {
+			reason: "A successful application of the connection secret should result in no error",
+			fields: fields{
+				secret: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
+					want := resource.LocalConnectionSecretFor(mg, fake.GVK(mg))
+					want.Data = cd
+					if diff := cmp.Diff(want, o); diff != "" {
+						t.Errorf("-want, +got:\n%s", diff)
+					}
+					return nil
+				}),
+				typer: fake.SchemeWith(&fake.ModernManaged{}),
+			},
+			args: args{
+				ctx: context.Background(),
+				mg:  mg,
+				c:   cd,
+			},
+			want: want{
+				published: true,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			a := &APILocalSecretPublisher{tc.fields.secret, tc.fields.typer}
 
 			got, gotErr := a.PublishConnection(tc.args.ctx, tc.args.mg, tc.args.c)
 			if diff := cmp.Diff(tc.want.err, gotErr, test.EquateErrors()); diff != "" {
@@ -260,7 +383,7 @@ func (r *mockSimpleReferencer) Equal(s *mockSimpleReferencer) bool {
 func TestResolveReferences(t *testing.T) {
 	errBoom := errors.New("boom")
 
-	different := &fake.Managed{}
+	different := &fake.LegacyManaged{}
 
 	type args struct {
 		ctx context.Context
@@ -277,7 +400,7 @@ func TestResolveReferences(t *testing.T) {
 			reason: "Should return early without error when the managed resource has no references.",
 			args: args{
 				ctx: context.Background(),
-				mg:  &fake.Managed{},
+				mg:  &fake.LegacyManaged{},
 			},
 			want: nil,
 		},
@@ -289,7 +412,7 @@ func TestResolveReferences(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				mg: &mockSimpleReferencer{
-					Managed: &fake.Managed{},
+					Managed: &fake.LegacyManaged{},
 					MockResolveReferences: func(context.Context, client.Reader) error {
 						return errBoom
 					},
@@ -305,7 +428,7 @@ func TestResolveReferences(t *testing.T) {
 			args: args{
 				ctx: context.Background(),
 				mg: &mockSimpleReferencer{
-					Managed: &fake.Managed{},
+					Managed: &fake.LegacyManaged{},
 					MockResolveReferences: func(context.Context, client.Reader) error {
 						return nil
 					},
@@ -380,8 +503,8 @@ func TestPrepareJSONMerge(t *testing.T) {
 		"SuccessfulPatch": {
 			reason: "Should successfully compute the JSON merge patch document.",
 			args: args{
-				existing: &fake.Managed{},
-				resolved: &fake.Managed{
+				existing: &fake.LegacyManaged{},
+				resolved: &fake.LegacyManaged{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "resolved",
 					},
@@ -424,7 +547,7 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 		obj.SetLabels(map[string]string{"getcalled": "true"})
 		return nil
 	}
-	objectReturnedByGet := &fake.Managed{}
+	objectReturnedByGet := &fake.LegacyManaged{}
 	setLabels(objectReturnedByGet)
 
 	cases := map[string]struct {
@@ -443,7 +566,7 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 				}, "abc", errBoom)),
 			},
 			args: args{
-				o: &fake.Managed{},
+				o: &fake.LegacyManaged{},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateCriticalAnnotations),
@@ -457,11 +580,11 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 				MockUpdate: test.NewMockUpdateFn(errBoom),
 			},
 			args: args{
-				o: &fake.Managed{},
+				o: &fake.LegacyManaged{},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateCriticalAnnotations),
-				o:   &fake.Managed{},
+				o:   &fake.LegacyManaged{},
 			},
 		},
 		"SuccessfulGetAfterAConflict": {
@@ -474,7 +597,7 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 				}, "abc", errBoom)),
 			},
 			args: args{
-				o: &fake.Managed{},
+				o: &fake.LegacyManaged{},
 			},
 			want: want{
 				err: errors.Wrap(kerrors.NewConflict(schema.GroupResource{
@@ -491,11 +614,11 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 				MockUpdate: test.NewMockUpdateFn(errBoom),
 			},
 			args: args{
-				o: &fake.Managed{},
+				o: &fake.LegacyManaged{},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateCriticalAnnotations),
-				o:   &fake.Managed{},
+				o:   &fake.LegacyManaged{},
 			},
 		},
 	}
