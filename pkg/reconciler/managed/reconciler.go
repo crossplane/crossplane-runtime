@@ -1094,6 +1094,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 	if meta.WasDeleted(managed) {
 		log = log.WithValues("deletion-timestamp", managed.GetDeletionTimestamp())
 
+		if len(managed.GetFinalizers()) > 1 {
+			// There are other controllers monitoring this resource so preserve the external instance
+			// until all other finalizers have been removed
+			log.Debug("Delay external deletion until all finalizers have been removed")
+			return reconcile.Result{Requeue: true}, nil
+		}
+
 		if observation.ResourceExists && policy.ShouldDelete() {
 			deletion, err := external.Delete(externalCtx, managed)
 			if err != nil {
