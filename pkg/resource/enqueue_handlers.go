@@ -63,10 +63,10 @@ func (e *EnqueueRequestForProviderConfig) Generic(_ context.Context, evt event.G
 }
 
 func addProviderConfig(obj runtime.Object, queue adder) {
-	pcr, ok := obj.(RequiredProviderConfigReferencer)
-	if !ok {
-		return
+	switch pcr := obj.(type) {
+	case TypedProviderConfigUsage:
+		queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: pcr.GetProviderConfigReference().Name, Namespace: pcr.GetNamespace()}})
+	case LegacyProviderConfigUsage:
+		queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: pcr.GetProviderConfigReference().Name}})
 	}
-
-	queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: pcr.GetProviderConfigReference().Name}})
 }

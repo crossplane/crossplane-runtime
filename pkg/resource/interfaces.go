@@ -61,13 +61,6 @@ type ConnectionSecretWriterTo interface {
 	GetWriteConnectionSecretToReference() *xpv1.SecretReference
 }
 
-// A ConnectionDetailsPublisherTo may write a connection details secret to a
-// secret store.
-type ConnectionDetailsPublisherTo interface {
-	SetPublishConnectionDetailsTo(r *xpv1.PublishConnectionDetailsTo)
-	GetPublishConnectionDetailsTo() *xpv1.PublishConnectionDetailsTo
-}
-
 // A Manageable resource may specify a ManagementPolicies.
 type Manageable interface {
 	SetManagementPolicies(p xpv1.ManagementPolicies)
@@ -86,11 +79,25 @@ type ProviderConfigReferencer interface {
 	SetProviderConfigReference(p *xpv1.Reference)
 }
 
+// A TypedProviderConfigReferencer may reference a provider config resource
+// with its kind.
+type TypedProviderConfigReferencer interface {
+	GetProviderConfigReference() *xpv1.ProviderConfigReference
+	SetProviderConfigReference(p *xpv1.ProviderConfigReference)
+}
+
 // A RequiredProviderConfigReferencer may reference a provider config resource.
 // Unlike ProviderConfigReferencer, the reference is required (i.e. not nil).
 type RequiredProviderConfigReferencer interface {
 	GetProviderConfigReference() xpv1.Reference
 	SetProviderConfigReference(p xpv1.Reference)
+}
+
+// A RequiredTypedProviderConfigReferencer may reference a provider config resource.
+// Unlike TypedProviderConfigReferencer, the reference is required (i.e. not nil).
+type RequiredTypedProviderConfigReferencer interface {
+	GetProviderConfigReference() xpv1.ProviderConfigReference
+	SetProviderConfigReference(p xpv1.ProviderConfigReference)
 }
 
 // A RequiredTypedResourceReferencer can reference a resource.
@@ -190,16 +197,30 @@ type Object interface {
 
 // A Managed is a Kubernetes object representing a concrete managed
 // resource (e.g. a CloudSQL instance).
-type Managed interface { //nolint:interfacebloat // This interface has to be big.
+type Managed interface {
 	Object
-
-	ProviderConfigReferencer
-	ConnectionSecretWriterTo
-	ConnectionDetailsPublisherTo
 	Manageable
-	Orphanable
-
 	Conditioned
+}
+
+// A ModernManaged is a Kubernetes object representing a concrete managed
+// resource with local connection secret references and typed provider
+// config reference.
+type ModernManaged interface {
+	Managed
+	LocalConnectionSecretWriterTo
+	TypedProviderConfigReferencer
+}
+
+// A LegacyManaged is a cluster-scoped Kubernetes object representing a
+// concrete managed resource, with namespaced connection secret referencers
+// and untyped provider config reference.
+// Deprecated: new namespace-scoped MRs should implement ModernManaged.
+type LegacyManaged interface {
+	Managed
+	ConnectionSecretWriterTo
+	ProviderConfigReferencer
+	Orphanable
 }
 
 // A ManagedList is a list of managed resources.
@@ -208,6 +229,15 @@ type ManagedList interface {
 
 	// GetItems returns the list of managed resources.
 	GetItems() []Managed
+}
+
+// A LegacyManagedList is a list of managed resources.
+// Deprecated: new types should implement ManagedList.
+type LegacyManagedList interface {
+	client.ObjectList
+
+	// GetItems returns the list of managed resources.
+	GetItems() []LegacyManaged
 }
 
 // A ProviderConfig configures a Crossplane provider.
@@ -221,9 +251,22 @@ type ProviderConfig interface {
 // A ProviderConfigUsage indicates a usage of a Crossplane provider config.
 type ProviderConfigUsage interface {
 	Object
-
-	RequiredProviderConfigReferencer
 	RequiredTypedResourceReferencer
+}
+
+// A TypedProviderConfigUsage is a ProviderConfigUsage that
+// has a typed reference to the ProviderConfig.
+type TypedProviderConfigUsage interface {
+	ProviderConfigUsage
+	RequiredTypedProviderConfigReferencer
+}
+
+// A LegacyProviderConfigUsage is a ProviderConfigUsage that
+// has an untyped reference to a provider config.
+// Deprecated: new PCUs should implement TypedProviderConfigUsage.
+type LegacyProviderConfigUsage interface {
+	ProviderConfigUsage
+	RequiredProviderConfigReferencer
 }
 
 // A ProviderConfigUsageList is a list of provider config usages.
