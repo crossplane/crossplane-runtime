@@ -268,7 +268,7 @@ func (r *APINamespacedResolver) ResolveMultiple(ctx context.Context, req MultiNa
 		ns = r.from.GetNamespace()
 	}
 
-	if err := r.client.List(ctx, req.To.List, client.MatchingLabels(req.Selector.MatchLabels), client.InNamespace(req.Namespace)); err != nil {
+	if err := r.client.List(ctx, req.To.List, client.MatchingLabels(req.Selector.MatchLabels), client.InNamespace(ns)); err != nil {
 		return MultiNamespacedResolutionResponse{}, errors.Wrap(err, errListManaged)
 	}
 

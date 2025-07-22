@@ -461,7 +461,8 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 	now := metav1.Now()
 	value := "coolv"
 	value2 := "cooler"
-	ref := xpv1.NamespacedReference{Name: "cool"}
+	ref := xpv1.NamespacedReference{Name: "cool", Namespace: "cool-ns"}
+	nsOmittedRef := xpv1.NamespacedReference{Name: "cool"}
 	optionalPolicy := xpv1.ResolutionPolicyOptional
 	alwaysPolicy := xpv1.ResolvePolicyAlways
 	optionalRef := xpv1.NamespacedReference{Name: "cool", Policy: &xpv1.Policy{Resolution: &optionalPolicy}}
@@ -616,10 +617,15 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 		"SuccessfulResolveNamespaced": {
 			reason: "Resolve should be successful when a namespace is given",
 			c: &test.MockClient{
-				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-					meta.SetExternalName(obj.(metav1.Object), value)
-					return nil
-				}),
+				MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					if key.Namespace == ref.Namespace {
+						meta.SetExternalName(obj.(metav1.Object), value)
+						return nil
+					}
+
+					t.Errorf("Resolve did not infer to the MR namespace: %v", key)
+					return errBoom
+				},
 			},
 			from: &fake.Managed{},
 			args: args{
@@ -627,7 +633,72 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 					References: []xpv1.NamespacedReference{ref},
 					To:         To{Managed: &fake.Managed{}},
 					Extract:    ExternalName(),
-					Namespace:  "cool-ns",
+				},
+			},
+			want: want{
+				rsp: MultiNamespacedResolutionResponse{
+					ResolvedValues:     []string{value},
+					ResolvedReferences: []xpv1.NamespacedReference{ref},
+				},
+			},
+		},
+		"SuccessfulResolveInferredNamespace": {
+			reason: "Resolve should be successful when a namespace is given",
+			c: &test.MockClient{
+				MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					if key.Namespace == "from-ns" {
+						meta.SetExternalName(obj.(metav1.Object), value)
+						return nil
+					}
+
+					t.Errorf("Resolve did not infer to the MR namespace: %v", key)
+					return errBoom
+				},
+			},
+			from: &fake.Managed{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "some-mr",
+					Namespace: "from-ns",
+				},
+			},
+			args: args{
+				req: MultiNamespacedResolutionRequest{
+					References: []xpv1.NamespacedReference{nsOmittedRef},
+					To:         To{Managed: &fake.Managed{}},
+					Extract:    ExternalName(),
+				},
+			},
+			want: want{
+				rsp: MultiNamespacedResolutionResponse{
+					ResolvedValues:     []string{value},
+					ResolvedReferences: []xpv1.NamespacedReference{nsOmittedRef},
+				},
+			},
+		},
+		"SuccessfulResolveCrossNamespace": {
+			reason: "Resolve should be successful when a namespace is given",
+			c: &test.MockClient{
+				MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					if key.Namespace == ref.Namespace {
+						meta.SetExternalName(obj.(metav1.Object), value)
+						return nil
+					}
+
+					t.Errorf("Resolve did not infer to the MR namespace: %v", key)
+					return errBoom
+				},
+			},
+			from: &fake.Managed{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "some-mr",
+					Namespace: "from-ns",
+				},
+			},
+			args: args{
+				req: MultiNamespacedResolutionRequest{
+					References: []xpv1.NamespacedReference{ref},
+					To:         To{Managed: &fake.Managed{}},
+					Extract:    ExternalName(),
 				},
 			},
 			want: want{
