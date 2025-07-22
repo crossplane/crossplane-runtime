@@ -1,5 +1,5 @@
 /*
-Copyright 2021 The Crossplane Authors.
+Copyright 2019 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,11 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1
-
-import (
-	"github.com/crossplane/crossplane-runtime/apis/common"
-)
-
-// MergeOptions Specifies merge options on a field path.
-type MergeOptions = common.MergeOptions
+// Package v2 contains core API types used by most Crossplane resources.
+// +kubebuilder:object:generate=true
+package v2

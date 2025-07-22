@@ -620,17 +620,44 @@ func TestGetExternalTags(t *testing.T) {
 		o    Managed
 		want map[string]string
 	}{
-		"SuccessfulWithProviderConfig": {
+		"SuccessfulWithTypedProviderConfig": {
+			o: &fake.ModernManaged{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: name,
+				},
+				TypedProviderConfigReferencer: fake.TypedProviderConfigReferencer{
+					Ref: &xpv1.ProviderConfigReference{Name: provName, Kind: "ProviderConfig"},
+				},
+			},
+			want: map[string]string{
+				ExternalResourceTagKeyKind:               strings.ToLower((&fake.Managed{}).GetObjectKind().GroupVersionKind().GroupKind().String()),
+				ExternalResourceTagKeyName:               name,
+				ExternalResourceTagKeyProvider:           provName,
+				ExternalResourceTagKeyProviderConfigKind: "ProviderConfig",
+			},
+		},
+		"SuccessfulWithLegacyProviderConfig": {
+			o: &fake.LegacyManaged{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: name,
+				},
+				LegacyProviderConfigReferencer: fake.LegacyProviderConfigReferencer{Ref: &xpv1.Reference{Name: provName}},
+			},
+			want: map[string]string{
+				ExternalResourceTagKeyKind:     strings.ToLower((&fake.LegacyManaged{}).GetObjectKind().GroupVersionKind().GroupKind().String()),
+				ExternalResourceTagKeyName:     name,
+				ExternalResourceTagKeyProvider: provName,
+			},
+		},
+		"NotLegacyOrModernManaged": {
 			o: &fake.Managed{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: name,
 				},
-				ProviderConfigReferencer: fake.ProviderConfigReferencer{Ref: &xpv1.Reference{Name: provName}},
 			},
 			want: map[string]string{
-				ExternalResourceTagKeyKind:     strings.ToLower((&fake.Managed{}).GetObjectKind().GroupVersionKind().GroupKind().String()),
-				ExternalResourceTagKeyName:     name,
-				ExternalResourceTagKeyProvider: provName,
+				ExternalResourceTagKeyKind: strings.ToLower((&fake.Managed{}).GetObjectKind().GroupVersionKind().GroupKind().String()),
+				ExternalResourceTagKeyName: name,
 			},
 		},
 	}

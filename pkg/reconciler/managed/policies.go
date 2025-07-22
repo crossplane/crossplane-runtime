@@ -30,7 +30,16 @@ type ManagementPoliciesResolver struct {
 	enabled            bool
 	supportedPolicies  []sets.Set[xpv1.ManagementAction]
 	managementPolicies sets.Set[xpv1.ManagementAction]
-	deletionPolicy     xpv1.DeletionPolicy
+}
+
+// LegacyManagementPoliciesResolver is used to perform management policy checks
+// based on the management policy and if the management policy feature is enabled.
+// Deprecated: this is for LegacyManaged types, that had deletion policy.
+// ModernManaged resources should use ManagementPoliciesResolver.
+type LegacyManagementPoliciesResolver struct {
+	*ManagementPoliciesResolver
+
+	deletionPolicy xpv1.DeletionPolicy
 }
 
 // A ManagementPoliciesResolverOption configures a ManagementPoliciesResolver.
@@ -103,12 +112,11 @@ func defaultSupportedManagementPolicies() []sets.Set[xpv1.ManagementAction] {
 // NewManagementPoliciesResolver returns an ManagementPolicyChecker based
 // on the management policies and if the management policies feature
 // is enabled.
-func NewManagementPoliciesResolver(managementPolicyEnabled bool, managementPolicy xpv1.ManagementPolicies, deletionPolicy xpv1.DeletionPolicy, o ...ManagementPoliciesResolverOption) ManagementPoliciesChecker {
+func NewManagementPoliciesResolver(managementPolicyEnabled bool, managementPolicy xpv1.ManagementPolicies, o ...ManagementPoliciesResolverOption) ManagementPoliciesChecker {
 	r := &ManagementPoliciesResolver{
 		enabled:            managementPolicyEnabled,
 		supportedPolicies:  defaultSupportedManagementPolicies(),
 		managementPolicies: sets.New[xpv1.ManagementAction](managementPolicy...),
-		deletionPolicy:     deletionPolicy,
 	}
 
 	for _, ro := range o {
@@ -116,6 +124,25 @@ func NewManagementPoliciesResolver(managementPolicyEnabled bool, managementPolic
 	}
 
 	return r
+}
+
+// NewLegacyManagementPoliciesResolver returns an ManagementPolicyChecker based
+// on the management policies and if the management policies feature
+// is enabled.
+// Deprecated: this is intended for LegacyManaged resources that had deletionPolicy
+// ModernManaged resources should use NewManagementPoliciesResolver.
+func NewLegacyManagementPoliciesResolver(managementPolicyEnabled bool, managementPolicy xpv1.ManagementPolicies, deletionPolicy xpv1.DeletionPolicy, o ...ManagementPoliciesResolverOption) ManagementPoliciesChecker {
+	r := &ManagementPoliciesResolver{
+		enabled:            managementPolicyEnabled,
+		supportedPolicies:  defaultSupportedManagementPolicies(),
+		managementPolicies: sets.New[xpv1.ManagementAction](managementPolicy...),
+	}
+
+	for _, ro := range o {
+		ro(r)
+	}
+
+	return &LegacyManagementPoliciesResolver{r, deletionPolicy}
 }
 
 // Validate checks if the management policy is valid.
@@ -194,6 +221,18 @@ func (m *ManagementPoliciesResolver) ShouldOnlyObserve() bool {
 	return m.managementPolicies.Equal(sets.New[xpv1.ManagementAction](xpv1.ManagementActionObserve))
 }
 
+// ShouldDelete returns true based only on the managementPolicies.
+// If the management policy feature is disabled, returns true.
+// Otherwise, it checks whether the managementPolicies explicitly
+// include Delete or * (all).
+func (m *ManagementPoliciesResolver) ShouldDelete() bool {
+	if !m.enabled {
+		return true
+	}
+
+	return m.managementPolicies.HasAny(xpv1.ManagementActionDelete, xpv1.ManagementActionAll)
+}
+
 // ShouldDelete returns true based on the combination of the deletionPolicy and
 // the managementPolicies. If the management policy feature is disabled, it
 // returns true if the deletionPolicy is set to "Delete". Otherwise, it checks
@@ -202,7 +241,7 @@ func (m *ManagementPoliciesResolver) ShouldOnlyObserve() bool {
 // of managementPolicies which conflict with the deletionPolicy regarding
 // deleting of the external resource. This function implements the proposal in
 // the Ignore Changes design doc under the "Deprecation of `deletionPolicy`".
-func (m *ManagementPoliciesResolver) ShouldDelete() bool {
+func (m *LegacyManagementPoliciesResolver) ShouldDelete() bool {
 	if !m.enabled {
 		return m.deletionPolicy != xpv1.DeletionOrphan
 	}

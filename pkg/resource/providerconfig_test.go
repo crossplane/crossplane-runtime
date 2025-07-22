@@ -236,18 +236,112 @@ func TestExtractSecret(t *testing.T) {
 	}
 }
 
-func TestTrack(t *testing.T) {
+func TestTrackLegacy(t *testing.T) {
 	errBoom := errors.New("boom")
 	name := "provisional"
 
 	type fields struct {
 		c  Applicator
-		of ProviderConfigUsage
+		of LegacyProviderConfigUsage
 	}
 
 	type args struct {
 		ctx context.Context
-		mg  Managed
+		mg  LegacyManaged
+	}
+
+	cases := map[string]struct {
+		reason string
+		fields fields
+		args   args
+		want   error
+	}{
+		"MissingRef": {
+			reason: "An error that satisfies IsMissingReference should be returned if the managed resource has no provider config reference",
+			fields: fields{
+				of: &fake.LegacyProviderConfigUsage{},
+			},
+			args: args{
+				mg: &fake.LegacyManaged{},
+			},
+			want: missingRefError{errors.New(errMissingPCRef)},
+		},
+		"NopUpdate": {
+			reason: "No error should be returned if the apply fails because it would be a no-op",
+			fields: fields{
+				c: ApplyFn(func(ctx context.Context, _ client.Object, ao ...ApplyOption) error {
+					for _, fn := range ao {
+						// Exercise the MustBeControllableBy and AllowUpdateIf
+						// ApplyOptions. The former should pass because the
+						// current object has no controller ref. The latter
+						// should return an error that satisfies IsNotAllowed
+						// because the current object has the same PC ref as the
+						// new one we would apply.
+						current := &fake.LegacyProviderConfigUsage{
+							RequiredProviderConfigReferencer: fake.RequiredProviderConfigReferencer{
+								Ref: xpv1.Reference{Name: name},
+							},
+						}
+						if err := fn(ctx, current, nil); err != nil {
+							return err
+						}
+					}
+					return errBoom
+				}),
+				of: &fake.LegacyProviderConfigUsage{},
+			},
+			args: args{
+				mg: &fake.LegacyManaged{
+					LegacyProviderConfigReferencer: fake.LegacyProviderConfigReferencer{
+						Ref: &xpv1.Reference{Name: name},
+					},
+				},
+			},
+			want: nil,
+		},
+		"ApplyError": {
+			reason: "Errors applying the ProviderConfigUsage should be returned",
+			fields: fields{
+				c: ApplyFn(func(_ context.Context, _ client.Object, _ ...ApplyOption) error {
+					return errBoom
+				}),
+				of: &fake.LegacyProviderConfigUsage{},
+			},
+			args: args{
+				mg: &fake.LegacyManaged{
+					LegacyProviderConfigReferencer: fake.LegacyProviderConfigReferencer{
+						Ref: &xpv1.Reference{Name: name},
+					},
+				},
+			},
+			want: errors.Wrap(errBoom, errApplyPCU),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			ut := &LegacyProviderConfigUsageTracker{c: tc.fields.c, of: tc.fields.of}
+
+			got := ut.Track(tc.args.ctx, tc.args.mg)
+			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nut.Track(...): -want error, +got error:\n%s\n", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestTrackModern(t *testing.T) {
+	errBoom := errors.New("boom")
+	name := "provisional"
+
+	type fields struct {
+		c  Applicator
+		of TypedProviderConfigUsage
+	}
+
+	type args struct {
+		ctx context.Context
+		mg  ModernManaged
 	}
 
 	cases := map[string]struct {
@@ -262,7 +356,7 @@ func TestTrack(t *testing.T) {
 				of: &fake.ProviderConfigUsage{},
 			},
 			args: args{
-				mg: &fake.Managed{},
+				mg: &fake.ModernManaged{},
 			},
 			want: missingRefError{errors.New(errMissingPCRef)},
 		},
@@ -278,8 +372,8 @@ func TestTrack(t *testing.T) {
 						// because the current object has the same PC ref as the
 						// new one we would apply.
 						current := &fake.ProviderConfigUsage{
-							RequiredProviderConfigReferencer: fake.RequiredProviderConfigReferencer{
-								Ref: xpv1.Reference{Name: name},
+							RequiredTypedProviderConfigReferencer: fake.RequiredTypedProviderConfigReferencer{
+								Ref: xpv1.ProviderConfigReference{Name: name, Kind: "ProviderConfig"},
 							},
 						}
 						if err := fn(ctx, current, nil); err != nil {
@@ -291,9 +385,9 @@ func TestTrack(t *testing.T) {
 				of: &fake.ProviderConfigUsage{},
 			},
 			args: args{
-				mg: &fake.Managed{
-					ProviderConfigReferencer: fake.ProviderConfigReferencer{
-						Ref: &xpv1.Reference{Name: name},
+				mg: &fake.ModernManaged{
+					TypedProviderConfigReferencer: fake.TypedProviderConfigReferencer{
+						Ref: &xpv1.ProviderConfigReference{Name: name, Kind: "ProviderConfig"},
 					},
 				},
 			},
@@ -308,9 +402,9 @@ func TestTrack(t *testing.T) {
 				of: &fake.ProviderConfigUsage{},
 			},
 			args: args{
-				mg: &fake.Managed{
-					ProviderConfigReferencer: fake.ProviderConfigReferencer{
-						Ref: &xpv1.Reference{Name: name},
+				mg: &fake.ModernManaged{
+					TypedProviderConfigReferencer: fake.TypedProviderConfigReferencer{
+						Ref: &xpv1.ProviderConfigReference{Name: name, Kind: "ProviderConfig"},
 					},
 				},
 			},

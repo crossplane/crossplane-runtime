@@ -16,22 +16,9 @@ limitations under the License.
 
 package v1
 
+import (
+	"github.com/crossplane/crossplane-runtime/apis/common"
+)
+
 // ObservedStatus contains the recent reconciliation stats.
-type ObservedStatus struct {
-	// ObservedGeneration is the latest metadata.generation
-	// which resulted in either a ready state, or stalled due to error
-	// it can not recover from without human intervention.
-	// +optional
-	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
-}
-
-// SetObservedGeneration sets the generation of the main resource
-// during the last reconciliation.
-func (s *ObservedStatus) SetObservedGeneration(generation int64) {
-	s.ObservedGeneration = generation
-}
-
-// GetObservedGeneration returns the last observed generation of the main resource.
-func (s *ObservedStatus) GetObservedGeneration() int64 {
-	return s.ObservedGeneration
-}
+type ObservedStatus = common.ObservedStatus

@@ -17,23 +17,20 @@ limitations under the License.
 package v1
 
 import (
-	"sort"
-
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/crossplane/crossplane-runtime/apis/common"
 )
 
 // A ConditionType represents a condition a resource could be in.
-type ConditionType string
+type ConditionType = common.ConditionType
 
 // Condition types.
 const (
 	// TypeReady resources are believed to be ready to handle work.
-	TypeReady ConditionType = "Ready"
+	TypeReady ConditionType = common.TypeReady
 
 	// TypeSynced resources are believed to be in sync with the
 	// Kubernetes resources that manage their lifecycle.
-	TypeSynced ConditionType = "Synced"
+	TypeSynced ConditionType = common.TypeSynced
 
 	// TypeHealthy resources are believed to be in a healthy state and to have all
 	// of their child resources in a healthy state. For example, a claim is
@@ -44,90 +41,36 @@ const (
 	// TODO: This condition is not yet implemented. It is currently just reserved
 	// as a system condition. See the tracking issue for more details
 	// https://github.com/crossplane/crossplane/issues/5643.
-	TypeHealthy ConditionType = "Healthy"
+	TypeHealthy ConditionType = common.TypeHealthy
 )
 
 // A ConditionReason represents the reason a resource is in a condition.
-type ConditionReason string
+type ConditionReason = common.ConditionReason
 
 // Reasons a resource is or is not ready.
 const (
-	ReasonAvailable   ConditionReason = "Available"
-	ReasonUnavailable ConditionReason = "Unavailable"
-	ReasonCreating    ConditionReason = "Creating"
-	ReasonDeleting    ConditionReason = "Deleting"
+	ReasonAvailable   = common.ReasonAvailable
+	ReasonUnavailable = common.ReasonUnavailable
+	ReasonCreating    = common.ReasonCreating
+	ReasonDeleting    = common.ReasonDeleting
 )
 
 // Reasons a resource is or is not synced.
 const (
-	ReasonReconcileSuccess ConditionReason = "ReconcileSuccess"
-	ReasonReconcileError   ConditionReason = "ReconcileError"
-	ReasonReconcilePaused  ConditionReason = "ReconcilePaused"
+	ReasonReconcileSuccess = common.ReasonReconcileSuccess
+	ReasonReconcileError   = common.ReasonReconcileError
+	ReasonReconcilePaused  = common.ReasonReconcilePaused
 )
 
 // See https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#typical-status-properties
 
 // A Condition that may apply to a resource.
-type Condition struct { //nolint:recvcheck // False positive - only has non-pointer methods AFAICT.
-	// Type of this condition. At most one of each condition type may apply to
-	// a resource at any point in time.
-	Type ConditionType `json:"type"`
-
-	// Status of this condition; is it currently True, False, or Unknown?
-	Status corev1.ConditionStatus `json:"status"`
-
-	// LastTransitionTime is the last time this condition transitioned from one
-	// status to another.
-	LastTransitionTime metav1.Time `json:"lastTransitionTime"`
-
-	// A Reason for this condition's last transition from one status to another.
-	Reason ConditionReason `json:"reason"`
-
-	// A Message containing details about this condition's last transition from
-	// one status to another, if any.
-	// +optional
-	Message string `json:"message,omitempty"`
-
-	// ObservedGeneration represents the .metadata.generation that the condition was set based upon.
-	// For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
-	// with respect to the current state of the instance.
-	// +optional
-	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
-}
-
-// Equal returns true if the condition is identical to the supplied condition,
-// ignoring the LastTransitionTime.
-func (c Condition) Equal(other Condition) bool {
-	return c.Type == other.Type &&
-		c.Status == other.Status &&
-		c.Reason == other.Reason &&
-		c.Message == other.Message &&
-		c.ObservedGeneration == other.ObservedGeneration
-}
-
-// WithMessage returns a condition by adding the provided message to existing
-// condition.
-func (c Condition) WithMessage(msg string) Condition {
-	c.Message = msg
-	return c
-}
-
-// WithObservedGeneration returns a condition by adding the provided observed generation
-// to existing condition.
-func (c Condition) WithObservedGeneration(gen int64) Condition {
-	c.ObservedGeneration = gen
-	return c
-}
+type Condition = common.Condition
 
 // IsSystemConditionType returns true if the condition is owned by the
 // Crossplane system (e.g, Ready, Synced, Healthy).
 func IsSystemConditionType(t ConditionType) bool {
-	switch t {
-	case TypeReady, TypeSynced, TypeHealthy:
-		return true
-	}
-
-	return false
+	return common.IsSystemConditionType(t)
 }
 
 // NOTE(negz): Conditions are implemented as a slice rather than a map to comply
@@ -139,122 +82,29 @@ func IsSystemConditionType(t ConditionType) bool {
 
 // A ConditionedStatus reflects the observed status of a resource. Only
 // one condition of each type may exist.
-type ConditionedStatus struct {
-	// Conditions of the resource.
-	// +listType=map
-	// +listMapKey=type
-	// +optional
-	Conditions []Condition `json:"conditions,omitempty"`
-}
+type ConditionedStatus = common.ConditionedStatus
 
 // NewConditionedStatus returns a stat with the supplied conditions set.
 func NewConditionedStatus(c ...Condition) *ConditionedStatus {
-	s := &ConditionedStatus{}
-	s.SetConditions(c...)
-
-	return s
-}
-
-// GetCondition returns the condition for the given ConditionType if exists,
-// otherwise returns nil.
-func (s *ConditionedStatus) GetCondition(ct ConditionType) Condition {
-	for _, c := range s.Conditions {
-		if c.Type == ct {
-			return c
-		}
-	}
-
-	return Condition{Type: ct, Status: corev1.ConditionUnknown}
-}
-
-// SetConditions sets the supplied conditions, replacing any existing conditions
-// of the same type. This is a no-op if all supplied conditions are identical,
-// ignoring the last transition time, to those already set.
-func (s *ConditionedStatus) SetConditions(c ...Condition) {
-	for _, cond := range c {
-		exists := false
-
-		for i, existing := range s.Conditions {
-			if existing.Type != cond.Type {
-				continue
-			}
-
-			if existing.Equal(cond) {
-				exists = true
-				continue
-			}
-
-			s.Conditions[i] = cond
-			exists = true
-		}
-
-		if !exists {
-			s.Conditions = append(s.Conditions, cond)
-		}
-	}
-}
-
-// Equal returns true if the status is identical to the supplied status,
-// ignoring the LastTransitionTimes and order of statuses.
-func (s *ConditionedStatus) Equal(other *ConditionedStatus) bool {
-	if s == nil || other == nil {
-		return s == nil && other == nil
-	}
-
-	if len(other.Conditions) != len(s.Conditions) {
-		return false
-	}
-
-	sc := make([]Condition, len(s.Conditions))
-	copy(sc, s.Conditions)
-
-	oc := make([]Condition, len(other.Conditions))
-	copy(oc, other.Conditions)
-
-	// We should not have more than one condition of each type.
-	sort.Slice(sc, func(i, j int) bool { return sc[i].Type < sc[j].Type })
-	sort.Slice(oc, func(i, j int) bool { return oc[i].Type < oc[j].Type })
-
-	for i := range sc {
-		if !sc[i].Equal(oc[i]) {
-			return false
-		}
-	}
-
-	return true
+	return common.NewConditionedStatus(c...)
 }
 
 // Creating returns a condition that indicates the resource is currently
 // being created.
 func Creating() Condition {
-	return Condition{
-		Type:               TypeReady,
-		Status:             corev1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonCreating,
-	}
+	return common.Creating()
 }
 
 // Deleting returns a condition that indicates the resource is currently
 // being deleted.
 func Deleting() Condition {
-	return Condition{
-		Type:               TypeReady,
-		Status:             corev1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonDeleting,
-	}
+	return common.Deleting()
 }
 
 // Available returns a condition that indicates the resource is
 // currently observed to be available for use.
 func Available() Condition {
-	return Condition{
-		Type:               TypeReady,
-		Status:             corev1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonAvailable,
-	}
+	return common.Available()
 }
 
 // Unavailable returns a condition that indicates the resource is not
@@ -262,23 +112,13 @@ func Available() Condition {
 // expects the resource to be available but knows it is not, for example
 // because its API reports it is unhealthy.
 func Unavailable() Condition {
-	return Condition{
-		Type:               TypeReady,
-		Status:             corev1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonUnavailable,
-	}
+	return common.Unavailable()
 }
 
 // ReconcileSuccess returns a condition indicating that Crossplane successfully
 // completed the most recent reconciliation of the resource.
 func ReconcileSuccess() Condition {
-	return Condition{
-		Type:               TypeSynced,
-		Status:             corev1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonReconcileSuccess,
-	}
+	return common.ReconcileSuccess()
 }
 
 // ReconcileError returns a condition indicating that Crossplane encountered an
@@ -286,22 +126,11 @@ func ReconcileSuccess() Condition {
 // unable to update the resource to reflect its desired state, or that
 // Crossplane was unable to determine the current actual state of the resource.
 func ReconcileError(err error) Condition {
-	return Condition{
-		Type:               TypeSynced,
-		Status:             corev1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonReconcileError,
-		Message:            err.Error(),
-	}
+	return common.ReconcileError(err)
 }
 
 // ReconcilePaused returns a condition that indicates reconciliation on
 // the managed resource is paused via the pause annotation.
 func ReconcilePaused() Condition {
-	return Condition{
-		Type:               TypeSynced,
-		Status:             corev1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonReconcilePaused,
-	}
+	return common.ReconcilePaused()
 }

@@ -67,14 +67,29 @@ func (m *ManagedResourceReferencer) SetResourceReference(r *corev1.ObjectReferen
 // GetResourceReference gets the ResourceReference.
 func (m *ManagedResourceReferencer) GetResourceReference() *corev1.ObjectReference { return m.Ref }
 
-// ProviderConfigReferencer is a mock that implements ProviderConfigReferencer interface.
-type ProviderConfigReferencer struct{ Ref *xpv1.Reference }
+// TypedProviderConfigReferencer is a mock that implements resource.TypedProviderConfigReferencer interface.
+type TypedProviderConfigReferencer struct{ Ref *xpv1.ProviderConfigReference }
 
 // SetProviderConfigReference sets the ProviderConfigReference.
-func (m *ProviderConfigReferencer) SetProviderConfigReference(p *xpv1.Reference) { m.Ref = p }
+func (m *TypedProviderConfigReferencer) SetProviderConfigReference(p *xpv1.ProviderConfigReference) {
+	m.Ref = p
+}
 
 // GetProviderConfigReference gets the ProviderConfigReference.
-func (m *ProviderConfigReferencer) GetProviderConfigReference() *xpv1.Reference { return m.Ref }
+func (m *TypedProviderConfigReferencer) GetProviderConfigReference() *xpv1.ProviderConfigReference {
+	return m.Ref
+}
+
+// LegacyProviderConfigReferencer is a mock that implements resource.ProviderConfigReferencer interface.
+type LegacyProviderConfigReferencer struct{ Ref *xpv1.Reference }
+
+// SetProviderConfigReference sets the ProviderConfigReference.
+func (m *LegacyProviderConfigReferencer) SetProviderConfigReference(p *xpv1.Reference) { m.Ref = p }
+
+// GetProviderConfigReference gets the ProviderConfigReference.
+func (m *LegacyProviderConfigReferencer) GetProviderConfigReference() *xpv1.Reference {
+	return m.Ref
+}
 
 // RequiredProviderConfigReferencer is a mock that implements the
 // RequiredProviderConfigReferencer interface.
@@ -87,6 +102,20 @@ func (m *RequiredProviderConfigReferencer) SetProviderConfigReference(p xpv1.Ref
 
 // GetProviderConfigReference gets the ProviderConfigReference.
 func (m *RequiredProviderConfigReferencer) GetProviderConfigReference() xpv1.Reference {
+	return m.Ref
+}
+
+// RequiredTypedProviderConfigReferencer is a mock that implements the
+// RequiredTypedProviderConfigReferencer interface.
+type RequiredTypedProviderConfigReferencer struct{ Ref xpv1.ProviderConfigReference }
+
+// SetProviderConfigReference sets the ProviderConfigReference.
+func (m *RequiredTypedProviderConfigReferencer) SetProviderConfigReference(p xpv1.ProviderConfigReference) {
+	m.Ref = p
+}
+
+// GetProviderConfigReference gets the ProviderConfigReference.
+func (m *RequiredTypedProviderConfigReferencer) GetProviderConfigReference() xpv1.ProviderConfigReference {
 	return m.Ref
 }
 
@@ -130,21 +159,6 @@ func (m *ConnectionSecretWriterTo) SetWriteConnectionSecretToReference(r *xpv1.S
 // GetWriteConnectionSecretToReference gets the WriteConnectionSecretToReference.
 func (m *ConnectionSecretWriterTo) GetWriteConnectionSecretToReference() *xpv1.SecretReference {
 	return m.Ref
-}
-
-// ConnectionDetailsPublisherTo is a mock that implements ConnectionDetailsPublisherTo interface.
-type ConnectionDetailsPublisherTo struct {
-	To *xpv1.PublishConnectionDetailsTo
-}
-
-// SetPublishConnectionDetailsTo sets the PublishConnectionDetailsTo.
-func (m *ConnectionDetailsPublisherTo) SetPublishConnectionDetailsTo(to *xpv1.PublishConnectionDetailsTo) {
-	m.To = to
-}
-
-// GetPublishConnectionDetailsTo gets the PublishConnectionDetailsTo.
-func (m *ConnectionDetailsPublisherTo) GetPublishConnectionDetailsTo() *xpv1.PublishConnectionDetailsTo {
-	return m.To
 }
 
 // Manageable implements the Manageable interface.
@@ -329,11 +343,7 @@ func (o *Object) DeepCopyObject() runtime.Object {
 // Managed is a mock that implements Managed interface.
 type Managed struct {
 	metav1.ObjectMeta
-	ProviderConfigReferencer
-	ConnectionSecretWriterTo
-	ConnectionDetailsPublisherTo
 	Manageable
-	Orphanable
 	xpv1.ConditionedStatus
 }
 
@@ -345,6 +355,63 @@ func (m *Managed) GetObjectKind() schema.ObjectKind {
 // DeepCopyObject returns a copy of the object as runtime.Object.
 func (m *Managed) DeepCopyObject() runtime.Object {
 	out := &Managed{}
+
+	j, err := json.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+
+	_ = json.Unmarshal(j, out)
+
+	return out
+}
+
+// ModernManaged is a mock that implements ModernManaged interface.
+type ModernManaged struct {
+	metav1.ObjectMeta
+	TypedProviderConfigReferencer
+	LocalConnectionSecretWriterTo
+	Manageable
+	xpv1.ConditionedStatus
+}
+
+// GetObjectKind returns schema.ObjectKind.
+func (m *ModernManaged) GetObjectKind() schema.ObjectKind {
+	return schema.EmptyObjectKind
+}
+
+// DeepCopyObject returns a copy of the object as runtime.Object.
+func (m *ModernManaged) DeepCopyObject() runtime.Object {
+	out := &ModernManaged{}
+
+	j, err := json.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+
+	_ = json.Unmarshal(j, out)
+
+	return out
+}
+
+// LegacyManaged is a mock that implements LegacyManaged interface.
+type LegacyManaged struct {
+	metav1.ObjectMeta
+	LegacyProviderConfigReferencer
+	ConnectionSecretWriterTo
+	Manageable
+	Orphanable
+	xpv1.ConditionedStatus
+}
+
+// GetObjectKind returns schema.ObjectKind.
+func (m *LegacyManaged) GetObjectKind() schema.ObjectKind {
+	return schema.EmptyObjectKind
+}
+
+// DeepCopyObject returns a copy of the object as runtime.Object.
+func (m *LegacyManaged) DeepCopyObject() runtime.Object {
+	out := &LegacyManaged{}
 
 	j, err := json.Marshal(m)
 	if err != nil {
@@ -368,7 +435,6 @@ type Composite struct {
 	EnvironmentConfigReferencer
 	ClaimReferencer
 	ConnectionSecretWriterTo
-	ConnectionDetailsPublisherTo
 
 	xpv1.ResourceStatus
 	ConnectionDetailsLastPublishedTimer
@@ -397,7 +463,6 @@ func (m *Composite) DeepCopyObject() runtime.Object {
 type Composed struct {
 	metav1.ObjectMeta
 	ConnectionSecretWriterTo
-	ConnectionDetailsPublisherTo
 	xpv1.ResourceStatus
 }
 
@@ -431,7 +496,6 @@ type CompositeClaim struct {
 	CompositionUpdater
 	CompositeResourceReferencer
 	LocalConnectionSecretWriterTo
-	ConnectionDetailsPublisherTo
 
 	xpv1.ResourceStatus
 	ConnectionDetailsLastPublishedTimer
@@ -516,18 +580,7 @@ type MockConnectionSecretOwner struct {
 	runtime.Object
 	metav1.ObjectMeta
 
-	To       *xpv1.PublishConnectionDetailsTo
 	WriterTo *xpv1.SecretReference
-}
-
-// GetPublishConnectionDetailsTo returns the publish connection details to reference.
-func (m *MockConnectionSecretOwner) GetPublishConnectionDetailsTo() *xpv1.PublishConnectionDetailsTo {
-	return m.To
-}
-
-// SetPublishConnectionDetailsTo sets the publish connection details to reference.
-func (m *MockConnectionSecretOwner) SetPublishConnectionDetailsTo(t *xpv1.PublishConnectionDetailsTo) {
-	m.To = t
 }
 
 // GetWriteConnectionSecretToReference returns the connection secret reference.
@@ -566,7 +619,6 @@ type MockLocalConnectionSecretOwner struct {
 	metav1.ObjectMeta
 
 	Ref *xpv1.LocalSecretReference
-	To  *xpv1.PublishConnectionDetailsTo
 }
 
 // GetWriteConnectionSecretToReference returns the connection secret reference.
@@ -577,16 +629,6 @@ func (m *MockLocalConnectionSecretOwner) GetWriteConnectionSecretToReference() *
 // SetWriteConnectionSecretToReference sets the connection secret reference.
 func (m *MockLocalConnectionSecretOwner) SetWriteConnectionSecretToReference(r *xpv1.LocalSecretReference) {
 	m.Ref = r
-}
-
-// SetPublishConnectionDetailsTo sets the publish connectionDetails to.
-func (m *MockLocalConnectionSecretOwner) SetPublishConnectionDetailsTo(r *xpv1.PublishConnectionDetailsTo) {
-	m.To = r
-}
-
-// GetPublishConnectionDetailsTo returns the publish connectionDetails to.
-func (m *MockLocalConnectionSecretOwner) GetPublishConnectionDetailsTo() *xpv1.PublishConnectionDetailsTo {
-	return m.To
 }
 
 // GetObjectKind returns schema.ObjectKind.
@@ -640,7 +682,7 @@ func (p *ProviderConfig) DeepCopyObject() runtime.Object {
 type ProviderConfigUsage struct {
 	metav1.ObjectMeta
 
-	RequiredProviderConfigReferencer
+	RequiredTypedProviderConfigReferencer
 	RequiredTypedResourceReferencer
 }
 
@@ -652,6 +694,34 @@ func (p *ProviderConfigUsage) GetObjectKind() schema.ObjectKind {
 // DeepCopyObject returns a copy of the object as runtime.Object.
 func (p *ProviderConfigUsage) DeepCopyObject() runtime.Object {
 	out := &ProviderConfigUsage{}
+
+	j, err := json.Marshal(p)
+	if err != nil {
+		panic(err)
+	}
+
+	_ = json.Unmarshal(j, out)
+
+	return out
+}
+
+// LegacyProviderConfigUsage is a mock implementation of the LegacyProviderConfigUsage
+// interface.
+type LegacyProviderConfigUsage struct {
+	metav1.ObjectMeta
+
+	RequiredProviderConfigReferencer
+	RequiredTypedResourceReferencer
+}
+
+// GetObjectKind returns schema.ObjectKind.
+func (p *LegacyProviderConfigUsage) GetObjectKind() schema.ObjectKind {
+	return schema.EmptyObjectKind
+}
+
+// DeepCopyObject returns a copy of the object as runtime.Object.
+func (p *LegacyProviderConfigUsage) DeepCopyObject() runtime.Object {
+	out := &LegacyProviderConfigUsage{}
 
 	j, err := json.Marshal(p)
 	if err != nil {

@@ -87,6 +87,8 @@ type Reconciler struct {
 	newConfig    func() resource.ProviderConfig
 	newUsageList func() resource.ProviderConfigUsageList
 
+	legacyPCU bool
+
 	log    logging.Logger
 	record event.Recorder
 }
@@ -118,6 +120,7 @@ func NewReconciler(m manager.Manager, of resource.ProviderConfigKinds, o ...Reco
 		//nolint:forcetypeassert // If this isn't a ProviderConfigUsage it's a programming error and we want to panic.
 		return resource.MustCreateObject(of.UsageList, m.GetScheme()).(resource.ProviderConfigUsageList)
 	}
+	_, isLegacyPCU := resource.MustCreateObject(of.Usage, m.GetScheme()).(resource.LegacyProviderConfigUsage)
 
 	// Panic early if we've been asked to reconcile a resource kind that has not
 	// been registered with our controller manager's scheme.
@@ -128,6 +131,7 @@ func NewReconciler(m manager.Manager, of resource.ProviderConfigKinds, o ...Reco
 
 		newConfig:    nc,
 		newUsageList: nul,
+		legacyPCU:    isLegacyPCU,
 
 		log:    logging.NewNopLogger(),
 		record: event.NewNopRecorder(),
@@ -165,7 +169,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	)
 
 	l := r.newUsageList()
-	if err := r.client.List(ctx, l, client.MatchingLabels{xpv1.LabelKeyProviderName: pc.GetName()}); err != nil {
+
+	matchingLabels := client.MatchingLabels{
+		xpv1.LabelKeyProviderName: pc.GetName(),
+	}
+
+	if !r.legacyPCU {
+		matchingLabels[xpv1.LabelKeyProviderKind] = pc.GetObjectKind().GroupVersionKind().Kind
+	}
+
+	if err := r.client.List(ctx, l, matchingLabels); err != nil {
 		log.Debug(errListPCUs, "error", err)
 		r.record.Event(pc, event.Warning(reasonAccount, errors.Wrap(err, errListPCUs)))
 
