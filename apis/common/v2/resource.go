@@ -16,7 +16,9 @@ limitations under the License.
 
 package v2
 
-import v1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+import (
+	"github.com/crossplane/crossplane-runtime/apis/common"
+)
 
 // A ManagedResourceSpec defines the desired state of a managed resource.
 type ManagedResourceSpec struct {
@@ -25,13 +27,13 @@ type ManagedResourceSpec struct {
 	// be written. Connection details frequently include the endpoint, username,
 	// and password required to connect to the managed resource.
 	// +optional
-	WriteConnectionSecretToReference *v1.LocalSecretReference `json:"writeConnectionSecretToRef,omitempty"`
+	WriteConnectionSecretToReference *common.LocalSecretReference `json:"writeConnectionSecretToRef,omitempty"`
 
 	// ProviderConfigReference specifies how the provider that will be used to
 	// create, observe, update, and delete this managed resource should be
 	// configured.
 	// +kubebuilder:default={"kind": "ClusterProviderConfig", "name": "default"}
-	ProviderConfigReference *v1.ProviderConfigReference `json:"providerConfigRef,omitempty"`
+	ProviderConfigReference *common.ProviderConfigReference `json:"providerConfigRef,omitempty"`
 
 	// THIS IS A BETA FIELD. It is on by default but can be opted out
 	// through a Crossplane feature flag.
@@ -41,15 +43,9 @@ type ManagedResourceSpec struct {
 	// and this one: https://github.com/crossplane/crossplane/blob/444267e84783136daa93568b364a5f01228cacbe/design/one-pager-ignore-changes.md
 	// +optional
 	// +kubebuilder:default={"*"}
-	ManagementPolicies v1.ManagementPolicies `json:"managementPolicies,omitempty"`
+	ManagementPolicies common.ManagementPolicies `json:"managementPolicies,omitempty"`
 }
 
 // A TypedProviderConfigUsage is a record that a particular managed resource is using
 // a particular provider configuration.
-type TypedProviderConfigUsage struct {
-	// ProviderConfigReference to the provider config being used.
-	ProviderConfigReference v1.ProviderConfigReference `json:"providerConfigRef"`
-
-	// ResourceReference to the managed resource using the provider config.
-	ResourceReference v1.TypedReference `json:"resourceRef"`
-}
+type TypedProviderConfigUsage = common.TypedProviderConfigUsage
