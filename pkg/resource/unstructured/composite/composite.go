@@ -358,13 +358,13 @@ func (c *Unstructured) GetConditions() []xpv1.Condition {
 
 // GetConnectionDetailsLastPublishedTime of this composite resource.
 func (c *Unstructured) GetConnectionDetailsLastPublishedTime() *metav1.Time {
-	path := "status.crossplane.connectionDetails.lastPublishedTime"
-	if c.Schema == SchemaLegacy {
-		path = "status.connectionDetails.lastPublishedTime"
+	// Only legacy XRs support connection details.
+	if c.Schema != SchemaLegacy {
+		return nil
 	}
 
 	out := &metav1.Time{}
-	if err := fieldpath.Pave(c.Object).GetValueInto(path, out); err != nil {
+	if err := fieldpath.Pave(c.Object).GetValueInto("status.connectionDetails.lastPublishedTime", out); err != nil {
 		return nil
 	}
 
@@ -373,12 +373,12 @@ func (c *Unstructured) GetConnectionDetailsLastPublishedTime() *metav1.Time {
 
 // SetConnectionDetailsLastPublishedTime of this composite resource.
 func (c *Unstructured) SetConnectionDetailsLastPublishedTime(t *metav1.Time) {
-	path := "status.crossplane.connectionDetails.lastPublishedTime"
-	if c.Schema == SchemaLegacy {
-		path = "status.connectionDetails.lastPublishedTime"
+	// Only legacy XRs support connection details.
+	if c.Schema != SchemaLegacy {
+		return
 	}
 
-	_ = fieldpath.Pave(c.Object).SetValue(path, t)
+	_ = fieldpath.Pave(c.Object).SetValue("status.connectionDetails.lastPublishedTime", t)
 }
 
 // SetObservedGeneration of this composite resource claim.

@@ -99,6 +99,7 @@ func (r *APIRecorder) Event(obj runtime.Object, e Event) {
 			return
 		}
 	}
+
 	r.kube.AnnotatedEventf(obj, r.annotations, string(e.Type), string(e.Reason), "%s", e.Message)
 }
 

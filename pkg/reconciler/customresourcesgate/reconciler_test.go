@@ -287,6 +287,7 @@ func (m *MockGate) Set(gvk schema.GroupVersionKind, value bool) bool {
 
 		m.FalseCalls = append(m.FalseCalls, gvk)
 	}
+
 	return true
 }
 
@@ -538,6 +539,7 @@ func TestReconcile(t *testing.T) {
 				slices.SortFunc(tc.fields.gate.TrueCalls, func(a, b schema.GroupVersionKind) int {
 					return strings.Compare(a.Kind, b.Kind)
 				})
+
 				if diff := cmp.Diff(tc.want.trueCalls, tc.fields.gate.TrueCalls); diff != "" {
 					t.Errorf("\n%s\ngate.True calls: -want, +got:\n%s", tc.reason, diff)
 				}
@@ -548,6 +550,7 @@ func TestReconcile(t *testing.T) {
 				slices.SortFunc(tc.fields.gate.FalseCalls, func(a, b schema.GroupVersionKind) int {
 					return strings.Compare(a.Kind, b.Kind)
 				})
+
 				if diff := cmp.Diff(tc.want.falseCalls, tc.fields.gate.FalseCalls); diff != "" {
 					t.Errorf("\n%s\ngate.False calls: -want, +got:\n%s", tc.reason, diff)
 				}
