@@ -440,10 +440,15 @@ func TestConnectionDetailsLastPublishedTime(t *testing.T) {
 		set  *metav1.Time
 		want *metav1.Time
 	}{
-		"NewTime": {
-			u:    New(),
+		"NewTimeLegacy": {
+			u:    New(WithSchema(SchemaLegacy)),
 			set:  now,
 			want: lores(now),
+		},
+		"NewTimeModern": {
+			u:    New(WithSchema(SchemaModern)),
+			set:  now,
+			want: nil, // modern schema doesn't support connection details
 		},
 	}
 
