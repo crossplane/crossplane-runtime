@@ -17,7 +17,7 @@ limitations under the License.
 package v1
 
 import (
-	"github.com/crossplane/crossplane-runtime/apis/common"
+	"github.com/crossplane/crossplane-runtime/v2/apis/common"
 )
 
 // ObservedStatus contains the recent reconciliation stats.

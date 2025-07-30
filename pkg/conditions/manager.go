@@ -18,8 +18,8 @@ limitations under the License.
 package conditions
 
 import (
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 )
 
 // ObjectWithConditions is the interface definition that allows.

@@ -17,10 +17,10 @@ limitations under the License.
 package resource
 
 import (
-	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/claim"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composed"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured/composite"
 )
 
 // We test that our fakes satisfy our interfaces here rather than in the fake

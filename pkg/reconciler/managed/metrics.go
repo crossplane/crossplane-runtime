@@ -24,8 +24,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kmetrics "k8s.io/component-base/metrics"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 )
 
 const subSystem = "crossplane"

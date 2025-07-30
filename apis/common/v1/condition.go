@@ -17,7 +17,7 @@ limitations under the License.
 package v1
 
 import (
-	"github.com/crossplane/crossplane-runtime/apis/common"
+	"github.com/crossplane/crossplane-runtime/v2/apis/common"
 )
 
 // A ConditionType represents a condition a resource could be in.

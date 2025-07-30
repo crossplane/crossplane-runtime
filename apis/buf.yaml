@@ -2,7 +2,7 @@ version: v1
 name: buf.build/crossplane/crossplane-runtime
 breaking:
   use:
-    - FILE
+    - WIRE_JSON
 lint:
   use:
     - DEFAULT
