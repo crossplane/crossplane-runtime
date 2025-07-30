@@ -17,7 +17,7 @@ limitations under the License.
 package v2
 
 import (
-	"github.com/crossplane/crossplane-runtime/apis/common"
+	"github.com/crossplane/crossplane-runtime/v2/apis/common"
 )
 
 // A ManagedResourceSpec defines the desired state of a managed resource.

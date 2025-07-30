@@ -1,4 +1,4 @@
-module github.com/crossplane/crossplane-runtime
+module github.com/crossplane/crossplane-runtime/v2
 
 go 1.24.0
 

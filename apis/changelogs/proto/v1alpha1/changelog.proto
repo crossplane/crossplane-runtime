@@ -19,7 +19,7 @@ import "google/protobuf/timestamp.proto";
 // buf:lint:ignore PACKAGE_DIRECTORY_MATCH
 package changelogs.proto.v1alpha1;
 
-option go_package = "github.com/crossplane/crossplane-runtime/apis/changelogs/proto/v1alpha1";
+option go_package = "github.com/crossplane/crossplane-runtime/v2/apis/changelogs/proto/v1alpha1";
 
 // ChangeLogService is a service that provides the ability to send change log
 // entries.
@@ -39,7 +39,7 @@ message SendChangeLogRequest {
 message ChangeLogEntry {
   // The timestamp at which the change occurred.
   google.protobuf.Timestamp timestamp = 1;
-  
+
   // The name and version of the provider that is making the change to the
   // resource.
   string provider = 2;
