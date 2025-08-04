@@ -208,27 +208,17 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							mg :=
-								asManaged(obj, 42)
+							mg := asLegacyManaged(obj, 42)
 							mg.SetDeletionTimestamp(&now)
 							mg.SetDeletionPolicy(xpv1.DeletionDelete)
 							mg.SetFinalizers([]string{FinalizerName, "finalizer2"})
 							return nil
 						}),
-						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object,
-							_ ...client.SubResourceUpdateOption) error {
-							want :=
-								newManaged(42)
-							want.SetDeletionTimestamp(&now)
-							want.SetDeletionPolicy(xpv1.DeletionDelete)
-							want.SetFinalizers([]string{FinalizerName, "finalizer2"})
-							want.SetConditions(xpv1.Deleting().WithObservedGeneration(42))
-							return nil
-						}),
+						MockUpdate: test.NewMockUpdateFn(nil),
 					},
-					Scheme: fake.SchemeWith(&fake.Managed{}),
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
 				},
-				mg: resource.ManagedKind(fake.GVK(&fake.Managed{})),
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
@@ -246,7 +236,8 @@ func TestReconciler(t *testing.T) {
 				},
 			},
 			want: want{result: reconcile.Result{Requeue: true}},
-		}, "ExternalCreatePending": {
+		},
+		"ExternalCreatePending": {
 			reason: "We should return early if the managed resource appears to be pending creation. We might have leaked a resource and don't want to create another.",
 			args: args{
 				m: &fake.Manager{
