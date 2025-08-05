@@ -202,6 +202,41 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{Requeue: true}},
 		},
+		"ExtraFinalizersDelayDelete": {
+			reason: "The existence of multiple finalizers should trigger a requeue after a short wait.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							mg := asLegacyManaged(obj, 42)
+							mg.SetDeletionTimestamp(&now)
+							mg.SetDeletionPolicy(xpv1.DeletionDelete)
+							mg.SetFinalizers([]string{FinalizerName, "finalizer2"})
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil),
+					},
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+					WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+								return ExternalObservation{ResourceExists: true}, nil
+							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
+							},
+						}
+						return c, nil
+					})),
+				},
+			},
+			want: want{result: reconcile.Result{Requeue: true}},
+		},
 		"ExternalCreatePending": {
 			reason: "We should return early if the managed resource appears to be pending creation. We might have leaked a resource and don't want to create another.",
 			args: args{
