@@ -53,6 +53,10 @@ const (
 	// ManagementActionMustCreate means that the external resource MUST be created
 	// by the managed resource and if it already exists an error condition is raised.
 	ManagementActionMustCreate ManagementAction = "MustCreate"
+
+	// ManagementActionOrphan means that all actions except Delete will be taken
+	// by the Crossplane controllers.
+	ManagementActionOrphan ManagementAction = "Orphan"
 )
 
 // A DeletionPolicy determines what should happen to the underlying external
