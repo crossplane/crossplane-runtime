@@ -48,6 +48,9 @@ type MockUpdateFn func(ctx context.Context, obj client.Object, opts ...client.Up
 // A MockPatchFn is used to mock client.Client's Patch implementation.
 type MockPatchFn func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error
 
+// A MockApplyFn is used to mock client.Client's Apply implementation.
+type MockApplyFn func(ctx context.Context, config runtime.ApplyConfiguration, opts ...client.ApplyOption) error
+
 // A MockSubResourceGetFn is used to mock client.SubResourceClient's get implementation.
 type MockSubResourceGetFn func(ctx context.Context, obj, subResource client.Object, opts ...client.SubResourceGetOption) error
 
@@ -72,6 +75,10 @@ type MockIsObjectNamespacedFn func(runtime.Object) (bool, error)
 // An ObjectFn operates on the supplied Object. You might use an ObjectFn to
 // test or update the contents of an Object.
 type ObjectFn func(obj client.Object) error
+
+// ApplyFn operates on the supplied ApplyConfiguration. You might use an ApplyFn to
+// test or update the contents of an ApplyConfiguration object.
+type ApplyFn func(obj runtime.ApplyConfiguration) error
 
 // An RuntimeObjectFn operates on the supplied Object. You might use an RuntimeObjectFn to
 // test or update the contents of an runtime.Object.
@@ -172,6 +179,18 @@ func NewMockPatchFn(err error, ofn ...ObjectFn) MockPatchFn {
 	}
 }
 
+// NewMockApplyFn returns a MockApplyFn that returns the supplied error.
+func NewMockApplyFn(err error, afn ...ApplyFn) MockApplyFn {
+	return func(_ context.Context, obj runtime.ApplyConfiguration, _ ...client.ApplyOption) error {
+		for _, fn := range afn {
+			if fnErr := fn(obj); fnErr != nil {
+				return fnErr
+			}
+		}
+		return err
+	}
+}
+
 // NewMockSubResourceCreateFn returns a MockSubResourceCreateFn that returns the supplied error.
 func NewMockSubResourceCreateFn(err error, ofn ...ObjectFn) MockSubResourceCreateFn {
 	return func(_ context.Context, obj, _ client.Object, _ ...client.SubResourceCreateOption) error {
@@ -256,6 +275,7 @@ type MockClient struct {
 	MockDeleteAllOf MockDeleteAllOfFn
 	MockUpdate      MockUpdateFn
 	MockPatch       MockPatchFn
+	MockApply       MockApplyFn
 
 	MockStatusCreate MockSubResourceCreateFn
 	MockStatusUpdate MockSubResourceUpdateFn
@@ -282,6 +302,7 @@ func NewMockClient() *MockClient {
 		MockDeleteAllOf: NewMockDeleteAllOfFn(nil),
 		MockUpdate:      NewMockUpdateFn(nil),
 		MockPatch:       NewMockPatchFn(nil),
+		MockApply:       NewMockApplyFn(nil),
 
 		MockStatusUpdate: NewMockSubResourceUpdateFn(nil),
 		MockStatusPatch:  NewMockSubResourcePatchFn(nil),
@@ -325,6 +346,11 @@ func (c *MockClient) Update(ctx context.Context, obj client.Object, opts ...clie
 // Patch calls MockClient's MockPatch function.
 func (c *MockClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 	return c.MockPatch(ctx, obj, patch, opts...)
+}
+
+// Apply calls MockClient's MockApply function.
+func (c *MockClient) Apply(ctx context.Context, config runtime.ApplyConfiguration, opts ...client.ApplyOption) error {
+	return c.MockApply(ctx, config, opts...)
 }
 
 // Status returns status writer for status sub-resource.

@@ -112,6 +112,11 @@ func (c *WrapperClient) Patch(ctx context.Context, obj client.Object, patch clie
 	return c.kube.Patch(ctx, obj, patch, opts...)
 }
 
+// Apply applies the given apply configuration to the Kubernetes cluster.
+func (c *WrapperClient) Apply(ctx context.Context, config runtime.ApplyConfiguration, opts ...client.ApplyOption) error {
+	return c.kube.Apply(ctx, config, opts...)
+}
+
 // DeleteAllOf deletes all objects of the given type matching the given options.
 func (c *WrapperClient) DeleteAllOf(ctx context.Context, obj client.Object, opts ...client.DeleteAllOfOption) error {
 	if u, ok := obj.(Wrapper); ok {
