@@ -1107,9 +1107,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 			record.Event(managed, event.Warning(reasonCannotDisconnect, err))
 		}
 
-		if err := external.Disconnect(ctx); err != nil {
-			log.Debug("Cannot disconnect from provider", "error", err)
-			record.Event(managed, event.Warning(reasonCannotDisconnect, err))
+		if external != nil {
+			if err := external.Disconnect(ctx); err != nil {
+				log.Debug("Cannot disconnect from provider", "error", err)
+				record.Event(managed, event.Warning(reasonCannotDisconnect, err))
+			}
 		}
 	}()
 
