@@ -1148,10 +1148,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
-	never := time.Time{}
 	// If the resource already exists, the MustCreate policy is set, and there are no create annotations then
 	// this MR did not create the resource and an error is raised.
-	if observation.ResourceExists && policy.MustCreate() && meta.GetExternalCreatePending(managed).Equal(never) && meta.GetExternalCreateSucceeded(managed).Equal(never) && meta.GetExternalCreateFailed(managed).Equal(never) {
+	if observation.ResourceExists && policy.MustCreate() && meta.ExternalCreateNotStarted(managed) {
 		log.Debug(errMustCreate)
 		record.Event(managed, event.Warning(reasonCannotCreate, errors.New(errMustCreate)))
 		status.MarkConditions(xpv1.Creating(), xpv1.ReconcileError(errors.New(errMustCreate)))

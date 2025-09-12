@@ -220,7 +220,7 @@ func (m *ManagementPoliciesResolver) ShouldCreate() bool {
 
 // MustCreate returns true if the Create action is required.  If the resource already exists an error will
 // be raised in the reconciler.
-// If the management policy feature is disabled, it returns true.
+// If the management policy feature is disabled, it returns false.
 func (m *ManagementPoliciesResolver) MustCreate() bool {
 	if !m.enabled {
 		return false
