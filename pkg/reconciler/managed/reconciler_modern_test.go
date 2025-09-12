@@ -2607,6 +2607,18 @@ func TestShouldDelete(t *testing.T) {
 			},
 			want: want{delete: false},
 		},
+		"ManagementActionOrphan": {
+			reason: "Should orphan if management policies are enabled and management policy is Orphan.",
+			args: args{
+				managementPoliciesEnabled: true,
+				managed: &fake.ModernManaged{
+					Manageable: fake.Manageable{
+						Policy: xpv1.ManagementPolicies{xpv1.ManagementActionOrphan},
+					},
+				},
+			},
+			want: want{delete: false},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
