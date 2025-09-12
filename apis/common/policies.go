@@ -22,7 +22,7 @@ type ManagementPolicies []ManagementAction
 
 // A ManagementAction represents an action that the Crossplane controllers
 // can take on an external resource.
-// +kubebuilder:validation:Enum=Observe;Create;Update;Delete;LateInitialize;*
+// +kubebuilder:validation:Enum=Observe;Create;Update;Delete;LateInitialize;*;MustCreate
 type ManagementAction string
 
 const (
