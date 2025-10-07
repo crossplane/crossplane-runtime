@@ -23,6 +23,7 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 
+	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/ratelimiter"
@@ -39,6 +40,7 @@ func DefaultOptions() Options {
 		PollInterval:            1 * time.Minute,
 		MaxConcurrentReconciles: 1,
 		Features:                &feature.Flags{},
+		EventFilterFunctions:    []event.FilterFn{},
 	}
 }
 
@@ -72,6 +74,9 @@ type Options struct {
 
 	// Gate implements a gated function callback pattern.
 	Gate Gate
+
+	// EventFilterFunctions used to filter events emitted by the controllers.
+	EventFilterFunctions []event.FilterFn
 }
 
 // ForControllerRuntime extracts options for controller-runtime.
