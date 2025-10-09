@@ -1664,6 +1664,7 @@ func TestModernReconciler(t *testing.T) {
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
