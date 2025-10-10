@@ -1,5 +1,5 @@
-# CodeRabbit Configuration for Crossplane
-# This configuration is optimized for the Crossplane Go project
+# CodeRabbit Configuration for Crossplane Runtime
+# This configuration is optimized for the Crossplane Runtime Go library
 
 # =============================================================================
 # GLOBAL SETTINGS
@@ -112,9 +112,9 @@ reviews:
         user-friendly. Pay attention to API consistency, proper use of optional
         vs required fields, and following established Kubernetes patterns.
     
-    - path: "**/internal/controller/**"
+    - path: "**/pkg/reconciler/**"
       instructions: |
-        Review controller logic for proper reconciliation patterns, error
+        Review reconciler logic for proper reconciliation patterns, error
         handling, and resource management. Pay special attention to conditions
         and events: Conditions must be actionable for users (not developers),
         stable/deterministic, with proper Type/Reason/Message format. Events
@@ -122,14 +122,6 @@ reviews:
         changed. No transient errors in conditions/events. All error messages
         must be meaningful to end users - include context about what
         resource/operation failed and why.
-    
-    - path: "**/cmd/**"
-      instructions: |
-        Review CLI commands for proper flag handling, help text, and error
-        messages. Ensure commands follow Crossplane CLI conventions. Ask about
-        backward compatibility and user experience. CLI error messages must be
-        especially user-friendly - avoid internal error details, provide
-        actionable guidance.
     
     - path: "**/test/**"
       instructions: |
@@ -139,30 +131,7 @@ reviews:
         error testing uses proper patterns (cmpopts.EquateErrors, sentinel
         errors for complex cases).
     
-    - path: "**/test/e2e/**"
-      instructions: |
-        Review E2E tests for proper structure following Crossplane patterns:
-        Use features.NewWithDescription() with CamelCase names, not sentences.
-        Ensure proper Setup/Assess/Teardown phases with descriptive names.
-        Check that tests have appropriate labels (area, size, test suite).
-        Verify tests use YAML manifests in test/e2e/manifests/<area>/<test>
-        structure. Ensure tests avoid complex logic in e2e package and use
-        funcs package for reusable logic. Check that tests don't assume
-        ordering and can run independently. Verify proper cleanup in teardown
-        phases.
-    
-    - path: "**/cluster/**"
-      instructions: |
-        Review Kubernetes manifests for security, resource limits, and proper
-        RBAC. Ensure Helm chart follows best practices. Consider upgrade and
-        rollback scenarios.
-    
-    - path: "**/design/**"
-      instructions: |
-        Focus on architectural decisions, user experience, and long-term
-        maintainability. Ask clarifying questions about design choices and
-        consider alternative approaches. Ensure the design aligns with
-        Crossplane's principles and provides good user experience.
+
   
   # Automatic review settings
   auto_review:
@@ -192,21 +161,16 @@ reviews:
     docstrings:
       mode: "off"
     
-    # Custom checks specific to Crossplane development practices
+    # Custom checks specific to Crossplane Runtime development practices
     custom_checks:
       - name: "Breaking Changes"
         mode: "error"
         instructions: |
-          "Fails if files under 'apis/**' or 'cmd/**' remove or rename public
-          fields/flags, add new required public fields/flags, or remove behavior
-          without label 'breaking-change'.
-      
-      - name: "Feature Gate Requirement"
-        mode: "error"
-        instructions: |
-          Fails if new experimental features that affect apis/**, or
-          significantly affect behavior, are added without a feature flag
-          implementation.
+          Fails if any public Go code (exported functions, types, methods, or
+          fields) in '**/*.go' (excluding *_test.go and generated files) is
+          removed, renamed, has signature changes, or has behavior changes that
+          could break existing users, without the 'breaking-change' label. This
+          is a library repo - all exported APIs are public.
   
   # Disable automatic code generation features
   finishing_touches:
@@ -277,11 +241,6 @@ chat:
 # =============================================================================
 
 knowledge_base:
-  # Learn from Crossplane's coding guidelines and apply them during reviews
-  code_guidelines:
-    filePatterns:
-      - "**/contributing/README.md"
-  
   # Enable MCP integration to provide context about external libraries and APIs
   mcp:
     usage: "enabled"
