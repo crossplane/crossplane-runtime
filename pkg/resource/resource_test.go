@@ -636,6 +636,24 @@ func TestGetExternalTags(t *testing.T) {
 				ExternalResourceTagKeyProviderConfigKind: "ProviderConfig",
 			},
 		},
+		"SuccessfulWithNamespacedObject": {
+			o: &fake.ModernManaged{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: name,
+					Namespace: namespace,
+				},
+				TypedProviderConfigReferencer: fake.TypedProviderConfigReferencer{
+					Ref: &xpv1.ProviderConfigReference{Name: provName, Kind: "ProviderConfig"},
+				},
+			},
+			want: map[string]string{
+				ExternalResourceTagKeyKind:               strings.ToLower((&fake.Managed{}).GetObjectKind().GroupVersionKind().GroupKind().String()),
+				ExternalResourceTagKeyName:               name,
+				ExternalResourceTagKeyNamespace:          namespace,
+				ExternalResourceTagKeyProvider:           provName,
+				ExternalResourceTagKeyProviderConfigKind: "ProviderConfig",
+			},
+		},
 		"SuccessfulWithLegacyProviderConfig": {
 			o: &fake.LegacyManaged{
 				ObjectMeta: metav1.ObjectMeta{

@@ -49,6 +49,7 @@ const SecretTypeConnection corev1.SecretType = "connection.crossplane.io/v1alpha
 const (
 	ExternalResourceTagKeyKind               = "crossplane-kind"
 	ExternalResourceTagKeyName               = "crossplane-name"
+	ExternalResourceTagKeyNamespace          = "crossplane-namespace"
 	ExternalResourceTagKeyProvider           = "crossplane-providerconfig"
 	ExternalResourceTagKeyProviderConfigKind = "crossplane-providerconfig-kind"
 
@@ -412,6 +413,10 @@ func GetExternalTags(mg Managed) map[string]string {
 	tags := map[string]string{
 		ExternalResourceTagKeyKind: strings.ToLower(mg.GetObjectKind().GroupVersionKind().GroupKind().String()),
 		ExternalResourceTagKeyName: mg.GetName(),
+	}
+
+	if namespace := mg.GetNamespace(); namespace != "" {
+		tags[ExternalResourceTagKeyNamespace] = namespace
 	}
 
 	switch mg := mg.(type) {
