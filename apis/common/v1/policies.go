@@ -52,6 +52,10 @@ const (
 	// ManagementActionAll means that all of the above actions will be taken
 	// by the Crossplane controllers.
 	ManagementActionAll = common.ManagementActionAll
+
+	// ManagementActionMustCreate means that the external resource must be created
+	// by this MR and if it already exists an error condition is raised and no further processing is executed.
+	ManagementActionMustCreate = common.ManagementActionMustCreate
 )
 
 // A DeletionPolicy determines what should happen to the underlying external
