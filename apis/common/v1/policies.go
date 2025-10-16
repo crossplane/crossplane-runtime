@@ -52,6 +52,10 @@ const (
 	// ManagementActionAll means that all of the above actions will be taken
 	// by the Crossplane controllers.
 	ManagementActionAll = common.ManagementActionAll
+
+	// ManagementActionOrphan means that all actions except Delete will be taken
+	// by the Crossplane controllers.
+	ManagementActionOrphan ManagementAction = common.ManagementActionOrphan
 )
 
 // A DeletionPolicy determines what should happen to the underlying external
