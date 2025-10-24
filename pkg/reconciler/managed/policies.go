@@ -59,6 +59,8 @@ func defaultSupportedManagementPolicies() []sets.Set[xpv1.ManagementAction] {
 		sets.New[xpv1.ManagementAction](xpv1.ManagementActionAll),
 		// All actions explicitly set, the same as default.
 		sets.New[xpv1.ManagementAction](xpv1.ManagementActionObserve, xpv1.ManagementActionCreate, xpv1.ManagementActionUpdate, xpv1.ManagementActionLateInitialize, xpv1.ManagementActionDelete),
+		// All actions explicitly set with MustCreate instead of Create.
+		sets.New[xpv1.ManagementAction](xpv1.ManagementActionObserve, xpv1.ManagementActionMustCreate, xpv1.ManagementActionUpdate, xpv1.ManagementActionLateInitialize, xpv1.ManagementActionDelete),
 		// ObserveOnly, just observe action is done, the external resource is
 		// considered as read-only.
 		sets.New[xpv1.ManagementAction](xpv1.ManagementActionObserve),
@@ -68,29 +70,55 @@ func defaultSupportedManagementPolicies() []sets.Set[xpv1.ManagementAction] {
 		// No LateInitialize filling in the spec.forProvider, allowing some
 		// external resource fields to be managed externally.
 		sets.New[xpv1.ManagementAction](xpv1.ManagementActionObserve, xpv1.ManagementActionCreate, xpv1.ManagementActionUpdate, xpv1.ManagementActionDelete),
+		// No LateInitialize filling in the spec.forProvider, allowing some
+		// external resource fields to be managed externally. With MustCreate.
+		sets.New[xpv1.ManagementAction](xpv1.ManagementActionObserve, xpv1.ManagementActionMustCreate, xpv1.ManagementActionUpdate, xpv1.ManagementActionDelete),
 		// No Delete, the external resource is not deleted when the managed
 		// resource is deleted.
 		sets.New[xpv1.ManagementAction](xpv1.ManagementActionObserve, xpv1.ManagementActionCreate, xpv1.ManagementActionUpdate, xpv1.ManagementActionLateInitialize),
+		// No Delete, the external resource is not deleted when the managed
+		// resource is deleted.  With MustCreate.
+		sets.New[xpv1.ManagementAction](xpv1.ManagementActionObserve, xpv1.ManagementActionMustCreate, xpv1.ManagementActionUpdate, xpv1.ManagementActionLateInitialize),
 		// No Delete and no LateInitialize, the external resource is not deleted
 		// when the managed resource is deleted and the spec.forProvider is not
 		// late initialized.
 		sets.New[xpv1.ManagementAction](xpv1.ManagementActionObserve, xpv1.ManagementActionCreate, xpv1.ManagementActionUpdate),
+		// No Delete and no LateInitialize, the external resource is not deleted
+		// when the managed resource is deleted and the spec.forProvider is not
+		// late initialized. With MustCreate.
+		sets.New[xpv1.ManagementAction](xpv1.ManagementActionObserve, xpv1.ManagementActionMustCreate, xpv1.ManagementActionUpdate),
 		// No Update, the external resource is not updated when the managed
 		// resource is updated. Useful for immutable external resources.
 		sets.New[xpv1.ManagementAction](xpv1.ManagementActionObserve, xpv1.ManagementActionCreate, xpv1.ManagementActionDelete, xpv1.ManagementActionLateInitialize),
+		// No Update, the external resource is not updated when the managed
+		// resource is updated. Useful for immutable external resources. With MustCreate.
+		sets.New[xpv1.ManagementAction](xpv1.ManagementActionObserve, xpv1.ManagementActionMustCreate, xpv1.ManagementActionDelete, xpv1.ManagementActionLateInitialize),
 		// No Update and no Delete, the external resource is not updated
 		// when the managed resource is updated and the external resource
 		// is not deleted when the managed resource is deleted.
 		sets.New[xpv1.ManagementAction](xpv1.ManagementActionObserve, xpv1.ManagementActionCreate, xpv1.ManagementActionLateInitialize),
+		// No Update and no Delete, the external resource is not updated
+		// when the managed resource is updated and the external resource
+		// is not deleted when the managed resource is deleted. With MustCreate.
+		sets.New[xpv1.ManagementAction](xpv1.ManagementActionObserve, xpv1.ManagementActionMustCreate, xpv1.ManagementActionLateInitialize),
 		// No Update and no LateInitialize, the external resource is not updated
 		// when the managed resource is updated and the spec.forProvider is not
 		// late initialized.
 		sets.New[xpv1.ManagementAction](xpv1.ManagementActionObserve, xpv1.ManagementActionCreate, xpv1.ManagementActionDelete),
+		// No Update and no LateInitialize, the external resource is not updated
+		// when the managed resource is updated and the spec.forProvider is not
+		// late initialized. With MustCreate.
+		sets.New[xpv1.ManagementAction](xpv1.ManagementActionObserve, xpv1.ManagementActionMustCreate, xpv1.ManagementActionDelete),
 		// No Update, no Delete and no LateInitialize, the external resource is
 		// not updated when the managed resource is updated, the external resource
 		// is not deleted when the managed resource is deleted and the
 		// spec.forProvider is not late initialized.
 		sets.New[xpv1.ManagementAction](xpv1.ManagementActionObserve, xpv1.ManagementActionCreate),
+		// No Update, no Delete and no LateInitialize, the external resource is
+		// not updated when the managed resource is updated, the external resource
+		// is not deleted when the managed resource is deleted and the
+		// spec.forProvider is not late initialized.  With MustCreate.
+		sets.New[xpv1.ManagementAction](xpv1.ManagementActionObserve, xpv1.ManagementActionMustCreate),
 		// Like ObserveOnly, but the external resource is deleted when the
 		// managed resource is deleted.
 		sets.New[xpv1.ManagementAction](xpv1.ManagementActionObserve, xpv1.ManagementActionDelete),
@@ -187,7 +215,18 @@ func (m *ManagementPoliciesResolver) ShouldCreate() bool {
 		return true
 	}
 
-	return m.managementPolicies.HasAny(xpv1.ManagementActionCreate, xpv1.ManagementActionAll)
+	return m.managementPolicies.HasAny(xpv1.ManagementActionCreate, xpv1.ManagementActionAll, xpv1.ManagementActionMustCreate)
+}
+
+// MustCreate returns true if the Create action is required.  If the resource already exists an error will
+// be raised in the reconciler.
+// If the management policy feature is disabled, it returns true.
+func (m *ManagementPoliciesResolver) MustCreate() bool {
+	if !m.enabled {
+		return false
+	}
+
+	return m.managementPolicies.Has(xpv1.ManagementActionMustCreate)
 }
 
 // ShouldUpdate returns true if the Update action is allowed.

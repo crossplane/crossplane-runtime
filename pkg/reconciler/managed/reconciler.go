@@ -70,6 +70,8 @@ const (
 	errExternalResourceNotExist = "external resource does not exist"
 
 	errManagedNotImplemented = "managed resource does not implement connection details"
+
+	errMustCreate = "managed resource has mustcreate policy but external resource already exists"
 )
 
 // Event reasons.
@@ -115,6 +117,8 @@ type ManagementPoliciesChecker interface { //nolint:interfacebloat // This has t
 	ShouldOnlyObserve() bool
 	// ShouldCreate returns true if the Create action is allowed.
 	ShouldCreate() bool
+	// MustCreate returns true if the create action is required to be executed
+	MustCreate() bool
 	// ShouldLateInitialize returns true if the LateInitialize action is
 	// allowed.
 	ShouldLateInitialize() bool
@@ -1142,6 +1146,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		status.MarkConditions(xpv1.ReconcileError(errors.Wrap(errors.New(errExternalResourceNotExist), errReconcileObserve)))
 
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
+	}
+
+	never := time.Time{}
+	// If the resource already exists, the MustCreate policy is set, and there are no create annotations then
+	// this MR did not create the resource and an error is raised.
+	if observation.ResourceExists && policy.MustCreate() && meta.GetExternalCreatePending(managed).Equal(never) && meta.GetExternalCreateSucceeded(managed).Equal(never) && meta.GetExternalCreateFailed(managed).Equal(never) {
+		log.Debug(errMustCreate)
+		record.Event(managed, event.Warning(reasonCannotCreate, errors.New(errMustCreate)))
+		status.MarkConditions(xpv1.Creating(), xpv1.ReconcileError(errors.New(errMustCreate)))
+
+		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
 	// If this resource has a non-zero creation grace period we want to wait
