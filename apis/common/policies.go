@@ -22,7 +22,7 @@ type ManagementPolicies []ManagementAction
 
 // A ManagementAction represents an action that the Crossplane controllers
 // can take on an external resource.
-// +kubebuilder:validation:Enum=Observe;Create;Update;Delete;LateInitialize;*
+// +kubebuilder:validation:Enum=Observe;Create;Update;Delete;LateInitialize;*;Orphan
 type ManagementAction string
 
 const (
@@ -49,6 +49,10 @@ const (
 	// ManagementActionAll means that all of the above actions will be taken
 	// by the Crossplane controllers.
 	ManagementActionAll ManagementAction = "*"
+
+	// ManagementActionOrphan means that all actions except Delete will be taken
+	// by the Crossplane controllers.
+	ManagementActionOrphan ManagementAction = "Orphan"
 )
 
 // A DeletionPolicy determines what should happen to the underlying external
