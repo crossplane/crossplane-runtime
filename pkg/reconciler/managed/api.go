@@ -55,6 +55,15 @@ const (
 	errUpdateCriticalAnnotations = "cannot update critical annotations"
 )
 
+var (
+	criticalAnnotations = []string{
+		meta.AnnotationKeyExternalCreateFailed,
+		meta.AnnotationKeyExternalCreatePending,
+		meta.AnnotationKeyExternalCreateSucceeded,
+		meta.AnnotationKeyExternalName,
+	}
+)
+
 // NameAsExternalName writes the name of the managed resource to
 // the external name annotation field in order to be used as name of
 // the external resource in provider.
@@ -280,7 +289,18 @@ func NewRetryingCriticalAnnotationUpdater(c client.Client) *RetryingCriticalAnno
 // Only annotations will be updated as part of this operation, other fields of the
 // supplied Object will not be modified.
 func (u *RetryingCriticalAnnotationUpdater) UpdateCriticalAnnotations(ctx context.Context, o client.Object) error {
-	a := o.GetAnnotations()
+	a := make(map[string]string)
+	for _, k := range criticalAnnotations {
+		if v, ok := o.GetAnnotations()[k]; ok {
+			a[k] = v
+		}
+	}
+
+	if len(a) == 0 {
+		// No critical annotations to update.
+		return nil
+	}
+
 	err := retry.OnError(retry.DefaultRetry, func(err error) bool {
 		return !errors.Is(err, context.Canceled)
 	}, func() error {
