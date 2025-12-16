@@ -126,6 +126,34 @@ func (fn TrackerFn) Track(ctx context.Context, mg Managed) error {
 	return fn(ctx, mg)
 }
 
+// A LegacyTracker tracks legacy managed resources.
+type LegacyTracker interface {
+	// Track the supplied legacy managed resource.
+	Track(ctx context.Context, mg LegacyManaged) error
+}
+
+// A LegacyTrackerFn is a function that tracks legacy managed resources.
+type LegacyTrackerFn func(ctx context.Context, mg LegacyManaged) error
+
+// Track the supplied legacy managed resource.
+func (fn LegacyTrackerFn) Track(ctx context.Context, mg LegacyManaged) error {
+	return fn(ctx, mg)
+}
+
+// A ModernTracker tracks modern managed resources.
+type ModernTracker interface {
+	// Track the supplied modern managed resource.
+	Track(ctx context.Context, mg ModernManaged) error
+}
+
+// A ModernTrackerFn is a function that tracks modern managed resources.
+type ModernTrackerFn func(ctx context.Context, mg ModernManaged) error
+
+// Track the supplied modern managed resource.
+func (fn ModernTrackerFn) Track(ctx context.Context, mg ModernManaged) error {
+	return fn(ctx, mg)
+}
+
 // A ProviderConfigUsageTracker tracks usages of a ProviderConfig by creating or
 // updating the appropriate ProviderConfigUsage.
 type ProviderConfigUsageTracker struct {
