@@ -2,6 +2,8 @@ package reference
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -17,6 +19,26 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 )
+
+func prepareTestExamplesNamespaced(numExamples int) ([]string, []xpv1.NamespacedReference, []*fake.Managed) {
+	values := make([]string, numExamples)
+	refs := make([]xpv1.NamespacedReference, numExamples)
+	controlledObj := make([]*fake.Managed, numExamples)
+	for i := 0; i < numExamples; i++ {
+		values[i] = fmt.Sprintf("%s%d", testValuePrefix, i)
+		refs[i] = xpv1.NamespacedReference{
+			Name: fmt.Sprintf("%s%d", testResourceNamePrefix, i),
+		}
+		controlled := &fake.Managed{}
+		controlled.SetName(refs[i].Name)
+		meta.SetExternalName(controlled, values[i])
+		_ = meta.AddControllerReference(controlled, meta.AsController(&xpv1.TypedReference{UID: testControllerUID}))
+		controlledObj[i] = controlled
+	}
+	return values, refs, controlledObj
+}
+
+var nsTestValues, nsTestRefs, nsTestControlled = prepareTestExamplesNamespaced(10)
 
 func TestNamespacedResolve(t *testing.T) {
 	errBoom := errors.New("boom")
@@ -866,6 +888,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 		"BothReferenceSelector": {
 			reason: "When both Reference and Selector fields set and Policy is not set, the Reference must be resolved",
 			c: &test.MockClient{
+				MockList: test.NewMockListFn(errors.New("unexpected call to List when resolving Refs only")),
 				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 					meta.SetExternalName(obj.(metav1.Object), value)
 					return nil
@@ -889,8 +912,8 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 				},
 			},
 		},
-		"OrderOutput": {
-			reason: "Output values should ordered",
+		"SelectorOrderOutput": {
+			reason: "Resolved values should be ordered when resolving a selector",
 			c: &test.MockClient{
 				MockList: test.NewMockListFn(nil),
 			},
@@ -917,6 +940,79 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 					ResolvedReferences: []xpv1.NamespacedReference{{Name: value2}, {Name: value}},
 				},
 				err: nil,
+			},
+		},
+		"NoSelectorOnlyRefs": {
+			reason: "Refs should not be re-ordered when selector is omitted",
+			c: &test.MockClient{
+				MockList: test.NewMockListFn(errors.New("unexpected call to List when resolving Refs only")),
+				MockGet: func(_ context.Context, objKey client.ObjectKey, obj client.Object) error {
+					if !strings.HasPrefix(objKey.Name, testResourceNamePrefix) {
+						return errors.New("test resource not found")
+					}
+					val := strings.Replace(objKey.Name, testResourceNamePrefix, testValuePrefix, 1)
+					meta.SetExternalName(obj.(metav1.Object), val)
+					return nil
+				},
+			},
+			from: controlled,
+			args: args{
+				req: MultiNamespacedResolutionRequest{
+					References: []xpv1.NamespacedReference{nsTestRefs[2], nsTestRefs[3], nsTestRefs[0], nsTestRefs[1]},
+					To: To{
+						Managed: &fake.Managed{},
+					},
+					Extract: ExternalName(),
+				},
+			},
+			want: want{
+				rsp: MultiNamespacedResolutionResponse{
+					ResolvedValues:     []string{nsTestValues[2], nsTestValues[3], nsTestValues[0], nsTestValues[1]},
+					ResolvedReferences: []xpv1.NamespacedReference{nsTestRefs[2], nsTestRefs[3], nsTestRefs[0], nsTestRefs[1]},
+				},
+				err: nil,
+			},
+		},
+		"AlwaysResolveSelector_NewValuesOrdered": {
+			reason: "Must resolve new matches and reorder resolved values & refs, when Selector policy is Always and have existing refs and values",
+			c: &test.MockClient{
+				MockList: test.NewMockListFn(nil),
+				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+					meta.SetExternalName(obj.(metav1.Object), value)
+					return nil
+				}),
+			},
+			from: controlled,
+			args: args{
+				req: MultiNamespacedResolutionRequest{
+					CurrentValues: []string{nsTestValues[1], nsTestValues[4]},
+					References:    []xpv1.NamespacedReference{nsTestRefs[1], nsTestRefs[4]},
+					Selector: &xpv1.NamespacedSelector{
+						MatchControllerRef: func() *bool { t := true; return &t }(),
+						Policy:             &xpv1.Policy{Resolve: &alwaysPolicy},
+					},
+					To: To{
+						Managed: &fake.Managed{},
+						List: &FakeManagedList{
+							// List result is not ordered
+							Items: []resource.Managed{
+								&fake.Managed{},     // A resource that does not match.
+								nsTestControlled[2], // A resource with a matching controller reference.
+								&fake.Managed{},     // A resource that does not match.
+								nsTestControlled[4], // A resource with a matching controller reference.
+								nsTestControlled[1], // A resource with a matching controller reference and newly introduced
+							},
+						},
+					},
+					Extract: ExternalName(),
+				},
+			},
+			want: want{
+				rsp: MultiNamespacedResolutionResponse{
+					// expect ordered resolved values
+					ResolvedValues:     []string{nsTestValues[1], nsTestValues[2], nsTestValues[4]},
+					ResolvedReferences: []xpv1.NamespacedReference{nsTestRefs[1], nsTestRefs[2], nsTestRefs[4]},
+				},
 			},
 		},
 	}

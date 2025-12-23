@@ -389,6 +389,7 @@ func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRe
 
 	// The references are already set - resolve them.
 	if len(req.References) > 0 {
+		resolvedVals := make([]string, len(req.References))
 		for i := range req.References {
 			if err := r.client.Get(ctx, types.NamespacedName{Name: req.References[i].Name, Namespace: req.Namespace}, req.To.Managed); err != nil {
 				if kerrors.IsNotFound(err) {
@@ -398,12 +399,10 @@ func (r *APIResolver) ResolveMultiple(ctx context.Context, req MultiResolutionRe
 				return MultiResolutionResponse{}, errors.Wrap(err, errGetManaged)
 			}
 
-			valueMap[req.Extract(req.To.Managed)] = req.References[i]
+			resolvedVals[i] = req.Extract(req.To.Managed)
 		}
 
-		sortedKeys, sortedRefs := sortMapByKeys(valueMap)
-
-		rsp := MultiResolutionResponse{ResolvedValues: sortedKeys, ResolvedReferences: sortedRefs}
+		rsp := MultiResolutionResponse{ResolvedValues: resolvedVals, ResolvedReferences: req.References}
 
 		return rsp, rsp.Validate()
 	}
