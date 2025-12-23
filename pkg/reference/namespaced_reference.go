@@ -237,6 +237,7 @@ func (r *APINamespacedResolver) ResolveMultiple(ctx context.Context, req MultiNa
 
 	// The references are already set - resolve them.
 	if len(req.References) > 0 {
+		resolvedVals := make([]string, len(req.References))
 		for i := range req.References {
 			ns := req.References[i].Namespace
 			if ns == "" {
@@ -251,12 +252,10 @@ func (r *APINamespacedResolver) ResolveMultiple(ctx context.Context, req MultiNa
 				return MultiNamespacedResolutionResponse{}, errors.Wrap(err, errGetManaged)
 			}
 
-			valueMap[req.Extract(req.To.Managed)] = req.References[i]
+			resolvedVals[i] = req.Extract(req.To.Managed)
 		}
 
-		sortedKeys, sortedRefs := sortGenericMapByKeys(valueMap)
-
-		rsp := MultiNamespacedResolutionResponse{ResolvedValues: sortedKeys, ResolvedReferences: sortedRefs}
+		rsp := MultiNamespacedResolutionResponse{ResolvedValues: resolvedVals, ResolvedReferences: req.References}
 
 		return rsp, rsp.Validate()
 	}
