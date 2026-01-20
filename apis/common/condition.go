@@ -96,8 +96,15 @@ type Condition struct { //nolint:recvcheck // False positive - only has non-poin
 }
 
 // Equal returns true if the condition is identical to the supplied condition,
-// ignoring the LastTransitionTime.
+// ignoring the LastTransitionTime.  If one or both conditions have not
+// provided the ObservedGeneration it is not considered in the comparison.
 func (c Condition) Equal(other Condition) bool {
+	if c.ObservedGeneration == 0 || other.ObservedGeneration == 0 {
+		return c.Type == other.Type &&
+			c.Status == other.Status &&
+			c.Reason == other.Reason &&
+			c.Message == other.Message
+	}
 	return c.Type == other.Type &&
 		c.Status == other.Status &&
 		c.Reason == other.Reason &&
