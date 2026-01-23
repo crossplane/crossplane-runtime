@@ -131,6 +131,24 @@ func TestAddProviderConfig(t *testing.T) {
 			},
 			queue: addFn(func(_ any) { t.Errorf("queue.Add() called unexpectedly for non-matching kind") }),
 		},
+		"EmptyRefKindDefaultsToProviderConfig": {
+			handler: &EnqueueRequestForProviderConfig{Kind: "ProviderConfig"},
+			obj: &fake.ProviderConfigUsage{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "some-pcu",
+					Namespace: "baz",
+				},
+				RequiredTypedProviderConfigReferencer: fake.RequiredTypedProviderConfigReferencer{
+					Ref: xpv1.ProviderConfigReference{Name: name, Kind: ""},
+				},
+			},
+			queue: addFn(func(got any) {
+				want := reconcile.Request{NamespacedName: types.NamespacedName{Name: name, Namespace: "baz"}}
+				if diff := cmp.Diff(want, got); diff != "" {
+					t.Errorf("-want, +got:\n%s", diff)
+				}
+			}),
+		},
 	}
 
 	for name, tc := range cases {
