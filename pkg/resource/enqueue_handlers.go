@@ -18,6 +18,7 @@ package resource
 
 import (
 	"context"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -35,37 +36,50 @@ type RateLimitingInterface = workqueue.TypedRateLimitingInterface[reconcile.Requ
 
 // EnqueueRequestForProviderConfig enqueues a reconcile.Request for a referenced
 // ProviderConfig.
-type EnqueueRequestForProviderConfig struct{}
+type EnqueueRequestForProviderConfig struct {
+	// Kind is the expected ProviderConfig kind this handler should process.
+	// If empty, all kinds are processed (backward compatibility).
+	Kind string
+}
 
 // Create adds a NamespacedName for the supplied CreateEvent if its Object is a
 // ProviderConfigReferencer.
 func (e *EnqueueRequestForProviderConfig) Create(_ context.Context, evt event.CreateEvent, q RateLimitingInterface) {
-	addProviderConfig(evt.Object, q)
+	e.addProviderConfig(evt.Object, q)
 }
 
 // Update adds a NamespacedName for the supplied UpdateEvent if its Objects are
 // a ProviderConfigReferencer.
 func (e *EnqueueRequestForProviderConfig) Update(_ context.Context, evt event.UpdateEvent, q RateLimitingInterface) {
-	addProviderConfig(evt.ObjectOld, q)
-	addProviderConfig(evt.ObjectNew, q)
+	e.addProviderConfig(evt.ObjectOld, q)
+	e.addProviderConfig(evt.ObjectNew, q)
 }
 
 // Delete adds a NamespacedName for the supplied DeleteEvent if its Object is a
 // ProviderConfigReferencer.
 func (e *EnqueueRequestForProviderConfig) Delete(_ context.Context, evt event.DeleteEvent, q RateLimitingInterface) {
-	addProviderConfig(evt.Object, q)
+	e.addProviderConfig(evt.Object, q)
 }
 
 // Generic adds a NamespacedName for the supplied GenericEvent if its Object is
 // a ProviderConfigReferencer.
 func (e *EnqueueRequestForProviderConfig) Generic(_ context.Context, evt event.GenericEvent, q RateLimitingInterface) {
-	addProviderConfig(evt.Object, q)
+	e.addProviderConfig(evt.Object, q)
 }
 
-func addProviderConfig(obj runtime.Object, queue adder) {
+func (e *EnqueueRequestForProviderConfig) addProviderConfig(obj runtime.Object, queue adder) {
 	switch pcr := obj.(type) {
 	case TypedProviderConfigUsage:
-		queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: pcr.GetProviderConfigReference().Name, Namespace: pcr.GetNamespace()}})
+		ref := pcr.GetProviderConfigReference()
+		if e.Kind != "" && ref.Kind != e.Kind {
+			return
+		}
+
+		if strings.HasPrefix(ref.Kind, "Cluster") {
+			queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: ref.Name}})
+		} else {
+			queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: ref.Name, Namespace: pcr.GetNamespace()}})
+		}
 	case LegacyProviderConfigUsage:
 		queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: pcr.GetProviderConfigReference().Name}})
 	}
