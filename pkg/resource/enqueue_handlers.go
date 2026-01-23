@@ -71,11 +71,15 @@ func (e *EnqueueRequestForProviderConfig) addProviderConfig(obj runtime.Object, 
 	switch pcr := obj.(type) {
 	case TypedProviderConfigUsage:
 		ref := pcr.GetProviderConfigReference()
-		if e.Kind != "" && ref.Kind != e.Kind {
+		refKind := ref.Kind
+		if refKind == "" {
+			refKind = "ProviderConfig"
+		}
+		if e.Kind != "" && refKind != e.Kind {
 			return
 		}
 
-		if strings.HasPrefix(ref.Kind, "Cluster") {
+		if strings.HasPrefix(refKind, "Cluster") {
 			queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: ref.Name}})
 		} else {
 			queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: ref.Name, Namespace: pcr.GetNamespace()}})
