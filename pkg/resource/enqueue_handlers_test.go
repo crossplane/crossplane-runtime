@@ -42,13 +42,16 @@ func TestAddProviderConfig(t *testing.T) {
 	name := "coolname"
 
 	cases := map[string]struct {
-		obj   runtime.Object
-		queue adder
+		handler *EnqueueRequestForProviderConfig
+		obj     runtime.Object
+		queue   adder
 	}{
 		"NotProviderConfigReferencer": {
-			queue: addFn(func(_ any) { t.Errorf("queue.Add() called unexpectedly") }),
+			handler: &EnqueueRequestForProviderConfig{},
+			queue:   addFn(func(_ any) { t.Errorf("queue.Add() called unexpectedly") }),
 		},
 		"IsLegacyProviderConfigReferencer": {
+			handler: &EnqueueRequestForProviderConfig{},
 			obj: &fake.LegacyProviderConfigUsage{
 				RequiredProviderConfigReferencer: fake.RequiredProviderConfigReferencer{
 					Ref: xpv1.Reference{Name: name},
@@ -61,7 +64,8 @@ func TestAddProviderConfig(t *testing.T) {
 				}
 			}),
 		},
-		"IsProviderConfigReferencer": {
+		"IsTypedProviderConfigReferencer": {
+			handler: &EnqueueRequestForProviderConfig{},
 			obj: &fake.ProviderConfigUsage{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "some-pcu",
@@ -78,9 +82,60 @@ func TestAddProviderConfig(t *testing.T) {
 				}
 			}),
 		},
+		"ClusterScopedProviderConfigOmitsNamespace": {
+			handler: &EnqueueRequestForProviderConfig{Kind: "ClusterProviderConfig"},
+			obj: &fake.ProviderConfigUsage{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "some-pcu",
+					Namespace: "foo",
+				},
+				RequiredTypedProviderConfigReferencer: fake.RequiredTypedProviderConfigReferencer{
+					Ref: xpv1.ProviderConfigReference{Name: name, Kind: "ClusterProviderConfig"},
+				},
+			},
+			queue: addFn(func(got any) {
+				want := reconcile.Request{NamespacedName: types.NamespacedName{Name: name}}
+				if diff := cmp.Diff(want, got); diff != "" {
+					t.Errorf("-want, +got:\n%s", diff)
+				}
+			}),
+		},
+		"KindFilterMatchesKind": {
+			handler: &EnqueueRequestForProviderConfig{Kind: "ProviderConfig"},
+			obj: &fake.ProviderConfigUsage{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "some-pcu",
+					Namespace: "bar",
+				},
+				RequiredTypedProviderConfigReferencer: fake.RequiredTypedProviderConfigReferencer{
+					Ref: xpv1.ProviderConfigReference{Name: name, Kind: "ProviderConfig"},
+				},
+			},
+			queue: addFn(func(got any) {
+				want := reconcile.Request{NamespacedName: types.NamespacedName{Name: name, Namespace: "bar"}}
+				if diff := cmp.Diff(want, got); diff != "" {
+					t.Errorf("-want, +got:\n%s", diff)
+				}
+			}),
+		},
+		"KindFilterSkipsNonMatchingKind": {
+			handler: &EnqueueRequestForProviderConfig{Kind: "ProviderConfig"},
+			obj: &fake.ProviderConfigUsage{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "some-pcu",
+					Namespace: "bar",
+				},
+				RequiredTypedProviderConfigReferencer: fake.RequiredTypedProviderConfigReferencer{
+					Ref: xpv1.ProviderConfigReference{Name: name, Kind: "OtherProviderConfig"},
+				},
+			},
+			queue: addFn(func(_ any) { t.Errorf("queue.Add() called unexpectedly for non-matching kind") }),
+		},
 	}
 
-	for _, tc := range cases {
-		addProviderConfig(tc.obj, tc.queue)
+	for name, tc := range cases {
+		t.Run(name, func(_ *testing.T) {
+			tc.handler.addProviderConfig(tc.obj, tc.queue)
+		})
 	}
 }
