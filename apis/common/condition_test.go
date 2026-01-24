@@ -76,9 +76,27 @@ func TestConditionEqual(t *testing.T) {
 			b:    Condition{Message: "uncool"},
 			want: false,
 		},
+		"IdenticalWithMissingObservedGeneration": {
+			a: Condition{
+				Type:               TypeReady,
+				Status:             corev1.ConditionTrue,
+				LastTransitionTime: metav1.Now(),
+				Reason:             ReasonCreating,
+				Message:            "UnitTest",
+				ObservedGeneration: 1,
+			},
+			b: Condition{
+				Type:               TypeReady,
+				Status:             corev1.ConditionTrue,
+				LastTransitionTime: metav1.Now(),
+				Reason:             ReasonCreating,
+				Message:            "UnitTest",
+			},
+			want: true,
+		},
 		"DifferentObservedGeneration": {
 			a:    Condition{ObservedGeneration: 1},
-			b:    Condition{},
+			b:    Condition{ObservedGeneration: 2},
 			want: false,
 		},
 		"CheckReconcilePaused": {
