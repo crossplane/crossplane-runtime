@@ -239,10 +239,10 @@ func (*EmitResponseResponse) Descriptor() ([]byte, []int) {
 // invocation within a pipeline execution.
 type StepMeta struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// UUID identifying the entire pipeline execution (all steps in one reconciliation).
+	// ID identifying the entire pipeline execution (all steps in one reconciliation).
 	// All function invocations within a single reconciliation share the same trace_id.
 	TraceId string `protobuf:"bytes,1,opt,name=trace_id,json=traceId,proto3" json:"trace_id,omitempty"`
-	// UUID identifying this specific function invocation.
+	// ID identifying this specific function invocation.
 	SpanId string `protobuf:"bytes,2,opt,name=span_id,json=spanId,proto3" json:"span_id,omitempty"`
 	// Zero-based index of this step in the function pipeline.
 	StepIndex int32 `protobuf:"varint,3,opt,name=step_index,json=stepIndex,proto3" json:"step_index,omitempty"`

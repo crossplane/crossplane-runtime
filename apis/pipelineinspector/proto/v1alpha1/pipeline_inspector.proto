@@ -69,11 +69,11 @@ message EmitResponseResponse {}
 // StepMeta contains metadata for correlating and identifying a function
 // invocation within a pipeline execution.
 message StepMeta {
-  // UUID identifying the entire pipeline execution (all steps in one reconciliation).
+  // ID identifying the entire pipeline execution (all steps in one reconciliation).
   // All function invocations within a single reconciliation share the same trace_id.
   string trace_id = 1;
 
-  // UUID identifying this specific function invocation.
+  // ID identifying this specific function invocation.
   string span_id = 2;
 
   // Zero-based index of this step in the function pipeline.
