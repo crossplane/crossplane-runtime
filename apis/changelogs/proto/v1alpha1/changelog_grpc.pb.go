@@ -14,7 +14,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             (unknown)
-// source: changelogs/proto/v1alpha1/changelog.proto
+// source: apis/changelogs/proto/v1alpha1/changelog.proto
 
 // buf:lint:ignore PACKAGE_DIRECTORY_MATCH
 
@@ -139,5 +139,5 @@ var ChangeLogService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "changelogs/proto/v1alpha1/changelog.proto",
+	Metadata: "apis/changelogs/proto/v1alpha1/changelog.proto",
 }

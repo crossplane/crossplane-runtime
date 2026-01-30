@@ -1,6 +1,3 @@
-//go:build generate
-// +build generate
-
 /*
 Copyright 2019 The Crossplane Authors.
 
@@ -17,16 +14,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Code generation tools (controller-gen, buf, etc.) must be in your $PATH. Use
-// './nix.sh develop' or './nix.sh run .#generate' to ensure they are.
-
-// Generate deepcopy methodsets
-//go:generate controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./...
-
-// Generate gRPC types and stubs. See buf.gen.yaml for buf's configuration.
-// The protoc-gen-go and protoc-gen-go-grpc plugins must be in $PATH.
-// Note that the vendor dir does temporarily exist during a Nix build.
-//go:generate buf generate --exclude-path vendor
-
-// Package apis contains Kubernetes API groups
+// Package apis contains Kubernetes API groups.
 package apis
