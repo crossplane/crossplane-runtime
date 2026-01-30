@@ -27,12 +27,14 @@ import (
 )
 
 // A PredicateFn returns true if the supplied object should be reconciled.
+//
 // Deprecated: This type will be removed soon. Please use
 // controller-runtime's predicate.NewPredicateFuncs instead.
 type PredicateFn func(obj runtime.Object) bool
 
 // NewPredicates returns a set of Funcs that are all satisfied by the supplied
 // PredicateFn. The PredicateFn is run against the new object during updates.
+//
 // Deprecated: This function will be removed soon. Please use
 // controller-runtime's predicate.NewPredicateFuncs instead.
 func NewPredicates(fn PredicateFn) predicate.Funcs {
