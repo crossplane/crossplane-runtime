@@ -246,25 +246,27 @@ type StepMeta struct {
 	SpanId string `protobuf:"bytes,2,opt,name=span_id,json=spanId,proto3" json:"span_id,omitempty"`
 	// Zero-based index of this step in the function pipeline.
 	StepIndex int32 `protobuf:"varint,3,opt,name=step_index,json=stepIndex,proto3" json:"step_index,omitempty"`
+	// Name of this step in the function pipeline.
+	StepName string `protobuf:"bytes,4,opt,name=step_name,json=stepName,proto3" json:"step_name,omitempty"`
 	// Per-step counter incremented when a function requests additional resources and
 	// needs to be re-run, starting from 0.
-	Iteration int32 `protobuf:"varint,4,opt,name=iteration,proto3" json:"iteration,omitempty"`
+	Iteration int32 `protobuf:"varint,5,opt,name=iteration,proto3" json:"iteration,omitempty"`
 	// Name of the function being invoked.
-	FunctionName string `protobuf:"bytes,5,opt,name=function_name,json=functionName,proto3" json:"function_name,omitempty"`
+	FunctionName string `protobuf:"bytes,6,opt,name=function_name,json=functionName,proto3" json:"function_name,omitempty"`
 	// Name of the Composition defining this pipeline.
-	CompositionName string `protobuf:"bytes,6,opt,name=composition_name,json=compositionName,proto3" json:"composition_name,omitempty"`
+	CompositionName string `protobuf:"bytes,7,opt,name=composition_name,json=compositionName,proto3" json:"composition_name,omitempty"`
 	// UID of the composite resource being reconciled.
-	CompositeResourceUid string `protobuf:"bytes,7,opt,name=composite_resource_uid,json=compositeResourceUid,proto3" json:"composite_resource_uid,omitempty"`
+	CompositeResourceUid string `protobuf:"bytes,8,opt,name=composite_resource_uid,json=compositeResourceUid,proto3" json:"composite_resource_uid,omitempty"`
 	// Name of the composite resource being reconciled.
-	CompositeResourceName string `protobuf:"bytes,8,opt,name=composite_resource_name,json=compositeResourceName,proto3" json:"composite_resource_name,omitempty"`
+	CompositeResourceName string `protobuf:"bytes,9,opt,name=composite_resource_name,json=compositeResourceName,proto3" json:"composite_resource_name,omitempty"`
 	// Namespace of the composite resource (empty for cluster-scoped resources).
-	CompositeResourceNamespace string `protobuf:"bytes,9,opt,name=composite_resource_namespace,json=compositeResourceNamespace,proto3" json:"composite_resource_namespace,omitempty"`
+	CompositeResourceNamespace string `protobuf:"bytes,10,opt,name=composite_resource_namespace,json=compositeResourceNamespace,proto3" json:"composite_resource_namespace,omitempty"`
 	// API version of the composite resource (e.g., "example.org/v1").
-	CompositeResourceApiVersion string `protobuf:"bytes,10,opt,name=composite_resource_api_version,json=compositeResourceApiVersion,proto3" json:"composite_resource_api_version,omitempty"`
+	CompositeResourceApiVersion string `protobuf:"bytes,11,opt,name=composite_resource_api_version,json=compositeResourceApiVersion,proto3" json:"composite_resource_api_version,omitempty"`
 	// Kind of the composite resource (e.g., "XDatabase").
-	CompositeResourceKind string `protobuf:"bytes,11,opt,name=composite_resource_kind,json=compositeResourceKind,proto3" json:"composite_resource_kind,omitempty"`
+	CompositeResourceKind string `protobuf:"bytes,12,opt,name=composite_resource_kind,json=compositeResourceKind,proto3" json:"composite_resource_kind,omitempty"`
 	// Timestamp when this step was executed.
-	Timestamp     *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	Timestamp     *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -318,6 +320,13 @@ func (x *StepMeta) GetStepIndex() int32 {
 		return x.StepIndex
 	}
 	return 0
+}
+
+func (x *StepMeta) GetStepName() string {
+	if x != nil {
+		return x.StepName
+	}
+	return ""
 }
 
 func (x *StepMeta) GetIteration() int32 {
@@ -396,22 +405,23 @@ const file_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDesc = "
 	"\bresponse\x18\x01 \x01(\fR\bresponse\x12\x14\n" +
 	"\x05error\x18\x02 \x01(\tR\x05error\x12:\n" +
 	"\x04meta\x18\x03 \x01(\v2&.crossplane.pipeline.v1alpha1.StepMetaR\x04meta\"\x16\n" +
-	"\x14EmitResponseResponse\"\xb2\x04\n" +
+	"\x14EmitResponseResponse\"\xcf\x04\n" +
 	"\bStepMeta\x12\x19\n" +
 	"\btrace_id\x18\x01 \x01(\tR\atraceId\x12\x17\n" +
 	"\aspan_id\x18\x02 \x01(\tR\x06spanId\x12\x1d\n" +
 	"\n" +
-	"step_index\x18\x03 \x01(\x05R\tstepIndex\x12\x1c\n" +
-	"\titeration\x18\x04 \x01(\x05R\titeration\x12#\n" +
-	"\rfunction_name\x18\x05 \x01(\tR\ffunctionName\x12)\n" +
-	"\x10composition_name\x18\x06 \x01(\tR\x0fcompositionName\x124\n" +
-	"\x16composite_resource_uid\x18\a \x01(\tR\x14compositeResourceUid\x126\n" +
-	"\x17composite_resource_name\x18\b \x01(\tR\x15compositeResourceName\x12@\n" +
-	"\x1ccomposite_resource_namespace\x18\t \x01(\tR\x1acompositeResourceNamespace\x12C\n" +
-	"\x1ecomposite_resource_api_version\x18\n" +
-	" \x01(\tR\x1bcompositeResourceApiVersion\x126\n" +
-	"\x17composite_resource_kind\x18\v \x01(\tR\x15compositeResourceKind\x128\n" +
-	"\ttimestamp\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp2\x89\x02\n" +
+	"step_index\x18\x03 \x01(\x05R\tstepIndex\x12\x1b\n" +
+	"\tstep_name\x18\x04 \x01(\tR\bstepName\x12\x1c\n" +
+	"\titeration\x18\x05 \x01(\x05R\titeration\x12#\n" +
+	"\rfunction_name\x18\x06 \x01(\tR\ffunctionName\x12)\n" +
+	"\x10composition_name\x18\a \x01(\tR\x0fcompositionName\x124\n" +
+	"\x16composite_resource_uid\x18\b \x01(\tR\x14compositeResourceUid\x126\n" +
+	"\x17composite_resource_name\x18\t \x01(\tR\x15compositeResourceName\x12@\n" +
+	"\x1ccomposite_resource_namespace\x18\n" +
+	" \x01(\tR\x1acompositeResourceNamespace\x12C\n" +
+	"\x1ecomposite_resource_api_version\x18\v \x01(\tR\x1bcompositeResourceApiVersion\x126\n" +
+	"\x17composite_resource_kind\x18\f \x01(\tR\x15compositeResourceKind\x128\n" +
+	"\ttimestamp\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp2\x89\x02\n" +
 	"\x18PipelineInspectorService\x12t\n" +
 	"\vEmitRequest\x120.crossplane.pipeline.v1alpha1.EmitRequestRequest\x1a1.crossplane.pipeline.v1alpha1.EmitRequestResponse\"\x00\x12w\n" +
 	"\fEmitResponse\x121.crossplane.pipeline.v1alpha1.EmitResponseRequest\x1a2.crossplane.pipeline.v1alpha1.EmitResponseResponse\"\x00BSZQgithub.com/crossplane/crossplane-runtime/v2/apis/pipelineinspector/proto/v1alpha1b\x06proto3"
