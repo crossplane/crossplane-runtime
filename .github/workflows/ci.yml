@@ -144,8 +144,6 @@ jobs:
 
       - name: Lint Protocol Buffers
         uses: bufbuild/buf-lint-action@v1
-        with:
-          input: apis
 
       # buf-breaking-action doesn't support branches
       # https://github.com/bufbuild/buf-push-action/issues/34
@@ -154,12 +152,10 @@ jobs:
         # We want to run this for the main branch, and PRs against main.
         if: ${{ github.ref == 'refs/heads/main' || github.base_ref == 'main' }}
         with:
-          input: apis
-          against: "https://github.com/${GITHUB_REPOSITORY}.git#branch=main,subdir=apis"
+          against: "https://github.com/${GITHUB_REPOSITORY}.git#branch=main"
 
       - name: Push Protocol Buffers to Buf Schema Registry
         if: ${{ github.repository == 'crossplane/crossplane-runtime' && github.ref == 'refs/heads/main' }}
         uses: bufbuild/buf-push-action@v1
         with:
-          input: apis
           buf_token: ${{ secrets.BUF_TOKEN }}
