@@ -639,7 +639,7 @@ func TestGetExternalTags(t *testing.T) {
 		"SuccessfulWithNamespacedObject": {
 			o: &fake.ModernManaged{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: name,
+					Name:      name,
 					Namespace: namespace,
 				},
 				TypedProviderConfigReferencer: fake.TypedProviderConfigReferencer{

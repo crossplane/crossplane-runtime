@@ -17,6 +17,8 @@ limitations under the License.
 package resource
 
 import (
+	"maps"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -78,9 +80,7 @@ type AnnotationChangedPredicate struct {
 
 func copyAnnotations(an map[string]string) map[string]string {
 	r := make(map[string]string, len(an))
-	for k, v := range an {
-		r[k] = v
-	}
+	maps.Copy(r, an)
 
 	return r
 }

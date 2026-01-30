@@ -46,7 +46,7 @@ func prepareTestExamples(numExamples int) ([]string, []xpv1.Reference, []*fake.M
 	values := make([]string, numExamples)
 	refs := make([]xpv1.Reference, numExamples)
 	controlledObj := make([]*fake.Managed, numExamples)
-	for i := 0; i < numExamples; i++ {
+	for i := range numExamples {
 		values[i] = fmt.Sprintf("%s%d", testValuePrefix, i)
 		refs[i] = xpv1.Reference{
 			Name: fmt.Sprintf("%s%d", testResourceNamePrefix, i),

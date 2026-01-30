@@ -18,6 +18,8 @@ limitations under the License.
 package event
 
 import (
+	"maps"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 )
@@ -107,9 +109,7 @@ func (r *APIRecorder) Event(obj runtime.Object, e Event) {
 // annotations with all recorded events.
 func (r *APIRecorder) WithAnnotations(keysAndValues ...string) Recorder {
 	ar := NewAPIRecorder(r.kube)
-	for k, v := range r.annotations {
-		ar.annotations[k] = v
-	}
+	maps.Copy(ar.annotations, r.annotations)
 
 	sliceMap(keysAndValues, ar.annotations)
 
