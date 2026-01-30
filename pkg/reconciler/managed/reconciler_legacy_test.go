@@ -916,7 +916,7 @@ func TestReconciler(t *testing.T) {
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
 							want.SetConditions(xpv1.Creating().WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
-								reason := "Successful managed resource creation should be reported as a conditioned status." //nolint:goconst // used only in tests
+								reason := "Successful managed resource creation should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
 							return nil
@@ -1274,7 +1274,7 @@ func TestReconciler(t *testing.T) {
 							want := newLegacyManaged(42)
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
-								reason := "A successful managed resource update should be reported as a conditioned status." //nolint:goconst // used only in tests
+								reason := "A successful managed resource update should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
 							return nil

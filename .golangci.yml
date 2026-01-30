@@ -159,6 +159,7 @@ linters:
           - gochecknoglobals
           - gochecknoinits
           - gocognit
+          - goconst
           - gosec
           - scopelint
           - unparam
@@ -219,6 +220,13 @@ linters:
       - linters:
           - staticcheck
         text: 'SA1019: .+ is deprecated: Use Composition Functions instead.'
+
+      # The runtime library defines deprecated types like LegacyManaged and
+      # LegacyProviderConfigUsage. Code in the runtime must use these types to
+      # support legacy resources, even though they're deprecated.
+      - linters:
+          - staticcheck
+        text: 'SA1019: resource\.Legacy.+ is deprecated:'
 
       # Some shared structs in apis/common/v1 are moved to
       # apis/common. To preserve a backward-compatible directory structure
