@@ -9,15 +9,8 @@ on:
   workflow_dispatch: {}
 
 env:
-  # Common versions
-  EARTHLY_VERSION: '0.8.16'
-
-  # Force Earthly to use color output
-  FORCE_COLOR: "1"
-
-  # Common users. We can't run a step 'if secrets.AWS_USR != ""' but we can run
-  # a step 'if env.AWS_USR' != ""', so we copy these to succinctly test whether
-  # credentials have been provided before trying to run steps that need them.
+  # We can't run a step 'if secrets.FOO != ""' but we can run a step
+  # 'if env.FOO' != ""', so we copy secrets to env vars for conditional checks.
   DOCKER_USR: ${{ secrets.DOCKER_USR }}
 
 jobs:
@@ -28,44 +21,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      - name: Setup Earthly
-        uses: earthly/actions-setup@v1
+      - name: Install Nix
+        uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15 # v31
+
+      - name: Setup Cachix
+        uses: cachix/cachix-action@3ba601ff5bbb07c7220846facfa2cd81eeee15a1 # v16
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          version: ${{ env.EARTHLY_VERSION }}
+          name: crossplane
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
-      - name: Login to DockerHub
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
-        if: env.DOCKER_USR != ''
-        with:
-          username: ${{ secrets.DOCKER_USR }}
-          password: ${{ secrets.DOCKER_PSW }}
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Configure Earthly to Push Cache to GitHub Container Registry 
-        if: github.ref == 'refs/heads/main'
-        run: |
-          echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
-          echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
-
-      - name: Generate Files
-        run: earthly --strict --remote-cache ghcr.io/crossplane/crossplane-runtime-earthly-cache:${{ github.job }} +generate
-
-      - name: Count Changed Files
-        id: changed_files
-        run: echo "count=$(git status --porcelain | wc -l)" >> $GITHUB_OUTPUT
-
-      - name: Fail if Files Changed
-        if: steps.changed_files.outputs.count != 0
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
-        with:
-          script: core.setFailed('Found changed files after running earthly +generate.')
+      - name: Verify Generated Code
+        run: nix build .#checks.x86_64-linux.generate --print-build-logs
 
   lint:
     runs-on: ubuntu-22.04
@@ -74,76 +40,47 @@ jobs:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      - name: Setup Earthly
-        uses: earthly/actions-setup@v1
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          version: ${{ env.EARTHLY_VERSION }}
+      - name: Install Nix
+        uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15 # v31
 
-      - name: Login to DockerHub
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
-        if: env.DOCKER_USR != ''
+      - name: Setup Cachix
+        uses: cachix/cachix-action@3ba601ff5bbb07c7220846facfa2cd81eeee15a1 # v16
         with:
-          username: ${{ secrets.DOCKER_USR }}
-          password: ${{ secrets.DOCKER_PSW }}
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Configure Earthly to Push Cache to GitHub Container Registry 
-        if: github.ref == 'refs/heads/main'
-        run: |
-          echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
-          echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
+          name: crossplane
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
       - name: Lint
-        run: earthly --strict --remote-cache ghcr.io/crossplane/crossplane-runtime-earthly-cache:${{ github.job }} +lint
+        run: nix build .#checks.x86_64-linux.go-lint --print-build-logs
 
   codeql:
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      security-events: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      - name: Setup Earthly
-        uses: earthly/actions-setup@v1
+      - name: Install Nix
+        uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15 # v31
+
+      - name: Setup Cachix
+        uses: cachix/cachix-action@3ba601ff5bbb07c7220846facfa2cd81eeee15a1 # v16
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          version: ${{ env.EARTHLY_VERSION }}
+          name: crossplane
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
-      - name: Login to DockerHub
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
-        if: env.DOCKER_USR != ''
+      - name: Setup Nix Environment
+        uses: nicknovitski/nix-develop@9be7cfb4b10451d3390a75dc18ad0465bed4932a # v1
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@439137e1b50c27ba9e2f9befc93e43091b449c34 # v3
         with:
-          username: ${{ secrets.DOCKER_USR }}
-          password: ${{ secrets.DOCKER_PSW }}
+          languages: go
 
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Configure Earthly to Push Cache to GitHub Container Registry 
-        if: github.ref == 'refs/heads/main'
-        run: |
-          echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
-          echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
-
-      - name: Run CodeQL
-        run: earthly --strict --remote-cache ghcr.io/crossplane/crossplane-runtime-earthly-cache:${{ github.job }} +ci-codeql
-
-      - name: Upload CodeQL Results to GitHub
-        uses: github/codeql-action/upload-sarif@45c373516f557556c15d420e3f5e0aa3d64366bc # v3
-        with:
-          sarif_file: '_output/codeql/go.sarif'
-
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@439137e1b50c27ba9e2f9befc93e43091b449c34 # v3
 
   trivy-scan-fs:
     runs-on: ubuntu-22.04
@@ -163,7 +100,7 @@ jobs:
           output: 'trivy-results.sarif'
 
       - name: Upload Trivy Results to GitHub
-        uses: github/codeql-action/upload-sarif@45c373516f557556c15d420e3f5e0aa3d64366bc # v3
+        uses: github/codeql-action/upload-sarif@439137e1b50c27ba9e2f9befc93e43091b449c34 # v3
         with:
           sarif_file: 'trivy-results.sarif'
 
@@ -174,40 +111,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      - name: Setup Earthly
-        uses: earthly/actions-setup@v1
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          version: ${{ env.EARTHLY_VERSION }}
+      - name: Install Nix
+        uses: cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15 # v31
 
-      - name: Login to DockerHub
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
-        if: env.DOCKER_USR != ''
+      - name: Setup Cachix
+        uses: cachix/cachix-action@3ba601ff5bbb07c7220846facfa2cd81eeee15a1 # v16
         with:
-          username: ${{ secrets.DOCKER_USR }}
-          password: ${{ secrets.DOCKER_PSW }}
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Configure Earthly to Push Cache to GitHub Container Registry 
-        if: github.ref == 'refs/heads/main'
-        run: |
-          echo "EARTHLY_PUSH=true" >> $GITHUB_ENV
-          echo "EARTHLY_MAX_REMOTE_CACHE=true" >> $GITHUB_ENV
+          name: crossplane
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
       - name: Run Unit Tests
-        run: earthly --strict --remote-cache ghcr.io/crossplane/crossplane-runtime-earthly-cache:${{ github.job }} +test
+        run: nix build .#checks.x86_64-linux.test --print-build-logs
 
       - name: Publish Unit Test Coverage
         uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4
         with:
           flags: unittests
-          file: _output/tests/coverage.txt
+          file: result/coverage.txt
           token: ${{ secrets.CODECOV_TOKEN }}
 
   protobuf-schemas:
