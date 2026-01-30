@@ -94,7 +94,7 @@
         export HOME=$TMPDIR
 
         echo "Running go generate..."
-        go generate -tags generate ./apis/...
+        go generate -tags generate ./...
 
         echo "Comparing against committed source..."
         if ! diff -rq apis ${self}/apis > /dev/null 2>&1; then

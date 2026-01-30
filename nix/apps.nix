@@ -76,7 +76,7 @@
           export CGO_ENABLED=0
 
           echo "Running go generate..."
-          go generate -tags 'generate' ./apis/...
+          go generate -tags 'generate' ./...
 
           echo "Done"
         '';
