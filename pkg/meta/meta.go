@@ -18,6 +18,8 @@ limitations under the License.
 package meta
 
 import (
+	"maps"
+	"slices"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -166,10 +168,8 @@ func AddControllerReference(o metav1.Object, r metav1.OwnerReference) error {
 // AddFinalizer to the supplied Kubernetes object's metadata.
 func AddFinalizer(o metav1.Object, finalizer string) {
 	f := o.GetFinalizers()
-	for _, e := range f {
-		if e == finalizer {
-			return
-		}
+	if slices.Contains(f, finalizer) {
+		return
 	}
 
 	o.SetFinalizers(append(f, finalizer))
@@ -190,13 +190,7 @@ func RemoveFinalizer(o metav1.Object, finalizer string) {
 // FinalizerExists checks whether given finalizer is already set.
 func FinalizerExists(o metav1.Object, finalizer string) bool {
 	f := o.GetFinalizers()
-	for _, e := range f {
-		if e == finalizer {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(f, finalizer)
 }
 
 // AddLabels to the supplied object.
@@ -207,9 +201,7 @@ func AddLabels(o metav1.Object, labels map[string]string) {
 		return
 	}
 
-	for k, v := range labels {
-		l[k] = v
-	}
+	maps.Copy(l, labels)
 
 	o.SetLabels(l)
 }
@@ -236,9 +228,7 @@ func AddAnnotations(o metav1.Object, annotations map[string]string) {
 		return
 	}
 
-	for k, v := range annotations {
-		a[k] = v
-	}
+	maps.Copy(a, annotations)
 
 	o.SetAnnotations(a)
 }
