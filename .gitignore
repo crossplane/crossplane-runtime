@@ -7,6 +7,10 @@ cover.out
 /vendor
 /.vendor-new
 
+# Nix build output
+result
+result-*
+
 # gitlab example
 # exclude files generate by running the example
 external-dns-*.tgz

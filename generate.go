@@ -1,4 +1,5 @@
 //go:build generate
+// +build generate
 
 /*
 Copyright 2019 The Crossplane Authors.
@@ -16,14 +17,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// NOTE(negz): See the below link for details on what is happening here.
-// https://github.com/golang/go/wiki/Modules#how-can-i-track-tool-dependencies-for-a-module
+// Code generation tools (controller-gen, buf, etc.) must be in your $PATH. Use
+// './nix.sh develop' or './nix.sh run .#generate' to ensure they are.
 
 // Generate deepcopy methodsets
-//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../../../hack/boilerplate.go.txt paths=./...
+//go:generate controller-gen object:headerFile=./hack/boilerplate.go.txt paths=./apis/...
 
-package unstructured
+// Generate gRPC types and stubs. See buf.gen.yaml for buf's configuration.
+// The protoc-gen-go and protoc-gen-go-grpc plugins must be in $PATH.
+// Note that the vendor dir does temporarily exist during a Nix build.
+//go:generate buf generate --exclude-path vendor
 
-import (
-	_ "sigs.k8s.io/controller-tools/cmd/controller-gen" //nolint:typecheck
-)
+package generate

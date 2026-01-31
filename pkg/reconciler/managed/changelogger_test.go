@@ -181,7 +181,7 @@ func equateApproxTimepb(margin time.Duration) []cmp.Option {
 		protocmp.Transform(),
 		cmp.FilterPath(
 			func(p cmp.Path) bool {
-				if p.Last().Type() == reflect.TypeOf(protocmp.Message{}) {
+				if p.Last().Type() == reflect.TypeFor[protocmp.Message]() {
 					a, b := p.Last().Values()
 					return msgIsTimestamp(a) && msgIsTimestamp(b)
 				}
