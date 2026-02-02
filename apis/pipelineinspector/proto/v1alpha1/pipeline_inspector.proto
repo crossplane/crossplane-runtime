@@ -69,44 +69,61 @@ message EmitResponseResponse {}
 // StepMeta contains metadata for correlating and identifying a function
 // invocation within a pipeline execution.
 message StepMeta {
+  // Timestamp when this step was executed.
+  google.protobuf.Timestamp timestamp = 1;
+
   // ID identifying the entire pipeline execution (all steps in one reconciliation).
   // All function invocations within a single reconciliation share the same trace_id.
-  string trace_id = 1;
+  string trace_id = 2;
 
   // ID identifying this specific function invocation.
-  string span_id = 2;
+  string span_id = 3;
 
   // Zero-based index of this step in the function pipeline.
-  int32 step_index = 3;
+  int32 step_index = 4;
 
   // Name of this step in the function pipeline.
-  string step_name = 4;
+  string step_name = 5;
 
   // Per-step counter incremented when a function requests additional resources and
   // needs to be re-run, starting from 0.
-  int32 iteration = 5;
+  int32 iteration = 6;
 
   // Name of the function being invoked.
-  string function_name = 6;
+  string function_name = 7;
 
+  // Only one of these can be set - identifies the pipeline context.
+  oneof context {
+    OperationMeta operation_meta = 8;
+    CompositionMeta composition_meta = 9;
+  }
+}
+
+// CompositionMeta contains metadata about the Composition and Composite Resource
+message CompositionMeta {
   // Name of the Composition defining this pipeline.
-  string composition_name = 7;
+  string composition_name = 1;
 
   // UID of the composite resource being reconciled.
-  string composite_resource_uid = 8;
+  string composite_resource_uid = 2;
 
   // Name of the composite resource being reconciled.
-  string composite_resource_name = 9;
+  string composite_resource_name = 3;
 
   // Namespace of the composite resource (empty for cluster-scoped resources).
-  string composite_resource_namespace = 10;
+  string composite_resource_namespace = 4;
 
   // API version of the composite resource (e.g., "example.org/v1").
-  string composite_resource_api_version = 11;
+  string composite_resource_api_version = 5;
 
   // Kind of the composite resource (e.g., "XDatabase").
-  string composite_resource_kind = 12;
+  string composite_resource_kind = 6;
+}
 
-  // Timestamp when this step was executed.
-  google.protobuf.Timestamp timestamp = 13;
+// OperationMeta contains metadata about the Operation being performed.
+message OperationMeta {
+  // Name of the Operation.
+  string operation_name = 1;
+  // UID of the Operation.
+  string operation_uid = 2;
 }
