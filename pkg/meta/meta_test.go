@@ -1224,3 +1224,66 @@ func TestIsPaused(t *testing.T) {
 		})
 	}
 }
+
+func TestExternalCreateNotStarted(t *testing.T) {
+	type args struct {
+		o metav1.Object
+	}
+
+	cases := map[string]struct {
+		args args
+		want bool
+	}{
+		"CreatePending": {
+			args: args{
+				o: func() metav1.Object {
+					o := &corev1.Pod{}
+					t := time.Now().Add(-30 * time.Second)
+					SetExternalCreatePending(o, t)
+
+					return o
+				}(),
+			},
+			want: false,
+		},
+		"CreateFailed": {
+			args: args{
+				o: func() metav1.Object {
+					o := &corev1.Pod{}
+					t := time.Now().Add(-30 * time.Second)
+					SetExternalCreateFailed(o, t)
+
+					return o
+				}(),
+			},
+			want: false,
+		},
+		"SuccessfullyCreated": {
+			args: args{
+				o: func() metav1.Object {
+					o := &corev1.Pod{}
+					t := time.Now().Add(-2 * time.Minute)
+					SetExternalCreateSucceeded(o, t)
+
+					return o
+				}(),
+			},
+			want: false,
+		},
+		"NotStarted": {
+			args: args{
+				o: &corev1.Pod{},
+			},
+			want: true,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := ExternalCreateNotStarted(tc.args.o)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("ExternalCreateNotStarted(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}

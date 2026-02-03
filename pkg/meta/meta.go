@@ -371,6 +371,20 @@ func ExternalCreateSucceededDuring(o metav1.Object, d time.Duration) bool {
 	return time.Since(t) < d
 }
 
+// ExternalCreateNotStarted returns true if the external resource was detected
+// during the initial Observe phase and was not created by this managed resource.
+func ExternalCreateNotStarted(o metav1.Object) bool {
+	pending := GetExternalCreatePending(o)
+	succeeded := GetExternalCreateSucceeded(o)
+	failed := GetExternalCreateFailed(o)
+
+	if pending.IsZero() && succeeded.IsZero() && failed.IsZero() {
+		return true
+	}
+
+	return false
+}
+
 // IsPaused returns true if the object has the AnnotationKeyReconciliationPaused
 // annotation set to `true`.
 func IsPaused(o metav1.Object) bool {
