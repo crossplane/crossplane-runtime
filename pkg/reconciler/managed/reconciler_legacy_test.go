@@ -86,7 +86,7 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{}},
 		},
-		"UnpublishConnectionDetailsDeletionPolicyDeleteOrpahn": {
+		"UnpublishConnectionDetailsDeletionPolicyDeleteOrphan": {
 			reason: "Errors unpublishing connection details should trigger a requeue after a short wait.",
 			args: args{
 				m: &fake.Manager{
@@ -1735,6 +1735,45 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{Requeue: true}},
 		},
+		"ManagementPolicyOrphanCreateSuccessful": {
+			reason: "Successful managed resource creation using management policy Orphan should trigger a requeue after a short wait.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							mg := asLegacyManaged(obj, 42)
+							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionOrphan})
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
+							want := newLegacyManaged(42)
+							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionOrphan})
+							meta.SetExternalCreatePending(want, time.Now())
+							meta.SetExternalCreateSucceeded(want, time.Now())
+							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
+							want.SetConditions(xpv1.Creating().WithObservedGeneration(42))
+							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
+								reason := "Successful managed resource creation should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithManagementPolicies(),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+					WithExternalConnector(&NopConnector{}),
+					WithCriticalAnnotationUpdater(CriticalAnnotationUpdateFn(func(_ context.Context, _ client.Object) error { return nil })),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
+			},
+			want: want{result: reconcile.Result{Requeue: true}},
+		},
 		"ManagementPolicyCreateCreateSuccessful": {
 			reason: "Successful managed resource creation using management policy Create should trigger a requeue after a short wait.",
 			args: args{
@@ -1922,6 +1961,53 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
+							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42).WithObservedGeneration(42))
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := "A successful managed resource update should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithManagementPolicies(),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+					WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false}, nil
+							},
+							UpdateFn: func(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
+								return ExternalUpdate{}, nil
+							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
+							},
+						}
+						return c, nil
+					})),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultPollInterval}},
+		},
+		"ManagementPolicyOrphanUpdateSuccessful": {
+			reason: "A successful managed resource update using management policies should trigger a requeue after a long wait.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							mg := asLegacyManaged(obj, 42)
+							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionOrphan})
+							return nil
+						}),
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
+							want := newLegacyManaged(42)
+							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionOrphan})
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42).WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful managed resource update should be reported as a conditioned status."
@@ -2262,6 +2348,14 @@ func TestLegacyManagementPoliciesResolverShouldCreate(t *testing.T) {
 			},
 			want: true,
 		},
+		"ManagementPoliciesEnabledHasCreateOrphan": {
+			reason: "Should return true if management policies are enabled and managementPolicies has action Orphan",
+			args: args{
+				managementPoliciesEnabled: true,
+				policy:                    xpv1.ManagementPolicies{xpv1.ManagementActionOrphan},
+			},
+			want: true,
+		},
 		"ManagementPoliciesEnabledActionNotAllowed": {
 			reason: "Should return false if management policies are enabled and managementPolicies does not have Create",
 			args: args{
@@ -2323,6 +2417,14 @@ func TestLegacyManagementPoliciesResolverShouldUpdate(t *testing.T) {
 			},
 			want: false,
 		},
+		"ManagementPoliciesEnabledHasUpdateOrphan": {
+			reason: "Should return true if management policies are enabled and managementPolicies has action Orphan",
+			args: args{
+				managementPoliciesEnabled: true,
+				policy:                    xpv1.ManagementPolicies{xpv1.ManagementActionOrphan},
+			},
+			want: true,
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -2375,6 +2477,14 @@ func TestLegacyManagementPoliciesResolverShouldLateInitialize(t *testing.T) {
 				policy:                    xpv1.ManagementPolicies{xpv1.ManagementActionObserve},
 			},
 			want: false,
+		},
+		"ManagementPoliciesEnabledHasLateInitializeOrphan": {
+			reason: "Should return true if management policies are enabled and managementPolicies has action Orphan",
+			args: args{
+				managementPoliciesEnabled: true,
+				policy:                    xpv1.ManagementPolicies{xpv1.ManagementActionOrphan},
+			},
+			want: true,
 		},
 	}
 	for name, tc := range cases {
@@ -2541,6 +2651,33 @@ func TestLegacyShouldDelete(t *testing.T) {
 					},
 					Manageable: fake.Manageable{
 						Policy: xpv1.ManagementPolicies{xpv1.ManagementActionObserve},
+					},
+				},
+			},
+			want: want{delete: false},
+		},
+		"DeletionDeleteManagementActionOrphan": {
+			reason: "Should orphan if management policies are enabled and deletion policy is set to Delete and management policy does not have action Delete.",
+			args: args{
+				managementPoliciesEnabled: true,
+				managed: &fake.LegacyManaged{
+					Orphanable: fake.Orphanable{
+						Policy: xpv1.DeletionDelete,
+					},
+					Manageable: fake.Manageable{
+						Policy: xpv1.ManagementPolicies{xpv1.ManagementActionOrphan},
+					},
+				},
+			},
+			want: want{delete: false},
+		},
+		"DeletionManagementActionOrphan": {
+			reason: "Should orphan if management policies are enabled and deletion policy is not set and management policy does not have action Delete.",
+			args: args{
+				managementPoliciesEnabled: true,
+				managed: &fake.LegacyManaged{
+					Manageable: fake.Manageable{
+						Policy: xpv1.ManagementPolicies{xpv1.ManagementActionOrphan},
 					},
 				},
 			},

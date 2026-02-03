@@ -134,6 +134,8 @@ func defaultSupportedManagementPolicies() []sets.Set[xpv1.ManagementAction] {
 		// Useful when external resource lifecycle is managed elsewhere but you want
 		// to allow Crossplane to make updates and discover state changes.
 		sets.New[xpv1.ManagementAction](xpv1.ManagementActionObserve, xpv1.ManagementActionUpdate, xpv1.ManagementActionLateInitialize),
+		// Orphan allows all actions except Delete.
+		sets.New[xpv1.ManagementAction](xpv1.ManagementActionOrphan),
 	}
 }
 
@@ -215,7 +217,7 @@ func (m *ManagementPoliciesResolver) ShouldCreate() bool {
 		return true
 	}
 
-	return m.managementPolicies.HasAny(xpv1.ManagementActionCreate, xpv1.ManagementActionAll, xpv1.ManagementActionMustCreate)
+	return m.managementPolicies.HasAny(xpv1.ManagementActionCreate, xpv1.ManagementActionAll, xpv1.ManagementActionMustCreate, xpv1.ManagementActionOrphan)
 }
 
 // MustCreate returns true if the Create action is required.  If the resource already exists an error will
@@ -236,7 +238,7 @@ func (m *ManagementPoliciesResolver) ShouldUpdate() bool {
 		return true
 	}
 
-	return m.managementPolicies.HasAny(xpv1.ManagementActionUpdate, xpv1.ManagementActionAll)
+	return m.managementPolicies.HasAny(xpv1.ManagementActionUpdate, xpv1.ManagementActionAll, xpv1.ManagementActionOrphan)
 }
 
 // ShouldLateInitialize returns true if the LateInitialize action is allowed.
@@ -246,7 +248,7 @@ func (m *ManagementPoliciesResolver) ShouldLateInitialize() bool {
 		return true
 	}
 
-	return m.managementPolicies.HasAny(xpv1.ManagementActionLateInitialize, xpv1.ManagementActionAll)
+	return m.managementPolicies.HasAny(xpv1.ManagementActionLateInitialize, xpv1.ManagementActionAll, xpv1.ManagementActionOrphan)
 }
 
 // ShouldOnlyObserve returns true if the Observe action is allowed and all
