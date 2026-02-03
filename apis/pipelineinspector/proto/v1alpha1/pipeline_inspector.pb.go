@@ -239,34 +239,29 @@ func (*EmitResponseResponse) Descriptor() ([]byte, []int) {
 // invocation within a pipeline execution.
 type StepMeta struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
+	// Timestamp when this step was executed.
+	Timestamp *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 	// ID identifying the entire pipeline execution (all steps in one reconciliation).
 	// All function invocations within a single reconciliation share the same trace_id.
-	TraceId string `protobuf:"bytes,1,opt,name=trace_id,json=traceId,proto3" json:"trace_id,omitempty"`
+	TraceId string `protobuf:"bytes,2,opt,name=trace_id,json=traceId,proto3" json:"trace_id,omitempty"`
 	// ID identifying this specific function invocation.
-	SpanId string `protobuf:"bytes,2,opt,name=span_id,json=spanId,proto3" json:"span_id,omitempty"`
+	SpanId string `protobuf:"bytes,3,opt,name=span_id,json=spanId,proto3" json:"span_id,omitempty"`
 	// Zero-based index of this step in the function pipeline.
-	StepIndex int32 `protobuf:"varint,3,opt,name=step_index,json=stepIndex,proto3" json:"step_index,omitempty"`
+	StepIndex int32 `protobuf:"varint,4,opt,name=step_index,json=stepIndex,proto3" json:"step_index,omitempty"`
 	// Name of this step in the function pipeline.
-	StepName string `protobuf:"bytes,4,opt,name=step_name,json=stepName,proto3" json:"step_name,omitempty"`
+	StepName string `protobuf:"bytes,5,opt,name=step_name,json=stepName,proto3" json:"step_name,omitempty"`
 	// Per-step counter incremented when a function requests additional resources and
 	// needs to be re-run, starting from 0.
-	Iteration int32 `protobuf:"varint,5,opt,name=iteration,proto3" json:"iteration,omitempty"`
+	Iteration int32 `protobuf:"varint,6,opt,name=iteration,proto3" json:"iteration,omitempty"`
 	// Name of the function being invoked.
-	FunctionName string `protobuf:"bytes,6,opt,name=function_name,json=functionName,proto3" json:"function_name,omitempty"`
-	// Name of the Composition defining this pipeline.
-	CompositionName string `protobuf:"bytes,7,opt,name=composition_name,json=compositionName,proto3" json:"composition_name,omitempty"`
-	// UID of the composite resource being reconciled.
-	CompositeResourceUid string `protobuf:"bytes,8,opt,name=composite_resource_uid,json=compositeResourceUid,proto3" json:"composite_resource_uid,omitempty"`
-	// Name of the composite resource being reconciled.
-	CompositeResourceName string `protobuf:"bytes,9,opt,name=composite_resource_name,json=compositeResourceName,proto3" json:"composite_resource_name,omitempty"`
-	// Namespace of the composite resource (empty for cluster-scoped resources).
-	CompositeResourceNamespace string `protobuf:"bytes,10,opt,name=composite_resource_namespace,json=compositeResourceNamespace,proto3" json:"composite_resource_namespace,omitempty"`
-	// API version of the composite resource (e.g., "example.org/v1").
-	CompositeResourceApiVersion string `protobuf:"bytes,11,opt,name=composite_resource_api_version,json=compositeResourceApiVersion,proto3" json:"composite_resource_api_version,omitempty"`
-	// Kind of the composite resource (e.g., "XDatabase").
-	CompositeResourceKind string `protobuf:"bytes,12,opt,name=composite_resource_kind,json=compositeResourceKind,proto3" json:"composite_resource_kind,omitempty"`
-	// Timestamp when this step was executed.
-	Timestamp     *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	FunctionName string `protobuf:"bytes,7,opt,name=function_name,json=functionName,proto3" json:"function_name,omitempty"`
+	// Only one of these can be set - identifies the pipeline context.
+	//
+	// Types that are valid to be assigned to Context:
+	//
+	//	*StepMeta_OperationMeta
+	//	*StepMeta_CompositionMeta
+	Context       isStepMeta_Context `protobuf_oneof:"context"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -299,6 +294,13 @@ func (x *StepMeta) ProtoReflect() protoreflect.Message {
 // Deprecated: Use StepMeta.ProtoReflect.Descriptor instead.
 func (*StepMeta) Descriptor() ([]byte, []int) {
 	return file_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *StepMeta) GetTimestamp() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Timestamp
+	}
+	return nil
 }
 
 func (x *StepMeta) GetTraceId() string {
@@ -343,53 +345,191 @@ func (x *StepMeta) GetFunctionName() string {
 	return ""
 }
 
-func (x *StepMeta) GetCompositionName() string {
+func (x *StepMeta) GetContext() isStepMeta_Context {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+func (x *StepMeta) GetOperationMeta() *OperationMeta {
+	if x != nil {
+		if x, ok := x.Context.(*StepMeta_OperationMeta); ok {
+			return x.OperationMeta
+		}
+	}
+	return nil
+}
+
+func (x *StepMeta) GetCompositionMeta() *CompositionMeta {
+	if x != nil {
+		if x, ok := x.Context.(*StepMeta_CompositionMeta); ok {
+			return x.CompositionMeta
+		}
+	}
+	return nil
+}
+
+type isStepMeta_Context interface {
+	isStepMeta_Context()
+}
+
+type StepMeta_OperationMeta struct {
+	OperationMeta *OperationMeta `protobuf:"bytes,8,opt,name=operation_meta,json=operationMeta,proto3,oneof"`
+}
+
+type StepMeta_CompositionMeta struct {
+	CompositionMeta *CompositionMeta `protobuf:"bytes,9,opt,name=composition_meta,json=compositionMeta,proto3,oneof"`
+}
+
+func (*StepMeta_OperationMeta) isStepMeta_Context() {}
+
+func (*StepMeta_CompositionMeta) isStepMeta_Context() {}
+
+// CompositionMeta contains metadata about the Composition and Composite Resource
+type CompositionMeta struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Name of the Composition defining this pipeline.
+	CompositionName string `protobuf:"bytes,1,opt,name=composition_name,json=compositionName,proto3" json:"composition_name,omitempty"`
+	// UID of the composite resource being reconciled.
+	CompositeResourceUid string `protobuf:"bytes,2,opt,name=composite_resource_uid,json=compositeResourceUid,proto3" json:"composite_resource_uid,omitempty"`
+	// Name of the composite resource being reconciled.
+	CompositeResourceName string `protobuf:"bytes,3,opt,name=composite_resource_name,json=compositeResourceName,proto3" json:"composite_resource_name,omitempty"`
+	// Namespace of the composite resource (empty for cluster-scoped resources).
+	CompositeResourceNamespace string `protobuf:"bytes,4,opt,name=composite_resource_namespace,json=compositeResourceNamespace,proto3" json:"composite_resource_namespace,omitempty"`
+	// API version of the composite resource (e.g., "example.org/v1").
+	CompositeResourceApiVersion string `protobuf:"bytes,5,opt,name=composite_resource_api_version,json=compositeResourceApiVersion,proto3" json:"composite_resource_api_version,omitempty"`
+	// Kind of the composite resource (e.g., "XDatabase").
+	CompositeResourceKind string `protobuf:"bytes,6,opt,name=composite_resource_kind,json=compositeResourceKind,proto3" json:"composite_resource_kind,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *CompositionMeta) Reset() {
+	*x = CompositionMeta{}
+	mi := &file_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CompositionMeta) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CompositionMeta) ProtoMessage() {}
+
+func (x *CompositionMeta) ProtoReflect() protoreflect.Message {
+	mi := &file_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CompositionMeta.ProtoReflect.Descriptor instead.
+func (*CompositionMeta) Descriptor() ([]byte, []int) {
+	return file_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *CompositionMeta) GetCompositionName() string {
 	if x != nil {
 		return x.CompositionName
 	}
 	return ""
 }
 
-func (x *StepMeta) GetCompositeResourceUid() string {
+func (x *CompositionMeta) GetCompositeResourceUid() string {
 	if x != nil {
 		return x.CompositeResourceUid
 	}
 	return ""
 }
 
-func (x *StepMeta) GetCompositeResourceName() string {
+func (x *CompositionMeta) GetCompositeResourceName() string {
 	if x != nil {
 		return x.CompositeResourceName
 	}
 	return ""
 }
 
-func (x *StepMeta) GetCompositeResourceNamespace() string {
+func (x *CompositionMeta) GetCompositeResourceNamespace() string {
 	if x != nil {
 		return x.CompositeResourceNamespace
 	}
 	return ""
 }
 
-func (x *StepMeta) GetCompositeResourceApiVersion() string {
+func (x *CompositionMeta) GetCompositeResourceApiVersion() string {
 	if x != nil {
 		return x.CompositeResourceApiVersion
 	}
 	return ""
 }
 
-func (x *StepMeta) GetCompositeResourceKind() string {
+func (x *CompositionMeta) GetCompositeResourceKind() string {
 	if x != nil {
 		return x.CompositeResourceKind
 	}
 	return ""
 }
 
-func (x *StepMeta) GetTimestamp() *timestamppb.Timestamp {
+// OperationMeta contains metadata about the Operation being performed.
+type OperationMeta struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Name of the Operation.
+	OperationName string `protobuf:"bytes,1,opt,name=operation_name,json=operationName,proto3" json:"operation_name,omitempty"`
+	// UID of the Operation.
+	OperationUid  string `protobuf:"bytes,2,opt,name=operation_uid,json=operationUid,proto3" json:"operation_uid,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OperationMeta) Reset() {
+	*x = OperationMeta{}
+	mi := &file_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OperationMeta) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OperationMeta) ProtoMessage() {}
+
+func (x *OperationMeta) ProtoReflect() protoreflect.Message {
+	mi := &file_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[6]
 	if x != nil {
-		return x.Timestamp
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
 	}
-	return nil
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OperationMeta.ProtoReflect.Descriptor instead.
+func (*OperationMeta) Descriptor() ([]byte, []int) {
+	return file_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *OperationMeta) GetOperationName() string {
+	if x != nil {
+		return x.OperationName
+	}
+	return ""
+}
+
+func (x *OperationMeta) GetOperationUid() string {
+	if x != nil {
+		return x.OperationUid
+	}
+	return ""
 }
 
 var File_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto protoreflect.FileDescriptor
@@ -405,23 +545,29 @@ const file_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDesc = "
 	"\bresponse\x18\x01 \x01(\fR\bresponse\x12\x14\n" +
 	"\x05error\x18\x02 \x01(\tR\x05error\x12:\n" +
 	"\x04meta\x18\x03 \x01(\v2&.crossplane.pipeline.v1alpha1.StepMetaR\x04meta\"\x16\n" +
-	"\x14EmitResponseResponse\"\xcf\x04\n" +
-	"\bStepMeta\x12\x19\n" +
-	"\btrace_id\x18\x01 \x01(\tR\atraceId\x12\x17\n" +
-	"\aspan_id\x18\x02 \x01(\tR\x06spanId\x12\x1d\n" +
+	"\x14EmitResponseResponse\"\xb4\x03\n" +
+	"\bStepMeta\x128\n" +
+	"\ttimestamp\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp\x12\x19\n" +
+	"\btrace_id\x18\x02 \x01(\tR\atraceId\x12\x17\n" +
+	"\aspan_id\x18\x03 \x01(\tR\x06spanId\x12\x1d\n" +
 	"\n" +
-	"step_index\x18\x03 \x01(\x05R\tstepIndex\x12\x1b\n" +
-	"\tstep_name\x18\x04 \x01(\tR\bstepName\x12\x1c\n" +
-	"\titeration\x18\x05 \x01(\x05R\titeration\x12#\n" +
-	"\rfunction_name\x18\x06 \x01(\tR\ffunctionName\x12)\n" +
-	"\x10composition_name\x18\a \x01(\tR\x0fcompositionName\x124\n" +
-	"\x16composite_resource_uid\x18\b \x01(\tR\x14compositeResourceUid\x126\n" +
-	"\x17composite_resource_name\x18\t \x01(\tR\x15compositeResourceName\x12@\n" +
-	"\x1ccomposite_resource_namespace\x18\n" +
-	" \x01(\tR\x1acompositeResourceNamespace\x12C\n" +
-	"\x1ecomposite_resource_api_version\x18\v \x01(\tR\x1bcompositeResourceApiVersion\x126\n" +
-	"\x17composite_resource_kind\x18\f \x01(\tR\x15compositeResourceKind\x128\n" +
-	"\ttimestamp\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\ttimestamp2\x89\x02\n" +
+	"step_index\x18\x04 \x01(\x05R\tstepIndex\x12\x1b\n" +
+	"\tstep_name\x18\x05 \x01(\tR\bstepName\x12\x1c\n" +
+	"\titeration\x18\x06 \x01(\x05R\titeration\x12#\n" +
+	"\rfunction_name\x18\a \x01(\tR\ffunctionName\x12T\n" +
+	"\x0eoperation_meta\x18\b \x01(\v2+.crossplane.pipeline.v1alpha1.OperationMetaH\x00R\roperationMeta\x12Z\n" +
+	"\x10composition_meta\x18\t \x01(\v2-.crossplane.pipeline.v1alpha1.CompositionMetaH\x00R\x0fcompositionMetaB\t\n" +
+	"\acontext\"\xe9\x02\n" +
+	"\x0fCompositionMeta\x12)\n" +
+	"\x10composition_name\x18\x01 \x01(\tR\x0fcompositionName\x124\n" +
+	"\x16composite_resource_uid\x18\x02 \x01(\tR\x14compositeResourceUid\x126\n" +
+	"\x17composite_resource_name\x18\x03 \x01(\tR\x15compositeResourceName\x12@\n" +
+	"\x1ccomposite_resource_namespace\x18\x04 \x01(\tR\x1acompositeResourceNamespace\x12C\n" +
+	"\x1ecomposite_resource_api_version\x18\x05 \x01(\tR\x1bcompositeResourceApiVersion\x126\n" +
+	"\x17composite_resource_kind\x18\x06 \x01(\tR\x15compositeResourceKind\"[\n" +
+	"\rOperationMeta\x12%\n" +
+	"\x0eoperation_name\x18\x01 \x01(\tR\roperationName\x12#\n" +
+	"\roperation_uid\x18\x02 \x01(\tR\foperationUid2\x89\x02\n" +
 	"\x18PipelineInspectorService\x12t\n" +
 	"\vEmitRequest\x120.crossplane.pipeline.v1alpha1.EmitRequestRequest\x1a1.crossplane.pipeline.v1alpha1.EmitRequestResponse\"\x00\x12w\n" +
 	"\fEmitResponse\x121.crossplane.pipeline.v1alpha1.EmitResponseRequest\x1a2.crossplane.pipeline.v1alpha1.EmitResponseResponse\"\x00BSZQgithub.com/crossplane/crossplane-runtime/v2/apis/pipelineinspector/proto/v1alpha1b\x06proto3"
@@ -438,28 +584,32 @@ func file_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescGZIP(
 	return file_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDescData
 }
 
-var file_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_goTypes = []any{
 	(*EmitRequestRequest)(nil),    // 0: crossplane.pipeline.v1alpha1.EmitRequestRequest
 	(*EmitRequestResponse)(nil),   // 1: crossplane.pipeline.v1alpha1.EmitRequestResponse
 	(*EmitResponseRequest)(nil),   // 2: crossplane.pipeline.v1alpha1.EmitResponseRequest
 	(*EmitResponseResponse)(nil),  // 3: crossplane.pipeline.v1alpha1.EmitResponseResponse
 	(*StepMeta)(nil),              // 4: crossplane.pipeline.v1alpha1.StepMeta
-	(*timestamppb.Timestamp)(nil), // 5: google.protobuf.Timestamp
+	(*CompositionMeta)(nil),       // 5: crossplane.pipeline.v1alpha1.CompositionMeta
+	(*OperationMeta)(nil),         // 6: crossplane.pipeline.v1alpha1.OperationMeta
+	(*timestamppb.Timestamp)(nil), // 7: google.protobuf.Timestamp
 }
 var file_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_depIdxs = []int32{
 	4, // 0: crossplane.pipeline.v1alpha1.EmitRequestRequest.meta:type_name -> crossplane.pipeline.v1alpha1.StepMeta
 	4, // 1: crossplane.pipeline.v1alpha1.EmitResponseRequest.meta:type_name -> crossplane.pipeline.v1alpha1.StepMeta
-	5, // 2: crossplane.pipeline.v1alpha1.StepMeta.timestamp:type_name -> google.protobuf.Timestamp
-	0, // 3: crossplane.pipeline.v1alpha1.PipelineInspectorService.EmitRequest:input_type -> crossplane.pipeline.v1alpha1.EmitRequestRequest
-	2, // 4: crossplane.pipeline.v1alpha1.PipelineInspectorService.EmitResponse:input_type -> crossplane.pipeline.v1alpha1.EmitResponseRequest
-	1, // 5: crossplane.pipeline.v1alpha1.PipelineInspectorService.EmitRequest:output_type -> crossplane.pipeline.v1alpha1.EmitRequestResponse
-	3, // 6: crossplane.pipeline.v1alpha1.PipelineInspectorService.EmitResponse:output_type -> crossplane.pipeline.v1alpha1.EmitResponseResponse
-	5, // [5:7] is the sub-list for method output_type
-	3, // [3:5] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	7, // 2: crossplane.pipeline.v1alpha1.StepMeta.timestamp:type_name -> google.protobuf.Timestamp
+	6, // 3: crossplane.pipeline.v1alpha1.StepMeta.operation_meta:type_name -> crossplane.pipeline.v1alpha1.OperationMeta
+	5, // 4: crossplane.pipeline.v1alpha1.StepMeta.composition_meta:type_name -> crossplane.pipeline.v1alpha1.CompositionMeta
+	0, // 5: crossplane.pipeline.v1alpha1.PipelineInspectorService.EmitRequest:input_type -> crossplane.pipeline.v1alpha1.EmitRequestRequest
+	2, // 6: crossplane.pipeline.v1alpha1.PipelineInspectorService.EmitResponse:input_type -> crossplane.pipeline.v1alpha1.EmitResponseRequest
+	1, // 7: crossplane.pipeline.v1alpha1.PipelineInspectorService.EmitRequest:output_type -> crossplane.pipeline.v1alpha1.EmitRequestResponse
+	3, // 8: crossplane.pipeline.v1alpha1.PipelineInspectorService.EmitResponse:output_type -> crossplane.pipeline.v1alpha1.EmitResponseResponse
+	7, // [7:9] is the sub-list for method output_type
+	5, // [5:7] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_init() }
@@ -467,13 +617,17 @@ func file_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_init() {
 	if File_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto != nil {
 		return
 	}
+	file_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_msgTypes[4].OneofWrappers = []any{
+		(*StepMeta_OperationMeta)(nil),
+		(*StepMeta_CompositionMeta)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDesc), len(file_pipelineinspector_proto_v1alpha1_pipeline_inspector_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
