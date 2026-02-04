@@ -31,7 +31,7 @@ type requestThrottlingFilter struct {
 	logr.LogSink
 }
 
-func (l *requestThrottlingFilter) Info(level int, msg string, keysAndValues ...interface{}) {
+func (l *requestThrottlingFilter) Info(level int, msg string, keysAndValues ...any) {
 	if !strings.Contains(msg, "Waited for ") || !strings.Contains(msg, "  request: ") {
 		return
 	}

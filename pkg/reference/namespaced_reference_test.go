@@ -24,7 +24,7 @@ func prepareTestExamplesNamespaced(numExamples int) ([]string, []xpv1.Namespaced
 	values := make([]string, numExamples)
 	refs := make([]xpv1.NamespacedReference, numExamples)
 	controlledObj := make([]*fake.Managed, numExamples)
-	for i := 0; i < numExamples; i++ {
+	for i := range numExamples {
 		values[i] = fmt.Sprintf("%s%d", testValuePrefix, i)
 		refs[i] = xpv1.NamespacedReference{
 			Name: fmt.Sprintf("%s%d", testResourceNamePrefix, i),

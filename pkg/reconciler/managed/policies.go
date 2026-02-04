@@ -34,6 +34,7 @@ type ManagementPoliciesResolver struct {
 
 // LegacyManagementPoliciesResolver is used to perform management policy checks
 // based on the management policy and if the management policy feature is enabled.
+//
 // Deprecated: this is for LegacyManaged types, that had deletion policy.
 // ModernManaged resources should use ManagementPoliciesResolver.
 type LegacyManagementPoliciesResolver struct {
@@ -159,6 +160,7 @@ func NewManagementPoliciesResolver(managementPolicyEnabled bool, managementPolic
 // NewLegacyManagementPoliciesResolver returns an ManagementPolicyChecker based
 // on the management policies and if the management policies feature
 // is enabled.
+//
 // Deprecated: this is intended for LegacyManaged resources that had deletionPolicy
 // ModernManaged resources should use NewManagementPoliciesResolver.
 func NewLegacyManagementPoliciesResolver(managementPolicyEnabled bool, managementPolicy xpv1.ManagementPolicies, deletionPolicy xpv1.DeletionPolicy, o ...ManagementPoliciesResolverOption) ManagementPoliciesChecker {
