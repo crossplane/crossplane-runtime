@@ -97,9 +97,9 @@
         go generate -tags generate ./...
 
         echo "Comparing against committed source..."
-        if ! diff -rq apis ${self}/apis > /dev/null 2>&1; then
+        if ! diff -rq . ${self} --exclude=vendor > /dev/null 2>&1; then
           echo "ERROR: Generated code is out of date. Run 'nix run .#generate' and commit."
-          diff -r apis ${self}/apis || true
+          diff -r . ${self} --exclude=vendor || true
           exit 1
         fi
 
