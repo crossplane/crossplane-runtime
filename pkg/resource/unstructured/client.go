@@ -209,8 +209,8 @@ func (c *wrapperStatusClient) Patch(ctx context.Context, obj client.Object, patc
 // Apply applies the given object's subresource. obj must be a struct
 // pointer so that obj can be updated with the content returned by the
 // Server. Returns an error if an unstructured object is used due to
-// the underlying client works. This method is only added to satisfy
-// the client.SubResourceWriter interface.
+// how the underlying client works. This method is only added to
+// satisfy the client.SubResourceWriter interface.
 func (c *wrapperStatusClient) Apply(ctx context.Context, obj runtime.ApplyConfiguration, opts ...client.SubResourceApplyOption) error {
 	if u, ok := obj.(Wrapper); ok {
 		return fmt.Errorf("cannot apply status for unstructured %T; use a typed ApplyConfiguration or Patch with ApplyPatchType", u)
