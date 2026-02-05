@@ -95,6 +95,7 @@ func TestModernReconciler(t *testing.T) {
 							mg := asModernManaged(obj, 42)
 							mg.SetDeletionTimestamp(&now)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionCreate, xpv1.ManagementActionUpdate, xpv1.ManagementActionLateInitialize})
+
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
@@ -103,10 +104,12 @@ func TestModernReconciler(t *testing.T) {
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionCreate, xpv1.ManagementActionUpdate, xpv1.ManagementActionLateInitialize})
 							want.SetConditions(xpv1.Deleting().WithObservedGeneration(42))
 							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors unpublishing connection details should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -133,6 +136,7 @@ func TestModernReconciler(t *testing.T) {
 							mg := asModernManaged(obj, 42)
 							mg.SetDeletionTimestamp(&now)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionCreate, xpv1.ManagementActionUpdate, xpv1.ManagementActionLateInitialize})
+
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
@@ -141,10 +145,12 @@ func TestModernReconciler(t *testing.T) {
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionCreate, xpv1.ManagementActionUpdate, xpv1.ManagementActionLateInitialize})
 							want.SetConditions(xpv1.Deleting().WithObservedGeneration(42))
 							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors removing the managed resource finalizer should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -167,6 +173,7 @@ func TestModernReconciler(t *testing.T) {
 							mg := asModernManaged(obj, 42)
 							mg.SetDeletionTimestamp(&now)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
+
 							return nil
 						}),
 					},
@@ -189,10 +196,12 @@ func TestModernReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors initializing the managed resource should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -216,6 +225,7 @@ func TestModernReconciler(t *testing.T) {
 							mg := asModernManaged(obj, 42)
 							mg.SetDeletionTimestamp(&now)
 							mg.SetFinalizers([]string{FinalizerName, "finalizer2"})
+
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
@@ -235,6 +245,7 @@ func TestModernReconciler(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 				},
@@ -249,6 +260,7 @@ func TestModernReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							asModernManaged(obj, 42)
 							meta.SetExternalCreatePending(obj, now.Time)
+
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
@@ -257,10 +269,12 @@ func TestModernReconciler(t *testing.T) {
 							want.SetConditions(
 								xpv1.Creating().WithObservedGeneration(42),
 								xpv1.ReconcileError(errors.New(errCreateIncomplete)).WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "We should update our status when we're asked to reconcile a managed resource that is pending creation."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -282,10 +296,12 @@ func TestModernReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors during reference resolution should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -310,10 +326,12 @@ func TestModernReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, got client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileConnect)).WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
 								reason := "Errors connecting to the provider should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -338,10 +356,12 @@ func TestModernReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful no-op reconcile should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -360,6 +380,7 @@ func TestModernReconciler(t *testing.T) {
 								return errBoom
 							},
 						}
+
 						return c, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
@@ -376,10 +397,12 @@ func TestModernReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileObserve)).WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors observing the managed resource should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -397,6 +420,7 @@ func TestModernReconciler(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 				},
@@ -428,6 +452,7 @@ func TestModernReconciler(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 				},
@@ -442,6 +467,7 @@ func TestModernReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asModernManaged(obj, 42)
 							mg.SetDeletionTimestamp(&now)
+
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
@@ -449,10 +475,12 @@ func TestModernReconciler(t *testing.T) {
 							want.SetDeletionTimestamp(&now)
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileDelete)).WithObservedGeneration(42))
 							want.SetConditions(xpv1.Deleting().WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "An error deleting an external resource should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -474,6 +502,7 @@ func TestModernReconciler(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 				},
@@ -488,6 +517,7 @@ func TestModernReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asModernManaged(obj, 42)
 							mg.SetDeletionTimestamp(&now)
+
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
@@ -495,10 +525,12 @@ func TestModernReconciler(t *testing.T) {
 							want.SetDeletionTimestamp(&now)
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
 							want.SetConditions(xpv1.Deleting().WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A deleted external resource should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -520,6 +552,7 @@ func TestModernReconciler(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 				},
@@ -534,6 +567,7 @@ func TestModernReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asModernManaged(obj, 42)
 							mg.SetDeletionTimestamp(&now)
+
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
@@ -541,10 +575,12 @@ func TestModernReconciler(t *testing.T) {
 							want.SetDeletionTimestamp(&now)
 							want.SetConditions(xpv1.Deleting().WithObservedGeneration(42))
 							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors unpublishing connection details should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -563,6 +599,7 @@ func TestModernReconciler(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 					withLocalConnectionPublishers(LocalConnectionPublisherFns{
@@ -582,6 +619,7 @@ func TestModernReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asModernManaged(obj, 42)
 							mg.SetDeletionTimestamp(&now)
+
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
@@ -589,10 +627,12 @@ func TestModernReconciler(t *testing.T) {
 							want.SetDeletionTimestamp(&now)
 							want.SetConditions(xpv1.Deleting().WithObservedGeneration(42))
 							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors removing the managed resource finalizer should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -611,6 +651,7 @@ func TestModernReconciler(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error { return errBoom }}),
@@ -626,6 +667,7 @@ func TestModernReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asModernManaged(obj, 42)
 							mg.SetDeletionTimestamp(&now)
+
 							return nil
 						}),
 					},
@@ -644,6 +686,7 @@ func TestModernReconciler(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
@@ -660,10 +703,12 @@ func TestModernReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors publishing connection details after observation should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -692,10 +737,12 @@ func TestModernReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors adding a finalizer should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -724,10 +771,12 @@ func TestModernReconciler(t *testing.T) {
 							want.SetConditions(
 								xpv1.Creating().WithObservedGeneration(42),
 								xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateManaged)).WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
 								reason := "Errors while creating an external resource should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -749,6 +798,7 @@ func TestModernReconciler(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
@@ -769,10 +819,12 @@ func TestModernReconciler(t *testing.T) {
 							meta.SetExternalCreateFailed(want, time.Now())
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileCreate)).WithObservedGeneration(42))
 							want.SetConditions(xpv1.Creating().WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
 								reason := "Errors while creating an external resource should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -794,6 +846,7 @@ func TestModernReconciler(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 					// We simulate our critical annotation update failing too here.
@@ -817,10 +870,12 @@ func TestModernReconciler(t *testing.T) {
 							meta.SetExternalCreateSucceeded(want, time.Now())
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateManagedAnnotations)).WithObservedGeneration(42))
 							want.SetConditions(xpv1.Creating().WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
 								reason := "Errors updating critical annotations after creation should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -842,6 +897,7 @@ func TestModernReconciler(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
@@ -863,10 +919,12 @@ func TestModernReconciler(t *testing.T) {
 							meta.SetExternalCreateSucceeded(want, time.Now())
 							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
 							want.SetConditions(xpv1.Creating().WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
 								reason := "Errors publishing connection details after creation should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -889,6 +947,7 @@ func TestModernReconciler(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 					WithCriticalAnnotationUpdater(CriticalAnnotationUpdateFn(func(_ context.Context, _ client.Object) error { return nil })),
@@ -900,6 +959,7 @@ func TestModernReconciler(t *testing.T) {
 							if _, ok := cd["create"]; ok {
 								return false, errBoom
 							}
+
 							return true, nil
 						},
 					}),
@@ -921,10 +981,12 @@ func TestModernReconciler(t *testing.T) {
 							meta.SetExternalCreateSucceeded(want, time.Now())
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
 							want.SetConditions(xpv1.Creating().WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
 								reason := "Successful managed resource creation should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -949,6 +1011,7 @@ func TestModernReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							asModernManaged(obj, 42)
 							meta.SetExternalCreatePending(obj, now.Time)
+
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
@@ -958,10 +1021,12 @@ func TestModernReconciler(t *testing.T) {
 							meta.SetExternalCreateSucceeded(want, time.Now())
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
 							want.SetConditions(xpv1.Creating().WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
 								reason := "Successful managed resource creation should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -989,10 +1054,12 @@ func TestModernReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateManaged)).WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors updating a managed resource should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -1011,6 +1078,7 @@ func TestModernReconciler(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
@@ -1027,10 +1095,12 @@ func TestModernReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful no-op reconcile should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -1049,6 +1119,7 @@ func TestModernReconciler(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
@@ -1081,6 +1152,7 @@ func TestModernReconciler(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
@@ -1094,6 +1166,7 @@ func TestModernReconciler(t *testing.T) {
 					if diff < 0 {
 						diff = -diff
 					}
+
 					return diff < time.Second
 				})},
 			},
@@ -1123,6 +1196,7 @@ func TestModernReconciler(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
@@ -1160,6 +1234,7 @@ func TestModernReconciler(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
@@ -1185,10 +1260,12 @@ func TestModernReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileUpdate)).WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors while updating an external resource should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -1210,6 +1287,7 @@ func TestModernReconciler(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
@@ -1226,10 +1304,12 @@ func TestModernReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors publishing connection details after an update should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -1252,6 +1332,7 @@ func TestModernReconciler(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 					withLocalConnectionPublishers(LocalConnectionPublisherFns{
@@ -1262,6 +1343,7 @@ func TestModernReconciler(t *testing.T) {
 							if _, ok := cd["update"]; ok {
 								return false, errBoom
 							}
+
 							return false, nil
 						},
 					}),
@@ -1279,10 +1361,12 @@ func TestModernReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful managed resource update should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -1304,6 +1388,7 @@ func TestModernReconciler(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
@@ -1320,10 +1405,12 @@ func TestModernReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful managed resource update should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -1345,6 +1432,7 @@ func TestModernReconciler(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
@@ -1362,16 +1450,19 @@ func TestModernReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asModernManaged(obj, 42)
 							mg.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
+
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
 							want.SetConditions(xpv1.ReconcilePaused().WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := `If managed resource has the pause annotation with value "true", it should acquire "Synced" status condition with the status "False" and the reason "ReconcilePaused".`
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -1389,16 +1480,19 @@ func TestModernReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asModernManaged(obj, 42)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{})
+
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{})
 							want.SetConditions(xpv1.ReconcilePaused().WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := `If managed resource has the pause annotation with value "true", it should acquire "Synced" status condition with the status "False" and the reason "ReconcilePaused".`
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -1422,16 +1516,19 @@ func TestModernReconciler(t *testing.T) {
 							mg := asModernManaged(obj, 42)
 							mg.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "false"})
 							mg.SetConditions(xpv1.ReconcilePaused())
+
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "false"})
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := `Managed resource should acquire Synced=False/ReconcileSuccess status condition after a resume.`
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -1450,6 +1547,7 @@ func TestModernReconciler(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
@@ -1465,6 +1563,7 @@ func TestModernReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asModernManaged(obj, 42)
 							mg.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
+
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error {
@@ -1485,16 +1584,19 @@ func TestModernReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asModernManaged(obj, 42)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionCreate})
+
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionCreate})
 							want.SetConditions(xpv1.ReconcileError(fmt.Errorf(errFmtManagementPolicyNonDefault, xpv1.ManagementPolicies{xpv1.ManagementActionCreate})).WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := `If managed resource has a non default management policy but feature not enabled, it should return a proper error.`
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -1512,16 +1614,19 @@ func TestModernReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asModernManaged(obj, 42)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionCreate})
+
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionCreate})
 							want.SetConditions(xpv1.ReconcileError(fmt.Errorf(errFmtManagementPolicyNotSupported, xpv1.ManagementPolicies{xpv1.ManagementActionCreate})).WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := `If managed resource has non supported management policy, it should return a proper error.`
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -1542,16 +1647,19 @@ func TestModernReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asModernManaged(obj, 42)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
+
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
 							want.SetConditions(xpv1.ReconcileError(fmt.Errorf(errFmtManagementPolicyNotSupported, xpv1.ManagementPolicies{xpv1.ManagementActionAll})).WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := `If managed resource has non supported management policy, it should return a proper error.`
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -1573,16 +1681,19 @@ func TestModernReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asModernManaged(obj, 42)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
+
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errors.New(errExternalResourceNotExist), errReconcileObserve)).WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Resource does not exist should be reported as a conditioned status when ObserveOnly."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -1601,6 +1712,7 @@ func TestModernReconciler(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 				},
@@ -1615,16 +1727,19 @@ func TestModernReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asModernManaged(obj, 42)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
+
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
 							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors publishing connection details after observation should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -1643,6 +1758,7 @@ func TestModernReconciler(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 					withLocalConnectionPublishers(LocalConnectionPublisherFns{
@@ -1662,16 +1778,19 @@ func TestModernReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asModernManaged(obj, 42)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
+
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42).WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "With ObserveOnly, a successful managed resource observation should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -1690,6 +1809,7 @@ func TestModernReconciler(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 					withLocalConnectionPublishers(LocalConnectionPublisherFns{
@@ -1710,6 +1830,7 @@ func TestModernReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asModernManaged(obj, 42)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
+
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
@@ -1720,10 +1841,12 @@ func TestModernReconciler(t *testing.T) {
 							meta.SetExternalCreateSucceeded(want, time.Now())
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
 							want.SetConditions(xpv1.Creating().WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
 								reason := "Successful managed resource creation should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -1788,6 +1911,7 @@ func TestModernReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asModernManaged(obj, 42)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
+
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
@@ -1798,10 +1922,12 @@ func TestModernReconciler(t *testing.T) {
 							meta.SetExternalCreateSucceeded(want, time.Now())
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
 							want.SetConditions(xpv1.Creating().WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
 								reason := "Successful managed resource creation should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -1914,6 +2040,7 @@ func TestModernReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asModernManaged(obj, 42)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionLateInitialize, xpv1.ManagementActionCreate, xpv1.ManagementActionDelete})
+
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(errBoom),
@@ -1921,10 +2048,12 @@ func TestModernReconciler(t *testing.T) {
 							want := newModernManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionLateInitialize, xpv1.ManagementActionCreate, xpv1.ManagementActionDelete})
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := `Managed resource should acquire Synced=False/ReconcileSuccess status condition.`
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -1947,6 +2076,7 @@ func TestModernReconciler(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
@@ -1962,16 +2092,19 @@ func TestModernReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asModernManaged(obj, 42)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
+
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42).WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful managed resource update should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -1994,6 +2127,7 @@ func TestModernReconciler(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
@@ -2056,16 +2190,19 @@ func TestModernReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asModernManaged(obj, 42)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
+
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful managed resource update should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -2088,6 +2225,7 @@ func TestModernReconciler(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
@@ -2103,6 +2241,7 @@ func TestModernReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asModernManaged(obj, 42)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionUpdate, xpv1.ManagementActionCreate, xpv1.ManagementActionDelete})
+
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(errBoom),
@@ -2110,10 +2249,12 @@ func TestModernReconciler(t *testing.T) {
 							want := newModernManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionUpdate, xpv1.ManagementActionCreate, xpv1.ManagementActionDelete})
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
+
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors updating a managed resource should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
+
 							return nil
 						}),
 					},
@@ -2133,6 +2274,7 @@ func TestModernReconciler(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
@@ -2148,6 +2290,7 @@ func TestModernReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asModernManaged(obj, 42)
 							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionLateInitialize})
+
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
@@ -2177,6 +2320,7 @@ func TestModernReconciler(t *testing.T) {
 								xpv1.ManagementActionUpdate,
 								xpv1.ManagementActionLateInitialize,
 							})
+
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
@@ -2678,6 +2822,7 @@ func TestReconcilerChangeLogs(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 				},
@@ -2716,6 +2861,7 @@ func TestReconcilerChangeLogs(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 				},
@@ -2753,6 +2899,7 @@ func TestReconcilerChangeLogs(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 				},
@@ -2791,6 +2938,7 @@ func TestReconcilerChangeLogs(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 				},
@@ -2811,6 +2959,7 @@ func TestReconcilerChangeLogs(t *testing.T) {
 							// set a deletion timestamp, which should trigger a delete operation
 							mg := asModernManaged(obj, 42)
 							mg.SetDeletionTimestamp(&now)
+
 							return nil
 						}),
 						MockUpdate:       test.NewMockUpdateFn(nil),
@@ -2833,6 +2982,7 @@ func TestReconcilerChangeLogs(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 				},
@@ -2853,6 +3003,7 @@ func TestReconcilerChangeLogs(t *testing.T) {
 							// set a deletion timestamp, which should trigger a delete operation
 							mg := asModernManaged(obj, 42)
 							mg.SetDeletionTimestamp(&now)
+
 							return nil
 						}),
 						MockUpdate:       test.NewMockUpdateFn(nil),
@@ -2876,6 +3027,7 @@ func TestReconcilerChangeLogs(t *testing.T) {
 								return nil
 							},
 						}
+
 						return c, nil
 					})),
 				},

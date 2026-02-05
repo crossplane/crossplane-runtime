@@ -63,6 +63,9 @@ type MockSubResourceUpdateFn func(ctx context.Context, obj client.Object, opts .
 // A MockSubResourcePatchFn is used to mock client.SubResourceClient's patch implementation.
 type MockSubResourcePatchFn func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.SubResourcePatchOption) error
 
+// A MockSubResourceApplyFn is used to mock client.SubResourceClient's apply implementation.
+type MockSubResourceApplyFn func(ctx context.Context, obj runtime.ApplyConfiguration, opts ...client.SubResourceApplyOption) error
+
 // A MockSchemeFn is used to mock client.Client's Scheme implementation.
 type MockSchemeFn func() *runtime.Scheme
 
@@ -187,6 +190,7 @@ func NewMockApplyFn(err error, afn ...ApplyFn) MockApplyFn {
 				return fnErr
 			}
 		}
+
 		return err
 	}
 }
@@ -398,6 +402,7 @@ type MockSubResourceClient struct {
 	MockCreate MockSubResourceCreateFn
 	MockUpdate MockSubResourceUpdateFn
 	MockPatch  MockSubResourcePatchFn
+	MockApply  MockSubResourceApplyFn
 }
 
 // Get a sub-resource.
@@ -418,4 +423,9 @@ func (m *MockSubResourceClient) Update(ctx context.Context, obj client.Object, o
 // Patch a sub-resource.
 func (m *MockSubResourceClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.SubResourcePatchOption) error {
 	return m.MockPatch(ctx, obj, patch, opts...)
+}
+
+// Apply a sub-resource.
+func (m *MockSubResourceClient) Apply(ctx context.Context, obj runtime.ApplyConfiguration, opts ...client.SubResourceApplyOption) error {
+	return m.MockApply(ctx, obj, opts...)
 }

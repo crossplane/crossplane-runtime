@@ -103,12 +103,14 @@ func TestGateIntegration(t *testing.T) {
 			reason: "Should call function when single dependency is met",
 			setup: func(g *gate.Gate[string]) chan bool {
 				called := make(chan bool, 1)
+
 				g.Register(func() {
 					called <- true
 				}, "condition1")
 
 				// Set condition to true (will be initialized as false first)
 				g.Set("condition1", true)
+
 				return called
 			},
 			want: want{
@@ -119,6 +121,7 @@ func TestGateIntegration(t *testing.T) {
 			reason: "Should call function when all dependencies are met",
 			setup: func(g *gate.Gate[string]) chan bool {
 				called := make(chan bool, 1)
+
 				g.Register(func() {
 					called <- true
 				}, "condition1", "condition2")
@@ -126,6 +129,7 @@ func TestGateIntegration(t *testing.T) {
 				// Set both conditions to true
 				g.Set("condition1", true)
 				g.Set("condition2", true)
+
 				return called
 			},
 			want: want{
@@ -136,12 +140,14 @@ func TestGateIntegration(t *testing.T) {
 			reason: "Should not call function when only some dependencies are met",
 			setup: func(g *gate.Gate[string]) chan bool {
 				called := make(chan bool, 1)
+
 				g.Register(func() {
 					called <- true
 				}, "condition1", "condition2")
 
 				// Set only one condition to true
 				g.Set("condition1", true)
+
 				return called
 			},
 			want: want{
@@ -170,6 +176,7 @@ func TestGateIntegration(t *testing.T) {
 			reason: "Should call function when dependency is met, even if unset later",
 			setup: func(g *gate.Gate[string]) chan bool {
 				called := make(chan bool, 1)
+
 				g.Register(func() {
 					called <- true
 				}, "condition1")
@@ -177,6 +184,7 @@ func TestGateIntegration(t *testing.T) {
 				// Set condition to true then false (function already called when true)
 				g.Set("condition1", true)
 				g.Set("condition1", false)
+
 				return called
 			},
 			want: want{
@@ -187,6 +195,7 @@ func TestGateIntegration(t *testing.T) {
 			reason: "Should call function only once even if conditions change after",
 			setup: func(g *gate.Gate[string]) chan bool {
 				called := make(chan bool, 2) // Buffer for potential multiple calls
+
 				g.Register(func() {
 					called <- true
 				}, "condition1")
@@ -195,6 +204,7 @@ func TestGateIntegration(t *testing.T) {
 				g.Set("condition1", true)
 				g.Set("condition1", false)
 				g.Set("condition1", true)
+
 				return called
 			},
 			want: want{
@@ -244,15 +254,11 @@ func TestGateConcurrency(t *testing.T) {
 
 	// Register functions concurrently
 	for range numGoroutines {
-		wg.Add(1)
-
-		go func() {
-			defer wg.Done()
-
+		wg.Go(func() {
 			g.Register(func() {
 				callCount <- struct{}{}
 			}, "shared-condition")
-		}()
+		})
 	}
 
 	// Wait for all registrations

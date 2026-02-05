@@ -740,6 +740,7 @@ func TestSetValue(t *testing.T) {
 						res := make([]any, DefaultMaxFieldPathIndex+2)
 						res[0] = "a"
 						res[DefaultMaxFieldPathIndex+1] = "c"
+
 						return res
 					}(),
 				},

@@ -235,6 +235,13 @@ linters:
           - revive
         text: "var-naming: avoid meaningless package names"
         path: apis/common
+
+      # The errors package intentionally shadows the stdlib errors package
+      # to provide a drop-in compatible API with additional functionality.
+      - linters:
+          - revive
+        text: "var-naming: avoid package names that conflict with Go standard library package names"
+        path: pkg/errors/
     paths:
       - zz_generated\..+\.go$
       - .+\.pb.go$
