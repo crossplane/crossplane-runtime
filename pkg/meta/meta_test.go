@@ -1087,6 +1087,7 @@ func TestExternalCreateSucceededDuring(t *testing.T) {
 					o := &corev1.Pod{}
 					t := time.Now().Add(-2 * time.Minute)
 					SetExternalCreateSucceeded(o, t)
+
 					return o
 				}(),
 				d: 1 * time.Minute,
@@ -1099,6 +1100,7 @@ func TestExternalCreateSucceededDuring(t *testing.T) {
 					o := &corev1.Pod{}
 					t := time.Now().Add(-30 * time.Second)
 					SetExternalCreateSucceeded(o, t)
+
 					return o
 				}(),
 				d: 1 * time.Minute,
@@ -1196,6 +1198,7 @@ func TestIsPaused(t *testing.T) {
 				p.SetAnnotations(map[string]string{
 					AnnotationKeyReconciliationPaused: "true",
 				})
+
 				return p
 			}(),
 			want: true,
@@ -1210,6 +1213,7 @@ func TestIsPaused(t *testing.T) {
 				p.SetAnnotations(map[string]string{
 					AnnotationKeyReconciliationPaused: "",
 				})
+
 				return p
 			}(),
 			want: false,

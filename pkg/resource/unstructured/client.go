@@ -19,6 +19,7 @@ package unstructured
 
 import (
 	"context"
+	"fmt"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -203,4 +204,17 @@ func (c *wrapperStatusClient) Patch(ctx context.Context, obj client.Object, patc
 	}
 
 	return c.kube.Patch(ctx, obj, patch, opts...)
+}
+
+// Apply applies the given object's subresource. obj must be a struct
+// pointer so that obj can be updated with the content returned by the
+// Server. Returns an error if an unstructured object is used due to
+// the underlying client works. This method is only added to satisfy
+// the client.SubResourceWriter interface.
+func (c *wrapperStatusClient) Apply(ctx context.Context, obj runtime.ApplyConfiguration, opts ...client.SubResourceApplyOption) error {
+	if u, ok := obj.(Wrapper); ok {
+		return fmt.Errorf("cannot use Apply with unstructured object of type %T", u)
+	}
+
+	return c.kube.Apply(ctx, obj, opts...)
 }

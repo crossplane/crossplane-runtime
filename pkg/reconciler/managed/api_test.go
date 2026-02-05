@@ -183,12 +183,14 @@ func TestAPISecretPublisher(t *testing.T) {
 			fields: fields{
 				secret: resource.ApplyFn(func(ctx context.Context, o client.Object, ao ...resource.ApplyOption) error {
 					want := resource.ConnectionSecretFor(mg, fake.GVK(mg))
+
 					want.Data = cd
 					for _, fn := range ao {
 						if err := fn(ctx, o, want); err != nil {
 							return err
 						}
 					}
+
 					return nil
 				}),
 				typer: fake.SchemeWith(&fake.LegacyManaged{}),
@@ -208,10 +210,12 @@ func TestAPISecretPublisher(t *testing.T) {
 			fields: fields{
 				secret: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
 					want := resource.ConnectionSecretFor(mg, fake.GVK(mg))
+
 					want.Data = cd
 					if diff := cmp.Diff(want, o); diff != "" {
 						t.Errorf("-want, +got:\n%s", diff)
 					}
+
 					return nil
 				}),
 				typer: fake.SchemeWith(&fake.LegacyManaged{}),
@@ -302,12 +306,14 @@ func TestAPILocalSecretPublisher(t *testing.T) {
 			fields: fields{
 				secret: resource.ApplyFn(func(ctx context.Context, o client.Object, ao ...resource.ApplyOption) error {
 					want := resource.LocalConnectionSecretFor(mg, fake.GVK(mg))
+
 					want.Data = cd
 					for _, fn := range ao {
 						if err := fn(ctx, o, want); err != nil {
 							return err
 						}
 					}
+
 					return nil
 				}),
 				typer: fake.SchemeWith(&fake.ModernManaged{}),
@@ -327,10 +333,12 @@ func TestAPILocalSecretPublisher(t *testing.T) {
 			fields: fields{
 				secret: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
 					want := resource.LocalConnectionSecretFor(mg, fake.GVK(mg))
+
 					want.Data = cd
 					if diff := cmp.Diff(want, o); diff != "" {
 						t.Errorf("-want, +got:\n%s", diff)
 					}
+
 					return nil
 				}),
 				typer: fake.SchemeWith(&fake.ModernManaged{}),

@@ -83,6 +83,7 @@ func TestReconcile(t *testing.T) {
 				// Rate limit the request once.
 				r := NewReconciler("test", inner, &predictableRateLimiter{d: 8 * time.Second})
 				r.Reconcile(context.Background(), reconcile.Request{NamespacedName: types.NamespacedName{Name: "limited"}})
+
 				return r
 			}(),
 			args: args{

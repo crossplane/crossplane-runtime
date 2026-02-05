@@ -23,13 +23,17 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 )
 
-// Mutator has to satisfy CustomDefaulter interface so that it can be used by
-// controller-runtime Manager.
-var _ webhook.CustomDefaulter = &Mutator{}
+var (
+	// Mutator has to satisfy CustomDefaulter interface so that it can be used by
+	// controller-runtime Manager.
+	_ webhook.CustomDefaulter             = &Mutator{} //nolint:staticcheck // Testing deprecated interface for backwards compatibility.
+	_ admission.Defaulter[runtime.Object] = &Mutator{}
+)
 
 func TestDefault(t *testing.T) {
 	type args struct {

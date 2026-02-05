@@ -533,23 +533,25 @@ func TestReconcile(t *testing.T) {
 
 			// Only check gate calls if gate is not nil
 			if tc.fields.gate != nil {
-				slices.SortFunc(tc.want.trueCalls, func(a, b schema.GroupVersionKind) int {
+				sortGVK := func(a, b schema.GroupVersionKind) int {
+					if c := strings.Compare(a.Group, b.Group); c != 0 {
+						return c
+					}
+					if c := strings.Compare(a.Version, b.Version); c != 0 {
+						return c
+					}
 					return strings.Compare(a.Kind, b.Kind)
-				})
-				slices.SortFunc(tc.fields.gate.TrueCalls, func(a, b schema.GroupVersionKind) int {
-					return strings.Compare(a.Kind, b.Kind)
-				})
+				}
+
+				slices.SortFunc(tc.want.trueCalls, sortGVK)
+				slices.SortFunc(tc.fields.gate.TrueCalls, sortGVK)
 
 				if diff := cmp.Diff(tc.want.trueCalls, tc.fields.gate.TrueCalls); diff != "" {
 					t.Errorf("\n%s\ngate.True calls: -want, +got:\n%s", tc.reason, diff)
 				}
 
-				slices.SortFunc(tc.want.falseCalls, func(a, b schema.GroupVersionKind) int {
-					return strings.Compare(a.Kind, b.Kind)
-				})
-				slices.SortFunc(tc.fields.gate.FalseCalls, func(a, b schema.GroupVersionKind) int {
-					return strings.Compare(a.Kind, b.Kind)
-				})
+				slices.SortFunc(tc.want.falseCalls, sortGVK)
+				slices.SortFunc(tc.fields.gate.FalseCalls, sortGVK)
 
 				if diff := cmp.Diff(tc.want.falseCalls, tc.fields.gate.FalseCalls); diff != "" {
 					t.Errorf("\n%s\ngate.False calls: -want, +got:\n%s", tc.reason, diff)

@@ -30,9 +30,12 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 )
 
-// Validator has to satisfy CustomValidator interface so that it can be used by
-// controller-runtime Manager.
-var _ webhook.CustomValidator = &Validator{}
+var (
+	// Validator has to satisfy CustomValidator interface so that it can be used by
+	// controller-runtime Manager.
+	_ webhook.CustomValidator             = &Validator{} //nolint:staticcheck // Testing deprecated interface for backwards compatibility.
+	_ admission.Validator[runtime.Object] = &Validator{}
+)
 
 var (
 	errBoom  = errors.New("boom")

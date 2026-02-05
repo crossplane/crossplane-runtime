@@ -175,6 +175,7 @@ func TestExtractSecret(t *testing.T) {
 						s.Data = map[string][]byte{
 							"creds": credentials,
 						}
+
 						return nil
 					}),
 				},
@@ -286,6 +287,7 @@ func TestTrackLegacy(t *testing.T) {
 							return err
 						}
 					}
+
 					return errBoom
 				}),
 				of: &fake.LegacyProviderConfigUsage{},
@@ -380,6 +382,7 @@ func TestTrackModern(t *testing.T) {
 							return err
 						}
 					}
+
 					return errBoom
 				}),
 				of: &fake.ProviderConfigUsage{},
