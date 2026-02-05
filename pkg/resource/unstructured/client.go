@@ -213,7 +213,7 @@ func (c *wrapperStatusClient) Patch(ctx context.Context, obj client.Object, patc
 // the client.SubResourceWriter interface.
 func (c *wrapperStatusClient) Apply(ctx context.Context, obj runtime.ApplyConfiguration, opts ...client.SubResourceApplyOption) error {
 	if u, ok := obj.(Wrapper); ok {
-		return fmt.Errorf("cannot use Apply with unstructured object of type %T", u)
+		return fmt.Errorf("cannot apply status for unstructured %T; use a typed ApplyConfiguration or Patch with ApplyPatchType", u)
 	}
 
 	return c.kube.Apply(ctx, obj, opts...)
