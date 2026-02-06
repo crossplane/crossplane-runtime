@@ -75,12 +75,12 @@ jobs:
         uses: nicknovitski/nix-develop@9be7cfb4b10451d3390a75dc18ad0465bed4932a # v1
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@439137e1b50c27ba9e2f9befc93e43091b449c34 # v3
+        uses: github/codeql-action/init@b5ebac6f4c00c8ccddb7cdcd45fdb248329f808a # v3
         with:
           languages: go
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@439137e1b50c27ba9e2f9befc93e43091b449c34 # v3
+        uses: github/codeql-action/analyze@b5ebac6f4c00c8ccddb7cdcd45fdb248329f808a # v3
 
   trivy-scan-fs:
     runs-on: ubuntu-22.04
@@ -100,7 +100,7 @@ jobs:
           output: 'trivy-results.sarif'
 
       - name: Upload Trivy Results to GitHub
-        uses: github/codeql-action/upload-sarif@439137e1b50c27ba9e2f9befc93e43091b449c34 # v3
+        uses: github/codeql-action/upload-sarif@b5ebac6f4c00c8ccddb7cdcd45fdb248329f808a # v3
         with:
           sarif_file: 'trivy-results.sarif'
 
