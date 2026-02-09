@@ -68,7 +68,9 @@
         'go',
       ],
       matchBaseBranches: [
-        '/^release-.*/',
+        // Release 2.1 and older use earthly.
+        '/^release-1\..*/',
+        '/^release-2\.[0-1]$/',
       ],
       postUpgradeTasks: {
         commands: [
@@ -86,7 +88,9 @@
         'golangci/golangci-lint',
       ],
       matchBaseBranches: [
-        '/^release-.*/',
+        // Release 2.1 and older use earthly.
+        '/^release-1\..*/',
+        '/^release-2\.[0-1]$/',
       ],
       postUpgradeTasks: {
         commands: [
