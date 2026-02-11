@@ -348,7 +348,8 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: legacyManagedMockGetFn(nil, 42),
+						MockGet:   legacyManagedMockGetFn(nil, 42),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
@@ -759,6 +760,7 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet:    legacyManagedMockGetFn(nil, 42),
 						MockUpdate: test.NewMockUpdateFn(errBoom),
+						MockPatch:  test.NewMockPatchFn(errBoom),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							meta.SetExternalCreatePending(want, time.Now())
@@ -807,6 +809,7 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet:    legacyManagedMockGetFn(nil, 42),
 						MockUpdate: test.NewMockUpdateFn(nil),
+						MockPatch:  test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							meta.SetExternalCreatePending(want, time.Now())
@@ -858,6 +861,7 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet:    legacyManagedMockGetFn(nil, 42),
 						MockUpdate: test.NewMockUpdateFn(nil),
+						MockPatch:  test.NewMockPatchFn(errBoom),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							meta.SetExternalCreatePending(want, time.Now())
@@ -907,6 +911,7 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet:    legacyManagedMockGetFn(nil, 42),
 						MockUpdate: test.NewMockUpdateFn(nil),
+						MockPatch:  test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							meta.SetExternalCreatePending(want, time.Now())
@@ -969,6 +974,7 @@ func TestReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet:    legacyManagedMockGetFn(nil, 42),
 						MockUpdate: test.NewMockUpdateFn(nil),
+						MockPatch:  test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							meta.SetExternalCreatePending(want, time.Now())
@@ -1009,6 +1015,7 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
+						MockPatch:  test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							meta.SetExternalCreatePending(want, time.Now())
@@ -1044,6 +1051,7 @@ func TestReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet:    legacyManagedMockGetFn(nil, 42),
+						MockPatch:  test.NewMockPatchFn(nil),
 						MockUpdate: test.NewMockUpdateFn(errBoom),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
@@ -1085,7 +1093,8 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: legacyManagedMockGetFn(nil, 42),
+						MockGet:   legacyManagedMockGetFn(nil, 42),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
@@ -1126,7 +1135,8 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: legacyManagedMockGetFn(nil, 42),
+						MockGet:   legacyManagedMockGetFn(nil, 42),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error {
 							return nil
 						}),
@@ -1170,7 +1180,8 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: legacyManagedMockGetFn(nil, 42),
+						MockGet:   legacyManagedMockGetFn(nil, 42),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error {
 							return nil
 						}),
@@ -1208,7 +1219,8 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: legacyManagedMockGetFn(nil, 42),
+						MockGet:   legacyManagedMockGetFn(nil, 42),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error {
 							return nil
 						}),
@@ -1250,7 +1262,8 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: legacyManagedMockGetFn(nil, 42),
+						MockGet:   legacyManagedMockGetFn(nil, 42),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileUpdate)).WithObservedGeneration(42))
@@ -1294,7 +1307,8 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: legacyManagedMockGetFn(nil, 42),
+						MockGet:   legacyManagedMockGetFn(nil, 42),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
@@ -1351,7 +1365,8 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: legacyManagedMockGetFn(nil, 42),
+						MockGet:   legacyManagedMockGetFn(nil, 42),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
@@ -1395,7 +1410,8 @@ func TestReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: legacyManagedMockGetFn(nil, 42),
+						MockGet:   legacyManagedMockGetFn(nil, 42),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
@@ -1447,6 +1463,7 @@ func TestReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
@@ -1477,6 +1494,7 @@ func TestReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{})
@@ -1513,6 +1531,7 @@ func TestReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "false"})
@@ -1560,6 +1579,7 @@ func TestReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error {
 							return errBoom
 						}),
@@ -1581,6 +1601,7 @@ func TestReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionCreate})
@@ -1611,6 +1632,7 @@ func TestReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionCreate})
@@ -1644,6 +1666,7 @@ func TestReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
@@ -1678,6 +1701,7 @@ func TestReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
@@ -1724,6 +1748,7 @@ func TestReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
@@ -1775,6 +1800,7 @@ func TestReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
@@ -1828,6 +1854,7 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
+						MockPatch:  test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
@@ -1909,6 +1936,7 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
+						MockPatch:  test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
@@ -2038,6 +2066,7 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(errBoom),
+						MockPatch:  test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionLateInitialize, xpv1.ManagementActionCreate, xpv1.ManagementActionDelete})
@@ -2089,6 +2118,7 @@ func TestReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
@@ -2187,6 +2217,7 @@ func TestReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
@@ -2239,6 +2270,7 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(errBoom),
+						MockPatch:  test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionUpdate, xpv1.ManagementActionCreate, xpv1.ManagementActionDelete})
@@ -2288,6 +2320,7 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
+						MockPatch:  test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error {
 							return nil
 						}),
@@ -2318,6 +2351,7 @@ func TestReconciler(t *testing.T) {
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
+						MockPatch:  test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error {
 							return nil
 						}),
@@ -2867,6 +2901,7 @@ func TestLegacyReconcilerChangeLogs(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet:          legacyManagedMockGetFn(nil, 42),
 						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockPatch:        test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error { return nil }),
 					},
 					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
@@ -2905,6 +2940,7 @@ func TestLegacyReconcilerChangeLogs(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet:          legacyManagedMockGetFn(nil, 42),
 						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockPatch:        test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error { return nil }),
 					},
 					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
@@ -2944,6 +2980,7 @@ func TestLegacyReconcilerChangeLogs(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet:          legacyManagedMockGetFn(nil, 42),
 						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockPatch:        test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error { return nil }),
 					},
 					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
@@ -2982,6 +3019,7 @@ func TestLegacyReconcilerChangeLogs(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet:          legacyManagedMockGetFn(nil, 42),
 						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockPatch:        test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error { return nil }),
 					},
 					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
@@ -3027,6 +3065,7 @@ func TestLegacyReconcilerChangeLogs(t *testing.T) {
 							return nil
 						}),
 						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockPatch:        test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error { return nil }),
 					},
 					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
@@ -3071,6 +3110,7 @@ func TestLegacyReconcilerChangeLogs(t *testing.T) {
 							return nil
 						}),
 						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockPatch:        test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error { return nil }),
 					},
 					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),

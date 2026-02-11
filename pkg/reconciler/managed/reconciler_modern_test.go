@@ -98,6 +98,7 @@ func TestModernReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetDeletionTimestamp(&now)
@@ -139,6 +140,7 @@ func TestModernReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetDeletionTimestamp(&now)
@@ -176,6 +178,7 @@ func TestModernReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 					},
 					Scheme: fake.SchemeWith(&fake.ModernManaged{}),
 				},
@@ -192,7 +195,8 @@ func TestModernReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: modernManagedMockGetFn(nil, 42),
+						MockGet:   modernManagedMockGetFn(nil, 42),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
@@ -228,6 +232,7 @@ func TestModernReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch:  test.NewMockPatchFn(nil),
 						MockUpdate: test.NewMockUpdateFn(nil),
 					},
 					Scheme: fake.SchemeWith(&fake.ModernManaged{}),
@@ -263,6 +268,7 @@ func TestModernReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							meta.SetExternalCreatePending(want, now.Time)
@@ -292,7 +298,8 @@ func TestModernReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: modernManagedMockGetFn(nil, 42),
+						MockGet:   modernManagedMockGetFn(nil, 42),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
@@ -322,7 +329,8 @@ func TestModernReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: modernManagedMockGetFn(nil, 42),
+						MockGet:   modernManagedMockGetFn(nil, 42),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, got client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileConnect)).WithObservedGeneration(42))
@@ -352,7 +360,8 @@ func TestModernReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: modernManagedMockGetFn(nil, 42),
+						MockGet:   modernManagedMockGetFn(nil, 42),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
@@ -393,7 +402,8 @@ func TestModernReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: modernManagedMockGetFn(nil, 42),
+						MockGet:   modernManagedMockGetFn(nil, 42),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileObserve)).WithObservedGeneration(42))
@@ -699,7 +709,8 @@ func TestModernReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: modernManagedMockGetFn(nil, 42),
+						MockGet:   modernManagedMockGetFn(nil, 42),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
@@ -733,7 +744,8 @@ func TestModernReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: modernManagedMockGetFn(nil, 42),
+						MockGet:   modernManagedMockGetFn(nil, 42),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
@@ -764,6 +776,7 @@ func TestModernReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet:    modernManagedMockGetFn(nil, 42),
+						MockPatch:  test.NewMockPatchFn(nil),
 						MockUpdate: test.NewMockUpdateFn(errBoom),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
@@ -812,6 +825,7 @@ func TestModernReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet:    modernManagedMockGetFn(nil, 42),
+						MockPatch:  test.NewMockPatchFn(nil),
 						MockUpdate: test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
@@ -864,6 +878,7 @@ func TestModernReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet:    modernManagedMockGetFn(nil, 42),
 						MockUpdate: test.NewMockUpdateFn(nil),
+						MockPatch:  test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							meta.SetExternalCreatePending(want, time.Now())
@@ -913,6 +928,7 @@ func TestModernReconciler(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet:    modernManagedMockGetFn(nil, 42),
 						MockUpdate: test.NewMockUpdateFn(nil),
+						MockPatch:  test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							meta.SetExternalCreatePending(want, time.Now())
@@ -974,6 +990,7 @@ func TestModernReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet:    modernManagedMockGetFn(nil, 42),
+						MockPatch:  test.NewMockPatchFn(nil),
 						MockUpdate: test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
@@ -1014,6 +1031,7 @@ func TestModernReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch:  test.NewMockPatchFn(nil),
 						MockUpdate: test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
@@ -1050,6 +1068,7 @@ func TestModernReconciler(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet:    modernManagedMockGetFn(nil, 42),
+						MockPatch:  test.NewMockPatchFn(nil),
 						MockUpdate: test.NewMockUpdateFn(errBoom),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
@@ -1091,7 +1110,8 @@ func TestModernReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: modernManagedMockGetFn(nil, 42),
+						MockGet:   modernManagedMockGetFn(nil, 42),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
@@ -1132,7 +1152,8 @@ func TestModernReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: modernManagedMockGetFn(nil, 42),
+						MockGet:   modernManagedMockGetFn(nil, 42),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error {
 							return nil
 						}),
@@ -1176,7 +1197,8 @@ func TestModernReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: modernManagedMockGetFn(nil, 42),
+						MockGet:   modernManagedMockGetFn(nil, 42),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error {
 							return nil
 						}),
@@ -1214,7 +1236,8 @@ func TestModernReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: modernManagedMockGetFn(nil, 42),
+						MockGet:   modernManagedMockGetFn(nil, 42),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error {
 							return nil
 						}),
@@ -1256,7 +1279,8 @@ func TestModernReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: modernManagedMockGetFn(nil, 42),
+						MockGet:   modernManagedMockGetFn(nil, 42),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReconcileUpdate)).WithObservedGeneration(42))
@@ -1300,7 +1324,8 @@ func TestModernReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: modernManagedMockGetFn(nil, 42),
+						MockGet:   modernManagedMockGetFn(nil, 42),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetConditions(xpv1.ReconcileError(errBoom).WithObservedGeneration(42))
@@ -1357,7 +1382,8 @@ func TestModernReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: modernManagedMockGetFn(nil, 42),
+						MockGet:   modernManagedMockGetFn(nil, 42),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
@@ -1401,7 +1427,8 @@ func TestModernReconciler(t *testing.T) {
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: modernManagedMockGetFn(nil, 42),
+						MockGet:   modernManagedMockGetFn(nil, 42),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
@@ -1453,6 +1480,7 @@ func TestModernReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
@@ -1483,6 +1511,7 @@ func TestModernReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{})
@@ -1519,6 +1548,7 @@ func TestModernReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "false"})
@@ -1566,6 +1596,7 @@ func TestModernReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error {
 							return errBoom
 						}),
@@ -1587,6 +1618,7 @@ func TestModernReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionCreate})
@@ -1617,6 +1649,7 @@ func TestModernReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionCreate})
@@ -1650,6 +1683,7 @@ func TestModernReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
@@ -1684,6 +1718,7 @@ func TestModernReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
@@ -1730,6 +1765,7 @@ func TestModernReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
@@ -1781,6 +1817,7 @@ func TestModernReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
@@ -1833,6 +1870,7 @@ func TestModernReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch:  test.NewMockPatchFn(nil),
 						MockUpdate: test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
@@ -1914,6 +1952,7 @@ func TestModernReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch:  test.NewMockPatchFn(nil),
 						MockUpdate: test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
@@ -2043,6 +2082,7 @@ func TestModernReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch:  test.NewMockPatchFn(nil),
 						MockUpdate: test.NewMockUpdateFn(errBoom),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
@@ -2095,6 +2135,7 @@ func TestModernReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
@@ -2193,6 +2234,7 @@ func TestModernReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch: test.NewMockPatchFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
@@ -2244,6 +2286,7 @@ func TestModernReconciler(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch:  test.NewMockPatchFn(nil),
 						MockUpdate: test.NewMockUpdateFn(errBoom),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
@@ -2802,6 +2845,7 @@ func TestReconcilerChangeLogs(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet:          modernManagedMockGetFn(nil, 42),
+						MockPatch:        test.NewMockPatchFn(nil),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error { return nil }),
 					},
@@ -2840,6 +2884,7 @@ func TestReconcilerChangeLogs(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet:          modernManagedMockGetFn(nil, 42),
+						MockPatch:        test.NewMockPatchFn(nil),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error { return nil }),
 					},
@@ -2879,6 +2924,7 @@ func TestReconcilerChangeLogs(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet:          modernManagedMockGetFn(nil, 42),
+						MockPatch:        test.NewMockPatchFn(nil),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error { return nil }),
 					},
@@ -2917,6 +2963,7 @@ func TestReconcilerChangeLogs(t *testing.T) {
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet:          modernManagedMockGetFn(nil, 42),
+						MockPatch:        test.NewMockPatchFn(nil),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error { return nil }),
 					},
@@ -2962,6 +3009,7 @@ func TestReconcilerChangeLogs(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch:        test.NewMockPatchFn(nil),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error { return nil }),
 					},
@@ -3006,6 +3054,7 @@ func TestReconcilerChangeLogs(t *testing.T) {
 
 							return nil
 						}),
+						MockPatch:        test.NewMockPatchFn(nil),
 						MockUpdate:       test.NewMockUpdateFn(nil),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error { return nil }),
 					},
