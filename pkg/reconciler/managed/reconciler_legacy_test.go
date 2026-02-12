@@ -1817,7 +1817,7 @@ func TestReconciler(t *testing.T) {
 			want: want{result: reconcile.Result{RequeueAfter: defaultPollInterval}},
 		},
 		"ObserveOnlyWithDiffSyncError": {
-			reason: "With Observe, if the external resource is not up to date with desired, it should show a Sync error condition, and should trigger a requeue after a long wait.",
+			reason: "With Observe, if the external resource is not up to date with desired, it should show a Synced=False + ReconcilePaused error condition, and should trigger a requeue after a long wait.",
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
@@ -1903,24 +1903,6 @@ func TestReconciler(t *testing.T) {
 					WithInitializers(),
 					WithManagementPolicies(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
-					// WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
-					// 	c := &ExternalClientFns{
-					// 		ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-					// 			return ExternalObservation{ResourceExists: true, ResourceUpToDate: true}, nil
-					// 		},
-					// 		CreateFn: func(ctx context.Context, _ resource.Managed) (ExternalCreation, error) {
-					// 			return ExternalCreation{}, nil
-					// 		},
-					// 		// UpdateFn: func(ctx context.Context, _ resource.Managed) (ExternalUpdate, error) {
-					// 		// 	return ExternalUpdate{}, nil
-					// 		// },
-					// 		DisconnectFn: func(_ context.Context) error {
-					// 			return nil
-					// 		},
-					// 	}
-
-					// 	return c, nil
-					// })),
 					WithExternalConnector(&NopConnector{}),
 					WithCriticalAnnotationUpdater(CriticalAnnotationUpdateFn(func(_ context.Context, _ client.Object) error { return nil })),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
