@@ -1770,7 +1770,7 @@ func TestModernReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{Requeue: true}},
 		},
-		"ObserveOnlySuccessfulObserve": {
+		"ObserveOnlySuccessfulObserveNoDiff": {
 			reason: "With Observe, a successful managed resource observe should trigger a requeue after a long wait.",
 			args: args{
 				m: &fake.Manager{
@@ -1787,7 +1787,7 @@ func TestModernReconciler(t *testing.T) {
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42).WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
-								reason := "With ObserveOnly, a successful managed resource observation should be reported as a conditioned status."
+								reason := "With ObserveOnly, a successful managed resource observation without any diff between external resource and desired spec should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
 
@@ -1803,7 +1803,7 @@ func TestModernReconciler(t *testing.T) {
 					WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: true}, nil
+								return ExternalObservation{ResourceExists: true, ResourceUpToDate: true}, nil
 							},
 							DisconnectFn: func(_ context.Context) error {
 								return nil
@@ -1906,8 +1906,95 @@ func TestModernReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{Requeue: true}},
 		},
-		"ManagementPolicyImmutable": {
-			reason: "Successful reconciliation skipping update should trigger a requeue after a long wait.",
+"ManagementPolicyMustCreateCreateSuccessful": {
+			reason: "Successful managed resource creation using management policy MustCreate should trigger a requeue after a short wait.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							mg := asModernManaged(obj, 42)
+							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionMustCreate, xpv1.ManagementActionDelete})
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
+							want := newModernManaged(42)
+							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionMustCreate, xpv1.ManagementActionDelete})
+							meta.SetExternalCreatePending(want, time.Now())
+							meta.SetExternalCreateSucceeded(want, time.Now())
+							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
+							want.SetConditions(xpv1.Creating().WithObservedGeneration(42))
+							if diff := cmp.Diff(want, obj, test.EquateConditions(), cmpopts.EquateApproxTime(1*time.Second)); diff != "" {
+								reason := "Successful managed resource creation should be reported as a conditioned status."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.ModernManaged{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.ModernManaged{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithManagementPolicies(),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+					WithExternalConnector(&NopConnector{}),
+					WithCriticalAnnotationUpdater(CriticalAnnotationUpdateFn(func(_ context.Context, _ client.Object) error { return nil })),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
+			},
+			want: want{result: reconcile.Result{Requeue: true}},
+		},
+		"ResourceExistsMustCreateError": {
+			reason: "When a resource exists and the policy is MustCreate an error condition should be raised.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							mg := asModernManaged(obj, 42)
+							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionMustCreate, xpv1.ManagementActionDelete})
+							return nil
+						}),
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
+							want := newModernManaged(42)
+							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionMustCreate, xpv1.ManagementActionDelete})
+							want.SetConditions(xpv1.Creating().WithObservedGeneration(42), xpv1.ReconcileError(errors.New(errMustCreate)).WithObservedGeneration(42).WithObservedGeneration(42))
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := "With MustCreate, a successful managed resource observation with no creation annotations should be reported as an error condition."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.ModernManaged{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.ModernManaged{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithManagementPolicies(),
+					WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+								return ExternalObservation{ResourceExists: true}, nil
+							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
+							},
+						}
+						return c, nil
+					})),
+					withLocalConnectionPublishers(LocalConnectionPublisherFns{
+						PublishConnectionFn: func(_ context.Context, _ resource.LocalConnectionSecretOwner, _ ConnectionDetails) (bool, error) {
+							return false, nil
+						},
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
+			},
+			want: want{result: reconcile.Result{Requeue: false}},
+		},
+		"ManagementPolicyImmutableNoDiff": {
+			reason: "Successful reconciliation without upstream diff and skipping update should trigger a requeue after a long wait",
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
@@ -1924,7 +2011,59 @@ func TestModernReconciler(t *testing.T) {
 							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
-								reason := `Managed resource should acquire Synced=False/ReconcileSuccess status condition.`
+								reason := `Managed resource should acquire Synced=True/ReconcileSuccess status condition.`
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.ModernManaged{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.ModernManaged{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithManagementPolicies(),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+					WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+								return ExternalObservation{ResourceExists: true, ResourceUpToDate: true}, nil
+							},
+							UpdateFn: func(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
+								return ExternalUpdate{}, errBoom
+							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
+							},
+						}
+
+						return c, nil
+					})),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultPollInterval}},
+		},
+		"ManagementPolicyImmutableWithDiff": {
+			reason: "Successful reconciliation with upstream diff and skipping update should trigger a requeue after a long wait.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							mg := asModernManaged(obj, 42)
+							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionLateInitialize, xpv1.ManagementActionCreate, xpv1.ManagementActionDelete})
+
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(errBoom),
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
+							want := newModernManaged(42)
+							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionLateInitialize, xpv1.ManagementActionCreate, xpv1.ManagementActionDelete})
+							want.SetConditions(xpv1.ReconcilePaused().WithObservedGeneration(42).WithMessage("External resource differs from desired state, but will not update: "))
+
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := `Managed resource should acquire Synced=False/ReconcilePaused status condition.`
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
 
