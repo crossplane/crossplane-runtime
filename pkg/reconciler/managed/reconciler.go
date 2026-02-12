@@ -18,6 +18,7 @@ package managed
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"strings"
 	"time"
@@ -1470,7 +1471,21 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 	if !policy.ShouldUpdate() {
 		reconcileAfter := r.pollIntervalHook(managed, r.pollInterval)
 		log.Debug("Skipping update due to managementPolicies. Reconciliation succeeded", "requeue-after", time.Now().Add(reconcileAfter))
-		status.MarkConditions(xpv1.ReconcileSuccess())
+
+		if observation.ResourceUpToDate {
+			status.MarkConditions(xpv1.ReconcileSuccess())
+		} else {
+			// in this case, we want to inform the user that the upstream resource differs from
+			// desired state, but we cannot update it - indicating that we WOULD perform
+			// changes if we could. This is helpful in migration scenarios to crossplane where
+			// the diff between actual and desired must be analyzed for potential impacts first,
+			// before giving Crossplane control over the resource.
+			status.MarkConditions(
+				xpv1.ReconcilePaused().
+					WithMessage(fmt.Sprintf(
+						"External resource differs from desired state, but will not update: %s",
+						observation.Diff)))
+		}
 
 		return reconcile.Result{RequeueAfter: reconcileAfter}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
