@@ -1830,7 +1830,7 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
-							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42).WithObservedGeneration(42))
+							want.SetConditions(xpv1.ReconcilePaused().WithObservedGeneration(42).WithMessage("External resource differs from desired state, but will not update: mock diff"))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "With ObserveOnly, a successful managed resource observation should be reported as a conditioned status."
@@ -1908,9 +1908,9 @@ func TestReconciler(t *testing.T) {
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
 								return ExternalObservation{ResourceExists: true, ResourceUpToDate: true}, nil
 							},
-							// CreateFn: func(ctx context.Context, _ resource.Managed) (ExternalCreation, error) {
-							// 	return ExternalCreation{}, nil
-							// },
+							CreateFn: func(ctx context.Context, _ resource.Managed) (ExternalCreation, error) {
+								return ExternalCreation{}, nil
+							},
 							// UpdateFn: func(ctx context.Context, _ resource.Managed) (ExternalUpdate, error) {
 							// 	return ExternalUpdate{}, nil
 							// },
