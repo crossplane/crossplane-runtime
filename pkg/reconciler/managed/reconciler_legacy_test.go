@@ -1778,7 +1778,7 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
-							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42).WithObservedGeneration(42))
+							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "With ObserveOnly, a successfully managed resource observation should be reported as a conditioned status."
@@ -1830,7 +1830,7 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
-							want.SetConditions(xpv1.ReconcilePaused().WithObservedGeneration(42).WithMessage("External resource differs from desired state, but will not update: mock diff"))
+							want.SetConditions(xpv1.ReconcileForbidden().WithObservedGeneration(42).WithMessage("External resource differs from desired state, but will not update: mock diff"))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "With ObserveOnly, a successful managed resource observation should be reported as a conditioned status."
@@ -2145,10 +2145,10 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionLateInitialize, xpv1.ManagementActionCreate, xpv1.ManagementActionDelete})
-							want.SetConditions(xpv1.ReconcilePaused().WithObservedGeneration(42).WithMessage("External resource differs from desired state, but will not update: mock diff"))
+							want.SetConditions(xpv1.ReconcileForbidden().WithObservedGeneration(42).WithMessage("External resource differs from desired state, but will not update: mock diff"))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
-								reason := `Managed resource should acquire Synced=False/ReconcileSuccess status condition.`
+								reason := `Managed resource should acquire Synced=False/ReconcileForbidden status condition when update is not allowed and a diff exists.`
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
 
@@ -2196,7 +2196,7 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionAll})
-							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42).WithObservedGeneration(42))
+							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful managed resource update should be reported as a conditioned status."
@@ -2246,7 +2246,7 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionOrphan})
-							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42).WithObservedGeneration(42))
+							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful managed resource update should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)

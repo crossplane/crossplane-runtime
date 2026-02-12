@@ -134,3 +134,10 @@ func ReconcileError(err error) Condition {
 func ReconcilePaused() Condition {
 	return common.ReconcilePaused()
 }
+
+// ReconcileForbidden returns a condition that indicates reconciliation on
+// the managed resource is forbidden because managementPolicy 'Update' is missing
+// and a diff between spec and the external resource exists.
+func ReconcileForbidden() Condition {
+	return common.ReconcileForbidden()
+}

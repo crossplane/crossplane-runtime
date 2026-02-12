@@ -2099,10 +2099,10 @@ func TestModernReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionLateInitialize, xpv1.ManagementActionCreate, xpv1.ManagementActionDelete})
-							want.SetConditions(xpv1.ReconcilePaused().WithObservedGeneration(42).WithMessage("External resource differs from desired state, but will not update: "))
+							want.SetConditions(xpv1.ReconcileForbidden().WithObservedGeneration(42).WithMessage("External resource differs from desired state, but will not update: "))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
-								reason := `Managed resource should acquire Synced=False/ReconcilePaused status condition.`
+								reason := `Managed resource should acquire Synced=False/ReconcileForbidden status condition.`
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
 

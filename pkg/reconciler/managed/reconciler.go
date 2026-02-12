@@ -1478,7 +1478,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		// the diff between actual and desired must be analyzed for potential impacts first,
 		// before giving Crossplane control over the resource.
 		status.MarkConditions(
-			xpv1.ReconcilePaused().
+			xpv1.ReconcileForbidden().
 				WithMessage(fmt.Sprintf(
 					"External resource differs from desired state, but will not update: %s",
 					observation.Diff)))
