@@ -1817,7 +1817,7 @@ func TestReconciler(t *testing.T) {
 			want: want{result: reconcile.Result{RequeueAfter: defaultPollInterval}},
 		},
 		"ObserveOnlyWithDiffSyncError": {
-			reason: "With Observe, if the external resource is not up to date with desired, it should show a Synced=False + ReconcilePaused error condition, and should trigger a requeue after a long wait.",
+			reason: "With Observe, if the external resource is not up to date with desired, it should show a Synced=False + ReconcileForbidden error condition, and should trigger a requeue after a long wait.",
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
@@ -1830,7 +1830,7 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
-							want.SetConditions(xpv1.ReconcileForbidden().WithObservedGeneration(42).WithMessage("External resource differs from desired state, but will not update: mock diff"))
+							want.SetConditions(xpv1.ReconcileForbidden().WithObservedGeneration(42).WithMessage("External resource differs from desired state, but will not update due to missing 'Update' managementPolicy. Diff:\nmock diff"))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "With ObserveOnly, a successful managed resource observation should be reported as a conditioned status."
@@ -2145,7 +2145,7 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionLateInitialize, xpv1.ManagementActionCreate, xpv1.ManagementActionDelete})
-							want.SetConditions(xpv1.ReconcileForbidden().WithObservedGeneration(42).WithMessage("External resource differs from desired state, but will not update: mock diff"))
+							want.SetConditions(xpv1.ReconcileForbidden().WithObservedGeneration(42).WithMessage("External resource differs from desired state, but will not update due to missing 'Update' managementPolicy. Diff:\nmock diff"))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := `Managed resource should acquire Synced=False/ReconcileForbidden status condition when update is not allowed and a diff exists.`

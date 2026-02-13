@@ -57,6 +57,7 @@ const (
 const (
 	errFmtManagementPolicyNonDefault   = "`spec.managementPolicies` is set to a non-default value but the feature is not enabled: %s"
 	errFmtManagementPolicyNotSupported = "`spec.managementPolicies` is set to a value(%s) which is not supported. Check docs for supported policies"
+	errExternalResourceDiffNoUpdate    = "External resource differs from desired state, but will not update due to missing 'Update' managementPolicy."
 
 	errGetManaged               = "cannot get managed resource"
 	errUpdateManagedAnnotations = "cannot update managed resource annotations"
@@ -1476,9 +1477,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		// changes if we could. This is helpful in migration scenarios to crossplane where
 		// the diff between actual and desired must be analyzed for potential impacts first,
 		// before giving Crossplane control over the resource.
-		msg := "External resource differs from desired state, but will not update due to managementPolicy."
+		msg := errExternalResourceDiffNoUpdate
 		if observation.Diff != "" {
-			msg = fmt.Sprintf("%s Diff: %s", msg, observation.Diff)
+			msg = fmt.Sprintf("%s Diff:\n%s", errExternalResourceDiffNoUpdate, observation.Diff)
 		}
 		status.MarkConditions(xpv1.ReconcileForbidden().WithMessage(msg))
 

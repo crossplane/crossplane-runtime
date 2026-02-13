@@ -2099,7 +2099,7 @@ func TestModernReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newModernManaged(42)
 							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve, xpv1.ManagementActionLateInitialize, xpv1.ManagementActionCreate, xpv1.ManagementActionDelete})
-							want.SetConditions(xpv1.ReconcileForbidden().WithObservedGeneration(42).WithMessage("External resource differs from desired state, but will not update: "))
+							want.SetConditions(xpv1.ReconcileForbidden().WithObservedGeneration(42).WithMessage("External resource differs from desired state, but will not update due to missing 'Update' managementPolicy. Diff:\nmock diff"))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := `Managed resource should acquire Synced=False/ReconcileForbidden status condition.`
@@ -2119,7 +2119,7 @@ func TestModernReconciler(t *testing.T) {
 					WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false}, nil
+								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false, Diff: "mock diff"}, nil
 							},
 							UpdateFn: func(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
 								return ExternalUpdate{}, errBoom
