@@ -1833,7 +1833,7 @@ func TestReconciler(t *testing.T) {
 							want.SetConditions(xpv1.ReconcileForbidden().WithObservedGeneration(42).WithMessage("External resource differs from desired state, but will not update due to missing 'Update' managementPolicy. Diff:\nmock diff"))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
-								reason := "With ObserveOnly, a successful managed resource observation should be reported as a conditioned status."
+								reason := "With ObserveOnly, a managed resource observation with a diff to upstream should be reported as a ReconcileForbidden + Synced=False condition"
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
 
@@ -2131,7 +2131,7 @@ func TestReconciler(t *testing.T) {
 			want: want{result: reconcile.Result{RequeueAfter: defaultPollInterval}},
 		},
 		"ManagementPolicyImmutableWithDiff": {
-			reason: "Reconciliation without being allowed to update should trigger a Sync Paused condition and a requeue after a long wait.",
+			reason: "Reconciliation without being allowed to update should trigger a ReconcileForbidden condition and a requeue after a long wait.",
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
