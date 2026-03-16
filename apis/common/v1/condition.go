@@ -134,3 +134,23 @@ func ReconcileError(err error) Condition {
 func ReconcilePaused() Condition {
 	return common.ReconcilePaused()
 }
+
+// ObserveMatch returns a condition indicating that the managed resource desired state matches
+// the external resource state.
+func ObserveMatch() Condition { return common.ObserveMatch() }
+
+// PausedUnknown returns a condition that indicates reconciliation is paused and it is unknown if the desired
+// state of the managed resource matches the external resource state.
+func PausedUnknown() Condition { return common.PausedUnknown() }
+
+// UpdateRequested returns a condition that indicates a mismatch between the managed resource and the
+// external resource was detected and an update of the external resource has been requested.
+func UpdateRequested() Condition { return common.UpdateRequested() }
+
+// UpdateFailed returns a condition that indicates a mismatch between the managed resource and the
+// external resource was detected and an updated of the external resource was attempted and failed.
+func UpdateFailed() Condition { return common.UpdateFailed() }
+
+// UpdateRestricted returns a condition that indicates a mismatch between the managed resource and the
+// external resource was detected but an Update was not attempted due to managementPolicy restrictions.
+func UpdateRestricted() Condition { return common.UpdateRestricted() }
