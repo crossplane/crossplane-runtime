@@ -20,11 +20,11 @@ import (
 	"testing"
 	"time"
 
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/google/go-cmp/cmp"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
-	runtimev1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 )
@@ -66,7 +66,7 @@ func TestDesiredStateChanged(t *testing.T) {
 				}(),
 				new: func() client.Object {
 					mg := &fake.Managed{}
-					mg.SetConditions(runtimev1.ReconcileSuccess())
+					mg.SetConditions(xpv2.ReconcileSuccess())
 
 					return mg
 				}(),

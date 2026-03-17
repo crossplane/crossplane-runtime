@@ -22,6 +22,7 @@ import (
 	"sort"
 	"strings"
 
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -35,7 +36,6 @@ import (
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/unstructured"
@@ -208,7 +208,7 @@ func IsAPIErrorWrapped(err error) bool {
 }
 
 // IsConditionTrue returns if condition status is true.
-func IsConditionTrue(c xpv1.Condition) bool {
+func IsConditionTrue(c xpv2.Condition) bool {
 	return c.Status == corev1.ConditionTrue
 }
 

@@ -21,12 +21,12 @@ import (
 	"strings"
 	"time"
 
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
@@ -116,11 +116,11 @@ func (r *MRStateRecorder) Record(ctx context.Context) error {
 	var numReady, numSynced float64 = 0, 0
 
 	for _, o := range mrs {
-		if o.GetCondition(xpv1.TypeReady).Status == corev1.ConditionTrue {
+		if o.GetCondition(xpv2.TypeReady).Status == corev1.ConditionTrue {
 			numReady++
 		}
 
-		if o.GetCondition(xpv1.TypeSynced).Status == corev1.ConditionTrue {
+		if o.GetCondition(xpv2.TypeSynced).Status == corev1.ConditionTrue {
 			numSynced++
 		}
 	}

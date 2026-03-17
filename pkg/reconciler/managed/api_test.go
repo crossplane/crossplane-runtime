@@ -20,6 +20,7 @@ import (
 	"context"
 	"testing"
 
+	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/google/go-cmp/cmp"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
@@ -127,7 +127,7 @@ func TestAPISecretPublisher(t *testing.T) {
 	errBoom := errors.New("boom")
 
 	mg := &fake.LegacyManaged{
-		ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: &xpv1.SecretReference{
+		ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: &xpv2.SecretReference{
 			Namespace: "coolnamespace",
 			Name:      "coolsecret",
 		}},
@@ -251,7 +251,7 @@ func TestAPILocalSecretPublisher(t *testing.T) {
 	errBoom := errors.New("boom")
 
 	mg := &fake.ModernManaged{
-		LocalConnectionSecretWriterTo: fake.LocalConnectionSecretWriterTo{Ref: &xpv1.LocalSecretReference{
+		LocalConnectionSecretWriterTo: fake.LocalConnectionSecretWriterTo{Ref: &xpv2.LocalSecretReference{
 			Name: "coolsecret",
 		}},
 	}
