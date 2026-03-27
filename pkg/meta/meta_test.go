@@ -1228,3 +1228,97 @@ func TestIsPaused(t *testing.T) {
 		})
 	}
 }
+
+func TestGetPollInterval(t *testing.T) {
+	cases := map[string]struct {
+		o        metav1.Object
+		wantDur  time.Duration
+		wantBool bool
+	}{
+		"NoAnnotation": {
+			o: &corev1.Pod{},
+		},
+		"EmptyAnnotation": {
+			o: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+				AnnotationKeyPollInterval: "",
+			}}},
+		},
+		"InvalidDuration": {
+			o: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+				AnnotationKeyPollInterval: "not-a-duration",
+			}}},
+		},
+		"NegativeDuration": {
+			o: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+				AnnotationKeyPollInterval: "-5m",
+			}}},
+		},
+		"ZeroDuration": {
+			o: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+				AnnotationKeyPollInterval: "0s",
+			}}},
+		},
+		"ValidDuration": {
+			o: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+				AnnotationKeyPollInterval: "24h",
+			}}},
+			wantDur:  24 * time.Hour,
+			wantBool: true,
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			d, ok := GetPollInterval(tc.o)
+			if diff := cmp.Diff(tc.wantBool, ok); diff != "" {
+				t.Errorf("GetPollInterval(...) ok: -want, +got:\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.wantDur, d); diff != "" {
+				t.Errorf("GetPollInterval(...) duration: -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestGetReconcileRequest(t *testing.T) {
+	cases := map[string]struct {
+		o         metav1.Object
+		wantToken string
+		wantBool  bool
+	}{
+		"NoAnnotation": {
+			o: &corev1.Pod{},
+		},
+		"EmptyAnnotation": {
+			o: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+				AnnotationKeyReconcileRequestedAt: "",
+			}}},
+		},
+		"HasToken": {
+			o: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
+				AnnotationKeyReconcileRequestedAt: "2024-01-15T10:30:00Z",
+			}}},
+			wantToken: "2024-01-15T10:30:00Z",
+			wantBool:  true,
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			token, ok := GetReconcileRequest(tc.o)
+			if diff := cmp.Diff(tc.wantBool, ok); diff != "" {
+				t.Errorf("GetReconcileRequest(...) ok: -want, +got:\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.wantToken, token); diff != "" {
+				t.Errorf("GetReconcileRequest(...) token: -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestSetReconcileRequest(t *testing.T) {
+	o := &corev1.Pod{}
+	SetReconcileRequest(o, "my-token")
+	got := o.GetAnnotations()[AnnotationKeyReconcileRequestedAt]
+	if diff := cmp.Diff("my-token", got); diff != "" {
+		t.Errorf("SetReconcileRequest(...): -want, +got:\n%s", diff)
+	}
+}
