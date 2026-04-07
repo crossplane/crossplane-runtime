@@ -7,6 +7,9 @@ schema = 3
   [mod."dario.cat/mergo"]
     version = "v1.0.2"
     hash = "sha256-p6jdiHlLEfZES8vJnDywG4aVzIe16p0CU6iglglIweA="
+  [mod."github.com/AdaLogics/go-fuzz-headers"]
+    version = "v0.0.0-20240806141605-e8a1dd7889d6"
+    hash = "sha256-4h0bcF0eg/Y9DnurD91SbGAzLz0DwffJsF//YJGfPJg="
   [mod."github.com/antlr4-go/antlr/v4"]
     version = "v4.13.1"
     hash = "sha256-beAuxHNRUuhzcSJUh/8ztVf1zCUiaT72fg2Jvx0AuNQ="
@@ -20,8 +23,8 @@ schema = 3
     version = "v2.3.0"
     hash = "sha256-7hRlwSR+fos1kx4VZmJ/7snR7zHh8ZFKX+qqqqGcQpY="
   [mod."github.com/crossplane/crossplane/apis/v2"]
-    version = "v2.0.0-20260306220439-153a39424689"
-    hash = "sha256-2cD+AG10fgRbdp7UQsA8aMQrUO7b3Mlv7gFasJzHkzw="
+    version = "v2.0.0-20260407152912-8f8e265fb638"
+    hash = "sha256-5d79zPJ85YcoSTaAEi+Zs67IfM32YURgVpR3hv2m8PU="
   [mod."github.com/davecgh/go-spew"]
     version = "v1.1.2-0.20180830191138-d8f796af33cc"
     hash = "sha256-fV9oI51xjHdOmEx6+dlq7Ku2Ag+m/bmbzPo6A4Y74qc="
