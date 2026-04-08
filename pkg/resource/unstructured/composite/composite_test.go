@@ -488,3 +488,28 @@ func TestObservedGeneration(t *testing.T) {
 		})
 	}
 }
+
+func TestLastHandledReconcileAt(t *testing.T) {
+	cases := map[string]struct {
+		u    *Unstructured
+		want string
+	}{
+		"Set": {
+			u: New(func(u *Unstructured) {
+				u.SetLastHandledReconcileAt("2024-01-15T10:30:00Z")
+			}),
+			want: "2024-01-15T10:30:00Z",
+		},
+		"NotFound": {
+			u: New(),
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := tc.u.GetLastHandledReconcileAt()
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\nu.GetLastHandledReconcileAt(): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}

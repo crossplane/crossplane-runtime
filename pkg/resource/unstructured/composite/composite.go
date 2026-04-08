@@ -397,6 +397,20 @@ func (c *Unstructured) GetObservedGeneration() int64 {
 	return status.GetObservedGeneration()
 }
 
+// SetLastHandledReconcileAt of this composite resource.
+func (c *Unstructured) SetLastHandledReconcileAt(token string) {
+	_ = fieldpath.Pave(c.Object).SetValue("status.lastHandledReconcileAt", token)
+}
+
+// GetLastHandledReconcileAt of this composite resource.
+func (c *Unstructured) GetLastHandledReconcileAt() string {
+	v, err := fieldpath.Pave(c.Object).GetString("status.lastHandledReconcileAt")
+	if err != nil {
+		return ""
+	}
+	return v
+}
+
 // SetClaimConditionTypes of this composite resource. You cannot set system
 // condition types such as Ready, Synced or Healthy as claim conditions.
 func (c *Unstructured) SetClaimConditionTypes(in ...xpv2.ConditionType) error {

@@ -63,6 +63,17 @@ const (
 	// the resource will be filtered and thus no further reconcile requests
 	// will be queued for the resource.
 	AnnotationKeyReconciliationPaused = "crossplane.io/paused"
+
+	// AnnotationKeyPollInterval overrides the controller-level poll
+	// interval for a specific resource. The value must be a valid Go
+	// duration string (e.g. "1h", "30m", "24h").
+	AnnotationKeyPollInterval = "crossplane.io/poll-interval"
+
+	// AnnotationKeyReconcileRequestedAt triggers an immediate
+	// reconciliation when its value changes. The value is an opaque
+	// token, typically a timestamp. After handling, the reconciler
+	// records the token in status.lastHandledReconcileAt.
+	AnnotationKeyReconcileRequestedAt = "crossplane.io/reconcile-requested-at"
 )
 
 // ReferenceTo returns an object reference to the supplied object, presumed to
@@ -366,4 +377,34 @@ func ExternalCreateSucceededDuring(o metav1.Object, d time.Duration) bool {
 // annotation set to `true`.
 func IsPaused(o metav1.Object) bool {
 	return o.GetAnnotations()[AnnotationKeyReconciliationPaused] == "true"
+}
+
+// GetPollInterval returns the poll interval override for the given resource,
+// if set via the AnnotationKeyPollInterval annotation.
+func GetPollInterval(o metav1.Object) (time.Duration, bool) {
+	v, ok := o.GetAnnotations()[AnnotationKeyPollInterval]
+	if !ok || v == "" {
+		return 0, false
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil || d <= 0 {
+		return 0, false
+	}
+	return d, true
+}
+
+// GetReconcileRequest returns the reconcile-requested-at annotation token
+// and true if present and non-empty, or empty string and false otherwise.
+func GetReconcileRequest(o metav1.Object) (string, bool) {
+	v, ok := o.GetAnnotations()[AnnotationKeyReconcileRequestedAt]
+	if !ok || v == "" {
+		return "", false
+	}
+	return v, true
+}
+
+// SetReconcileRequest sets the reconcile-requested-at annotation to the
+// supplied token value.
+func SetReconcileRequest(o metav1.Object, token string) {
+	AddAnnotations(o, map[string]string{AnnotationKeyReconcileRequestedAt: token})
 }
