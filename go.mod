@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	dario.cat/mergo v1.0.2
-	github.com/crossplane/crossplane/apis/v2 v2.0.0-20260306220439-153a39424689
+	github.com/crossplane/crossplane/apis/v2 v2.0.0-20260414170437-8edd7b40ece5
 	github.com/evanphx/json-patch v5.9.11+incompatible
 	github.com/go-logr/logr v1.4.3
 	github.com/google/go-cmp v0.7.0
