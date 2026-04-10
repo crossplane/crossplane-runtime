@@ -939,7 +939,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		log.Debug("Reconciliation is paused either through the `spec.managementPolicies` or the pause annotation", "annotation", meta.AnnotationKeyReconciliationPaused)
 		record.Event(managed, event.Normal(reasonReconciliationPaused, "Reconciliation is paused either through the `spec.managementPolicies` or the pause annotation",
 			"annotation", meta.AnnotationKeyReconciliationPaused))
-		status.MarkConditions(xpv2.ReconcilePaused())
+		status.MarkConditions(xpv2.ReconcilePaused(), xpv2.PausedUnknown())
 		// if the pause annotation is removed or the management policies changed, we will have a chance to reconcile
 		// again and resume and if status update fails, we will reconcile again to retry to update the status
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
@@ -1436,7 +1436,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		// https://github.com/crossplane/crossplane/issues/289
 		reconcileAfter := r.pollIntervalHook(managed, r.pollInterval)
 		log.Debug("External resource is up to date", "requeue-after", time.Now().Add(reconcileAfter))
-		status.MarkConditions(xpv2.ReconcileSuccess())
+		status.MarkConditions(xpv2.ReconcileSuccess(), xpv2.ObserveMatched())
 		r.metricRecorder.recordFirstTimeReady(managed)
 
 		// record that we intentionally did not update the managed resource
@@ -1456,7 +1456,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 	if !policy.ShouldUpdate() {
 		reconcileAfter := r.pollIntervalHook(managed, r.pollInterval)
 		log.Debug("Skipping update due to managementPolicies. Reconciliation succeeded", "requeue-after", time.Now().Add(reconcileAfter))
-		status.MarkConditions(xpv2.ReconcileSuccess())
+		status.MarkConditions(xpv2.ReconcileSuccess(), xpv2.UpdateRestricted().WithMessage(observation.Diff))
 
 		return reconcile.Result{RequeueAfter: reconcileAfter}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
@@ -1475,7 +1475,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		}
 
 		record.Event(managed, event.Warning(reasonCannotUpdate, err))
-		status.MarkConditions(xpv2.ReconcileError(errors.Wrap(err, errReconcileUpdate)))
+		status.MarkConditions(xpv2.ReconcileError(errors.Wrap(err, errReconcileUpdate)), xpv2.UpdateFailed().WithMessage(observation.Diff))
 
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
@@ -1506,7 +1506,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 	reconcileAfter := r.pollIntervalHook(managed, r.pollInterval)
 	log.Debug("Successfully requested update of external resource", "requeue-after", time.Now().Add(reconcileAfter))
 	record.Event(managed, event.Normal(reasonUpdated, "Successfully requested update of external resource"))
-	status.MarkConditions(xpv2.ReconcileSuccess())
+	status.MarkConditions(xpv2.ReconcileSuccess(), xpv2.UpdateRequested().WithMessage(observation.Diff))
 
 	return reconcile.Result{RequeueAfter: reconcileAfter}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 }
