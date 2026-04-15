@@ -326,6 +326,7 @@ func (p *Paved) GetStringObject(path string) (map[string]string, error) {
 	}
 
 	so := make(map[string]string)
+
 	for k, in := range o {
 		s, ok := in.(string)
 		if !ok {
