@@ -154,7 +154,7 @@ func (p *PackageParser) Parse(_ context.Context, reader io.ReadCloser) (*Package
 // is useful for filtering out empty YAML documents that would otherwise
 // cause issues when decoded.
 func isEmptyYAML(y []byte) bool {
-	for _, line := range strings.Split(string(y), "\n") {
+	for line := range strings.SplitSeq(string(y), "\n") {
 		trimmed := strings.TrimLeftFunc(line, unicode.IsSpace)
 		// We don't want to return an empty document with only separators that
 		// have nothing in-between.
