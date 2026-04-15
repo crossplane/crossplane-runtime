@@ -380,8 +380,8 @@ schema = 3
     version = "v1.3.0"
     hash = "sha256-ZHLft/o+xyJrUlaCwnCDqbjkPj6iIxlOuA0fFBuwVvM="
   [mod."github.com/sigstore/cosign/v3"]
-    version = "v3.0.4"
-    hash = "sha256-vKqTcSUgY2Hj1IlunX0dq6snFlMCTCCctyCiMOWaZ8M="
+    version = "v3.0.5"
+    hash = "sha256-wN5iAfcBCDTvhbvSar4DBw7w1sxIFWcMKv8qkx07mfo="
   [mod."github.com/sigstore/protobuf-specs"]
     version = "v0.5.0"
     hash = "sha256-nImiBItjCQwskGHqYYthBjUfHHxy8VnVwSMWkK6GiNo="
@@ -530,17 +530,17 @@ schema = 3
     version = "v3.0.1"
     hash = "sha256-FqL9TKYJ0XkNwJFnq9j0VvJ5ZUU1RvH/52h/f5bkYAU="
   [mod."k8s.io/api"]
-    version = "v0.35.0"
-    hash = "sha256-eIie0MFXkmNsfiO58pg+ThJ1wPcYh3T7Gch9p2GrT64="
+    version = "v0.35.1"
+    hash = "sha256-lOfx98TObjLpO9Xg+PcR7G567x5pY/iiChXFhbpRclQ="
   [mod."k8s.io/apiextensions-apiserver"]
     version = "v0.35.0"
     hash = "sha256-RZdGkV4SoCTY022pIzQbeVwaxIYhIpXapLZrD593gh8="
   [mod."k8s.io/apimachinery"]
-    version = "v0.35.0"
+    version = "v0.35.1"
     hash = "sha256-+dplbHUOfaCaD2E9IS4F3lnjSCr/a4LjTgdB9de92Pw="
   [mod."k8s.io/client-go"]
-    version = "v0.35.0"
-    hash = "sha256-s+o7ybLe83chueBIVvYRibI2HCk+QQoWTjfXqmzsjHs="
+    version = "v0.35.1"
+    hash = "sha256-QEQ7TLUviAXDbvp2s6tT3HZtXy7pLjj5qSDu89iC9ek="
   [mod."k8s.io/code-generator"]
     version = "v0.35.0"
     hash = "sha256-0F8vNVdF/quBPGxOpxBL/GhupnkMoTE8dcZYX57RZKk="
