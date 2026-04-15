@@ -80,6 +80,36 @@ func TestInRange(t *testing.T) {
 				err: errors.New("improper constraint: >a2"),
 			},
 		},
+		"ValidSpaceSeparatedRange": {
+			reason: "Should return true if version is within a valid space separated ranged constraint",
+			args: args{
+				version: "v1.13.0",
+				r:       ">=v2.0.0 <v5.0.0",
+			},
+			want: want{
+				is: true,
+			},
+		},
+		"CommaSeparatedRangedConstraint": {
+			reason: "Should return true if version is within a valid comma-separated ranged constraint",
+			args: args{
+				version: "v1.13.0",
+				r:       ">=v2.0.0,<v5.0.0",
+			},
+			want: want{
+				is: true,
+			},
+		},
+		"InvalidSpaceSeparatedRange": {
+			reason: "Should return error if the ranged constraint is invalid",
+			args: args{
+				version: "v1.13.0",
+				r:       ">=v2.0.0 >v5.0.0",
+			},
+			want: want{
+				err: errors.New("improper constraint: >=v2.0.0 >v5.0.0"),
+			},
+		},
 	}
 
 	for name, tc := range cases {
