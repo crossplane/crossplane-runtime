@@ -25,7 +25,7 @@
       matchBaseBranches: [
         'main',
         // Release 2.2 and newer use nix.
-        '/'^release-2\.([2-9]|..+)$/',
+        '/^release-2\.([2-9]|..+)$/',
       ],
       postUpgradeTasks: {
         commands: [
@@ -46,7 +46,7 @@
       matchBaseBranches: [
         'main',
         // Release 2.2 and newer use nix.
-        '/'^release-2\.([2-9]|..+)$/',
+        '/^release-2\.([2-9]|..+)$/',
       ],
       postUpgradeTasks: {
         commands: [

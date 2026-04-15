@@ -33,6 +33,26 @@ jobs:
       - name: Verify Generated Code
         run: nix build .#checks.x86_64-linux.generate --print-build-logs
 
+  validate-renovate-config:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      # renovate-config-validator only looks at the top-level file and does
+      # not recursively resolve local> presets, so we also syntax-check every
+      # renovate*.json5 with the json5 CLI to catch preset parse errors at
+      # PR time rather than 24h later in the scheduled Renovate job.
+      - name: Validate Renovate preset syntax
+        run: |
+          for f in .github/renovate*.json5; do
+            npx --yes json5 "$f" > /dev/null
+          done
+
+      - name: Validate Renovate JSON
+        run: npx --yes --package renovate -- renovate-config-validator
+
   lint:
     runs-on: ubuntu-22.04
 
