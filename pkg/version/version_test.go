@@ -20,6 +20,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
@@ -68,6 +69,7 @@ func TestInRange(t *testing.T) {
 			},
 			want: want{
 				err: errors.New("invalid semantic version"),
+				err: semver.ErrInvalidSemVer
 			},
 		},
 		"InvalidRange": {
@@ -90,7 +92,7 @@ func TestInRange(t *testing.T) {
 				is: true,
 			},
 		},
-		"CommaSeparatedRangedConstraint": {
+		"ValidCommaSeparatedRangedConstraint": {
 			reason: "Should return true if version is within a valid comma-separated ranged constraint",
 			args: args{
 				version: "v2.13.0",
