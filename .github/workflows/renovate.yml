@@ -24,9 +24,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      # Don't waste time starting Renovate if JSON is invalid
+      # Don't waste time starting Renovate if any preset is unparseable.
+      # renovate-config-validator only looks at the top-level file and does
+      # not recursively resolve local> presets, so we also syntax-check every
+      # renovate*.json5 with the json5 CLI.
+      - name: Validate Renovate preset syntax
+        run: |
+          for f in .github/renovate*.json5; do
+            npx --yes json5 "$f" > /dev/null
+          done
+
       - name: Validate Renovate JSON
-        run:  npx --yes --package renovate -- renovate-config-validator
+        run: npx --yes --package renovate -- renovate-config-validator
 
       - name: Get token
         id: get-github-app-token
