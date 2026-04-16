@@ -17,7 +17,7 @@ limitations under the License.
 package xpkg
 
 import (
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	extv1alpha1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1alpha1"
 	v2 "github.com/crossplane/crossplane/apis/v2/apiextensions/v2"
