@@ -187,6 +187,7 @@ func NewMockApplyFn(err error, afn ...ApplyFn) MockApplyFn {
 				return fnErr
 			}
 		}
+
 		return err
 	}
 }

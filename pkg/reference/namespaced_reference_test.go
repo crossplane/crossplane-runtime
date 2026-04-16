@@ -203,6 +203,7 @@ func TestNamespacedResolve(t *testing.T) {
 					}
 
 					t.Errorf("Resolve did not infer to the MR namespace: %v", key)
+
 					return errBoom
 				},
 			},
@@ -236,6 +237,7 @@ func TestNamespacedResolve(t *testing.T) {
 					}
 
 					t.Errorf("Resolve did not infer to the other namespace: %v", key)
+
 					return errBoom
 				},
 			},
@@ -624,6 +626,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 					}
 
 					t.Errorf("Resolve did not infer to the MR namespace: %v", key)
+
 					return errBoom
 				},
 			},
@@ -652,6 +655,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 					}
 
 					t.Errorf("Resolve did not infer to the MR namespace: %v", key)
+
 					return errBoom
 				},
 			},
@@ -685,6 +689,7 @@ func TestNamespacedResolveMultiple(t *testing.T) {
 					}
 
 					t.Errorf("Resolve did not infer to the MR namespace: %v", key)
+
 					return errBoom
 				},
 			},

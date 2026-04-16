@@ -17,6 +17,8 @@ limitations under the License.
 package resource
 
 import (
+	"maps"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -25,12 +27,14 @@ import (
 )
 
 // A PredicateFn returns true if the supplied object should be reconciled.
+//
 // Deprecated: This type will be removed soon. Please use
 // controller-runtime's predicate.NewPredicateFuncs instead.
 type PredicateFn func(obj runtime.Object) bool
 
 // NewPredicates returns a set of Funcs that are all satisfied by the supplied
 // PredicateFn. The PredicateFn is run against the new object during updates.
+//
 // Deprecated: This function will be removed soon. Please use
 // controller-runtime's predicate.NewPredicateFuncs instead.
 func NewPredicates(fn PredicateFn) predicate.Funcs {
@@ -78,9 +82,7 @@ type AnnotationChangedPredicate struct {
 
 func copyAnnotations(an map[string]string) map[string]string {
 	r := make(map[string]string, len(an))
-	for k, v := range an {
-		r[k] = v
-	}
+	maps.Copy(r, an)
 
 	return r
 }

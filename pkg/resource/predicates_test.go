@@ -67,6 +67,7 @@ func TestDesiredStateChanged(t *testing.T) {
 				new: func() client.Object {
 					mg := &fake.Managed{}
 					mg.SetConditions(runtimev1.ReconcileSuccess())
+
 					return mg
 				}(),
 			},
@@ -83,6 +84,7 @@ func TestDesiredStateChanged(t *testing.T) {
 				new: func() client.Object {
 					mg := &fake.Managed{}
 					mg.SetAnnotations(map[string]string{meta.AnnotationKeyExternalCreatePending: time.Now().String()})
+
 					return mg
 				}(),
 			},
@@ -99,6 +101,7 @@ func TestDesiredStateChanged(t *testing.T) {
 				new: func() client.Object {
 					mg := &fake.Managed{}
 					mg.SetAnnotations(map[string]string{"foo": "bar"})
+
 					return mg
 				}(),
 			},
@@ -115,6 +118,7 @@ func TestDesiredStateChanged(t *testing.T) {
 				new: func() client.Object {
 					mg := &fake.Managed{}
 					mg.SetLabels(map[string]string{"foo": "bar"})
+
 					return mg
 				}(),
 			},
@@ -128,11 +132,13 @@ func TestDesiredStateChanged(t *testing.T) {
 				old: func() client.Object {
 					mg := &fake.Managed{}
 					mg.SetGeneration(1)
+
 					return mg
 				}(),
 				new: func() client.Object {
 					mg := &fake.Managed{}
 					mg.SetGeneration(2)
+
 					return mg
 				}(),
 			},

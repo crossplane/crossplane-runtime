@@ -258,6 +258,7 @@ func TestAPIUpdatingApplicator(t *testing.T) {
 					if diff := cmp.Diff(*desired, *o.(*object)); diff != "" {
 						t.Errorf("r: -want, +got:\n%s", diff)
 					}
+
 					return nil
 				}),
 			},

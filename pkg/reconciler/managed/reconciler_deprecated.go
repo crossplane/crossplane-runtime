@@ -23,10 +23,12 @@ import (
 )
 
 // ExternalConnecter an alias to ExternalConnector.
+//
 // Deprecated: use ExternalConnector.
 type ExternalConnecter = ExternalConnector
 
 // TypedExternalConnecter an alias to TypedExternalConnector.
+//
 // Deprecated: use TypedExternalConnector.
 type TypedExternalConnecter[managed resource.Managed] interface {
 	TypedExternalConnector[managed]
@@ -54,6 +56,7 @@ type ExternalDisconnecter interface {
 }
 
 // NopDisconnecter aliases NopDisconnector.
+//
 // Deprecated: Use NopDisconnector.
 type NopDisconnecter = NopDisconnector
 
@@ -63,24 +66,29 @@ type NopDisconnecter = NopDisconnector
 // type TypedExternalConnectDisconnecterFns[managed resource.Managed] =  TypedExternalConnectDisconnectorFns[managed]
 
 // NewNopDisconnecter an alias to NewNopDisconnector.
+//
 // Deprecated: use NewNopDisconnector.
 func NewNopDisconnecter(c ExternalConnector) ExternalConnectDisconnector {
 	return NewNopDisconnector(c)
 }
 
 // ExternalDisconnecterFn aliases ExternalDisconnectorFn.
+//
 // Deprecated: use ExternalDisconnectorFn.
 type ExternalDisconnecterFn = ExternalDisconnectorFn
 
 // ExternalConnectDisconnecterFns aliases ExternalConnectDisconnectorFns.
+//
 // Deprecated: use ExternalConnectDisconnectorFns.
 type ExternalConnectDisconnecterFns = ExternalConnectDisconnectorFns
 
 // NopConnecter aliases NopConnector.
+//
 // Deprecated: use NopConnector.
 type NopConnecter = NopConnector
 
 // WithExternalConnecter aliases WithExternalConnector.
+//
 // Deprecated: use WithExternalConnector.
 func WithExternalConnecter(c ExternalConnector) ReconcilerOption {
 	return WithExternalConnector(c)
@@ -97,6 +105,7 @@ func WithExternalConnectDisconnector(c ExternalConnectDisconnector) ReconcilerOp
 }
 
 // WithExternalConnectDisconnecter aliases WithExternalConnectDisconnector.
+//
 // Deprecated: Please use Disconnect() on the ExternalClient for disconnecting from the provider.
 func WithExternalConnectDisconnecter(c ExternalConnectDisconnector) ReconcilerOption {
 	return func(r *Reconciler) {
@@ -115,6 +124,7 @@ func WithTypedExternalConnectDisconnector[managed resource.Managed](c TypedExter
 }
 
 // WithTypedExternalConnectDisconnecter aliases WithTypedExternalConnectDisconnector.
+//
 // Deprecated: Please use Disconnect() on the ExternalClient for disconnecting from the provider.
 func WithTypedExternalConnectDisconnecter[managed resource.Managed](c TypedExternalConnectDisconnector[managed]) ReconcilerOption {
 	return func(r *Reconciler) {

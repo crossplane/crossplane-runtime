@@ -90,6 +90,7 @@ func TestGet(t *testing.T) {
 				if obj.(metav1.Object).GetName() != nameUnwrapped {
 					return errWrapped
 				}
+
 				return nil
 			})},
 			args: args{obj: NewUnwrapped()},
@@ -99,6 +100,7 @@ func TestGet(t *testing.T) {
 				if obj.(metav1.Object).GetName() != nameWrapped {
 					return errUnwrapped
 				}
+
 				return nil
 			})},
 			args: args{obj: NewWrapped()},
@@ -134,6 +136,7 @@ func TestList(t *testing.T) {
 				if u.GetName() != nameUnwrapped {
 					return errWrapped
 				}
+
 				return nil
 			})},
 			args: args{obj: NewUnwrappedList()},
@@ -144,6 +147,7 @@ func TestList(t *testing.T) {
 				if u.GetName() != nameWrapped {
 					return errUnwrapped
 				}
+
 				return nil
 			})},
 			args: args{obj: NewWrappedList()},
@@ -178,6 +182,7 @@ func TestCreate(t *testing.T) {
 				if obj.(metav1.Object).GetName() != nameUnwrapped {
 					return errWrapped
 				}
+
 				return nil
 			})},
 			args: args{obj: NewUnwrapped()},
@@ -187,6 +192,7 @@ func TestCreate(t *testing.T) {
 				if obj.(metav1.Object).GetName() != nameWrapped {
 					return errUnwrapped
 				}
+
 				return nil
 			})},
 			args: args{obj: NewWrapped()},
@@ -221,6 +227,7 @@ func TestDelete(t *testing.T) {
 				if obj.(metav1.Object).GetName() != nameUnwrapped {
 					return errWrapped
 				}
+
 				return nil
 			})},
 			args: args{obj: NewUnwrapped()},
@@ -230,6 +237,7 @@ func TestDelete(t *testing.T) {
 				if obj.(metav1.Object).GetName() != nameWrapped {
 					return errUnwrapped
 				}
+
 				return nil
 			})},
 			args: args{obj: NewWrapped()},
@@ -264,6 +272,7 @@ func TestUpdate(t *testing.T) {
 				if obj.(metav1.Object).GetName() != nameUnwrapped {
 					return errWrapped
 				}
+
 				return nil
 			})},
 			args: args{obj: NewUnwrapped()},
@@ -273,6 +282,7 @@ func TestUpdate(t *testing.T) {
 				if obj.(metav1.Object).GetName() != nameWrapped {
 					return errUnwrapped
 				}
+
 				return nil
 			})},
 			args: args{obj: NewWrapped()},
@@ -308,6 +318,7 @@ func TestPatch(t *testing.T) {
 				if obj.(metav1.Object).GetName() != nameUnwrapped {
 					return errWrapped
 				}
+
 				return nil
 			})},
 			args: args{obj: NewUnwrapped()},
@@ -317,6 +328,7 @@ func TestPatch(t *testing.T) {
 				if obj.(metav1.Object).GetName() != nameWrapped {
 					return errUnwrapped
 				}
+
 				return nil
 			})},
 			args: args{obj: NewWrapped()},
@@ -351,6 +363,7 @@ func TestDeleteAllOf(t *testing.T) {
 				if obj.(metav1.Object).GetName() != nameUnwrapped {
 					return errWrapped
 				}
+
 				return nil
 			})},
 			args: args{obj: NewUnwrapped()},
@@ -360,6 +373,7 @@ func TestDeleteAllOf(t *testing.T) {
 				if obj.(metav1.Object).GetName() != nameWrapped {
 					return errUnwrapped
 				}
+
 				return nil
 			})},
 			args: args{obj: NewWrapped()},
@@ -395,6 +409,7 @@ func TestStatusCreate(t *testing.T) {
 				if obj.(metav1.Object).GetName() != nameUnwrapped {
 					return errWrapped
 				}
+
 				return nil
 			})},
 			args: args{obj: NewUnwrapped()},
@@ -404,6 +419,7 @@ func TestStatusCreate(t *testing.T) {
 				if obj.(metav1.Object).GetName() != nameWrapped {
 					return errUnwrapped
 				}
+
 				return nil
 			})},
 			args: args{obj: NewWrapped()},
@@ -438,6 +454,7 @@ func TestStatusUpdate(t *testing.T) {
 				if obj.(metav1.Object).GetName() != nameUnwrapped {
 					return errWrapped
 				}
+
 				return nil
 			})},
 			args: args{obj: NewUnwrapped()},
@@ -447,6 +464,7 @@ func TestStatusUpdate(t *testing.T) {
 				if obj.(metav1.Object).GetName() != nameWrapped {
 					return errUnwrapped
 				}
+
 				return nil
 			})},
 			args: args{obj: NewWrapped()},
@@ -482,6 +500,7 @@ func TestStatusPatch(t *testing.T) {
 				if obj.(metav1.Object).GetName() != nameUnwrapped {
 					return errWrapped
 				}
+
 				return nil
 			})},
 			args: args{obj: NewUnwrapped()},
@@ -491,6 +510,7 @@ func TestStatusPatch(t *testing.T) {
 				if obj.(metav1.Object).GetName() != nameWrapped {
 					return errUnwrapped
 				}
+
 				return nil
 			})},
 			args: args{obj: NewWrapped()},
