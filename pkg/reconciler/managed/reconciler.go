@@ -926,7 +926,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 	var policy ManagementPoliciesChecker
 
 	switch mg := managed.(type) {
-	case resource.LegacyManaged:
+	case resource.LegacyManaged: //nolint:staticcheck // Intentional branch for legacy managed resources.
 		policy = NewLegacyManagementPoliciesResolver(managementPoliciesEnabled, mg.GetManagementPolicies(), mg.GetDeletionPolicy(), WithSupportedManagementPolicies(r.supportedManagementPolicies))
 	default:
 		policy = NewManagementPoliciesResolver(managementPoliciesEnabled, managed.GetManagementPolicies(), WithSupportedManagementPolicies(r.supportedManagementPolicies))

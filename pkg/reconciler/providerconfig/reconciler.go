@@ -120,7 +120,7 @@ func NewReconciler(m manager.Manager, of resource.ProviderConfigKinds, o ...Reco
 		//nolint:forcetypeassert // If this isn't a ProviderConfigUsage it's a programming error and we want to panic.
 		return resource.MustCreateObject(of.UsageList, m.GetScheme()).(resource.ProviderConfigUsageList)
 	}
-	_, isLegacyPCU := resource.MustCreateObject(of.Usage, m.GetScheme()).(resource.LegacyProviderConfigUsage)
+	_, isLegacyPCU := resource.MustCreateObject(of.Usage, m.GetScheme()).(resource.LegacyProviderConfigUsage) //nolint:staticcheck // Intentional type check to route to the legacy PCU path.
 
 	// Panic early if we've been asked to reconcile a resource kind that has not
 	// been registered with our controller manager's scheme.

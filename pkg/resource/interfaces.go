@@ -215,6 +215,7 @@ type ModernManaged interface {
 // A LegacyManaged is a cluster-scoped Kubernetes object representing a
 // concrete managed resource, with namespaced connection secret referencers
 // and untyped provider config reference.
+//
 // Deprecated: new namespace-scoped MRs should implement ModernManaged.
 type LegacyManaged interface {
 	Managed
@@ -232,6 +233,7 @@ type ManagedList interface {
 }
 
 // A LegacyManagedList is a list of managed resources.
+//
 // Deprecated: new types should implement ManagedList.
 type LegacyManagedList interface {
 	client.ObjectList
@@ -263,6 +265,7 @@ type TypedProviderConfigUsage interface {
 
 // A LegacyProviderConfigUsage is a ProviderConfigUsage that
 // has an untyped reference to a provider config.
+//
 // Deprecated: new PCUs should implement TypedProviderConfigUsage.
 type LegacyProviderConfigUsage interface {
 	ProviderConfigUsage

@@ -157,6 +157,7 @@ func TestReconciler(t *testing.T) {
 							l.Items = []resource.ProviderConfigUsage{
 								&fake.ProviderConfigUsage{},
 							}
+
 							return nil
 						}),
 						MockDelete: test.NewMockDeleteFn(errBoom),
@@ -182,6 +183,7 @@ func TestReconciler(t *testing.T) {
 							pc := obj.(*fake.ProviderConfig)
 							pc.SetDeletionTimestamp(&now)
 							pc.SetUID(uid)
+
 							return nil
 						}),
 						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
@@ -196,6 +198,7 @@ func TestReconciler(t *testing.T) {
 									},
 								},
 							}
+
 							return nil
 						}),
 						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
@@ -220,6 +223,7 @@ func TestReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							pc := obj.(*fake.ProviderConfig)
 							pc.SetDeletionTimestamp(&now)
+
 							return nil
 						}),
 						MockList:   test.NewMockListFn(nil),
@@ -245,6 +249,7 @@ func TestReconciler(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							pc := obj.(*fake.ProviderConfig)
 							pc.SetDeletionTimestamp(&now)
+
 							return nil
 						}),
 						MockList:   test.NewMockListFn(nil),

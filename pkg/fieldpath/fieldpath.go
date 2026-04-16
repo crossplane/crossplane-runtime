@@ -79,13 +79,13 @@ func (sg Segments) String() string {
 		switch s.Type {
 		case SegmentField:
 			if s.Field == wildcard || strings.ContainsRune(s.Field, period) {
-				b.WriteString(fmt.Sprintf("[%s]", s.Field))
+				fmt.Fprintf(&b, "[%s]", s.Field)
 				continue
 			}
 
-			b.WriteString(fmt.Sprintf(".%s", s.Field))
+			fmt.Fprintf(&b, ".%s", s.Field)
 		case SegmentIndex:
-			b.WriteString(fmt.Sprintf("[%d]", s.Index))
+			fmt.Fprintf(&b, "[%d]", s.Index)
 		}
 	}
 
