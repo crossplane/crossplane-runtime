@@ -2,7 +2,6 @@ package parser
 
 import (
 	"bytes"
-	"context"
 	"io"
 	"testing"
 
@@ -10,11 +9,11 @@ import (
 )
 
 func FuzzParse(f *testing.F) {
-	f.Fuzz(func(_ *testing.T, data []byte) {
+	f.Fuzz(func(t *testing.T, data []byte) {
 		objScheme := runtime.NewScheme()
 		metaScheme := runtime.NewScheme()
 		p := New(metaScheme, objScheme)
 		r := io.NopCloser(bytes.NewReader(data))
-		_, _ = p.Parse(context.Background(), r)
+		_, _ = p.Parse(t.Context(), r)
 	})
 }
