@@ -373,6 +373,7 @@ type ModernManaged struct {
 	LocalConnectionSecretWriterTo
 	Manageable
 	xpv2.ConditionedStatus
+	xpv2.ObservedStatus
 }
 
 // GetObjectKind returns schema.ObjectKind.

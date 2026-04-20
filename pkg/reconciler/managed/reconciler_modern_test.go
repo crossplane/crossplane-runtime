@@ -2853,6 +2853,246 @@ func TestReconcilerChangeLogs(t *testing.T) {
 	}
 }
 
+func TestEffectivePollInterval(t *testing.T) {
+	cases := map[string]struct {
+		reason          string
+		pollInterval    time.Duration
+		minPollInterval time.Duration
+		annotation      string
+		want            time.Duration
+	}{
+		"NoAnnotationReturnsDefault": {
+			reason:          "When no annotation is set, the default poll interval is returned.",
+			pollInterval:    10 * time.Minute,
+			minPollInterval: 1 * time.Second,
+			want:            10 * time.Minute,
+		},
+		"ValidAnnotationAboveMinimumReturnsAnnotation": {
+			reason:          "When the annotation is at or above the minimum, it overrides the default.",
+			pollInterval:    10 * time.Minute,
+			minPollInterval: 1 * time.Second,
+			annotation:      "24h",
+			want:            24 * time.Hour,
+		},
+		"ValidAnnotationAtMinimumReturnsAnnotation": {
+			reason:          "When the annotation equals the minimum exactly, it is returned as-is.",
+			pollInterval:    10 * time.Minute,
+			minPollInterval: 30 * time.Second,
+			annotation:      "30s",
+			want:            30 * time.Second,
+		},
+		"ValidAnnotationBelowMinimumReturnsMinimum": {
+			reason:          "When the annotation is below the minimum, the minimum is returned.",
+			pollInterval:    10 * time.Minute,
+			minPollInterval: 30 * time.Second,
+			annotation:      "1s",
+			want:            30 * time.Second,
+		},
+		"InvalidAnnotationReturnsDefault": {
+			reason:          "When the annotation cannot be parsed, the default poll interval is returned.",
+			pollInterval:    5 * time.Minute,
+			minPollInterval: 1 * time.Second,
+			annotation:      "not-a-duration",
+			want:            5 * time.Minute,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			r := &Reconciler{
+				pollInterval:    tc.pollInterval,
+				minPollInterval: tc.minPollInterval,
+			}
+
+			mg := &fake.ModernManaged{}
+			if tc.annotation != "" {
+				mg.SetAnnotations(map[string]string{
+					meta.AnnotationKeyPollInterval: tc.annotation,
+				})
+			}
+
+			got := r.effectivePollInterval(mg)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\n%s\neffectivePollInterval(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestReconcilePollIntervalAnnotation(t *testing.T) {
+	cases := map[string]struct {
+		reason          string
+		pollInterval    time.Duration
+		minPollInterval time.Duration
+		annotation      string
+		wantApprox      time.Duration
+		wantTolerance   time.Duration
+	}{
+		"AnnotationOverridesPollInterval": {
+			reason:          "When a valid poll interval annotation is set, it should override the controller-level poll interval.",
+			pollInterval:    1 * time.Minute,
+			minPollInterval: 1 * time.Second,
+			annotation:      "24h",
+			wantApprox:      24 * time.Hour,
+			wantTolerance:   1 * time.Second,
+		},
+		"InvalidAnnotationFallsBack": {
+			reason:          "When an invalid poll interval annotation is set, the controller-level poll interval should be used.",
+			pollInterval:    5 * time.Minute,
+			minPollInterval: 1 * time.Second,
+			annotation:      "not-a-duration",
+			wantApprox:      5 * time.Minute,
+			wantTolerance:   1 * time.Second,
+		},
+		"AnnotationBelowMinimumClampsToMin": {
+			reason:          "When a poll interval annotation is below the configured minimum, the minimum should be used.",
+			pollInterval:    10 * time.Minute,
+			minPollInterval: 30 * time.Second,
+			annotation:      "1s",
+			wantApprox:      30 * time.Second,
+			wantTolerance:   1 * time.Second,
+		},
+		"NoAnnotationUsesDefault": {
+			reason:          "When no poll interval annotation is set, the controller-level poll interval should be used.",
+			pollInterval:    10 * time.Minute,
+			minPollInterval: 1 * time.Second,
+			wantApprox:      10 * time.Minute,
+			wantTolerance:   1 * time.Second,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			r := NewReconciler(&fake.Manager{
+				Client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						mg := asModernManaged(obj, 42)
+						if tc.annotation != "" {
+							mg.SetAnnotations(map[string]string{
+								meta.AnnotationKeyPollInterval: tc.annotation,
+							})
+						}
+						return nil
+					}),
+					MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, _ client.Object, _ ...client.SubResourceUpdateOption) error {
+						return nil
+					}),
+				},
+				Scheme: fake.SchemeWith(&fake.ModernManaged{}),
+			}, resource.ManagedKind(fake.GVK(&fake.ModernManaged{})),
+				WithPollInterval(tc.pollInterval),
+				WithMinPollInterval(tc.minPollInterval),
+				WithInitializers(),
+				WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+				WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
+					return &ExternalClientFns{
+						ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+							return ExternalObservation{ResourceExists: true, ResourceUpToDate: true}, nil
+						},
+						DisconnectFn: func(_ context.Context) error { return nil },
+					}, nil
+				})),
+				WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+			)
+
+			got, err := r.Reconcile(context.Background(), reconcile.Request{})
+			if diff := cmp.Diff(nil, err, cmpopts.EquateErrors()); diff != "" {
+				t.Fatalf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+
+			diff := got.RequeueAfter - tc.wantApprox
+			if diff < 0 {
+				diff = -diff
+			}
+			if diff > tc.wantTolerance {
+				t.Errorf("\n%s\nr.Reconcile(...): want RequeueAfter ~%v (±%v), got %v",
+					tc.reason, tc.wantApprox, tc.wantTolerance, got.RequeueAfter)
+			}
+		})
+	}
+}
+
+func TestReconcileRequestAnnotation(t *testing.T) {
+	type want struct {
+		result reconcile.Result
+		err    error
+		token  string
+	}
+
+	cases := map[string]struct {
+		reason     string
+		annotation string
+		handled    string
+		want       want
+	}{
+		"NewReconcileRequestRecordsToken": {
+			reason:     "A new reconcile-requested-at token should be recorded in status.lastHandledReconcileAt.",
+			annotation: "1705312200",
+			want: want{
+				result: reconcile.Result{RequeueAfter: defaultPollInterval},
+				token:  "1705312200",
+			},
+		},
+		"AlreadyHandledReconcileRequestIsNoOp": {
+			reason:     "When the token matches lastHandledReconcileAt, status should remain unchanged.",
+			annotation: "already-handled",
+			handled:    "already-handled",
+			want: want{
+				result: reconcile.Result{RequeueAfter: defaultPollInterval},
+				token:  "already-handled",
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			r := NewReconciler(&fake.Manager{
+				Client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						mg := asModernManaged(obj, 42)
+						mg.SetAnnotations(map[string]string{
+							meta.AnnotationKeyReconcileRequestedAt: tc.annotation,
+						})
+						if tc.handled != "" {
+							mg.SetLastHandledReconcileAt(tc.handled)
+						}
+						return nil
+					}),
+					MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
+						mg := obj.(*fake.ModernManaged)
+						got := mg.GetLastHandledReconcileAt()
+						if diff := cmp.Diff(tc.want.token, got); diff != "" {
+							t.Errorf("\n%s\nstatus.lastHandledReconcileAt: -want, +got:\n%s", tc.reason, diff)
+						}
+						return nil
+					}),
+				},
+				Scheme: fake.SchemeWith(&fake.ModernManaged{}),
+			}, resource.ManagedKind(fake.GVK(&fake.ModernManaged{})),
+				WithInitializers(),
+				WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+				WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
+					return &ExternalClientFns{
+						ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+							return ExternalObservation{ResourceExists: true, ResourceUpToDate: true}, nil
+						},
+						DisconnectFn: func(_ context.Context) error { return nil },
+					}, nil
+				})),
+				WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+			)
+
+			got, err := r.Reconcile(context.Background(), reconcile.Request{})
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.result, got); diff != "" {
+				t.Errorf("\n%s\nr.Reconcile(...): -want result, +got result:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
 func asModernManaged(obj client.Object, generation int64) *fake.ModernManaged {
 	mg := obj.(*fake.ModernManaged)
 	mg.Generation = generation
