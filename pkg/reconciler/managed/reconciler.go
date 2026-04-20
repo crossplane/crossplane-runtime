@@ -1414,10 +1414,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		// When a resource exists or is just created, it might have received
 		// a non-deterministic external name after its creation, which we need to persist.
 		// We do this by updating the critical annotations.
-		// This is needed because some resources might not receive an external-name directly 
+		// This is needed because some resources might not receive an external-name directly
 		// after the creation, but later as part of an asynchronous process.
 		// When Crossplane supports asynchronous creation of resources natively, this logic
-		// might not be needed anymore and can be revisited. 
+		// might not be needed anymore and can be revisited.
 		if err := r.managed.UpdateCriticalAnnotations(ctx, managed); err != nil {
 			log.Debug(errUpdateManagedAnnotations, "error", err)
 			record.Event(managed, event.Warning(reasonCannotUpdateManaged, errors.Wrap(err, errUpdateManagedAnnotations)))

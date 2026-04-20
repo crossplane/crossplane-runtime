@@ -600,7 +600,7 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateCriticalAnnotations),
-				o:   &fake.LegacyManaged{
+				o: &fake.LegacyManaged{
 					ObjectMeta: metav1.ObjectMeta{
 						Annotations: map[string]string{"crossplane.io/external-name": "my-external-name"},
 					},

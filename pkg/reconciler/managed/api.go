@@ -55,6 +55,7 @@ const (
 	errUpdateCriticalAnnotations = "cannot update critical annotations"
 )
 
+//nolint:gochecknoglobals // this is a list of critical annotations that should be retried when updating, and is not expected to be modified at runtime.
 var (
 	criticalAnnotations = []string{
 		meta.AnnotationKeyExternalCreateFailed,
@@ -304,7 +305,7 @@ func (u *RetryingCriticalAnnotationUpdater) UpdateCriticalAnnotations(ctx contex
 	err := retry.OnError(retry.DefaultRetry, func(err error) bool {
 		return !errors.Is(err, context.Canceled)
 	}, func() error {
-		patchMap := map[string]interface{}{
+		patchMap := map[string]any{
 			"metadata": map[string]any{
 				"annotations": a,
 			},
