@@ -552,7 +552,7 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 	}
 
 	setAnnotations := func(obj client.Object) error {
-		obj.SetAnnotations(map[string]string{"getcalled": "true"})
+		obj.SetAnnotations(map[string]string{"crossplane.io/external-name": "my-external-name"})
 		return nil
 	}
 	objectReturnedByGet := &fake.LegacyManaged{}
@@ -574,7 +574,11 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 				}, "abc", errBoom)),
 			},
 			args: args{
-				o: &fake.LegacyManaged{},
+				o: &fake.LegacyManaged{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{"crossplane.io/external-name": "my-external-name"},
+					},
+				},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateCriticalAnnotations),
@@ -588,11 +592,19 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 				MockPatch: test.NewMockPatchFn(errBoom),
 			},
 			args: args{
-				o: &fake.LegacyManaged{},
+				o: &fake.LegacyManaged{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{"crossplane.io/external-name": "my-external-name"},
+					},
+				},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateCriticalAnnotations),
-				o:   &fake.LegacyManaged{},
+				o:   &fake.LegacyManaged{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{"crossplane.io/external-name": "my-external-name"},
+					},
+				},
 			},
 		},
 		"SuccessfulGetAfterAConflict": {
@@ -605,7 +617,11 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 				}, "abc", errBoom)),
 			},
 			args: args{
-				o: &fake.LegacyManaged{},
+				o: &fake.LegacyManaged{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{"crossplane.io/external-name": "my-external-name"},
+					},
+				},
 			},
 			want: want{
 				err: errors.Wrap(kerrors.NewConflict(schema.GroupResource{
@@ -622,7 +638,11 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 				MockPatch: test.NewMockPatchFn(errBoom),
 			},
 			args: args{
-				o: &fake.LegacyManaged{},
+				o: &fake.LegacyManaged{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{"crossplane.io/external-name": "my-external-name"},
+					},
+				},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateCriticalAnnotations),
