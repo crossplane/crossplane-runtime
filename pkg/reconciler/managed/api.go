@@ -55,6 +55,16 @@ const (
 	errUpdateCriticalAnnotations = "cannot update critical annotations"
 )
 
+//nolint:gochecknoglobals // this is a list of critical annotations that should be retried when updating, and is not expected to be modified at runtime.
+var (
+	criticalAnnotations = []string{
+		meta.AnnotationKeyExternalCreateFailed,
+		meta.AnnotationKeyExternalCreatePending,
+		meta.AnnotationKeyExternalCreateSucceeded,
+		meta.AnnotationKeyExternalName,
+	}
+)
+
 // NameAsExternalName writes the name of the managed resource to
 // the external name annotation field in order to be used as name of
 // the external resource in provider.
@@ -277,15 +287,36 @@ func NewRetryingCriticalAnnotationUpdater(c client.Client) *RetryingCriticalAnno
 // UpdateCriticalAnnotations updates (i.e. persists) the annotations of the
 // supplied Object. It retries in the face of any API server error several times
 // in order to ensure annotations that contain critical state are persisted.
-// Pending changes to the supplied Object's spec, status, or other metadata
-// might get reset to their current state according to the API server, e.g. in
-// case of a conflict error.
+// Only annotations will be updated as part of this operation, other fields of the
+// supplied Object will not be modified.
 func (u *RetryingCriticalAnnotationUpdater) UpdateCriticalAnnotations(ctx context.Context, o client.Object) error {
-	a := o.GetAnnotations()
+	a := make(map[string]string)
+	for _, k := range criticalAnnotations {
+		if v, ok := o.GetAnnotations()[k]; ok {
+			a[k] = v
+		}
+	}
+
+	if len(a) == 0 {
+		// No critical annotations to update.
+		return nil
+	}
+
 	err := retry.OnError(retry.DefaultRetry, func(err error) bool {
 		return !errors.Is(err, context.Canceled)
 	}, func() error {
-		err := u.client.Update(ctx, o)
+		patchMap := map[string]any{
+			"metadata": map[string]any{
+				"annotations": a,
+			},
+		}
+
+		patchData, err := json.Marshal(patchMap)
+		if err != nil {
+			return err
+		}
+
+		err = u.client.Patch(ctx, o, client.RawPatch(types.MergePatchType, patchData), client.FieldOwner(fieldOwnerAPISimpleRefResolver), client.ForceOwnership)
 		if kerrors.IsConflict(err) {
 			if getErr := u.client.Get(ctx, client.ObjectKeyFromObject(o), o); getErr != nil {
 				return getErr
