@@ -442,15 +442,9 @@ schema = 3
   [mod."go.opentelemetry.io/auto/sdk"]
     version = "v1.2.1"
     hash = "sha256-73bFYhnxNf4SfeQ52ebnwOWywdQbqc9lWawCcSgofvE="
-  [mod."go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"]
-    version = "v0.64.0"
-    hash = "sha256-xilqHTTNmvhxDFfTnE8ZytsrYq5gYFD77/glakljCy0="
   [mod."go.opentelemetry.io/otel"]
     version = "v1.42.0"
     hash = "sha256-7dck3F+khfda+U8PLSJTVETFl/M/mjXboBOsDCtF5aQ="
-  [mod."go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"]
-    version = "v1.39.0"
-    hash = "sha256-7pfSAaoIS1fbtVd9CCx6J4/DHBsmReon6r9Hocb2CCU="
   [mod."go.opentelemetry.io/otel/metric"]
     version = "v1.42.0"
     hash = "sha256-OabGeuj05yLHN917j30E0QO8x8fHuZoNeotgfbzIWIA="
@@ -515,8 +509,8 @@ schema = 3
     version = "v1.79.3"
     hash = "sha256-mO9ZI8ONBMEBTlrwIPeQMfb3C9ru5zPb26P+uG/pIzY="
   [mod."google.golang.org/protobuf"]
-    version = "v1.36.11"
-    hash = "sha256-7W+6jntfI/awWL3JP6yQedxqP5S9o3XvPgJ2XxxsIeE="
+    version = "v1.36.12-0.20260120151049-f2248ac996af"
+    hash = "sha256-G6dblBo/FH3sIvIrHuco6fpaRIWBdV2xtorLFU49r5I="
   [mod."gopkg.in/evanphx/json-patch.v4"]
     version = "v4.13.0"
     hash = "sha256-1iyZpBaeBLmNkJ3T4A9fAEXEYB9nk9V02ug4pwl5dy0="
@@ -530,38 +524,35 @@ schema = 3
     version = "v3.0.1"
     hash = "sha256-FqL9TKYJ0XkNwJFnq9j0VvJ5ZUU1RvH/52h/f5bkYAU="
   [mod."k8s.io/api"]
-    version = "v0.35.1"
-    hash = "sha256-lOfx98TObjLpO9Xg+PcR7G567x5pY/iiChXFhbpRclQ="
+    version = "v0.36.0"
+    hash = "sha256-sz7uMJfjD/eSh/lkeH2y38Wo6fBvXMqsZN6eoueRcF8="
   [mod."k8s.io/apiextensions-apiserver"]
-    version = "v0.35.0"
-    hash = "sha256-RZdGkV4SoCTY022pIzQbeVwaxIYhIpXapLZrD593gh8="
+    version = "v0.36.0"
+    hash = "sha256-/eAsfuocLKW5zybHR8waFqdRVwU1Z3XkeDLY6WSs2DE="
   [mod."k8s.io/apimachinery"]
-    version = "v0.35.1"
-    hash = "sha256-+dplbHUOfaCaD2E9IS4F3lnjSCr/a4LjTgdB9de92Pw="
+    version = "v0.36.0"
+    hash = "sha256-WbbNl5jyz1c6BOfCjlbMeP6riujXSN1Jwfxy3KYSqBk="
   [mod."k8s.io/client-go"]
-    version = "v0.35.1"
-    hash = "sha256-QEQ7TLUviAXDbvp2s6tT3HZtXy7pLjj5qSDu89iC9ek="
+    version = "v0.36.0"
+    hash = "sha256-ceIf6rxnvUo7BWdl8z831Vkai7Ib90NTNIuFkYJcVOA="
   [mod."k8s.io/code-generator"]
-    version = "v0.35.0"
-    hash = "sha256-0F8vNVdF/quBPGxOpxBL/GhupnkMoTE8dcZYX57RZKk="
+    version = "v0.36.0"
+    hash = "sha256-3Knhv5zj5Ho8wSL88kLMC6eVSUYYu2454RRICu2Lh2w="
   [mod."k8s.io/component-base"]
-    version = "v0.35.0"
-    hash = "sha256-fIAmKs3/T8oHrXBX3sMWr/D1DGhyCsgM+6ZFdaA8BXU="
+    version = "v0.36.0"
+    hash = "sha256-9/SRoV1bKNsRhScceovpe4elxct9OapowUErGblLBW0="
   [mod."k8s.io/gengo/v2"]
     version = "v2.0.0-20251215205346-5ee0d033ba5b"
     hash = "sha256-FxD4b+cOzKuXsGI4NpsaUK/YTOMxugMGAh2jY3od3p8="
   [mod."k8s.io/klog/v2"]
-    version = "v2.130.1"
-    hash = "sha256-n5vls1o1a0V0KYv+3SULq4q3R2Is15K8iDHhFlsSH4o="
+    version = "v2.140.0"
+    hash = "sha256-TbA5ZdLRzxa7WRnz3zgPPtTplgC33eY9yKKqVFDrPWU="
   [mod."k8s.io/kube-openapi"]
-    version = "v0.0.0-20260127142750-a19766b6e2d4"
-    hash = "sha256-NS8NvGTX3Ycoc4JU/jwLgtNlD5OOQ5zk2hzvFFSD/jM="
+    version = "v0.0.0-20260317180543-43fb72c5454a"
+    hash = "sha256-tcNu4BjJxxWFlbe2BuicgVNxwmD78JCbv4o9Bgc1tO0="
   [mod."k8s.io/utils"]
-    version = "v0.0.0-20260108192941-914a6e750570"
-    hash = "sha256-eFcd1fZT9M7wc/foeEAUj3jgHJfEY9U3lVqQTkIVJ44="
-  [mod."sigs.k8s.io/apiserver-network-proxy/konnectivity-client"]
-    version = "v0.34.0"
-    hash = "sha256-98ScvhhmVxEVAGv9rhk10ceYUadNOuBERtCcdaIb42s="
+    version = "v0.0.0-20260210185600-b8788abfbbc2"
+    hash = "sha256-yV4Uv2+bUhZlAIbxc9YYzjzrBnpN5iN5dQELKeJ5dZM="
   [mod."sigs.k8s.io/controller-runtime"]
     version = "v0.23.1"
     hash = "sha256-iOaYAJgy/Q1Hi6afs5mLtP8K5J8Cs/MlDoGp8wE1GOY="
@@ -575,7 +566,7 @@ schema = 3
     version = "v1.0.0"
     hash = "sha256-xldQxDwW84hmlihdSOFfjXyauhxEWV9KmIDLZMTcYNo="
   [mod."sigs.k8s.io/structured-merge-diff/v6"]
-    version = "v6.3.2-0.20260122202528-d9cc6641c482"
+    version = "v6.3.2"
     hash = "sha256-4ZUkeHKvdhsZmFSSZKAL/1GZdPO6735BY6FqRc+8tog="
   [mod."sigs.k8s.io/yaml"]
     version = "v1.6.0"
