@@ -166,6 +166,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		"uid", pc.GetUID(),
 		"version", pc.GetResourceVersion(),
 		"name", pc.GetName(),
+		"namespace", pc.GetNamespace(),
 	)
 
 	l := r.newUsageList()
@@ -178,7 +179,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		matchingLabels[xpv2.LabelKeyProviderKind] = pc.GetObjectKind().GroupVersionKind().Kind
 	}
 
-	if err := r.client.List(ctx, l, matchingLabels); err != nil {
+	listOpts := []client.ListOption{matchingLabels}
+	if pc.GetNamespace() != "" {
+		listOpts = append(listOpts, client.InNamespace(pc.GetNamespace()))
+	}
+
+	if err := r.client.List(ctx, l, listOpts...); err != nil {
 		log.Debug(errListPCUs, "error", err)
 		r.record.Event(pc, event.Warning(reasonAccount, errors.Wrap(err, errListPCUs)))
 

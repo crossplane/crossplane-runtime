@@ -77,8 +77,9 @@ func TestReconciler(t *testing.T) {
 	}
 
 	type want struct {
-		result reconcile.Result
-		err    error
+		result  reconcile.Result
+		err     error
+		request reconcile.Request
 	}
 
 	cases := map[string]struct {
@@ -333,13 +334,89 @@ func TestReconciler(t *testing.T) {
 				result: reconcile.Result{Requeue: false},
 			},
 		},
+		"ListUsagesScopedToNamespaceWhenNamespaced": {
+			reason: "When ProviderConfig is namespaced, List should be called with InNamespace option",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							pc := obj.(*fake.ProviderConfig)
+							pc.SetNamespace("test-ns")
+							pc.SetName("my-pc")
+							return nil
+						}),
+						MockList: func(_ context.Context, _ client.ObjectList, opts ...client.ListOption) error {
+							// Capture and verify list options: should include InNamespace("test-ns")
+							listOpts := &client.ListOptions{}
+							for _, opt := range opts {
+								opt.ApplyToList(listOpts)
+							}
+							if listOpts.Namespace != "test-ns" {
+								t.Errorf("List called with namespace %q, want InNamespace(\"test-ns\")", listOpts.Namespace)
+							}
+							return nil
+						},
+						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+					},
+					Scheme: fake.SchemeWith(&fake.ProviderConfig{}, &fake.ProviderConfigUsage{}, &ProviderConfigUsageList{}),
+				},
+				of: resource.ProviderConfigKinds{
+					Config:    fake.GVK(&fake.ProviderConfig{}),
+					Usage:     fake.GVK(&fake.ProviderConfigUsage{}),
+					UsageList: fake.GVK(&ProviderConfigUsageList{}),
+				},
+			},
+			want: want{
+				result:  reconcile.Result{Requeue: false},
+				request: reconcile.Request{NamespacedName: types.NamespacedName{Name: "my-pc", Namespace: "test-ns"}},
+			},
+		},
+		"ListUsagesNotScopedToNamespaceWhenClusterScoped": {
+			reason: "When ProviderConfig is cluster-scoped (empty namespace), List should not include InNamespace",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							pc := obj.(*fake.ProviderConfig)
+							pc.SetNamespace("") // cluster-scoped
+							pc.SetName("my-pc")
+							return nil
+						}),
+						MockList: func(_ context.Context, _ client.ObjectList, opts ...client.ListOption) error {
+							listOpts := &client.ListOptions{}
+							for _, opt := range opts {
+								opt.ApplyToList(listOpts)
+							}
+							if listOpts.Namespace != "" {
+								t.Errorf("List called with namespace %q for cluster-scoped ProviderConfig, want empty", listOpts.Namespace)
+							}
+							return nil
+						},
+						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+					},
+					Scheme: fake.SchemeWith(&fake.ProviderConfig{}, &fake.ProviderConfigUsage{}, &ProviderConfigUsageList{}),
+				},
+				of: resource.ProviderConfigKinds{
+					Config:    fake.GVK(&fake.ProviderConfig{}),
+					Usage:     fake.GVK(&fake.ProviderConfigUsage{}),
+					UsageList: fake.GVK(&ProviderConfigUsageList{}),
+				},
+			},
+			want: want{
+				result:  reconcile.Result{Requeue: false},
+				request: reconcile.Request{NamespacedName: types.NamespacedName{Name: "my-pc"}},
+			},
+		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewReconciler(tc.args.m, tc.args.of)
 
-			got, err := r.Reconcile(context.Background(), reconcile.Request{})
+			req := tc.want.request
+			got, err := r.Reconcile(context.Background(), req)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
