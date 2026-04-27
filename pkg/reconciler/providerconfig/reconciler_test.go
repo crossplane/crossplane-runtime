@@ -345,7 +345,7 @@ func TestReconciler(t *testing.T) {
 							pc.SetName("my-pc")
 							return nil
 						}),
-						MockList: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+						MockList: func(_ context.Context, _ client.ObjectList, opts ...client.ListOption) error {
 							// Capture and verify list options: should include InNamespace("test-ns")
 							listOpts := &client.ListOptions{}
 							for _, opt := range opts {
@@ -383,7 +383,7 @@ func TestReconciler(t *testing.T) {
 							pc.SetName("my-pc")
 							return nil
 						}),
-						MockList: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+						MockList: func(_ context.Context, _ client.ObjectList, opts ...client.ListOption) error {
 							listOpts := &client.ListOptions{}
 							for _, opt := range opts {
 								opt.ApplyToList(listOpts)
