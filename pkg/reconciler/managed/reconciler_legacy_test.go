@@ -1121,6 +1121,47 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultPollInterval}},
 		},
+		"ExternalResourceUpToDateAsyncOperationInProgress": {
+			reason: "When an async operation is in progress, Synced should be set to ReconcilePending instead of ReconcileSuccess.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: legacyManagedMockGetFn(nil, 42),
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
+							want := newLegacyManaged(42)
+							want.SetConditions(xpv2.ReconcilePending("Async operation in progress").WithObservedGeneration(42))
+
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := "An async-in-progress reconcile should set ReconcilePending, not ReconcileSuccess."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+					WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
+						return &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+								return ExternalObservation{
+									ResourceExists:           true,
+									ResourceUpToDate:         true,
+									AsyncOperationInProgress: true,
+								}, nil
+							},
+							DisconnectFn: func(_ context.Context) error { return nil },
+						}, nil
+					})),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultPollInterval}},
+		},
 		"ExternalResourceUpToDateWithJitter": {
 			reason: "When the external resource exists and is up to date a requeue should be triggered after a long wait with jitter added.",
 			args: args{
