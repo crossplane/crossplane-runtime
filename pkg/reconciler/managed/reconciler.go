@@ -539,9 +539,13 @@ type ExternalObservation struct {
 
 	// AsyncOperationInProgress indicates that an asynchronous operation
 	// (e.g. a long-running cloud API call) is currently in progress for
-	// this resource. When true, the managed reconciler will set
-	// Synced=False with reason ReconcilePending instead of
-	// ReconcileSuccess, and will not call Update().
+	// this resource. When set alongside ResourceUpToDate: true, the
+	// managed reconciler will set Synced=False with reason
+	// ReconcilePending instead of ReconcileSuccess. This field has no
+	// effect when ResourceUpToDate is false. It is intended for use by
+	// providers that return ResourceUpToDate: true to suppress Update()
+	// during async operations, but need to avoid the false
+	// ReconcileSuccess signal that would otherwise result.
 	AsyncOperationInProgress bool
 }
 
