@@ -299,8 +299,8 @@ schema = 3
     version = "v1.1.2"
     hash = "sha256-BdRbWCnzMCMyZmo8lkovtvGWQq2qCB7S2XBZWClJ6TM="
   [mod."github.com/in-toto/in-toto-golang"]
-    version = "v0.10.0"
-    hash = "sha256-ZL2+v1bszcWWTLUsIVf0A7q37Vw+v9vgqb2AlMHabe0="
+    version = "v0.11.0"
+    hash = "sha256-Rcp+UkWKBYomxPpoJqVINL26AhYNd88npXl2ryNqZ+k="
   [mod."github.com/inconshreveable/mousetrap"]
     version = "v1.1.0"
     hash = "sha256-XWlYH0c8IcxAwQTnIi6WYqq44nOKUylSWxWO/vi+8pE="
