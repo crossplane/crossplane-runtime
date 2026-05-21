@@ -24,10 +24,11 @@ import (
 
 // ExternalSecretStorePluginServiceClient is a fake ExternalSecretStorePluginServiceClient.
 type ExternalSecretStorePluginServiceClient struct {
+	*ess.UnimplementedExternalSecretStorePluginServiceServer
+
 	GetSecretFn   func(context.Context, *ess.GetSecretRequest, ...grpc.CallOption) (*ess.GetSecretResponse, error)
 	ApplySecretFn func(context.Context, *ess.ApplySecretRequest, ...grpc.CallOption) (*ess.ApplySecretResponse, error)
 	DeleteKeysFn  func(context.Context, *ess.DeleteKeysRequest, ...grpc.CallOption) (*ess.DeleteKeysResponse, error)
-	*ess.UnimplementedExternalSecretStorePluginServiceServer
 }
 
 // GetSecret returns the secret.

@@ -43,6 +43,7 @@ type ScopedName struct {
 // A Secret is an entity representing a set of sensitive Key Values.
 type Secret struct {
 	ScopedName
+
 	Metadata *v1.ConnectionSecretMetadata
 	Data     KeyValues
 }

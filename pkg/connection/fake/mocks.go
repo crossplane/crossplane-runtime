@@ -56,9 +56,9 @@ func (ss *SecretStore) DeleteKeyValues(ctx context.Context, s *store.Secret, do 
 // StoreConfig is a mock implementation of the StoreConfig interface.
 type StoreConfig struct {
 	metav1.ObjectMeta
+	v1.ConditionedStatus
 
 	Config v1.SecretStoreConfig
-	v1.ConditionedStatus
 }
 
 // GetStoreConfig returns SecretStoreConfig.

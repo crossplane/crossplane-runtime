@@ -28,7 +28,10 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
-const subSystem = "crossplane"
+const (
+	subSystem = "crossplane"
+	labelGVK  = "gvk"
+)
 
 // MetricRecorder records the managed resource metrics.
 type MetricRecorder interface { //nolint:interfacebloat // The first two methods are coming from Prometheus
@@ -61,25 +64,25 @@ func NewMRMetricRecorder() *MRMetricRecorder {
 			Name:      "managed_resource_first_time_to_reconcile_seconds",
 			Help:      "The time it took for a managed resource to be detected by the controller",
 			Buckets:   kmetrics.ExponentialBuckets(10e-9, 10, 10),
-		}, []string{"gvk"}),
+		}, []string{labelGVK}),
 		mrFirstTimeReady: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Subsystem: subSystem,
 			Name:      "managed_resource_first_time_to_readiness_seconds",
 			Help:      "The time it took for a managed resource to become ready first time after creation",
 			Buckets:   []float64{1, 5, 10, 15, 30, 60, 120, 300, 600, 1800, 3600},
-		}, []string{"gvk"}),
+		}, []string{labelGVK}),
 		mrDeletion: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Subsystem: subSystem,
 			Name:      "managed_resource_deletion_seconds",
 			Help:      "The time it took for a managed resource to be deleted",
 			Buckets:   []float64{1, 5, 10, 15, 30, 60, 120, 300, 600, 1800, 3600},
-		}, []string{"gvk"}),
+		}, []string{labelGVK}),
 		mrDrift: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Subsystem: subSystem,
 			Name:      "managed_resource_drift_seconds",
 			Help:      "ALPHA: How long since the previous successful reconcile when a resource was found to be out of sync; excludes restart of the provider",
 			Buckets:   kmetrics.ExponentialBuckets(10e-9, 10, 10),
-		}, []string{"gvk"}),
+		}, []string{labelGVK}),
 	}
 }
 
@@ -173,6 +176,6 @@ func (r *NopMetricRecorder) recordFirstTimeReady(_ resource.Managed) {}
 
 func getLabels(r resource.Managed) prometheus.Labels {
 	return prometheus.Labels{
-		"gvk": r.GetObjectKind().GroupVersionKind().String(),
+		labelGVK: r.GetObjectKind().GroupVersionKind().String(),
 	}
 }

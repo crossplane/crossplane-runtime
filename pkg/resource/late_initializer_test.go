@@ -75,10 +75,10 @@ func TestLateInitializeStringPtr(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			li := NewLateInitializer()
 			got := li.LateInitializeStringPtr(tc.org, tc.from)
-			if diff := cmp.Diff(tc.want.result, got); diff != "" {
+			if diff := cmp.Diff(tc.result, got); diff != "" {
 				t.Errorf("LateInitializeStringPtr(...): -want, +got:\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.want.changed, li.IsChanged()); diff != "" {
+			if diff := cmp.Diff(tc.changed, li.IsChanged()); diff != "" {
 				t.Errorf("IsChanged(...): -want, +got:\n%s", diff)
 			}
 		})
@@ -136,10 +136,10 @@ func TestLateInitializeInt64Ptr(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			li := NewLateInitializer()
 			got := li.LateInitializeInt64Ptr(tc.org, tc.from)
-			if diff := cmp.Diff(tc.want.result, got); diff != "" {
+			if diff := cmp.Diff(tc.result, got); diff != "" {
 				t.Errorf("LateInitializeBoolPtr(...): -want, +got:\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.want.changed, li.IsChanged()); diff != "" {
+			if diff := cmp.Diff(tc.changed, li.IsChanged()); diff != "" {
 				t.Errorf("IsChanged(...): -want, +got:\n%s", diff)
 			}
 		})
@@ -197,10 +197,10 @@ func TestLateInitializeBoolPtr(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			li := NewLateInitializer()
 			got := li.LateInitializeBoolPtr(tc.org, tc.from)
-			if diff := cmp.Diff(tc.want.result, got); diff != "" {
+			if diff := cmp.Diff(tc.result, got); diff != "" {
 				t.Errorf("LateInitializeBoolPtr(...): -want, +got:\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.want.changed, li.IsChanged()); diff != "" {
+			if diff := cmp.Diff(tc.changed, li.IsChanged()); diff != "" {
 				t.Errorf("IsChanged(...): -want, +got:\n%s", diff)
 			}
 		})
@@ -259,10 +259,10 @@ func TestLateInitializeTimePtr(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			li := NewLateInitializer()
 			got := li.LateInitializeTimePtr(tc.org, tc.from)
-			if diff := cmp.Diff(tc.want.result, got); diff != "" {
+			if diff := cmp.Diff(tc.result, got); diff != "" {
 				t.Errorf("LateInitializeTimePtr(...): -want, +got:\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.want.changed, li.IsChanged()); diff != "" {
+			if diff := cmp.Diff(tc.changed, li.IsChanged()); diff != "" {
 				t.Errorf("IsChanged(...): -want, +got:\n%s", diff)
 			}
 		})
