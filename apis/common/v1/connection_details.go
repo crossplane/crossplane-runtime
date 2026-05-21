@@ -151,6 +151,7 @@ type KubernetesAuthConfig struct {
 
 	// CommonCredentialSelectors provides common selectors for extracting
 	// credentials.
+	//nolint:embeddedstructfieldcheck // Reordering would change generated CRD field order.
 	CommonCredentialSelectors `json:",inline"`
 }
 

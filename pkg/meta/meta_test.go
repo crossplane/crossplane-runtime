@@ -48,6 +48,7 @@ func TestReferenceTo(t *testing.T) {
 	}
 	tests := map[string]struct {
 		args
+
 		want *corev1.ObjectReference
 	}{
 		"WithTypeMeta": {
@@ -77,7 +78,7 @@ func TestReferenceTo(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			got := ReferenceTo(tc.args.o, tc.args.of)
+			got := ReferenceTo(tc.o, tc.of)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("ReferenceTo(): -want, +got:\n%s", diff)
 			}
@@ -92,6 +93,7 @@ func TestTypedReferenceTo(t *testing.T) {
 	}
 	tests := map[string]struct {
 		args
+
 		want *xpv1.TypedReference
 	}{
 		"WithTypeMeta": {
@@ -120,7 +122,7 @@ func TestTypedReferenceTo(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			got := TypedReferenceTo(tc.args.o, tc.args.of)
+			got := TypedReferenceTo(tc.o, tc.of)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("TypedReferenceTo(): -want, +got:\n%s", diff)
 			}

@@ -20,6 +20,7 @@ package plugin
 import (
 	"context"
 	"crypto/tls"
+	"maps"
 	"path/filepath"
 
 	"google.golang.org/grpc"
@@ -90,9 +91,7 @@ func (ss *SecretStore) ReadKeyValues(ctx context.Context, n store.ScopedName, s 
 	if len(respSecretMetadata) != 0 {
 		s.Metadata = new(v1.ConnectionSecretMetadata)
 		s.Metadata.Labels = make(map[string]string, len(respSecretMetadata))
-		for k, v := range respSecretMetadata {
-			s.Metadata.Labels[k] = v
-		}
+		maps.Copy(s.Metadata.Labels, respSecretMetadata)
 	}
 
 	return nil
@@ -102,16 +101,10 @@ func (ss *SecretStore) ReadKeyValues(ctx context.Context, n store.ScopedName, s 
 func (ss *SecretStore) WriteKeyValues(ctx context.Context, s *store.Secret, _ ...store.WriteOption) (changed bool, err error) {
 	sec := &essproto.Secret{}
 	sec.ScopedName = ss.getScopedName(s.ScopedName)
-	sec.Data = make(map[string][]byte, len(s.Data))
-	for k, v := range s.Data {
-		sec.Data[k] = v
-	}
+	sec.Data = maps.Clone(s.Data)
 
 	if s.Metadata != nil && len(s.Metadata.Labels) != 0 {
-		sec.Metadata = make(map[string]string, len(s.Metadata.Labels))
-		for k, v := range s.Metadata.Labels {
-			sec.Metadata[k] = v
-		}
+		sec.Metadata = maps.Clone(s.Metadata.Labels)
 	}
 
 	resp, err := ss.client.ApplySecret(ctx, &essproto.ApplySecretRequest{Secret: sec, Config: ss.getConfigReference()})

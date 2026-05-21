@@ -123,7 +123,7 @@ func TestReadKeyValues(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ctx := context.Background()
 			ss := &SecretStore{
-				client: tc.args.client,
+				client: tc.client,
 				config: &v1.Config{
 					APIVersion: "v1alpha1",
 					Kind:       "VaultConfig",
@@ -132,13 +132,13 @@ func TestReadKeyValues(t *testing.T) {
 			}
 			s := &store.Secret{}
 
-			err := ss.ReadKeyValues(ctx, tc.args.sn, s)
+			err := ss.ReadKeyValues(ctx, tc.sn, s)
 
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nss.ReadKeyValues(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
-			if diff := cmp.Diff(tc.want.out, s); diff != "" {
+			if diff := cmp.Diff(tc.out, s); diff != "" {
 				t.Errorf("\n%s\nss.ReadKeyValues(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
@@ -195,7 +195,7 @@ func TestWriteKeyValues(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ctx := context.Background()
 			ss := &SecretStore{
-				client: tc.args.client,
+				client: tc.client,
 				config: &v1.Config{
 					APIVersion: "v1alpha1",
 					Kind:       "VaultConfig",
@@ -206,11 +206,11 @@ func TestWriteKeyValues(t *testing.T) {
 
 			isChanged, err := ss.WriteKeyValues(ctx, s)
 
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nss.WriteKeyValues(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
-			if diff := cmp.Diff(tc.want.isChanged, isChanged); diff != "" {
+			if diff := cmp.Diff(tc.isChanged, isChanged); diff != "" {
 				t.Errorf("\n%s\nss.WriteKeyValues(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
@@ -260,7 +260,7 @@ func TestDeleteKeyValues(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ctx := context.Background()
 			ss := &SecretStore{
-				client: tc.args.client,
+				client: tc.client,
 				config: &v1.Config{
 					APIVersion: "v1alpha1",
 					Kind:       "VaultConfig",
@@ -271,7 +271,7 @@ func TestDeleteKeyValues(t *testing.T) {
 
 			err := ss.DeleteKeyValues(ctx, s)
 
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nss.DeletKeyValues(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})

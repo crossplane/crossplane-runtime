@@ -92,16 +92,16 @@ func TestLoad(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			certsFolderPath := tc.args.certsFolderPath
-			requireClient := tc.args.requireClientValidation
+			certsFolderPath := tc.certsFolderPath
+			requireClient := tc.requireClientValidation
 
 			cfg, err := LoadMTLSConfig(filepath.Join(certsFolderPath, caCertFileName), filepath.Join(certsFolderPath, tlsCertFileName), filepath.Join(certsFolderPath, tlsKeyFileName), requireClient)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nLoad(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
 			if requireClient {
-				if diff := cmp.Diff(tc.want.out.ClientAuth, cfg.ClientAuth); diff != "" {
+				if diff := cmp.Diff(tc.out.ClientAuth, cfg.ClientAuth); diff != "" {
 					t.Errorf("\n%s\nLoad(...): -want, +got:\n%s", tc.reason, diff)
 				}
 			}

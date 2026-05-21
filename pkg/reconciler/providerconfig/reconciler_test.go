@@ -41,6 +41,7 @@ import (
 // GetItems returning managed.ProviderConfigUsage.
 type ProviderConfigUsageList struct {
 	client.ObjectList
+
 	Items []resource.ProviderConfigUsage
 }
 

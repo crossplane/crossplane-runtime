@@ -215,6 +215,7 @@ type shouldRetryFunc func(error) bool
 // An ApplicatorWithRetry applies changes to an object, retrying on transient failures.
 type ApplicatorWithRetry struct {
 	Applicator
+
 	shouldRetry shouldRetryFunc
 	backoff     wait.Backoff
 }

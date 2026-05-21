@@ -401,7 +401,7 @@ type object struct {
 }
 
 func (o *object) DeepCopyObject() runtime.Object {
-	return &object{ObjectMeta: *o.ObjectMeta.DeepCopy()}
+	return &object{ObjectMeta: *o.DeepCopy()}
 }
 
 func TestIsNotControllable(t *testing.T) {
