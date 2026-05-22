@@ -17,43 +17,30 @@ limitations under the License.
 package event
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-type mockRecordRecorder struct {
+// mockKubeRecorder satisfies events.EventRecorder.
+type mockKubeRecorder struct {
 	events []mockEvent
 }
 
 type mockEvent struct {
 	obj     runtime.Object
-	annots  map[string]string
 	typeStr string
 	reason  string
 	msg     string
 }
 
-func (m *mockRecordRecorder) Event(obj runtime.Object, eventtype, reason, message string) {
-	m.events = append(m.events, mockEvent{obj: obj, typeStr: eventtype, reason: reason, msg: message})
-}
-
-func (m *mockRecordRecorder) Eventf(obj runtime.Object, related runtime.Object, eventtype, reason, action, note string, args ...interface{}) {
-	m.events = append(m.events, mockEvent{obj: obj, typeStr: eventtype, reason: reason, msg: args[0].(string)})
-}
-
-func (m *mockRecordRecorder) AnnotatedEventf(obj runtime.Object, annots map[string]string, typeStr, reason, msg string, args ...interface{}) {
-	m.events = append(m.events, mockEvent{obj: obj, annots: annots, typeStr: typeStr, reason: reason, msg: args[0].(string)})
-}
-
-type mockEventsRecorder struct {
-	events []mockEvent
-}
-
-func (m *mockEventsRecorder) Eventf(obj runtime.Object, related runtime.Object, eventtype, reason, action, note string, args ...interface{}) {
-	m.events = append(m.events, mockEvent{obj: obj, typeStr: eventtype, reason: reason, msg: args[0].(string)})
+func (m *mockKubeRecorder) Eventf(obj runtime.Object, _ runtime.Object, eventtype, reason, _, note string, args ...interface{}) {
+	msg := fmt.Sprintf(note, args...)
+	m.events = append(m.events, mockEvent{obj: obj, typeStr: eventtype, reason: reason, msg: msg})
 }
 
 type mockObj struct{}
@@ -128,73 +115,56 @@ func TestSliceMap(t *testing.T) {
 	}
 }
 
-func TestAPIRecorderWithAnnotationsFilterFns(t *testing.T) {
-	filterCalled := false
-	filter := func(obj runtime.Object, e Event) bool {
-		filterCalled = true
-		return false
-	}
+func TestAPIRecorderEvent(t *testing.T) {
+	mr := &mockKubeRecorder{}
+	rec := NewAPIRecorder(mr)
 
-	mr := &mockRecordRecorder{}
+	rec.Event(&mockObj{}, Normal("testReason", "test message"))
+
+	want := mockEvent{typeStr: "Normal", reason: "testReason", msg: "test message"}
+	if diff := cmp.Diff(want, mr.events[0], cmp.AllowUnexported(mockEvent{}), cmpopts.IgnoreFields(mockEvent{}, "obj")); diff != "" {
+		t.Errorf("unexpected event: -want, +got:\n%s", diff)
+	}
+}
+
+func TestAPIRecorderFilter(t *testing.T) {
+	mr := &mockKubeRecorder{}
+	filter := func(_ runtime.Object, _ Event) bool { return true }
 	rec := NewAPIRecorder(mr, filter)
-	_ = rec.WithAnnotations("key", "val")
 
-	rec.Event(&mockObj{}, Normal("test", "msg"))
+	rec.Event(&mockObj{}, Normal("testReason", "test message"))
 
-	if !filterCalled {
-		t.Error("filter function was not preserved after WithAnnotations")
+	if diff := cmp.Diff(0, len(mr.events)); diff != "" {
+		t.Errorf("expected no events, got %d: %s", len(mr.events), diff)
 	}
 }
 
-func TestEventsRecorderWithAnnotationsFilterFns(t *testing.T) {
+func TestAPIRecorderWithAnnotationsPreservesFilterFns(t *testing.T) {
 	filterCalled := false
-	filter := func(obj runtime.Object, e Event) bool {
+	filter := func(_ runtime.Object, _ Event) bool {
 		filterCalled = true
 		return false
 	}
 
-	mr := &mockEventsRecorder{}
-	rec := NewEventsRecorder(mr, filter)
-	_ = rec.WithAnnotations("key", "val")
+	mr := &mockKubeRecorder{}
+	rec := NewAPIRecorder(mr, filter)
+	derived := rec.WithAnnotations("key", "val")
 
-	rec.Event(&mockObj{}, Normal("test", "msg"))
+	derived.Event(&mockObj{}, Normal("test", "msg"))
 
-	if !filterCalled {
-		t.Error("filter function was not preserved after WithAnnotations")
+	if diff := cmp.Diff(true, filterCalled); diff != "" {
+		t.Errorf("filter function was not preserved after WithAnnotations: %s", diff)
 	}
 }
 
-func TestEventsRecorderEvent(t *testing.T) {
-	mr := &mockEventsRecorder{}
-	rec := NewEventsRecorder(mr)
+func TestAPIRecorderWithAnnotationsPreservesExistingAnnotations(t *testing.T) {
+	mr := &mockKubeRecorder{}
+	rec := NewAPIRecorder(mr)
+	r1 := rec.WithAnnotations("k1", "v1").(*APIRecorder)
+	r2 := r1.WithAnnotations("k2", "v2").(*APIRecorder)
 
-	rec.Event(&mockObj{}, Normal("testReason", "test message"))
-
-	if len(mr.events) != 1 {
-		t.Fatalf("expected 1 event, got %d", len(mr.events))
-	}
-
-	if mr.events[0].reason != "testReason" {
-		t.Errorf("expected reason 'testReason', got %q", mr.events[0].reason)
-	}
-	if mr.events[0].msg != "test message" {
-		t.Errorf("expected message 'test message', got %q", mr.events[0].msg)
-	}
-	if mr.events[0].typeStr != "Normal" {
-		t.Errorf("expected type 'Normal', got %q", mr.events[0].typeStr)
-	}
-}
-
-func TestEventsRecorderFilter(t *testing.T) {
-	mr := &mockEventsRecorder{}
-	filter := func(obj runtime.Object, e Event) bool {
-		return true
-	}
-	rec := NewEventsRecorder(mr, filter)
-
-	rec.Event(&mockObj{}, Normal("testReason", "test message"))
-
-	if len(mr.events) != 0 {
-		t.Errorf("expected event to be filtered, got %d events", len(mr.events))
+	want := map[string]string{"k1": "v1", "k2": "v2"}
+	if diff := cmp.Diff(want, r2.annotations); diff != "" {
+		t.Errorf("annotations not preserved correctly: -want, +got:\n%s", diff)
 	}
 }
