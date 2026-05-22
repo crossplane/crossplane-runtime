@@ -1765,23 +1765,23 @@ func TestReconciler(t *testing.T) {
 			want: want{result: reconcile.Result{Requeue: true}},
 		},
 		"ObserveOnlySuccessfulObserve": {
-			reason: "With Observe, a successfully managed resource observe should trigger a requeue after a long wait.",
+			reason: "With Observe, a successful managed resource observe should trigger a requeue after a long wait.",
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							mg := asLegacyManaged(obj, 42)
-							mg.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
+							mg.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionObserve})
 
 							return nil
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
-							want.SetConditions(xpv1.ReconcileSuccess().WithObservedGeneration(42))
+							want.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionObserve})
+							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42).WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
-								reason := "With ObserveOnly, a successfully managed resource observation should be reported as a conditioned status."
+								reason := "With ObserveOnly, a successful managed resource observation should be reported as a conditioned status."
 								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
 							}
 
@@ -1797,7 +1797,7 @@ func TestReconciler(t *testing.T) {
 					WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: true, ResourceUpToDate: true}, nil
+								return ExternalObservation{ResourceExists: true}, nil
 							},
 							DisconnectFn: func(_ context.Context) error {
 								return nil
@@ -1829,8 +1829,8 @@ func TestReconciler(t *testing.T) {
 						}),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetManagementPolicies(xpv1.ManagementPolicies{xpv1.ManagementActionObserve})
-							want.SetConditions(xpv1.ReconcileForbidden().WithObservedGeneration(42).WithMessage("External resource differs from desired state, but will not update due to missing 'Update' managementPolicy. Diff:\nmock diff"))
+							want.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionObserve})
+							want.SetConditions(xpv2.ReconcileForbidden().WithObservedGeneration(42).WithMessage("External resource differs from desired state, but will not update due to missing 'Update' managementPolicy. Diff:\nmock diff"))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "With ObserveOnly, a managed resource observation with a diff to upstream should be reported as a ReconcileForbidden + Synced=False condition"

@@ -1527,7 +1527,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		if observation.Diff != "" {
 			msg = fmt.Sprintf("%s Diff:\n%s", errExternalResourceDiffNoUpdate, observation.Diff)
 		}
-		status.MarkConditions(xpv1.ReconcileForbidden().WithMessage(msg))
+		status.MarkConditions(xpv2.ReconcileForbidden().WithMessage(msg))
 
 		return reconcile.Result{RequeueAfter: reconcileAfter}, errors.Wrap(updateStatus(), errUpdateManagedStatus)
 	}

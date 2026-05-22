@@ -1822,6 +1822,58 @@ func TestModernReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultPollInterval}},
 		},
+		"ObserveOnlySuccessfulObserveWithDiff": {
+			reason: "With Observe, a successful managed resource observe should trigger a requeue after a long wait.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							mg := asModernManaged(obj, 42)
+							mg.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionObserve})
+
+							return nil
+						}),
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
+							want := newModernManaged(42)
+							want.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionObserve})
+							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42).WithMessage("External resource differs from desired state, but will not update due to missing 'Update' managementPolicy. Diff:\nmock diff"))
+
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := "With ObserveOnly, a successful managed resource observation with a diff between external resource and desired spec should be reported as a Sync=False and ReconcileForbidden"
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+
+							return nil
+						}),
+					},
+					Scheme: fake.SchemeWith(&fake.ModernManaged{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.ModernManaged{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithManagementPolicies(),
+					WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false, Diff: "mock diff"}, nil
+							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
+							},
+						}
+
+						return c, nil
+					})),
+					withLocalConnectionPublishers(LocalConnectionPublisherFns{
+						PublishConnectionFn: func(_ context.Context, _ resource.LocalConnectionSecretOwner, _ ConnectionDetails) (bool, error) {
+							return false, nil
+						},
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: defaultPollInterval}},
+		},
 		"ManagementPolicyAllCreateSuccessful": {
 			reason: "Successful managed resource creation using management policy all should trigger a requeue after a short wait.",
 			args: args{
