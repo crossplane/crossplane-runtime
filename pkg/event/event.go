@@ -21,6 +21,7 @@ import (
 	"maps"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/events"
 	"k8s.io/client-go/tools/record"
 )
 
@@ -77,15 +78,24 @@ type Recorder interface {
 	WithAnnotations(keysAndValues ...string) Recorder
 }
 
-// An APIRecorder records Kubernetes events to an API server.
+// An APIRecorder records Kubernetes events to an API server using the
+// deprecated record.EventRecorder.
 type APIRecorder struct {
 	kube        record.EventRecorder
 	annotations map[string]string
 	filterFns   []FilterFn
 }
 
+// An EventsRecorder records Kubernetes events to an API server using the
+// new events.k8s.io API.
+type EventsRecorder struct {
+	kube        events.EventRecorder
+	annotations map[string]string
+	filterFns   []FilterFn
+}
+
 // FilterFn is a function used to filter events.
-// It should return false when events should not be sent.
+// It should return true when events should not be sent.
 type FilterFn func(obj runtime.Object, e Event) bool
 
 // NewAPIRecorder returns an APIRecorder that records Kubernetes events to an
@@ -108,7 +118,35 @@ func (r *APIRecorder) Event(obj runtime.Object, e Event) {
 // WithAnnotations returns a new *APIRecorder that includes the supplied
 // annotations with all recorded events.
 func (r *APIRecorder) WithAnnotations(keysAndValues ...string) Recorder {
-	ar := NewAPIRecorder(r.kube)
+	ar := NewAPIRecorder(r.kube, r.filterFns...)
+	maps.Copy(ar.annotations, r.annotations)
+
+	sliceMap(keysAndValues, ar.annotations)
+
+	return ar
+}
+
+// NewEventsRecorder returns an EventsRecorder that records Kubernetes events to an
+// APIServer using the new events.k8s.io API.
+func NewEventsRecorder(r events.EventRecorder, fns ...FilterFn) *EventsRecorder {
+	return &EventsRecorder{kube: r, annotations: map[string]string{}, filterFns: fns}
+}
+
+// Event records the supplied event using the new events API.
+func (r *EventsRecorder) Event(obj runtime.Object, e Event) {
+	for _, filter := range r.filterFns {
+		if filter(obj, e) {
+			return
+		}
+	}
+
+	r.kube.Eventf(obj, nil, string(e.Type), string(e.Reason), "", "%s", e.Message)
+}
+
+// WithAnnotations returns a new *EventsRecorder that includes the supplied
+// annotations with all recorded events.
+func (r *EventsRecorder) WithAnnotations(keysAndValues ...string) Recorder {
+	ar := NewEventsRecorder(r.kube, r.filterFns...)
 	maps.Copy(ar.annotations, r.annotations)
 
 	sliceMap(keysAndValues, ar.annotations)
