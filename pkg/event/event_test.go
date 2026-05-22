@@ -40,7 +40,7 @@ func (m *mockRecordRecorder) Event(obj runtime.Object, eventtype, reason, messag
 	m.events = append(m.events, mockEvent{obj: obj, typeStr: eventtype, reason: reason, msg: message})
 }
 
-func (m *mockRecordRecorder) Eventf(obj runtime.Object, eventtype, reason, messageFmt string, args ...interface{}) {
+func (m *mockRecordRecorder) Eventf(obj runtime.Object, related runtime.Object, eventtype, reason, action, note string, args ...interface{}) {
 	m.events = append(m.events, mockEvent{obj: obj, typeStr: eventtype, reason: reason, msg: args[0].(string)})
 }
 
