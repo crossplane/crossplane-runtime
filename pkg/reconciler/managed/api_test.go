@@ -253,6 +253,10 @@ func TestAPILocalSecretPublisher(t *testing.T) {
 	mg := &fake.ModernManaged{
 		LocalConnectionSecretWriterTo: fake.LocalConnectionSecretWriterTo{Ref: &xpv2.LocalSecretReference{
 			Name: "coolsecret",
+			Metadata: &xpv2.SecretReferenceMetadata{
+				Labels:      map[string]string{"desired": "label"},
+				Annotations: map[string]string{"desired": "annotation"},
+			},
 		}},
 	}
 
@@ -327,6 +331,105 @@ func TestAPILocalSecretPublisher(t *testing.T) {
 				published: false,
 				err:       nil,
 			},
+		},
+		"MetadataChanged": {
+			reason: "Metadata-only changes should publish an updated local secret",
+			fields: fields{
+				secret: resource.ApplyFn(func(ctx context.Context, o client.Object, ao ...resource.ApplyOption) error {
+					current := resource.LocalConnectionSecretFor(mg, fake.GVK(mg))
+					current.Data = cd
+					current.Labels = map[string]string{"stale": "label"}
+					current.Annotations = map[string]string{"stale": "annotation"}
+
+					for _, fn := range ao {
+						if err := fn(ctx, current, o); err != nil {
+							return err
+						}
+					}
+
+					return nil
+				}),
+				typer: fake.SchemeWith(&fake.ModernManaged{}),
+			},
+			args: args{
+				ctx: context.Background(),
+				mg:  mg,
+				c:   cd,
+			},
+			want: want{published: true},
+		},
+		"MetadataOmittedPreservesExisting": {
+			reason: "Omitting metadata should preserve existing local secret metadata and remain a no-op when data matches",
+			fields: fields{
+				secret: resource.ApplyFn(func(ctx context.Context, o client.Object, ao ...resource.ApplyOption) error {
+					withoutMetadata := mg.DeepCopyObject().(*fake.ModernManaged)
+					withoutMetadata.LocalConnectionSecretWriterTo.Ref = &xpv2.LocalSecretReference{Name: "coolsecret"}
+					want := resource.LocalConnectionSecretFor(withoutMetadata, fake.GVK(withoutMetadata))
+					want.Data = cd
+					want.Labels = map[string]string{"keep": "label"}
+					want.Annotations = map[string]string{"keep": "annotation"}
+
+					for _, fn := range ao {
+						if err := fn(ctx, want, o); err != nil {
+							return err
+						}
+					}
+
+					return nil
+				}),
+				typer: fake.SchemeWith(&fake.ModernManaged{}),
+			},
+			args: args{
+				ctx: context.Background(),
+				mg: &fake.ModernManaged{
+					LocalConnectionSecretWriterTo: fake.LocalConnectionSecretWriterTo{Ref: &xpv2.LocalSecretReference{Name: "coolsecret"}},
+				},
+				c: cd,
+			},
+			want: want{
+				published: false,
+				err:       nil,
+			},
+		},
+		"LabelsOnlyMetadataClearsAnnotations": {
+			reason: "Metadata with only labels specified should clear existing annotations",
+			fields: fields{
+				secret: resource.ApplyFn(func(ctx context.Context, o client.Object, ao ...resource.ApplyOption) error {
+					labelsOnly := &fake.ModernManaged{
+						LocalConnectionSecretWriterTo: fake.LocalConnectionSecretWriterTo{Ref: &xpv2.LocalSecretReference{
+							Name: "coolsecret",
+							Metadata: &xpv2.SecretReferenceMetadata{
+								Labels: map[string]string{"desired": "label"},
+							},
+						}},
+					}
+					current := resource.LocalConnectionSecretFor(labelsOnly, fake.GVK(labelsOnly))
+					current.Data = cd
+					current.Annotations = map[string]string{"stale": "annotation"}
+
+					for _, fn := range ao {
+						if err := fn(ctx, current, o); err != nil {
+							return err
+						}
+					}
+
+					return nil
+				}),
+				typer: fake.SchemeWith(&fake.ModernManaged{}),
+			},
+			args: args{
+				ctx: context.Background(),
+				mg: &fake.ModernManaged{
+					LocalConnectionSecretWriterTo: fake.LocalConnectionSecretWriterTo{Ref: &xpv2.LocalSecretReference{
+						Name: "coolsecret",
+						Metadata: &xpv2.SecretReferenceMetadata{
+							Labels: map[string]string{"desired": "label"},
+						},
+					}},
+				},
+				c: cd,
+			},
+			want: want{published: true},
 		},
 		"Success": {
 			reason: "A successful application of the connection secret should result in no error",

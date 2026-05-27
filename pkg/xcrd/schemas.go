@@ -283,6 +283,25 @@ func CompositeResourceClaimSpecProps(defaultPol *xpv2.CompositeDeletePolicy) map
 			Required: []string{"name"},
 			Properties: map[string]extv1.JSONSchemaProps{
 				"name": {Type: "string"},
+				"metadata": {
+					Type: "object",
+					Properties: map[string]extv1.JSONSchemaProps{
+						"labels": {
+							Type: "object",
+							AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+								Allows: true,
+								Schema: &extv1.JSONSchemaProps{Type: "string"},
+							},
+						},
+						"annotations": {
+							Type: "object",
+							AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+								Allows: true,
+								Schema: &extv1.JSONSchemaProps{Type: "string"},
+							},
+						},
+					},
+				},
 			},
 		},
 	}
