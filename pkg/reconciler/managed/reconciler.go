@@ -536,6 +536,17 @@ type ExternalObservation struct {
 	// finding where the observed diverges from the desired state.
 	// The string should be a cmp.Diff that details the difference.
 	Diff string
+
+	// AsyncOperationInProgress indicates that an asynchronous operation
+	// (e.g. a long-running cloud API call) is currently in progress for
+	// this resource. When set alongside ResourceUpToDate: true, the
+	// managed reconciler will set Synced=False with reason
+	// ReconcilePending instead of ReconcileSuccess. This field has no
+	// effect when ResourceUpToDate is false. It is intended for use by
+	// providers that return ResourceUpToDate: true to suppress Update()
+	// during async operations, but need to avoid the false
+	// ReconcileSuccess signal that would otherwise result.
+	AsyncOperationInProgress bool
 }
 
 // An ExternalCreation is the result of the creation of an external resource.
@@ -1496,8 +1507,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		// https://github.com/crossplane/crossplane/issues/289
 		reconcileAfter := r.pollIntervalHook(managed, r.effectivePollInterval(managed))
 		log.Debug("External resource is up to date", "requeue-after", time.Now().Add(reconcileAfter))
-		status.MarkConditions(xpv2.ReconcileSuccess())
-		r.metricRecorder.recordFirstTimeReady(managed)
+
+		if observation.AsyncOperationInProgress {
+			log.Debug("Async operation in progress, setting ReconcilePending")
+			status.MarkConditions(xpv2.ReconcilePending("Async operation in progress"))
+		} else {
+			status.MarkConditions(xpv2.ReconcileSuccess())
+			r.metricRecorder.recordFirstTimeReady(managed)
+		}
 
 		// record that we intentionally did not update the managed resource
 		// because no drift was detected. We call this so late in the reconcile
