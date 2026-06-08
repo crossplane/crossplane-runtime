@@ -78,7 +78,13 @@ func TestLocalConnectionSecretFor(t *testing.T) {
 						Name:      name,
 						UID:       uid,
 					},
-					Ref: &xpv2.LocalSecretReference{Name: secretName},
+					Ref: &xpv2.LocalSecretReference{
+						Name: secretName,
+						Metadata: &xpv2.SecretReferenceMetadata{
+							Labels:      map[string]string{"l": "v"},
+							Annotations: map[string]string{"a": "v"},
+						},
+					},
 				},
 				kind: MockOwnerGVK,
 			},
@@ -86,6 +92,80 @@ func TestLocalConnectionSecretFor(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: namespace,
 					Name:      secretName,
+					Labels:    map[string]string{"l": "v"},
+					Annotations: map[string]string{
+						"a": "v",
+					},
+					OwnerReferences: []metav1.OwnerReference{{
+						APIVersion:         MockOwnerGVK.GroupVersion().String(),
+						Kind:               MockOwnerGVK.Kind,
+						Name:               name,
+						UID:                uid,
+						Controller:         &controller,
+						BlockOwnerDeletion: &controller,
+					}},
+				},
+				Type: SecretTypeConnection,
+				Data: map[string][]byte{},
+			},
+		},
+		"LabelsOnlyCoercesAnnotationsToEmpty": {
+			args: args{
+				o: &fake.MockLocalConnectionSecretOwner{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: namespace,
+						Name:      name,
+						UID:       uid,
+					},
+					Ref: &xpv2.LocalSecretReference{
+						Name: secretName,
+						Metadata: &xpv2.SecretReferenceMetadata{
+							Labels: map[string]string{"l": "v"},
+						},
+					},
+				},
+				kind: MockOwnerGVK,
+			},
+			want: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace:   namespace,
+					Name:        secretName,
+					Labels:      map[string]string{"l": "v"},
+					Annotations: map[string]string{},
+					OwnerReferences: []metav1.OwnerReference{{
+						APIVersion:         MockOwnerGVK.GroupVersion().String(),
+						Kind:               MockOwnerGVK.Kind,
+						Name:               name,
+						UID:                uid,
+						Controller:         &controller,
+						BlockOwnerDeletion: &controller,
+					}},
+				},
+				Type: SecretTypeConnection,
+				Data: map[string][]byte{},
+			},
+		},
+		"EmptyMetadataCoercesBothToEmpty": {
+			args: args{
+				o: &fake.MockLocalConnectionSecretOwner{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: namespace,
+						Name:      name,
+						UID:       uid,
+					},
+					Ref: &xpv2.LocalSecretReference{
+						Name:     secretName,
+						Metadata: &xpv2.SecretReferenceMetadata{},
+					},
+				},
+				kind: MockOwnerGVK,
+			},
+			want: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace:   namespace,
+					Name:        secretName,
+					Labels:      map[string]string{},
+					Annotations: map[string]string{},
 					OwnerReferences: []metav1.OwnerReference{{
 						APIVersion:         MockOwnerGVK.GroupVersion().String(),
 						Kind:               MockOwnerGVK.Kind,
@@ -132,7 +212,10 @@ func TestConnectionSecretFor(t *testing.T) {
 						Name:      name,
 						UID:       uid,
 					},
-					WriterTo: &xpv2.SecretReference{Namespace: namespace, Name: secretName},
+					WriterTo: &xpv2.SecretReference{
+						Namespace: namespace,
+						Name:      secretName,
+					},
 				},
 				kind: MockOwnerGVK,
 			},
