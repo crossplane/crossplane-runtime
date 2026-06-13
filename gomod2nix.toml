@@ -314,8 +314,8 @@ schema = 3
     version = "v1.18.5"
     hash = "sha256-H9b5iFJf4XbEnkGQCjGQAJ3aYhVDiolKrDewTbhuzQo="
   [mod."github.com/letsencrypt/boulder"]
-    version = "v0.20260223.0"
-    hash = "sha256-p/AuDyJr7chBqbXT+LLa3ShKX96aC3SsfzR2ekb2+xM="
+    version = "v0.20260309.0"
+    hash = "sha256-uqkYtnaoghoqVv4QbInTLZBCD6uS95pQM0Q0fm5Kgm4="
   [mod."github.com/mattn/go-colorable"]
     version = "v0.1.14"
     hash = "sha256-JC60PjKj7MvhZmUHTZ9p372FV72I9Mxvli3fivTbxuA="
@@ -374,8 +374,8 @@ schema = 3
     version = "v7.2.1+incompatible"
     hash = "sha256-vHyTdLRh6OlfoGzVgvx7I0+E6tpE7V43lCQaHD/e8J4="
   [mod."github.com/secure-systems-lab/go-securesystemslib"]
-    version = "v0.10.0"
-    hash = "sha256-KY68WNnb3tgNTi0QWsmirkPfmU0xyaP23QVuSuawtHQ="
+    version = "v0.11.0"
+    hash = "sha256-cE+nOWw3PrwtRIRHgs5qpwn6rFGwRSe/j57mGkbbA4w="
   [mod."github.com/shibumi/go-pathspec"]
     version = "v1.3.0"
     hash = "sha256-ZHLft/o+xyJrUlaCwnCDqbjkPj6iIxlOuA0fFBuwVvM="
@@ -392,8 +392,8 @@ schema = 3
     version = "v2.2.1"
     hash = "sha256-mRnRvIp0UE7o5CUJiG8hs5xFJABuEAWWnjvTwz/4cKo="
   [mod."github.com/sigstore/sigstore"]
-    version = "v1.10.5"
-    hash = "sha256-t9oup+yS4jWxEoVbYLjUrI+Hu1XlWe+bu7KVOCIf+aE="
+    version = "v1.10.8"
+    hash = "sha256-9dK8uADbWpxL6ZE+zMQk5I16SMmhKYHfuRAfBquhZlw="
   [mod."github.com/sigstore/sigstore-go"]
     version = "v1.1.4"
     hash = "sha256-EsPVloCbJXMXOUKsNU00WQzzR2DfkbmCGYGdYgnH94I="
@@ -439,6 +439,9 @@ schema = 3
   [mod."github.com/x448/float16"]
     version = "v0.8.4"
     hash = "sha256-VKzMTMS9pIB/cwe17xPftCSK9Mf4Y6EuBEJlB4by5mE="
+  [mod."github.com/youmark/pkcs8"]
+    version = "v0.0.0-20240726163527-a2c0da244d78"
+    hash = "sha256-7ETUt8onE9mdUlvHT5xxzfh8mK0qw15ZSYXQCtah9p4="
   [mod."go.opentelemetry.io/auto/sdk"]
     version = "v1.2.1"
     hash = "sha256-73bFYhnxNf4SfeQ52ebnwOWywdQbqc9lWawCcSgofvE="
