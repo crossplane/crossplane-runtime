@@ -421,7 +421,7 @@ func TestPackageValidSemver(t *testing.T) {
 					},
 				},
 			},
-			err: errors.Wrap(fmt.Errorf("improper constraint: %s", invalidConstraint), errBadConstraints),
+			err: errors.Wrap(fmt.Errorf("improper constraint: \"%s\"", invalidConstraint), errBadConstraints),
 		},
 	}
 
