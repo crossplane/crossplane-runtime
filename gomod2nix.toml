@@ -296,8 +296,8 @@ schema = 3
     version = "v0.7.8"
     hash = "sha256-4LZwKaFBbpKi9lSq5y6lOlYHU6WMnQdGNMxTd33rN80="
   [mod."github.com/in-toto/attestation"]
-    version = "v1.1.2"
-    hash = "sha256-BdRbWCnzMCMyZmo8lkovtvGWQq2qCB7S2XBZWClJ6TM="
+    version = "v1.2.0"
+    hash = "sha256-NjVN4QeU1X52n4Om8d+cHxLqByfGtkxaXLtXYUlKd5k="
   [mod."github.com/in-toto/in-toto-golang"]
     version = "v0.11.0"
     hash = "sha256-Rcp+UkWKBYomxPpoJqVINL26AhYNd88npXl2ryNqZ+k="
