@@ -726,16 +726,16 @@ schema = 3
     hash = 'sha256-FxD4b+cOzKuXsGI4NpsaUK/YTOMxugMGAh2jY3od3p8='
 
   [mod.'k8s.io/klog/v2']
-    version = 'v2.130.1'
-    hash = 'sha256-n5vls1o1a0V0KYv+3SULq4q3R2Is15K8iDHhFlsSH4o='
+    version = 'v2.140.0'
+    hash = 'sha256-TbA5ZdLRzxa7WRnz3zgPPtTplgC33eY9yKKqVFDrPWU='
 
   [mod.'k8s.io/kube-openapi']
     version = 'v0.0.0-20260127142750-a19766b6e2d4'
     hash = 'sha256-NS8NvGTX3Ycoc4JU/jwLgtNlD5OOQ5zk2hzvFFSD/jM='
 
   [mod.'k8s.io/utils']
-    version = 'v0.0.0-20260507154919-ff6756f316d2'
-    hash = 'sha256-FDXwN0ebhU9HhxbN9bxGM4bRt7wiy5bKhY0FJqDxLGE='
+    version = 'v0.0.0-20260108192941-914a6e750570'
+    hash = 'sha256-eFcd1fZT9M7wc/foeEAUj3jgHJfEY9U3lVqQTkIVJ44='
 
   [mod.'sigs.k8s.io/apiserver-network-proxy/konnectivity-client']
     version = 'v0.34.0'
