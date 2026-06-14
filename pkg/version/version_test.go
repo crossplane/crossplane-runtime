@@ -77,7 +77,7 @@ func TestInRange(t *testing.T) {
 				r:       ">a2",
 			},
 			want: want{
-				err: errors.New("improper constraint: >a2"),
+				err: errors.New("improper constraint: \">a2\""),
 			},
 		},
 		"ValidSpaceSeparatedRange": {
@@ -107,7 +107,7 @@ func TestInRange(t *testing.T) {
 				r:       ">=v2.0.0 >v5a.0.0",
 			},
 			want: want{
-				err: errors.New("improper constraint: >=v2.0.0 >v5a.0.0"),
+				err: errors.New("improper constraint: \">=v2.0.0 >v5a.0.0\""),
 			},
 		},
 	}
