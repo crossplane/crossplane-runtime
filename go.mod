@@ -10,8 +10,8 @@ require (
 	github.com/evanphx/json-patch v5.9.11+incompatible
 	github.com/go-logr/logr v1.4.3
 	github.com/google/go-cmp v0.7.0
-	github.com/google/go-containerregistry v0.20.7
-	github.com/google/go-containerregistry/pkg/authn/k8schain v0.0.0-20230919002926-dbcd01c402b2
+	github.com/google/go-containerregistry v0.21.2
+	github.com/google/go-containerregistry/pkg/authn/k8schain v0.0.0-20260312205200-e9163014982e
 	github.com/in-toto/attestation v1.1.2
 	github.com/in-toto/in-toto-golang v0.11.0
 	github.com/prometheus/client_golang v1.23.2
