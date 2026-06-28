@@ -538,6 +538,28 @@ func TestRemoveFinalizer(t *testing.T) {
 			},
 			want: []string{funalizer},
 		},
+		"DuplicateFinalizersExist": {
+			args: args{
+				o: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Finalizers: []string{finalizer, finalizer},
+					},
+				},
+				finalizer: finalizer,
+			},
+			want: []string{},
+		},
+		"DuplicateFinalizersWithOther": {
+			args: args{
+				o: &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Finalizers: []string{finalizer, funalizer, finalizer},
+					},
+				},
+				finalizer: finalizer,
+			},
+			want: []string{funalizer},
+		},
 	}
 
 	for name, tc := range cases {
