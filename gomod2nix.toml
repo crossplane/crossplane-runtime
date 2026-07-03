@@ -498,8 +498,8 @@ schema = 3
     hash = 'sha256-ZHLft/o+xyJrUlaCwnCDqbjkPj6iIxlOuA0fFBuwVvM='
 
   [mod.'github.com/sigstore/cosign/v3']
-    version = 'v3.0.5'
-    hash = 'sha256-wN5iAfcBCDTvhbvSar4DBw7w1sxIFWcMKv8qkx07mfo='
+    version = 'v3.0.6'
+    hash = 'sha256-AyjEIy9FRBUY0M+OuLyBbSR16DLIDoBoP8O5SmX+GuM='
 
   [mod.'github.com/sigstore/protobuf-specs']
     version = 'v0.5.1'
@@ -580,10 +580,6 @@ schema = 3
   [mod.'go.opentelemetry.io/auto/sdk']
     version = 'v1.2.1'
     hash = 'sha256-73bFYhnxNf4SfeQ52ebnwOWywdQbqc9lWawCcSgofvE='
-
-  [mod.'go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp']
-    version = 'v0.64.0'
-    hash = 'sha256-xilqHTTNmvhxDFfTnE8ZytsrYq5gYFD77/glakljCy0='
 
   [mod.'go.opentelemetry.io/otel']
     version = 'v1.43.0'
@@ -698,20 +694,20 @@ schema = 3
     hash = 'sha256-FqL9TKYJ0XkNwJFnq9j0VvJ5ZUU1RvH/52h/f5bkYAU='
 
   [mod.'k8s.io/api']
-    version = 'v0.35.1'
-    hash = 'sha256-lOfx98TObjLpO9Xg+PcR7G567x5pY/iiChXFhbpRclQ='
+    version = 'v0.35.3'
+    hash = 'sha256-MIl5MB5b6QsV/VSWoDDmqx8GdNnfNmAnXIe0DRKo5vI='
 
   [mod.'k8s.io/apiextensions-apiserver']
     version = 'v0.35.0'
     hash = 'sha256-RZdGkV4SoCTY022pIzQbeVwaxIYhIpXapLZrD593gh8='
 
   [mod.'k8s.io/apimachinery']
-    version = 'v0.35.1'
+    version = 'v0.35.3'
     hash = 'sha256-+dplbHUOfaCaD2E9IS4F3lnjSCr/a4LjTgdB9de92Pw='
 
   [mod.'k8s.io/client-go']
-    version = 'v0.35.1'
-    hash = 'sha256-QEQ7TLUviAXDbvp2s6tT3HZtXy7pLjj5qSDu89iC9ek='
+    version = 'v0.35.3'
+    hash = 'sha256-AO5PGH8y95OOb3wInCHDgyxerbFmo7DBTyc1c8DImSk='
 
   [mod.'k8s.io/code-generator']
     version = 'v0.35.0'
