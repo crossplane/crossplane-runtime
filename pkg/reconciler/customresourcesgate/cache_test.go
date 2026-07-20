@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -238,7 +239,7 @@ func TestTransformStripCRDSchema(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			got, err := TransformStripCRDSchema(tc.args.obj)
 
-			if diff := cmp.Diff(tc.want.err, err); diff != "" {
+			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
 				t.Errorf("%s\nTransformStripCRDSchema(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
