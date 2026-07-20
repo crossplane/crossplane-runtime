@@ -38,7 +38,7 @@ type mockEvent struct {
 	msg     string
 }
 
-func (m *mockKubeRecorder) Eventf(obj runtime.Object, _ runtime.Object, eventtype, reason, _, note string, args ...interface{}) {
+func (m *mockKubeRecorder) Eventf(obj runtime.Object, _ runtime.Object, eventtype, reason, _, note string, args ...any) {
 	msg := fmt.Sprintf(note, args...)
 	m.events = append(m.events, mockEvent{obj: obj, typeStr: eventtype, reason: reason, msg: msg})
 }

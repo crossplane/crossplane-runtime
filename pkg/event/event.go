@@ -109,7 +109,7 @@ func (r *APIRecorder) Event(obj runtime.Object, e Event) {
 		}
 	}
 
-	r.kube.Eventf(obj, nil, string(e.Type), string(e.Reason), "", "%s", e.Message)
+	r.kube.Eventf(obj, nil, string(e.Type), string(e.Reason), string(e.Reason), "%s", e.Message)
 }
 
 // WithAnnotations returns a new *APIRecorder that includes the supplied
