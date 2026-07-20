@@ -23,10 +23,13 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
@@ -556,6 +559,88 @@ func TestReconcile(t *testing.T) {
 				if diff := cmp.Diff(tc.want.falseCalls, tc.fields.gate.FalseCalls); diff != "" {
 					t.Errorf("\n%s\ngate.False calls: -want, +got:\n%s", tc.reason, diff)
 				}
+			}
+		})
+	}
+}
+
+func TestGroupPredicate(t *testing.T) {
+	type args struct {
+		groups []string
+		obj    client.Object
+	}
+	type want struct {
+		match bool
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"CRDGroupPresent": {
+			reason: "CRD is present in the specified groups, predicate should return true",
+			args: args{
+				groups: []string{"example.com"},
+				obj: &apiextensionsv1.CustomResourceDefinition{
+					Spec: apiextensionsv1.CustomResourceDefinitionSpec{
+						Group: "example.com",
+					},
+				},
+			},
+			want: want{
+				match: true,
+			},
+		},
+		"CRDGroupAbsent": {
+			reason: "CRD is not present in the specified groups, predicate should return false",
+			args: args{
+				groups: []string{"example.com"},
+				obj: &apiextensionsv1.CustomResourceDefinition{
+					Spec: apiextensionsv1.CustomResourceDefinitionSpec{
+						Group: "other.com",
+					},
+				},
+			},
+			want: want{
+				match: false,
+			},
+		},
+		"EmptyGroups": {
+			reason: "No groups specified, predicate should return false for any CRD",
+			args: args{
+				groups: []string{},
+				obj: &apiextensionsv1.CustomResourceDefinition{
+					Spec: apiextensionsv1.CustomResourceDefinitionSpec{
+						Group: "example.com",
+					},
+				},
+			},
+			want: want{
+				match: false,
+			},
+		},
+		"NonCRDObject": {
+			reason: "Object is not a CRD, predicate should return false",
+			args: args{
+				groups: []string{"example.com"},
+				obj:    &corev1.ConfigMap{},
+			},
+			want: want{
+				match: false,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := GroupPredicate(tc.args.groups...)
+			ev := event.GenericEvent{
+				Object: tc.args.obj,
+			}
+			match := got.Generic(ev)
+			if match != tc.want.match {
+				t.Errorf("\n%s\nGroupPredicate(...): -want match, +got match:\n%s", tc.reason, cmp.Diff(tc.want.match, match))
 			}
 		})
 	}
