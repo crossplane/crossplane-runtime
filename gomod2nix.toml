@@ -341,10 +341,6 @@ schema = 3
     version = 'v0.0.4'
     hash = 'sha256-Umx+5xHAQCN/Gi4HbtMhnDCSPFAXSsjVbXd8n5LhjAA='
 
-  [mod.'github.com/google/btree']
-    version = 'v1.1.3'
-    hash = 'sha256-/6Us2eNRFi2IIp7p5uPUXLridilAdk4SmZhcTYR0csw='
-
   [mod.'github.com/google/cel-go']
     version = 'v0.26.1'
     hash = 'sha256-XVL+pNGjmLrQefpB7qj419zWl1qhPVHmVxsP/Ro1AtE='
@@ -589,10 +585,6 @@ schema = 3
     version = 'v1.44.0'
     hash = 'sha256-XTGV9RjOIKyWrrgXJ32IA59lovxXqSeRrpcpC1FAFZA='
 
-  [mod.'go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc']
-    version = 'v1.39.0'
-    hash = 'sha256-7pfSAaoIS1fbtVd9CCx6J4/DHBsmReon6r9Hocb2CCU='
-
   [mod.'go.opentelemetry.io/otel/metric']
     version = 'v1.44.0'
     hash = 'sha256-e8dVyRoavby/YG7aH2T05IhWHlLvwnMHyPhelAS1mCQ='
@@ -678,8 +670,8 @@ schema = 3
     hash = 'sha256-5Q85pZWiKulJSGRAjYcVrlBe7y4tfa9gsjCqYiBhLUU='
 
   [mod.'google.golang.org/protobuf']
-    version = 'v1.36.11'
-    hash = 'sha256-7W+6jntfI/awWL3JP6yQedxqP5S9o3XvPgJ2XxxsIeE='
+    version = 'v1.36.12-0.20260120151049-f2248ac996af'
+    hash = 'sha256-G6dblBo/FH3sIvIrHuco6fpaRIWBdV2xtorLFU49r5I='
 
   [mod.'gopkg.in/evanphx/json-patch.v4']
     version = 'v4.13.0'
@@ -698,28 +690,28 @@ schema = 3
     hash = 'sha256-FqL9TKYJ0XkNwJFnq9j0VvJ5ZUU1RvH/52h/f5bkYAU='
 
   [mod.'k8s.io/api']
-    version = 'v0.35.3'
-    hash = 'sha256-MIl5MB5b6QsV/VSWoDDmqx8GdNnfNmAnXIe0DRKo5vI='
+    version = 'v0.36.0'
+    hash = 'sha256-sz7uMJfjD/eSh/lkeH2y38Wo6fBvXMqsZN6eoueRcF8='
 
   [mod.'k8s.io/apiextensions-apiserver']
-    version = 'v0.35.0'
-    hash = 'sha256-RZdGkV4SoCTY022pIzQbeVwaxIYhIpXapLZrD593gh8='
+    version = 'v0.36.0'
+    hash = 'sha256-/eAsfuocLKW5zybHR8waFqdRVwU1Z3XkeDLY6WSs2DE='
 
   [mod.'k8s.io/apimachinery']
-    version = 'v0.35.3'
-    hash = 'sha256-+dplbHUOfaCaD2E9IS4F3lnjSCr/a4LjTgdB9de92Pw='
+    version = 'v0.36.0'
+    hash = 'sha256-WbbNl5jyz1c6BOfCjlbMeP6riujXSN1Jwfxy3KYSqBk='
 
   [mod.'k8s.io/client-go']
-    version = 'v0.35.3'
-    hash = 'sha256-AO5PGH8y95OOb3wInCHDgyxerbFmo7DBTyc1c8DImSk='
+    version = 'v0.36.0'
+    hash = 'sha256-ceIf6rxnvUo7BWdl8z831Vkai7Ib90NTNIuFkYJcVOA='
 
   [mod.'k8s.io/code-generator']
-    version = 'v0.35.0'
-    hash = 'sha256-0F8vNVdF/quBPGxOpxBL/GhupnkMoTE8dcZYX57RZKk='
+    version = 'v0.36.0'
+    hash = 'sha256-3Knhv5zj5Ho8wSL88kLMC6eVSUYYu2454RRICu2Lh2w='
 
   [mod.'k8s.io/component-base']
-    version = 'v0.35.0'
-    hash = 'sha256-fIAmKs3/T8oHrXBX3sMWr/D1DGhyCsgM+6ZFdaA8BXU='
+    version = 'v0.36.0'
+    hash = 'sha256-9/SRoV1bKNsRhScceovpe4elxct9OapowUErGblLBW0='
 
   [mod.'k8s.io/gengo/v2']
     version = 'v2.0.0-20251215205346-5ee0d033ba5b'
@@ -730,20 +722,16 @@ schema = 3
     hash = 'sha256-TbA5ZdLRzxa7WRnz3zgPPtTplgC33eY9yKKqVFDrPWU='
 
   [mod.'k8s.io/kube-openapi']
-    version = 'v0.0.0-20260127142750-a19766b6e2d4'
-    hash = 'sha256-NS8NvGTX3Ycoc4JU/jwLgtNlD5OOQ5zk2hzvFFSD/jM='
+    version = 'v0.0.0-20260317180543-43fb72c5454a'
+    hash = 'sha256-tcNu4BjJxxWFlbe2BuicgVNxwmD78JCbv4o9Bgc1tO0='
 
   [mod.'k8s.io/utils']
-    version = 'v0.0.0-20260108192941-914a6e750570'
-    hash = 'sha256-eFcd1fZT9M7wc/foeEAUj3jgHJfEY9U3lVqQTkIVJ44='
-
-  [mod.'sigs.k8s.io/apiserver-network-proxy/konnectivity-client']
-    version = 'v0.34.0'
-    hash = 'sha256-98ScvhhmVxEVAGv9rhk10ceYUadNOuBERtCcdaIb42s='
+    version = 'v0.0.0-20260210185600-b8788abfbbc2'
+    hash = 'sha256-yV4Uv2+bUhZlAIbxc9YYzjzrBnpN5iN5dQELKeJ5dZM='
 
   [mod.'sigs.k8s.io/controller-runtime']
-    version = 'v0.23.1'
-    hash = 'sha256-iOaYAJgy/Q1Hi6afs5mLtP8K5J8Cs/MlDoGp8wE1GOY='
+    version = 'v0.24.1'
+    hash = 'sha256-NEMbIJ6iK43PYbQic4sGEiFYQoIAYNRBI58CB4zRpWM='
 
   [mod.'sigs.k8s.io/controller-tools']
     version = 'v0.20.0'
@@ -758,7 +746,7 @@ schema = 3
     hash = 'sha256-xldQxDwW84hmlihdSOFfjXyauhxEWV9KmIDLZMTcYNo='
 
   [mod.'sigs.k8s.io/structured-merge-diff/v6']
-    version = 'v6.3.2-0.20260122202528-d9cc6641c482'
+    version = 'v6.3.2'
     hash = 'sha256-4ZUkeHKvdhsZmFSSZKAL/1GZdPO6735BY6FqRc+8tog='
 
   [mod.'sigs.k8s.io/yaml']
