@@ -589,10 +589,6 @@ schema = 3
     version = 'v1.44.0'
     hash = 'sha256-XTGV9RjOIKyWrrgXJ32IA59lovxXqSeRrpcpC1FAFZA='
 
-  [mod.'go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc']
-    version = 'v1.39.0'
-    hash = 'sha256-7pfSAaoIS1fbtVd9CCx6J4/DHBsmReon6r9Hocb2CCU='
-
   [mod.'go.opentelemetry.io/otel/metric']
     version = 'v1.44.0'
     hash = 'sha256-e8dVyRoavby/YG7aH2T05IhWHlLvwnMHyPhelAS1mCQ='
@@ -678,8 +674,8 @@ schema = 3
     hash = 'sha256-5Q85pZWiKulJSGRAjYcVrlBe7y4tfa9gsjCqYiBhLUU='
 
   [mod.'google.golang.org/protobuf']
-    version = 'v1.36.11'
-    hash = 'sha256-7W+6jntfI/awWL3JP6yQedxqP5S9o3XvPgJ2XxxsIeE='
+    version = 'v1.36.12-0.20260120151049-f2248ac996af'
+    hash = 'sha256-G6dblBo/FH3sIvIrHuco6fpaRIWBdV2xtorLFU49r5I='
 
   [mod.'gopkg.in/evanphx/json-patch.v4']
     version = 'v4.13.0'
@@ -698,28 +694,28 @@ schema = 3
     hash = 'sha256-FqL9TKYJ0XkNwJFnq9j0VvJ5ZUU1RvH/52h/f5bkYAU='
 
   [mod.'k8s.io/api']
-    version = 'v0.35.3'
-    hash = 'sha256-MIl5MB5b6QsV/VSWoDDmqx8GdNnfNmAnXIe0DRKo5vI='
+    version = 'v0.36.3'
+    hash = 'sha256-h3Uog5d1UsO4e+Yu5rtHpy9IEgCw7G8kmBOMcssVSM8='
 
   [mod.'k8s.io/apiextensions-apiserver']
-    version = 'v0.35.0'
-    hash = 'sha256-RZdGkV4SoCTY022pIzQbeVwaxIYhIpXapLZrD593gh8='
+    version = 'v0.36.3'
+    hash = 'sha256-iP28p/hEl5d/pz1Ob+Hkg0yvT6iaVwjBOv2A1XuM3g8='
 
   [mod.'k8s.io/apimachinery']
-    version = 'v0.35.3'
-    hash = 'sha256-+dplbHUOfaCaD2E9IS4F3lnjSCr/a4LjTgdB9de92Pw='
+    version = 'v0.36.3'
+    hash = 'sha256-My1lGvhUG7HVQ4UR12FVVD/Nrn0i34326CojEeEIN0U='
 
   [mod.'k8s.io/client-go']
-    version = 'v0.35.3'
-    hash = 'sha256-AO5PGH8y95OOb3wInCHDgyxerbFmo7DBTyc1c8DImSk='
+    version = 'v0.36.3'
+    hash = 'sha256-GOdjoHmmgJaQzorUe+X0fXG+R5ynhdeZ74lJAmYCSzY='
 
   [mod.'k8s.io/code-generator']
-    version = 'v0.35.0'
-    hash = 'sha256-0F8vNVdF/quBPGxOpxBL/GhupnkMoTE8dcZYX57RZKk='
+    version = 'v0.36.3'
+    hash = 'sha256-Cx/hriZkKVX4Yj4aAs/v4vZUVXZFlDDcuJU5fvpLnhs='
 
   [mod.'k8s.io/component-base']
-    version = 'v0.35.0'
-    hash = 'sha256-fIAmKs3/T8oHrXBX3sMWr/D1DGhyCsgM+6ZFdaA8BXU='
+    version = 'v0.36.3'
+    hash = 'sha256-CQeRTWGyudQ0erj6h4ysWVV0S5/v/JdSIvOzad5+N6A='
 
   [mod.'k8s.io/gengo/v2']
     version = 'v2.0.0-20251215205346-5ee0d033ba5b'
@@ -730,16 +726,12 @@ schema = 3
     hash = 'sha256-TbA5ZdLRzxa7WRnz3zgPPtTplgC33eY9yKKqVFDrPWU='
 
   [mod.'k8s.io/kube-openapi']
-    version = 'v0.0.0-20260127142750-a19766b6e2d4'
-    hash = 'sha256-NS8NvGTX3Ycoc4JU/jwLgtNlD5OOQ5zk2hzvFFSD/jM='
+    version = 'v0.0.0-20260317180543-43fb72c5454a'
+    hash = 'sha256-tcNu4BjJxxWFlbe2BuicgVNxwmD78JCbv4o9Bgc1tO0='
 
   [mod.'k8s.io/utils']
-    version = 'v0.0.0-20260108192941-914a6e750570'
-    hash = 'sha256-eFcd1fZT9M7wc/foeEAUj3jgHJfEY9U3lVqQTkIVJ44='
-
-  [mod.'sigs.k8s.io/apiserver-network-proxy/konnectivity-client']
-    version = 'v0.34.0'
-    hash = 'sha256-98ScvhhmVxEVAGv9rhk10ceYUadNOuBERtCcdaIb42s='
+    version = 'v0.0.0-20260210185600-b8788abfbbc2'
+    hash = 'sha256-yV4Uv2+bUhZlAIbxc9YYzjzrBnpN5iN5dQELKeJ5dZM='
 
   [mod.'sigs.k8s.io/controller-runtime']
     version = 'v0.23.1'
@@ -758,8 +750,8 @@ schema = 3
     hash = 'sha256-xldQxDwW84hmlihdSOFfjXyauhxEWV9KmIDLZMTcYNo='
 
   [mod.'sigs.k8s.io/structured-merge-diff/v6']
-    version = 'v6.3.2-0.20260122202528-d9cc6641c482'
-    hash = 'sha256-4ZUkeHKvdhsZmFSSZKAL/1GZdPO6735BY6FqRc+8tog='
+    version = 'v6.3.3'
+    hash = 'sha256-3bx7f2bJsxdFRbxGlAHcMbAPlYvdVeWp7QSn/WSN39c='
 
   [mod.'sigs.k8s.io/yaml']
     version = 'v1.6.0'
