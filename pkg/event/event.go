@@ -21,14 +21,14 @@ import (
 	"maps"
 
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/tools/record"
+	"k8s.io/client-go/tools/events"
 )
 
 // A Type of event.
 type Type string
 
-// Event types. See below for valid types.
-// https://godoc.org/k8s.io/client-go/tools/record#EventRecorder
+// Event types.
+// https://pkg.go.dev/k8s.io/client-go/tools/events#EventRecorder
 const (
 	TypeNormal  Type = "Normal"
 	TypeWarning Type = "Warning"
@@ -39,36 +39,27 @@ type Reason string
 
 // An Event relating to a Crossplane resource.
 type Event struct {
-	Type        Type
-	Reason      Reason
-	Message     string
-	Annotations map[string]string
+	Type    Type
+	Reason  Reason
+	Message string
 }
 
 // Normal returns a normal, informational event.
-func Normal(r Reason, message string, keysAndValues ...string) Event {
-	e := Event{
-		Type:        TypeNormal,
-		Reason:      r,
-		Message:     message,
-		Annotations: map[string]string{},
+func Normal(r Reason, message string) Event {
+	return Event{
+		Type:    TypeNormal,
+		Reason:  r,
+		Message: message,
 	}
-	sliceMap(keysAndValues, e.Annotations)
-
-	return e
 }
 
 // Warning returns a warning event, typically due to an error.
-func Warning(r Reason, err error, keysAndValues ...string) Event {
-	e := Event{
-		Type:        TypeWarning,
-		Reason:      r,
-		Message:     err.Error(),
-		Annotations: map[string]string{},
+func Warning(r Reason, err error) Event {
+	return Event{
+		Type:    TypeWarning,
+		Reason:  r,
+		Message: err.Error(),
 	}
-	sliceMap(keysAndValues, e.Annotations)
-
-	return e
 }
 
 // A Recorder records Kubernetes events.
@@ -77,20 +68,27 @@ type Recorder interface {
 	WithAnnotations(keysAndValues ...string) Recorder
 }
 
-// An APIRecorder records Kubernetes events to an API server.
+// FilterFn is a function used to filter events. Returning true prevents the
+// event from being recorded.
+type FilterFn func(obj runtime.Object, e Event) bool
+
+// An APIRecorder records Kubernetes events to an API server using the
+// events.k8s.io/v1 API introduced in Kubernetes 1.19.
+//
+// Note: the events.EventRecorder interface does not support per-event
+// annotations (unlike the deprecated record.EventRecorder.AnnotatedEventf).
+// Annotations accumulated via WithAnnotations are stored but cannot be
+// forwarded to the API server. Callers that relied on annotation propagation
+// should encode that metadata into the event message instead.
 type APIRecorder struct {
-	kube        record.EventRecorder
-	annotations map[string]string
+	kube        events.EventRecorder
+	annotations map[string]string // stored but not forwarded; see type doc.
 	filterFns   []FilterFn
 }
 
-// FilterFn is a function used to filter events.
-// It should return false when events should not be sent.
-type FilterFn func(obj runtime.Object, e Event) bool
-
 // NewAPIRecorder returns an APIRecorder that records Kubernetes events to an
-// APIServer using the supplied EventRecorder.
-func NewAPIRecorder(r record.EventRecorder, fns ...FilterFn) *APIRecorder {
+// API server using the supplied EventRecorder.
+func NewAPIRecorder(r events.EventRecorder, fns ...FilterFn) *APIRecorder {
 	return &APIRecorder{kube: r, annotations: map[string]string{}, filterFns: fns}
 }
 
@@ -102,13 +100,16 @@ func (r *APIRecorder) Event(obj runtime.Object, e Event) {
 		}
 	}
 
-	r.kube.AnnotatedEventf(obj, r.annotations, string(e.Type), string(e.Reason), "%s", e.Message)
+	r.kube.Eventf(obj, nil, string(e.Type), string(e.Reason), string(e.Reason), "%s", e.Message)
 }
 
 // WithAnnotations returns a new *APIRecorder that includes the supplied
-// annotations with all recorded events.
+// annotations. Note: the events.k8s.io API does not support per-event
+// annotations, so accumulated annotations are stored but not propagated to
+// the API server. Encode annotation data in the event message if it must
+// appear in the emitted event.
 func (r *APIRecorder) WithAnnotations(keysAndValues ...string) Recorder {
-	ar := NewAPIRecorder(r.kube)
+	ar := NewAPIRecorder(r.kube, r.filterFns...)
 	maps.Copy(ar.annotations, r.annotations)
 
 	sliceMap(keysAndValues, ar.annotations)
