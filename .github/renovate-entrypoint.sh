@@ -14,6 +14,15 @@ apt-get update && apt-get install -y nix-bin
 
 # Configure Nix
 mkdir -p /etc/nix
+
+# The Renovate container can't run Nix as sandboxed, so HOME=/homeless-shelter. Any build that
+# writes to $HOME, will cause subsequent builds to fail if that directory isn't cleaned up first.
+cat > /usr/local/bin/nix-clean-homeless-shelter << 'EOF'
+#!/bin/sh
+rm -rf /homeless-shelter
+EOF
+chmod +x /usr/local/bin/nix-clean-homeless-shelter
+
 cat > /etc/nix/nix.conf << 'EOF'
 # Enable flakes and the nix command (e.g. nix run, nix build).
 experimental-features = nix-command flakes
@@ -22,8 +31,11 @@ experimental-features = nix-command flakes
 # needing to create the nixbld group and users in this ephemeral container.
 build-users-group =
 
-# Build derivations in parallel, one per CPU core.
-max-jobs = auto
+# One build at a time, so no build starts before we can clean up /homeless-shelter.
+max-jobs = 1
+
+# Removes /homeless-shelter after each build (see the hook script above).
+post-build-hook = /usr/local/bin/nix-clean-homeless-shelter
 
 # Use the Crossplane Cachix cache to download pre-built binaries from CI.
 extra-substituters = https://crossplane.cachix.org
