@@ -57,10 +57,6 @@ schema = 3
     version = 'v3.5.0'
     hash = 'sha256-Ps7gEw0nkHDZO/iDru/s+X8rMaUkNmiZ7id1GsIKlDU='
 
-  [mod.'github.com/antlr4-go/antlr/v4']
-    version = 'v4.13.1'
-    hash = 'sha256-beAuxHNRUuhzcSJUh/8ztVf1zCUiaT72fg2Jvx0AuNQ='
-
   [mod.'github.com/asaskevich/govalidator']
     version = 'v0.0.0-20230301143203-a9d515a09cc2'
     hash = 'sha256-UCENzt1c1tFgsAzK2TNq5s2g0tQMQ5PxFaQKe8hTL/A='
@@ -346,8 +342,8 @@ schema = 3
     hash = 'sha256-/6Us2eNRFi2IIp7p5uPUXLridilAdk4SmZhcTYR0csw='
 
   [mod.'github.com/google/cel-go']
-    version = 'v0.26.1'
-    hash = 'sha256-XVL+pNGjmLrQefpB7qj419zWl1qhPVHmVxsP/Ro1AtE='
+    version = 'v0.29.0'
+    hash = 'sha256-j+zKJBywrA2UKzB/TAElEHwKsCa39+iEmzcbvsws3d4='
 
   [mod.'github.com/google/certificate-transparency-go']
     version = 'v1.3.3'
@@ -544,10 +540,6 @@ schema = 3
   [mod.'github.com/spf13/pflag']
     version = 'v1.0.10'
     hash = 'sha256-uDPnWjHpSrzXr17KEYEA1yAbizfcsfo5AyztY2tS6ZU='
-
-  [mod.'github.com/stoewer/go-strcase']
-    version = 'v1.3.1'
-    hash = 'sha256-yptboRvbZtX+OEdlTgJnrCT+bvaMgCJp5B9ifEaSfw0='
 
   [mod.'github.com/syndtr/goleveldb']
     version = 'v1.0.1-0.20220721030215-126854af5e6d'
