@@ -1196,12 +1196,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 	}
 
 	// In the observe-only mode, !observation.ResourceExists will be an error
-	// case, and we will explicitly return this information to the user.
+	// case, and we will explicitly return this information to the user. This is
+	// a stable state rather than a transient failure, so we requeue after the
+	// poll interval instead of through the error rate limiter - only the
+	// appearance of the external resource can resolve it.
 	if !observation.ResourceExists && policy.ShouldOnlyObserve() {
 		record.Event(managed, event.Warning(reasonCannotObserve, errors.New(errExternalResourceNotExist)))
 		status.MarkConditions(xpv2.ReconcileError(errors.Wrap(errors.New(errExternalResourceNotExist), errReconcileObserve)))
 
-		return reconcile.Result{Requeue: true}, errors.Wrap(updateStatus(), errUpdateManagedStatus)
+		reconcileAfter := r.pollIntervalHook(managed, r.effectivePollInterval(managed))
+		log.Debug("External resource does not exist", "requeue-after", time.Now().Add(reconcileAfter))
+
+		return reconcile.Result{RequeueAfter: reconcileAfter}, errors.Wrap(updateStatus(), errUpdateManagedStatus)
 	}
 
 	// If this resource has a non-zero creation grace period we want to wait
