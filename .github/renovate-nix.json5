@@ -7,16 +7,18 @@
     enabled: true,
   },
 
+  // Refresh flake.lock weekly by running 'nix flake update', even when no
+  // flake input has a newer version to bump to (e.g. branch refs like
+  // nixpkgs-unstable). This is what actually moves the locked revision
+  // forward and picks up new package versions, such as Go.
+  lockFileMaintenance: {
+    enabled: true,
+    extends: [
+      'schedule:weekly',
+    ],
+  },
+
   packageRules: [
-    {
-      description: 'Update flake.lock monthly',
-      matchManagers: [
-        'nix',
-      ],
-      extends: [
-        'schedule:monthly',
-      ],
-    },
     {
       description: 'Regenerate gomod2nix.toml and generated code after upgrading go dependencies (Nix)',
       matchDatasources: [
