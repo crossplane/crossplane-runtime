@@ -351,7 +351,7 @@ func TestReconciler(t *testing.T) {
 						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42), xpv2.ObserveMatched().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful no-op reconcile should be reported as a conditioned status."
@@ -1088,7 +1088,7 @@ func TestReconciler(t *testing.T) {
 						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42), xpv2.ObserveMatched().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful no-op reconcile should be reported as a conditioned status."
@@ -1253,7 +1253,7 @@ func TestReconciler(t *testing.T) {
 						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetConditions(xpv2.ReconcileError(errors.Wrap(errBoom, errReconcileUpdate)).WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileError(errors.Wrap(errBoom, errReconcileUpdate)).WithObservedGeneration(42), xpv2.UpdateFailed().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors while updating an external resource should be reported as a conditioned status."
@@ -1354,7 +1354,7 @@ func TestReconciler(t *testing.T) {
 						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42), xpv2.UpdateRequested().WithObservedGeneration(42).WithMessage("this is a diff"))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful managed resource update should be reported as a conditioned status."
@@ -1373,7 +1373,7 @@ func TestReconciler(t *testing.T) {
 					WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false}, nil
+								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false, Diff: "this is a diff"}, nil
 							},
 							UpdateFn: func(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
 								return ExternalUpdate{}, nil
@@ -1398,7 +1398,7 @@ func TestReconciler(t *testing.T) {
 						MockGet: legacyManagedMockGetFn(nil, 42),
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
-							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42), xpv2.UpdateRequested().WithObservedGeneration(42).WithMessage("this is a diff"))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful managed resource update should be reported as a conditioned status."
@@ -1417,7 +1417,7 @@ func TestReconciler(t *testing.T) {
 					WithTypedExternalConnector(TypedExternalConnectorFn[*fake.LegacyManaged](func(_ context.Context, _ *fake.LegacyManaged) (TypedExternalClient[*fake.LegacyManaged], error) {
 						c := &TypedExternalClientFns[*fake.LegacyManaged]{
 							ObserveFn: func(_ context.Context, _ *fake.LegacyManaged) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false}, nil
+								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false, Diff: "this is a diff"}, nil
 							},
 							UpdateFn: func(_ context.Context, _ *fake.LegacyManaged) (ExternalUpdate, error) {
 								return ExternalUpdate{}, nil
@@ -1450,7 +1450,7 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
-							want.SetConditions(xpv2.ReconcilePaused().WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcilePaused().WithObservedGeneration(42), xpv2.PausedUnknown().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := `If managed resource has the pause annotation with value "true", it should acquire "Synced" status condition with the status "False" and the reason "ReconcilePaused".`
@@ -1480,7 +1480,7 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv2.ManagementPolicies{})
-							want.SetConditions(xpv2.ReconcilePaused().WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcilePaused().WithObservedGeneration(42), xpv2.PausedUnknown().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := `If managed resource has the pause annotation with value "true", it should acquire "Synced" status condition with the status "False" and the reason "ReconcilePaused".`
@@ -1516,7 +1516,7 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "false"})
-							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42), xpv2.ObserveMatched().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := `Managed resource should acquire Synced=False/ReconcileSuccess status condition after a resume.`
@@ -1778,7 +1778,7 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionObserve})
-							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42).WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42).WithObservedGeneration(42), xpv2.UpdateRestricted().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "With ObserveOnly, a successful managed resource observation should be reported as a conditioned status."
@@ -1915,7 +1915,7 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionObserve, xpv2.ManagementActionLateInitialize, xpv2.ManagementActionCreate, xpv2.ManagementActionDelete})
-							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42), xpv2.UpdateRestricted().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := `Managed resource should acquire Synced=False/ReconcileSuccess status condition.`
@@ -1966,7 +1966,7 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionAll})
-							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42).WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42).WithObservedGeneration(42), xpv2.UpdateRequested().WithObservedGeneration(42).WithMessage("this is a diff"))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful managed resource update should be reported as a conditioned status."
@@ -1986,7 +1986,7 @@ func TestReconciler(t *testing.T) {
 					WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false}, nil
+								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false, Diff: "this is a diff"}, nil
 							},
 							UpdateFn: func(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
 								return ExternalUpdate{}, nil
@@ -2017,7 +2017,7 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionAll})
-							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42), xpv2.UpdateRequested().WithObservedGeneration(42).WithMessage("this is a diff"))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "A successful managed resource update should be reported as a conditioned status."
@@ -2037,7 +2037,7 @@ func TestReconciler(t *testing.T) {
 					WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
 							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false}, nil
+								return ExternalObservation{ResourceExists: true, ResourceUpToDate: false, Diff: "this is a diff"}, nil
 							},
 							UpdateFn: func(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
 								return ExternalUpdate{}, nil
@@ -2069,7 +2069,7 @@ func TestReconciler(t *testing.T) {
 						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
 							want := newLegacyManaged(42)
 							want.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionObserve, xpv2.ManagementActionUpdate, xpv2.ManagementActionCreate, xpv2.ManagementActionDelete})
-							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42))
+							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42), xpv2.ObserveMatched().WithObservedGeneration(42))
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								reason := "Errors updating a managed resource should be reported as a conditioned status."
