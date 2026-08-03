@@ -389,8 +389,8 @@ schema = 3
     version = "v1.10.8"
     hash = "sha256-9dK8uADbWpxL6ZE+zMQk5I16SMmhKYHfuRAfBquhZlw="
   [mod."github.com/sigstore/sigstore-go"]
-    version = "v1.2.0"
-    hash = "sha256-RHWoHhDnBW3nyS8ABPjixctdt2mSvNo0F7+LKYRZ/1E="
+    version = "v1.2.1"
+    hash = "sha256-n1HRB7lP6Ku5sH3vawULWSDZTd4mQhqXByruQD/lueI="
   [mod."github.com/sigstore/timestamp-authority/v2"]
     version = "v2.1.2"
     hash = "sha256-U4pk8+goAE6rqMJlwqt8QknknewX1J0nS2ccVzYE0xY="
