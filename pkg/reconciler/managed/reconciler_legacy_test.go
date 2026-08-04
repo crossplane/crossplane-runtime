@@ -385,7 +385,7 @@ func TestReconciler(t *testing.T) {
 			want: want{result: reconcile.Result{RequeueAfter: defaultPollInterval}},
 		},
 		"ExternalObserveError": {
-			reason: "Errors observing the external resource should trigger a requeue after a short wait.",
+			reason: "Errors observing the external resource should trigger a rate limited requeue, even when a poll interval is configured.",
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
@@ -406,6 +406,7 @@ func TestReconciler(t *testing.T) {
 				},
 				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
+					WithPollInterval(10 * time.Minute),
 					WithInitializers(),
 					WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
 						c := &ExternalClientFns{
@@ -1668,7 +1669,7 @@ func TestReconciler(t *testing.T) {
 			want: want{result: reconcile.Result{}},
 		},
 		"ObserveOnlyResourceDoesNotExist": {
-			reason: "With only Observe management action, observing a resource that does not exist should be reported as a conditioned status error.",
+			reason: "With only Observe management action, observing a resource that does not exist should be reported as a conditioned status error and requeued after the poll interval, not via the error rate limiter.",
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
@@ -1695,6 +1696,7 @@ func TestReconciler(t *testing.T) {
 				},
 				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
 				o: []ReconcilerOption{
+					WithPollInterval(10 * time.Minute),
 					WithInitializers(),
 					WithManagementPolicies(),
 					WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
@@ -1711,7 +1713,7 @@ func TestReconciler(t *testing.T) {
 					})),
 				},
 			},
-			want: want{result: reconcile.Result{Requeue: true}},
+			want: want{result: reconcile.Result{RequeueAfter: 10 * time.Minute}},
 		},
 		"ObserveOnlyPublishConnectionDetailsError": {
 			reason: "With Observe, errors publishing connection details after observation should trigger a requeue after a short wait.",
