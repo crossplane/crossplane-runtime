@@ -83,11 +83,11 @@ func merge(dst, src any, mergeOptions *MergeOptions) (any, error) {
 
 func removeSourceDuplicates(dst, src any) any {
 	sliceDst, sliceSrc := reflect.ValueOf(dst), reflect.ValueOf(src)
-	if sliceDst.Kind() == reflect.Ptr {
+	if sliceDst.Kind() == reflect.Pointer {
 		sliceDst = sliceDst.Elem()
 	}
 
-	if sliceSrc.Kind() == reflect.Ptr {
+	if sliceSrc.Kind() == reflect.Pointer {
 		sliceSrc = sliceSrc.Elem()
 	}
 
