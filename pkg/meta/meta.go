@@ -190,11 +190,9 @@ func AddFinalizer(o metav1.Object, finalizer string) {
 // RemoveFinalizer from the supplied Kubernetes object's metadata.
 func RemoveFinalizer(o metav1.Object, finalizer string) {
 	f := o.GetFinalizers()
-	for i, e := range f {
-		if e == finalizer {
-			f = append(f[:i], f[i+1:]...)
-		}
-	}
+	f = slices.DeleteFunc(f, func(e string) bool {
+		return e == finalizer
+	})
 
 	o.SetFinalizers(f)
 }
