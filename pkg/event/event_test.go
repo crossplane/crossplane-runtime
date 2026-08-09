@@ -35,12 +35,13 @@ type mockEvent struct {
 	obj     runtime.Object
 	typeStr string
 	reason  string
+	action  string
 	msg     string
 }
 
-func (m *mockKubeRecorder) Eventf(obj runtime.Object, _ runtime.Object, eventtype, reason, _, note string, args ...any) {
+func (m *mockKubeRecorder) Eventf(obj runtime.Object, _ runtime.Object, eventtype, reason, action, note string, args ...any) {
 	msg := fmt.Sprintf(note, args...)
-	m.events = append(m.events, mockEvent{obj: obj, typeStr: eventtype, reason: reason, msg: msg})
+	m.events = append(m.events, mockEvent{obj: obj, typeStr: eventtype, reason: reason, action: action, msg: msg})
 }
 
 type mockObj struct{}
@@ -121,7 +122,7 @@ func TestAPIRecorderEvent(t *testing.T) {
 
 	rec.Event(&mockObj{}, Normal("testReason", "test message"))
 
-	want := mockEvent{typeStr: "Normal", reason: "testReason", msg: "test message"}
+	want := mockEvent{typeStr: "Normal", reason: "testReason", action: "testReason", msg: "test message"}
 	if diff := cmp.Diff(want, mr.events[0], cmp.AllowUnexported(mockEvent{}), cmpopts.IgnoreFields(mockEvent{}, "obj")); diff != "" {
 		t.Errorf("unexpected event: -want, +got:\n%s", diff)
 	}
