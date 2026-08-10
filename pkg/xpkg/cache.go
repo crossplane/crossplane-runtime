@@ -36,6 +36,7 @@ const cacheContentExt = ".gz"
 // A PackageCache caches package content.
 type PackageCache interface {
 	Has(id string) bool
+	// Get returns cached package content. The caller must close the returned reader.
 	Get(id string) (io.ReadCloser, error)
 	Store(id string, content io.ReadCloser) error
 	Delete(id string) error
@@ -86,7 +87,8 @@ func (c *FsPackageCache) Has(id string) bool {
 	return false
 }
 
-// Get retrieves package contents from the cache.
+// Get retrieves package contents from the cache. It holds a read lock until the
+// returned reader is closed.
 func (c *FsPackageCache) Get(id string) (io.ReadCloser, error) {
 	c.mu.RLock()
 

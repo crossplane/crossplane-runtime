@@ -327,7 +327,7 @@ func TestStoreWaitsForReader(t *testing.T) {
 
 func TestGetErrorReleasesLock(t *testing.T) {
 	fs := afero.NewMemMapFs()
-	f, err := fs.Create("/cache/package.gz")
+	f, err := fs.Create(BuildPath("/cache", "package", cacheContentExt))
 	if err != nil {
 		t.Fatalf("Create(...): unexpected error: %v", err)
 	}
