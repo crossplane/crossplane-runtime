@@ -43,11 +43,28 @@ import (
 
 var _ reconcile.Reconciler = &Reconciler{}
 
+func TestNewReconcilerRequiresProviderConfigUsageCleaner(t *testing.T) {
+	defer func() {
+		got := recover()
+		if got == nil {
+			t.Fatal("NewReconciler(...): expected a panic when the ProviderConfigUsageCleaner is nil")
+		}
+
+		want := "managed reconciler requires a ProviderConfigUsageCleaner"
+		if diff := cmp.Diff(want, fmt.Sprint(got)); diff != "" {
+			t.Errorf("NewReconciler(...): -want panic, +got panic:\n%s", diff)
+		}
+	}()
+
+	NewReconciler(nil, resource.ManagedKind{}, nil)
+}
+
 func TestModernReconciler(t *testing.T) {
 	type args struct {
-		m  manager.Manager
-		mg resource.ManagedKind
-		o  []ReconcilerOption
+		m     manager.Manager
+		mg    resource.ManagedKind
+		usage resource.ProviderConfigUsageCleaner
+		o     []ReconcilerOption
 	}
 
 	type want struct {
@@ -58,7 +75,6 @@ func TestModernReconciler(t *testing.T) {
 
 	errBoom := errors.New("boom")
 	now := metav1.Now()
-
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -166,6 +182,41 @@ func TestModernReconciler(t *testing.T) {
 		},
 		"DeleteSuccessfulDeletionPolicyOrphan": {
 			reason: "Successful managed resource deletion with no-delete management policy should not trigger a requeue or status update.",
+			args: func() args {
+				finalizerRemoved := false
+				return args{
+					m: &fake.Manager{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								mg := asModernManaged(obj, 42)
+								mg.SetDeletionTimestamp(&now)
+								mg.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionObserve})
+
+								return nil
+							}),
+						},
+						Scheme: fake.SchemeWith(&fake.ModernManaged{}),
+					},
+					mg: resource.ManagedKind(fake.GVK(&fake.ModernManaged{})),
+					usage: resource.ProviderConfigUsageCleanerFn(func(_ context.Context, _ resource.Managed) error {
+						if !finalizerRemoved {
+							t.Error("ProviderConfigUsage released before managed resource finalizer was removed")
+						}
+						return nil
+					}),
+					o: []ReconcilerOption{
+						WithManagementPolicies(),
+						WithFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error {
+							finalizerRemoved = true
+							return nil
+						}}),
+					},
+				}
+			}(),
+			want: want{result: reconcile.Result{Requeue: false}},
+		},
+		"UntrackErrorDeletionPolicyOrphan": {
+			reason: "Errors releasing the ProviderConfigUsage after orphaning the external resource should be returned.",
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
@@ -173,19 +224,22 @@ func TestModernReconciler(t *testing.T) {
 							mg := asModernManaged(obj, 42)
 							mg.SetDeletionTimestamp(&now)
 							mg.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionObserve})
-
 							return nil
 						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 					},
 					Scheme: fake.SchemeWith(&fake.ModernManaged{}),
 				},
 				mg: resource.ManagedKind(fake.GVK(&fake.ModernManaged{})),
+				usage: resource.ProviderConfigUsageCleanerFn(func(_ context.Context, _ resource.Managed) error {
+					return errBoom
+				}),
 				o: []ReconcilerOption{
 					WithManagementPolicies(),
 					WithFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 				},
 			},
-			want: want{result: reconcile.Result{Requeue: false}},
+			want: want{result: reconcile.Result{Requeue: true}, err: errors.Wrap(errBoom, errUntrackProviderConfig)},
 		},
 		"InitializeError": {
 			reason: "Errors initializing the managed resource should trigger a requeue after a short wait.",
@@ -694,6 +748,39 @@ func TestModernReconciler(t *testing.T) {
 				},
 			},
 			want: want{result: reconcile.Result{Requeue: false}},
+		},
+		"UntrackErrorDeletionPolicyDelete": {
+			reason: "Errors releasing the ProviderConfigUsage after deleting the external resource should be returned.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							asModernManaged(obj, 42).SetDeletionTimestamp(&now)
+							return nil
+						}),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+					},
+					Scheme: fake.SchemeWith(&fake.ModernManaged{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.ModernManaged{})),
+				usage: resource.ProviderConfigUsageCleanerFn(func(_ context.Context, _ resource.Managed) error {
+					return errBoom
+				}),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+					WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
+						return &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+								return ExternalObservation{ResourceExists: false}, nil
+							},
+							DisconnectFn: func(_ context.Context) error { return nil },
+						}, nil
+					})),
+					WithFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
+			},
+			want: want{result: reconcile.Result{Requeue: true}, err: errors.Wrap(errBoom, errUntrackProviderConfig)},
 		},
 		"PublishObservationConnectionDetailsError": {
 			reason: "Errors publishing connection details after observation should trigger a requeue after a short wait.",
@@ -2171,7 +2258,11 @@ func TestModernReconciler(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewReconciler(tc.args.m, tc.args.mg, tc.args.o...)
+			usage := tc.args.usage
+			if usage == nil {
+				usage = resource.NewNopProviderConfigUsageCleaner()
+			}
+			r := NewReconciler(tc.args.m, tc.args.mg, usage, tc.args.o...)
 
 			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -2837,7 +2928,7 @@ func TestReconcilerChangeLogs(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			tc.args.o = append(tc.args.o, WithChangeLogger(NewGRPCChangeLogger(tc.args.c, WithProviderVersion("provider-cool:v9.99.999"))))
-			r := NewReconciler(tc.args.m, tc.args.mg, tc.args.o...)
+			r := NewReconciler(tc.args.m, tc.args.mg, resource.NewNopProviderConfigUsageCleaner(), tc.args.o...)
 			r.Reconcile(context.Background(), reconcile.Request{})
 
 			if diff := cmp.Diff(tc.want.callCount, len(tc.args.c.requests)); diff != "" {
@@ -2981,7 +3072,7 @@ func TestReconcilePollIntervalAnnotation(t *testing.T) {
 					}),
 				},
 				Scheme: fake.SchemeWith(&fake.ModernManaged{}),
-			}, resource.ManagedKind(fake.GVK(&fake.ModernManaged{})),
+			}, resource.ManagedKind(fake.GVK(&fake.ModernManaged{})), resource.NewNopProviderConfigUsageCleaner(),
 				WithPollInterval(tc.pollInterval),
 				WithMinPollInterval(tc.minPollInterval),
 				WithInitializers(),
@@ -3070,7 +3161,7 @@ func TestReconcileRequestAnnotation(t *testing.T) {
 					}),
 				},
 				Scheme: fake.SchemeWith(&fake.ModernManaged{}),
-			}, resource.ManagedKind(fake.GVK(&fake.ModernManaged{})),
+			}, resource.ManagedKind(fake.GVK(&fake.ModernManaged{})), resource.NewNopProviderConfigUsageCleaner(),
 				WithInitializers(),
 				WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
 				WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
@@ -3114,4 +3205,90 @@ func modernManagedMockGetFn(err error, generation int64) test.MockGetFn {
 		asModernManaged(obj, generation)
 		return nil
 	})
+}
+
+// TestReconcilePropagationFinalizersDoNotDelayDelete ensures Kubernetes
+// propagation finalizers do not prevent external deletion.
+func TestReconcilePropagationFinalizersDoNotDelayDelete(t *testing.T) {
+	errBoom := errors.New("boom")
+	now := metav1.Now()
+
+	cases := map[string]struct {
+		reason           string
+		finalizers       []string
+		wantDeleteCalled bool
+	}{
+		"ForegroundDeletion": {
+			reason:           "Kubernetes' foregroundDeletion finalizer must not delay the external delete.",
+			finalizers:       []string{FinalizerName, metav1.FinalizerDeleteDependents},
+			wantDeleteCalled: true,
+		},
+		"OrphanDependents": {
+			reason:           "Kubernetes' orphan finalizer must not delay the external delete.",
+			finalizers:       []string{FinalizerName, metav1.FinalizerOrphanDependents},
+			wantDeleteCalled: true,
+		},
+		"BothPropagationFinalizers": {
+			reason:           "Neither propagation finalizer must delay the external delete.",
+			finalizers:       []string{FinalizerName, metav1.FinalizerDeleteDependents, metav1.FinalizerOrphanDependents},
+			wantDeleteCalled: true,
+		},
+		"ForeignFinalizer": {
+			reason:           "A finalizer belonging to another controller must still delay the external delete.",
+			finalizers:       []string{FinalizerName, "example.org/another-controller"},
+			wantDeleteCalled: false,
+		},
+		"ForeignFinalizerAlongsidePropagation": {
+			reason:           "A foreign finalizer must delay the external delete even when a propagation finalizer is also present.",
+			finalizers:       []string{FinalizerName, metav1.FinalizerDeleteDependents, "example.org/another-controller"},
+			wantDeleteCalled: false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			deleteCalled := false
+
+			m := &fake.Manager{
+				Client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						mg := asModernManaged(obj, 42)
+						mg.SetDeletionTimestamp(&now)
+						mg.SetFinalizers(tc.finalizers)
+
+						return nil
+					}),
+					MockUpdate:       test.NewMockUpdateFn(nil),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+				},
+				Scheme: fake.SchemeWith(&fake.ModernManaged{}),
+			}
+
+			r := NewReconciler(m, resource.ManagedKind(fake.GVK(&fake.ModernManaged{})), resource.NewNopProviderConfigUsageCleaner(),
+				WithInitializers(),
+				WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+				WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
+					return &ExternalClientFns{
+						ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+							return ExternalObservation{ResourceExists: true}, nil
+						},
+						// Stop after recording whether Delete was called.
+						DeleteFn: func(_ context.Context, _ resource.Managed) (ExternalDelete, error) {
+							deleteCalled = true
+							return ExternalDelete{}, errBoom
+						},
+						DisconnectFn: func(_ context.Context) error { return nil },
+					}, nil
+				})),
+			)
+
+			if _, err := r.Reconcile(context.Background(), reconcile.Request{}); err != nil {
+				t.Errorf("%s\nr.Reconcile(...): unexpected error: %v", tc.reason, err)
+			}
+
+			if diff := cmp.Diff(tc.wantDeleteCalled, deleteCalled); diff != "" {
+				t.Errorf("%s\nr.Reconcile(...): -want external Delete called, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
 }

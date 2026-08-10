@@ -25,7 +25,9 @@ import (
 
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -45,6 +47,8 @@ const (
 	errGetPC        = "cannot get ProviderConfig"
 	errListPCUs     = "cannot list ProviderConfigUsages"
 	errDeletePCU    = "cannot delete ProviderConfigUsage"
+	errGetPCUOwner  = "cannot get ProviderConfigUsage owner"
+	errReleasePCU   = "cannot release ProviderConfigUsage"
 	errUpdate       = "cannot update ProviderConfig"
 	errUpdateStatus = "cannot update ProviderConfig status"
 )
@@ -83,6 +87,8 @@ func ControllerName(kind string) string {
 // for which it is responsible.
 type Reconciler struct {
 	client client.Client
+	// apiReader bypasses the cache when checking a usage's owner.
+	apiReader client.Reader
 
 	newConfig    func() resource.ProviderConfig
 	newUsageList func() resource.ProviderConfigUsageList
@@ -127,7 +133,8 @@ func NewReconciler(m manager.Manager, of resource.ProviderConfigKinds, o ...Reco
 	_, _ = nc(), nul()
 
 	r := &Reconciler{
-		client: m.GetClient(),
+		client:    m.GetClient(),
+		apiReader: m.GetAPIReader(),
 
 		newConfig:    nc,
 		newUsageList: nul,
@@ -192,8 +199,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	users := int64(len(l.GetItems()))
+
+	// Requeue while waiting for an owner because this controller does not watch
+	// managed resources.
+	recheck := false
+
 	for _, pcu := range l.GetItems() {
-		if metav1.GetControllerOf(pcu) == nil {
+		ref := metav1.GetControllerOf(pcu)
+		if ref == nil {
 			// Usages should always have a controller reference. If this one has
 			// none it's probably been stripped off (e.g. by a Velero restore).
 			// We can safely delete it - it's either stale, or will be recreated
@@ -206,10 +219,62 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			}
 
 			users--
+			continue
 		}
+
+		if !meta.WasDeleted(pcu) || !meta.FinalizerExists(pcu, resource.ProviderConfigUsageFinalizer) {
+			continue
+		}
+
+		// Read the owner from the API server, not the cache. This reconciler
+		// runs inside providers that configure their own manager cache; an
+		// informer restricted by selector or namespace, or one that isn't
+		// synced, reports a live owner as not found. Releasing the usage on a
+		// false not-found lets the ProviderConfig and its credentials go while
+		// the owner is still deleting its external resource.
+		owner := &unstructured.Unstructured{}
+		owner.SetAPIVersion(ref.APIVersion)
+		owner.SetKind(ref.Kind)
+
+		err := r.apiReader.Get(ctx, client.ObjectKey{Namespace: pcu.GetNamespace(), Name: ref.Name}, owner)
+		if err != nil && !apierrors.IsNotFound(err) {
+			// We can't tell whether the owner still needs its ProviderConfig -
+			// its kind may no longer be served, for example. Keep blocking
+			// deletion and surface why, rather than risking orphaned external
+			// resources.
+			log.Debug(errGetPCUOwner, "error", err)
+			r.record.Event(pc, event.Warning(reasonAccount, errors.Wrap(err, errGetPCUOwner)))
+
+			recheck = true
+			continue
+		}
+
+		if err == nil && owner.GetUID() == ref.UID && !ownerFinishedTeardown(owner) {
+			// Recheck the usage after its owner has had time to finish deleting.
+			recheck = true
+			continue
+		}
+
+		// The owner is gone, was recreated, or has finished tearing down its
+		// external resource. Nothing will release this usage but us.
+		meta.RemoveFinalizer(pcu, resource.ProviderConfigUsageFinalizer)
+		if err := r.client.Update(ctx, pcu); resource.IgnoreNotFound(err) != nil {
+			log.Debug(errReleasePCU, "error", err)
+			r.record.Event(pc, event.Warning(reasonAccount, errors.Wrap(err, errReleasePCU)))
+
+			recheck = true
+			continue
+		}
+
+		users--
 	}
 
 	log = log.WithValues("usages", users)
+
+	res := reconcile.Result{Requeue: false}
+	if recheck {
+		res = reconcile.Result{RequeueAfter: shortWait}
+	}
 
 	if meta.WasDeleted(pc) {
 		if users > 0 {
@@ -218,11 +283,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			log.Debug(msg)
 			r.record.Event(pc, event.Warning(reasonAccount, errors.New(msg)))
 
-			// We're watching our usages, so we'll be requeued when they go.
+			// Requeue if a terminating usage is waiting for its owner to finish.
 			pc.SetUsers(users)
 			pc.SetConditions(Terminating().WithMessage(msg))
 
-			return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pc), errUpdateStatus)
+			return res, errors.Wrap(r.client.Status().Update(ctx, pc), errUpdateStatus)
 		}
 
 		meta.RemoveFinalizer(pc, finalizer)
@@ -243,8 +308,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
-	// There's no need to requeue explicitly - we're watching all PCs.
+	// Requeue only while waiting for a managed resource to finish deleting.
 	pc.SetUsers(users)
 
-	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pc), errUpdateStatus)
+	return res, errors.Wrap(r.client.Status().Update(ctx, pc), errUpdateStatus)
+}
+
+// ownerFinishedTeardown returns true if the supplied owner is being deleted and
+// has no finalizers other than Kubernetes deletion propagation finalizers.
+func ownerFinishedTeardown(owner metav1.Object) bool {
+	return meta.WasDeleted(owner) && len(meta.FinalizersExcludingPropagation(owner)) == 0
 }
