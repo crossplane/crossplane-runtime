@@ -24,9 +24,11 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/test"
 )
@@ -283,6 +285,7 @@ func TestTrackLegacy(t *testing.T) {
 								Ref: xpv2.Reference{Name: name},
 							},
 						}
+						current.SetFinalizers([]string{ProviderConfigUsageFinalizer})
 						if err := fn(ctx, current, nil); err != nil {
 							return err
 						}
@@ -304,7 +307,10 @@ func TestTrackLegacy(t *testing.T) {
 		"ApplyError": {
 			reason: "Errors applying the ProviderConfigUsage should be returned",
 			fields: fields{
-				c: ApplyFn(func(_ context.Context, _ client.Object, _ ...ApplyOption) error {
+				c: ApplyFn(func(_ context.Context, o client.Object, _ ...ApplyOption) error {
+					if !meta.FinalizerExists(o.(LegacyProviderConfigUsage), ProviderConfigUsageFinalizer) {
+						t.Error("ProviderConfigUsage finalizer was not added")
+					}
 					return errBoom
 				}),
 				of: &fake.LegacyProviderConfigUsage{},
@@ -378,6 +384,7 @@ func TestTrackModern(t *testing.T) {
 								Ref: xpv2.ProviderConfigReference{Name: name, Kind: "ProviderConfig"},
 							},
 						}
+						current.SetFinalizers([]string{ProviderConfigUsageFinalizer})
 						if err := fn(ctx, current, nil); err != nil {
 							return err
 						}
@@ -399,7 +406,10 @@ func TestTrackModern(t *testing.T) {
 		"ApplyError": {
 			reason: "Errors applying the ProviderConfigUsage should be returned",
 			fields: fields{
-				c: ApplyFn(func(_ context.Context, _ client.Object, _ ...ApplyOption) error {
+				c: ApplyFn(func(_ context.Context, o client.Object, _ ...ApplyOption) error {
+					if !meta.FinalizerExists(o.(TypedProviderConfigUsage), ProviderConfigUsageFinalizer) {
+						t.Error("ProviderConfigUsage finalizer was not added")
+					}
 					return errBoom
 				}),
 				of: &fake.ProviderConfigUsage{},
@@ -422,6 +432,104 @@ func TestTrackModern(t *testing.T) {
 			got := ut.Track(tc.args.ctx, tc.args.mg)
 			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nut.Track(...): -want error, +got error:\n%s\n", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestUntrack(t *testing.T) {
+	uid := types.UID("some-uid")
+	namespace := "some-namespace"
+
+	for name, tc := range map[string]struct {
+		reason  string
+		cleaner func(client.Client) ProviderConfigUsageCleaner
+		mg      func() Managed
+		wantNS  string
+	}{
+		"Legacy": {
+			reason: "The cluster-scoped tracker must look its usage up by the managed resource UID without a namespace.",
+			cleaner: func(c client.Client) ProviderConfigUsageCleaner {
+				return NewLegacyProviderConfigUsageTracker(c, &fake.LegacyProviderConfigUsage{})
+			},
+			// The namespace of a cluster-scoped managed resource is ignored.
+			mg: func() Managed { return &fake.LegacyManaged{} },
+		},
+		"Modern": {
+			reason: "The namespaced tracker must look its usage up by the managed resource UID in its namespace.",
+			cleaner: func(c client.Client) ProviderConfigUsageCleaner {
+				return NewProviderConfigUsageTracker(c, &fake.ProviderConfigUsage{})
+			},
+			mg:     func() Managed { return &fake.ModernManaged{} },
+			wantNS: namespace,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			c := test.NewMockClient()
+			c.MockGet = func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+				if diff := cmp.Diff(client.ObjectKey{Name: string(uid), Namespace: tc.wantNS}, key); diff != "" {
+					t.Errorf("%s\nUntrack lookup: -want, +got:\n%s", tc.reason, diff)
+				}
+				obj.SetFinalizers([]string{ProviderConfigUsageFinalizer})
+				return nil
+			}
+			c.MockUpdate = test.NewMockUpdateFn(nil, func(obj client.Object) error {
+				if meta.FinalizerExists(obj.(ProviderConfigUsage), ProviderConfigUsageFinalizer) {
+					t.Errorf("%s\nProviderConfigUsage finalizer was not removed", tc.reason)
+				}
+				return nil
+			})
+
+			mg := tc.mg()
+			mg.SetUID(uid)
+			mg.SetNamespace(namespace)
+			if err := tc.cleaner(c).Untrack(context.Background(), mg); err != nil {
+				t.Fatalf("%s\nUntrack returned an unexpected error: %v", tc.reason, err)
+			}
+		})
+	}
+}
+
+// TestUntrackRejectsMismatchedScope ensures a tracker does not silently look for
+// a usage in the wrong scope.
+func TestUntrackRejectsMismatchedScope(t *testing.T) {
+	uid := types.UID("some-uid")
+
+	for name, tc := range map[string]struct {
+		reason  string
+		cleaner func(client.Client) ProviderConfigUsageCleaner
+		mg      func() Managed
+	}{
+		"ModernTrackerGivenLegacyManaged": {
+			reason: "The namespaced tracker cannot resolve a cluster-scoped managed resource's usage, so it must report an error.",
+			cleaner: func(c client.Client) ProviderConfigUsageCleaner {
+				return NewProviderConfigUsageTracker(c, &fake.ProviderConfigUsage{})
+			},
+			mg: func() Managed { return &fake.LegacyManaged{} },
+		},
+		"LegacyTrackerGivenModernManaged": {
+			reason: "The cluster-scoped tracker cannot resolve a namespaced managed resource's usage, so it must report an error.",
+			cleaner: func(c client.Client) ProviderConfigUsageCleaner {
+				return NewLegacyProviderConfigUsageTracker(c, &fake.LegacyProviderConfigUsage{})
+			},
+			mg: func() Managed { return &fake.ModernManaged{} },
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			c := test.NewMockClient()
+			c.MockGet = func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
+				t.Errorf("%s\nUntrack looked a ProviderConfigUsage up despite the scope mismatch", tc.reason)
+				return nil
+			}
+			c.MockUpdate = test.NewMockUpdateFn(nil, func(_ client.Object) error {
+				t.Errorf("%s\nUntrack updated a ProviderConfigUsage despite the scope mismatch", tc.reason)
+				return nil
+			})
+
+			mg := tc.mg()
+			mg.SetUID(uid)
+			if err := tc.cleaner(c).Untrack(context.Background(), mg); err == nil {
+				t.Errorf("%s\nUntrack(...): want an error, got nil", tc.reason)
 			}
 		})
 	}

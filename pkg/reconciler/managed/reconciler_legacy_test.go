@@ -2163,7 +2163,7 @@ func TestReconciler(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewReconciler(tc.args.m, tc.args.mg, tc.args.o...)
+			r := NewReconciler(tc.args.m, tc.args.mg, resource.NewNopProviderConfigUsageCleaner(), tc.args.o...)
 
 			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -2884,7 +2884,7 @@ func TestLegacyReconcilerChangeLogs(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			tc.args.o = append(tc.args.o, WithChangeLogger(NewGRPCChangeLogger(tc.args.c, WithProviderVersion("provider-cool:v9.99.999"))))
-			r := NewReconciler(tc.args.m, tc.args.mg, tc.args.o...)
+			r := NewReconciler(tc.args.m, tc.args.mg, resource.NewNopProviderConfigUsageCleaner(), tc.args.o...)
 			r.Reconcile(context.Background(), reconcile.Request{})
 
 			if diff := cmp.Diff(tc.want.callCount, len(tc.args.c.requests)); diff != "" {
