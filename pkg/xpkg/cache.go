@@ -49,6 +49,23 @@ type FsPackageCache struct {
 	mu  sync.RWMutex
 }
 
+type unlockingReadCloser struct {
+	io.ReadCloser
+
+	once   sync.Once
+	err    error
+	unlock func()
+}
+
+func (r *unlockingReadCloser) Close() error {
+	r.once.Do(func() {
+		r.err = r.ReadCloser.Close()
+		r.unlock()
+	})
+
+	return r.err
+}
+
 // NewFsPackageCache creates a new FsPackageCache.
 func NewFsPackageCache(dir string, fs afero.Fs) *FsPackageCache {
 	return &FsPackageCache{
@@ -59,6 +76,9 @@ func NewFsPackageCache(dir string, fs afero.Fs) *FsPackageCache {
 
 // Has indicates whether an item with the given id is in the cache.
 func (c *FsPackageCache) Has(id string) bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
 	if fi, err := c.fs.Stat(BuildPath(c.dir, id, cacheContentExt)); err == nil && !fi.IsDir() {
 		return true
 	}
@@ -69,14 +89,24 @@ func (c *FsPackageCache) Has(id string) bool {
 // Get retrieves package contents from the cache.
 func (c *FsPackageCache) Get(id string) (io.ReadCloser, error) {
 	c.mu.RLock()
-	defer c.mu.RUnlock()
 
 	f, err := c.fs.Open(BuildPath(c.dir, id, cacheContentExt))
 	if err != nil {
+		c.mu.RUnlock()
 		return nil, err
 	}
 
-	return GzipReadCloser(f)
+	r, err := GzipReadCloser(f)
+	if err != nil {
+		_ = f.Close()
+		c.mu.RUnlock()
+		return nil, err
+	}
+
+	return &unlockingReadCloser{
+		ReadCloser: r,
+		unlock:     c.mu.RUnlock,
+	}, nil
 }
 
 // Store saves the package contents to the cache.
@@ -84,28 +114,41 @@ func (c *FsPackageCache) Store(id string, content io.ReadCloser) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	cf, err := c.fs.Create(BuildPath(c.dir, id, cacheContentExt))
+	path := BuildPath(c.dir, id, cacheContentExt)
+	cf, err := c.fs.Create(path)
 	if err != nil {
 		return err
 	}
-	defer cf.Close() //nolint:errcheck // Error is checked in the happy path.
+	cleanup := func() {
+		_ = cf.Close()
+		_ = c.fs.Remove(path)
+	}
 
 	w, err := gzip.NewWriterLevel(cf, gzip.BestSpeed)
 	if err != nil {
+		cleanup()
 		return err
 	}
 
 	_, err = io.Copy(w, content)
 	if err != nil {
+		_ = w.Close()
+		cleanup()
 		return err
 	}
 	// NOTE(hasheddan): gzip writer must be closed to ensure all data is flushed
 	// to file.
 	if err := w.Close(); err != nil {
+		cleanup()
 		return err
 	}
 
-	return cf.Close()
+	if err := cf.Close(); err != nil {
+		cleanup()
+		return err
+	}
+
+	return nil
 }
 
 // Delete removes package contents from the cache.
