@@ -34,7 +34,8 @@ build-users-group =
 # One build at a time, so no build starts before we can clean up /homeless-shelter.
 max-jobs = 1
 
-# Removes /homeless-shelter after each build (see the hook script above).
+# Removes /homeless-shelter after each successful build. The crossplane-nix launcher covers any
+# failed builds this misses.
 post-build-hook = /usr/local/bin/nix-clean-homeless-shelter
 
 # Use the Crossplane Cachix cache to download pre-built binaries from CI.
@@ -48,6 +49,8 @@ EOF
 # and the config it reads.
 cat > /usr/local/bin/crossplane-nix << 'EOF'
 #!/bin/bash
+# ensure any leftover /homeless-shelter from a failed build is cleaned up before we start
+/usr/local/bin/nix-clean-homeless-shelter
 exec env NIX_CONF_DIR=/etc/nix /usr/bin/nix "$@"
 EOF
 chmod +x /usr/local/bin/crossplane-nix
