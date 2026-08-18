@@ -1476,14 +1476,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		return reconcile.Result{Requeue: true}, errors.Wrap(updateStatus(), errUpdateManagedStatus)
 	}
 
-	if !observation.ResourceExists {
-		// There is no need to late initialize or update a resource that doesn't exist yet.
-		reconcileAfter := r.pollIntervalHook(managed, r.effectivePollInterval(managed))
-		log.Debug("Resource does not exist so skip late initialize and update", "requeue-after", time.Now().Add(reconcileAfter))
-		status.MarkConditions(xpv2.ReconcileSuccess())
-
-		return reconcile.Result{RequeueAfter: reconcileAfter}, errors.Wrap(updateStatus(), errUpdateManagedStatus)
-	}
 	if observation.ResourceLateInitialized && policy.ShouldLateInitialize() {
 		// Note that this update may reset any pending updates to the status of
 		// the managed resource from when it was observed above. This is because
@@ -1518,6 +1510,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		// because all the cases above could contribute (for different reasons)
 		// that the external object would not have been updated.
 		r.metricRecorder.recordUnchanged(managed.GetName())
+
+		return reconcile.Result{RequeueAfter: reconcileAfter}, errors.Wrap(updateStatus(), errUpdateManagedStatus)
+	}
+
+	if !observation.ResourceExists {
+		// There is no need to update a resource that doesn't exist yet.
+		reconcileAfter := r.pollIntervalHook(managed, r.effectivePollInterval(managed))
+		log.Debug("Resource does not exist so skip update", "requeue-after", time.Now().Add(reconcileAfter))
+		status.MarkConditions(xpv2.ReconcileSuccess())
 
 		return reconcile.Result{RequeueAfter: reconcileAfter}, errors.Wrap(updateStatus(), errUpdateManagedStatus)
 	}
