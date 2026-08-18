@@ -1818,6 +1818,59 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{RequeueAfter: defaultPollInterval}},
 		},
+		"ObserveUpdateResourceDoesNotExist": {
+			reason: "With only Observe and Update management actions, observing a resource that does not exist should not call the Update or LateInitialze external functions and should be reported as a conditioned status and requeued after the poll interval, not via the error rate limiter.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							mg := asLegacyManaged(obj, 42)
+							mg.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionObserve, xpv2.ManagementActionUpdate})
+
+							return nil
+						}),
+						MockStatusUpdate: test.MockSubResourceUpdateFn(func(_ context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
+							want := newLegacyManaged(42)
+							want.SetManagementPolicies(xpv2.ManagementPolicies{xpv2.ManagementActionObserve, xpv2.ManagementActionUpdate})
+							want.SetConditions(xpv2.ReconcileSuccess().WithObservedGeneration(42))
+
+							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
+								reason := "Resource does not exist should be reported as a conditioned status when only Observe and Update actions are allowed."
+								t.Errorf("\nReason: %s\n-want, +got:\n%s", reason, diff)
+							}
+
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil),
+					},
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
+				o: []ReconcilerOption{
+					WithPollInterval(10 * time.Minute),
+					WithInitializers(),
+					WithManagementPolicies(),
+					WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+								return ExternalObservation{ResourceExists: false}, nil
+							},
+							UpdateFn: func(_ context.Context, _ resource.Managed) (ExternalUpdate, error) {
+								// Update should not be called in this scenario
+								return ExternalUpdate{}, errBoom
+							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
+							},
+						}
+
+						return c, nil
+					})),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
+			},
+			want: want{result: reconcile.Result{RequeueAfter: 10 * time.Minute}},
+		},
 		"ManagementPolicyAllCreateSuccessful": {
 			reason: "Successful managed resource creation using management policy all should trigger a requeue after a short wait.",
 			args: args{
