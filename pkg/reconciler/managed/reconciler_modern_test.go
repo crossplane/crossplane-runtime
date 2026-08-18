@@ -1825,7 +1825,7 @@ func TestModernReconciler(t *testing.T) {
 			want: want{result: reconcile.Result{RequeueAfter: defaultPollInterval}},
 		},
 		"ObserveUpdateResourceDoesNotExist": {
-			reason: "With only Observe and Update management actions, observing a resource that does not exist should not call the Update or LateInitialze external functions and should be reported as a conditioned status and requeued after the poll interval, not via the error rate limiter.",
+			reason: "With only Observe and Update management actions, observing a resource that does not exist should not call the Update external functions and should be reported as a conditioned status and requeued after the poll interval, not via the error rate limiter.",
 			args: args{
 				m: &fake.Manager{
 					Client: &test.MockClient{
