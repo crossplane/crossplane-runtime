@@ -610,20 +610,20 @@ schema = 3
     hash = 'sha256-NkGFiDPoCxbr3LFsI6OCygjjkY0rdmg5ggvVVwpyDQ4='
 
   [mod.'golang.org/x/crypto']
-    version = 'v0.54.0'
-    hash = 'sha256-m8jsqlPuoPxGDjClzcAVbXf1aiU07L+9j7vYcqJu/0Q='
+    version = 'v0.55.0'
+    hash = 'sha256-99uV/ESeqhaDEwqbXxDpePuwzO0JoEHGhqZXZVHq/H4='
 
   [mod.'golang.org/x/exp']
     version = 'v0.0.0-20260112195511-716be5621a96'
     hash = 'sha256-rWqwXzLvvhcI/ZkOQMqCXMKI5FAuHd9YNoKTXujmboA='
 
   [mod.'golang.org/x/mod']
-    version = 'v0.38.0'
-    hash = 'sha256-BpKfvsmb7ecEDvTBKx9ZHauxoWRkOAZCqg4BrHM2/S0='
+    version = 'v0.40.0'
+    hash = 'sha256-gmuKtxidzYWVlQYNB/8BREmajyfockaQ5/6Xk4IR32A='
 
   [mod.'golang.org/x/net']
-    version = 'v0.57.0'
-    hash = 'sha256-gKo8UMw4hfETBHm8N5GOfuNadse9TWEQXJo2YWq5bY4='
+    version = 'v0.58.0'
+    hash = 'sha256-fDOkQJXURrbq2dBGa91bCUsXknCZlo3ru2JIofSOGRo='
 
   [mod.'golang.org/x/oauth2']
     version = 'v0.36.0'
@@ -642,16 +642,16 @@ schema = 3
     hash = 'sha256-vPBeJkepEZ1D9k4oaV20IuQlVmfAFv15KQgnhl9MNgw='
 
   [mod.'golang.org/x/text']
-    version = 'v0.40.0'
-    hash = 'sha256-LJfnki46XEreGbSgjl+DeqgcTsINTOu2owyXNvijMcA='
+    version = 'v0.41.0'
+    hash = 'sha256-22nHcolG87qSPahT2Ey8S5iGlCLAglE9ObYXO6XZ3ZY='
 
   [mod.'golang.org/x/time']
     version = 'v0.15.0'
     hash = 'sha256-5D24A65wn7k93Jj3+918UKjB9ccmGHPBEqjD2XDB92E='
 
   [mod.'golang.org/x/tools']
-    version = 'v0.48.0'
-    hash = 'sha256-9cRNUaup6fexA5S1zc+Ic3aaoxAgKWntyMJ2xaOdiP8='
+    version = 'v0.49.0'
+    hash = 'sha256-3oaXp2PlfuIn6/UTarnYD279YqJKTyaCWT/KD7ABjD4='
 
   [mod.'gomodules.xyz/jsonpatch/v2']
     version = 'v2.5.0'
