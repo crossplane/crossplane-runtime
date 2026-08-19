@@ -67,6 +67,7 @@ const (
 	errReconcileUpdate          = "update failed"
 	errReconcileDelete          = "delete failed"
 	errRecordChangeLog          = "cannot record change log entry"
+	errUntrackProviderConfig    = "cannot release ProviderConfigUsage"
 
 	errExternalResourceNotExist = "external resource does not exist"
 
@@ -615,6 +616,7 @@ type mrManaged struct {
 	Initializer
 	ReferenceResolver
 	LocalConnectionPublisher
+	resource.ProviderConfigUsageCleaner
 }
 
 func defaultMRManaged(m manager.Manager) mrManaged {
@@ -876,12 +878,18 @@ func (r *Reconciler) effectivePollInterval(o metav1.Object) time.Duration {
 
 // NewReconciler returns a Reconciler that reconciles managed resources of the
 // supplied ManagedKind with resources in an external system such as a cloud
-// provider API. It panics if asked to reconcile a managed resource kind that is
-// not registered with the supplied manager's runtime.Scheme. The returned
-// Reconciler reconciles with a dummy, no-op 'external system' by default;
-// callers should supply an ExternalConnector that returns an ExternalClient
-// capable of managing resources in a real system.
-func NewReconciler(m manager.Manager, of resource.ManagedKind, o ...ReconcilerOption) *Reconciler {
+// provider API. The usage cleaner should be the tracker used to track the
+// managed resource's ProviderConfigUsage. Managed resources that do not use a
+// ProviderConfigUsage should pass resource.NewNopProviderConfigUsageCleaner().
+// NewReconciler panics if the usage cleaner is nil or the managed resource kind
+// is not registered with the supplied manager's runtime.Scheme. The returned
+// Reconciler uses a no-op external system by default; callers should supply an
+// ExternalConnector that can manage resources in a real system.
+func NewReconciler(m manager.Manager, of resource.ManagedKind, usage resource.ProviderConfigUsageCleaner, o ...ReconcilerOption) *Reconciler {
+	if usage == nil {
+		panic("managed reconciler requires a ProviderConfigUsageCleaner")
+	}
+
 	nm := func() resource.Managed {
 		//nolint:forcetypeassert // If this isn't an MR it's a programming error and we want to panic.
 		return resource.MustCreateObject(schema.GroupVersionKind(of), m.GetScheme()).(resource.Managed)
@@ -907,6 +915,7 @@ func NewReconciler(m manager.Manager, of resource.ManagedKind, o ...ReconcilerOp
 		change:                      newNopChangeLogger(),
 		conditions:                  new(conditions.ObservedGenerationPropagationManager),
 	}
+	r.managed.ProviderConfigUsageCleaner = usage
 
 	for _, ro := range o {
 		ro(r)
@@ -1070,6 +1079,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 			return reconcile.Result{Requeue: true}, errors.Wrap(updateStatus(), errUpdateManagedStatus)
 		}
 
+		// Release the usage after removing the managed resource finalizer so the
+		// ProviderConfig remains available throughout deletion.
+		if err := r.managed.Untrack(ctx, managed); err != nil {
+			log.Debug("Cannot release ProviderConfigUsage", "error", err)
+			uerr := errors.Wrap(err, errUntrackProviderConfig)
+			status.MarkConditions(xpv2.Deleting(), xpv2.ReconcileError(uerr))
+			if err := updateStatus(); err != nil {
+				return reconcile.Result{Requeue: true}, errors.Wrap(err, errUpdateManagedStatus)
+			}
+			return reconcile.Result{Requeue: true}, uerr
+		}
+
 		// We've successfully unpublished our managed resource's connection
 		// details and removed our finalizer. If we assume we were the only
 		// controller that added a finalizer to this resource then it should no
@@ -1231,7 +1252,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 	if meta.WasDeleted(managed) {
 		log = log.WithValues("deletion-timestamp", managed.GetDeletionTimestamp())
 
-		if len(managed.GetFinalizers()) > 1 {
+		if numControllerFinalizers(managed) > 1 {
 			// There are other controllers monitoring this resource so preserve the external instance
 			// until all other finalizers have been removed
 			log.Debug("Delay external deletion until all finalizers have been removed")
@@ -1309,6 +1330,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 			status.MarkConditions(xpv2.Deleting(), xpv2.ReconcileError(err))
 
 			return reconcile.Result{Requeue: true}, errors.Wrap(updateStatus(), errUpdateManagedStatus)
+		}
+
+		// Release the usage after removing the managed resource finalizer so the
+		// ProviderConfig remains available throughout deletion.
+		if err := r.managed.Untrack(ctx, managed); err != nil {
+			log.Debug("Cannot release ProviderConfigUsage", "error", err)
+			uerr := errors.Wrap(err, errUntrackProviderConfig)
+			status.MarkConditions(xpv2.Deleting(), xpv2.ReconcileError(uerr))
+			if err := updateStatus(); err != nil {
+				return reconcile.Result{Requeue: true}, errors.Wrap(err, errUpdateManagedStatus)
+			}
+			return reconcile.Result{Requeue: true}, uerr
 		}
 
 		// We've successfully deleted our external resource (if necessary) and
@@ -1575,4 +1608,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 	status.MarkConditions(xpv2.ReconcileSuccess())
 
 	return reconcile.Result{RequeueAfter: reconcileAfter}, errors.Wrap(updateStatus(), errUpdateManagedStatus)
+}
+
+// numControllerFinalizers returns the number of finalizers not managed by the
+// Kubernetes garbage collector.
+func numControllerFinalizers(mg resource.Managed) int {
+	return len(meta.FinalizersExcludingPropagation(mg))
 }
