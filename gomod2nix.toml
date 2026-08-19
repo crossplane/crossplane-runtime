@@ -342,8 +342,8 @@ schema = 3
     hash = 'sha256-/6Us2eNRFi2IIp7p5uPUXLridilAdk4SmZhcTYR0csw='
 
   [mod.'github.com/google/cel-go']
-    version = 'v0.29.0'
-    hash = 'sha256-j+zKJBywrA2UKzB/TAElEHwKsCa39+iEmzcbvsws3d4='
+    version = 'v0.30.0'
+    hash = 'sha256-rJOl2BVnVkNg8lnWvK7WeJVr6QKzMctmmJY4VdLLEg4='
 
   [mod.'github.com/google/certificate-transparency-go']
     version = 'v1.3.3'
