@@ -1514,6 +1514,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		return reconcile.Result{RequeueAfter: reconcileAfter}, errors.Wrap(updateStatus(), errUpdateManagedStatus)
 	}
 
+	if !observation.ResourceExists {
+		// There is no need to update a resource that doesn't exist yet.
+		reconcileAfter := r.pollIntervalHook(managed, r.effectivePollInterval(managed))
+		log.Debug("Resource does not exist so skip update", "requeue-after", time.Now().Add(reconcileAfter))
+		status.MarkConditions(xpv2.ReconcileSuccess())
+
+		return reconcile.Result{RequeueAfter: reconcileAfter}, errors.Wrap(updateStatus(), errUpdateManagedStatus)
+	}
+
 	if observation.Diff != "" {
 		log.Debug("External resource differs from desired state", "diff", observation.Diff)
 	}
