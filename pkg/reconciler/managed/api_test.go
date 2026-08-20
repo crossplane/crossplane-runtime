@@ -551,12 +551,12 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 		o   client.Object
 	}
 
-	setLabels := func(obj client.Object) error {
-		obj.SetLabels(map[string]string{"getcalled": "true"})
+	setAnnotations := func(obj client.Object) error {
+		obj.SetAnnotations(map[string]string{"crossplane.io/external-name": "my-external-name"})
 		return nil
 	}
 	objectReturnedByGet := &fake.LegacyManaged{}
-	setLabels(objectReturnedByGet)
+	setAnnotations(objectReturnedByGet)
 
 	cases := map[string]struct {
 		reason string
@@ -567,14 +567,18 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 		"UpdateConflictGetError": {
 			reason: "We should return any error we encounter getting the supplied object",
 			c: &test.MockClient{
-				MockGet: test.NewMockGetFn(errBoom, setLabels),
-				MockUpdate: test.NewMockUpdateFn(kerrors.NewConflict(schema.GroupResource{
+				MockGet: test.NewMockGetFn(errBoom, setAnnotations),
+				MockPatch: test.NewMockPatchFn(kerrors.NewConflict(schema.GroupResource{
 					Group:    "foo.com",
 					Resource: "bars",
 				}, "abc", errBoom)),
 			},
 			args: args{
-				o: &fake.LegacyManaged{},
+				o: &fake.LegacyManaged{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{"crossplane.io/external-name": "my-external-name"},
+					},
+				},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateCriticalAnnotations),
@@ -584,28 +588,40 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 		"UpdateError": {
 			reason: "We should return any error we encounter updating the supplied object",
 			c: &test.MockClient{
-				MockGet:    test.NewMockGetFn(nil, setLabels),
-				MockUpdate: test.NewMockUpdateFn(errBoom),
+				MockGet:   test.NewMockGetFn(nil, setAnnotations),
+				MockPatch: test.NewMockPatchFn(errBoom),
 			},
 			args: args{
-				o: &fake.LegacyManaged{},
+				o: &fake.LegacyManaged{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{"crossplane.io/external-name": "my-external-name"},
+					},
+				},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateCriticalAnnotations),
-				o:   &fake.LegacyManaged{},
+				o: &fake.LegacyManaged{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{"crossplane.io/external-name": "my-external-name"},
+					},
+				},
 			},
 		},
 		"SuccessfulGetAfterAConflict": {
 			reason: "A successful get after a conflict should not hide the conflict error and prevent retries",
 			c: &test.MockClient{
-				MockGet: test.NewMockGetFn(nil, setLabels),
-				MockUpdate: test.NewMockUpdateFn(kerrors.NewConflict(schema.GroupResource{
+				MockGet: test.NewMockGetFn(nil, setAnnotations),
+				MockPatch: test.NewMockPatchFn(kerrors.NewConflict(schema.GroupResource{
 					Group:    "foo.com",
 					Resource: "bars",
 				}, "abc", errBoom)),
 			},
 			args: args{
-				o: &fake.LegacyManaged{},
+				o: &fake.LegacyManaged{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{"crossplane.io/external-name": "my-external-name"},
+					},
+				},
 			},
 			want: want{
 				err: errors.Wrap(kerrors.NewConflict(schema.GroupResource{
@@ -618,15 +634,23 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 		"Success": {
 			reason: "We should return without error if we successfully update our annotations",
 			c: &test.MockClient{
-				MockGet:    test.NewMockGetFn(nil, setLabels),
-				MockUpdate: test.NewMockUpdateFn(errBoom),
+				MockGet:   test.NewMockGetFn(nil, setAnnotations),
+				MockPatch: test.NewMockPatchFn(errBoom),
 			},
 			args: args{
-				o: &fake.LegacyManaged{},
+				o: &fake.LegacyManaged{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{"crossplane.io/external-name": "my-external-name"},
+					},
+				},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdateCriticalAnnotations),
-				o:   &fake.LegacyManaged{},
+				o: &fake.LegacyManaged{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{"crossplane.io/external-name": "my-external-name"},
+					},
+				},
 			},
 		},
 	}
