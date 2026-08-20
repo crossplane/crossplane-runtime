@@ -77,6 +77,11 @@ type Options struct {
 
 	// EventFilterFunctions used to filter events emitted by the controllers.
 	EventFilterFunctions []event.FilterFn
+
+	// Groups is the list of API groups managed by this provider.
+	// If specified, the CRD gate will only watch CRDs belonging to these groups,
+	// reducing unnecessary reconciles from unrelated CRDs in the cluster.
+	Groups []string
 }
 
 // ForControllerRuntime extracts options for controller-runtime.
