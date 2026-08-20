@@ -213,6 +213,13 @@ func expandWildcards(data any, segments Segments) ([]Segments, error) { //nolint
 				}
 			case map[string]any:
 				for k := range mapOrArray {
+					// A field literally named "*" would be substituted back
+					// in as a wildcard segment, so the expansion below would
+					// recurse on the same input forever.
+					if k == wildcard {
+						return nil, errors.Errorf("%q: object has a field named %q, which cannot be distinguished from a wildcard", segments[:i], wildcard)
+					}
+
 					expanded := make(Segments, len(segments))
 					copy(expanded, segments)
 					expanded = append(append(expanded[:i], Field(k)), expanded[i+1:]...)
