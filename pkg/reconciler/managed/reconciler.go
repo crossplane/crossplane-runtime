@@ -970,8 +970,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 	// Log, publish an event and update the SYNC status condition.
 	if meta.IsPaused(managed) || policy.IsPaused() {
 		log.Debug("Reconciliation is paused either through the `spec.managementPolicies` or the pause annotation", "annotation", meta.AnnotationKeyReconciliationPaused)
-		record.Event(managed, event.Normal(reasonReconciliationPaused, "Reconciliation is paused either through the `spec.managementPolicies` or the pause annotation",
-			"annotation", meta.AnnotationKeyReconciliationPaused))
+		record.Event(managed, event.Normal(reasonReconciliationPaused, "Reconciliation is paused either through the `spec.managementPolicies` or the pause annotation"))
 		status.MarkConditions(xpv2.ReconcilePaused())
 		// if the pause annotation is removed or the management policies changed, we will have a chance to reconcile
 		// again and resume and if status update fails, we will reconcile again to retry to update the status
@@ -987,7 +986,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		if tracker, ok := managed.(reconcileRequestTracker); ok {
 			if tracker.GetLastHandledReconcileAt() != token {
 				log.Debug("Processing reconcile request", "token", token)
-				record.Event(managed, event.Normal(reasonReconcileRequestHandled, "Handling reconcile request", "token", token))
+				record.Event(managed, event.Normal(reasonReconcileRequestHandled, "Handling reconcile request"))
 				reconcileRequestToken = token
 			}
 		}
