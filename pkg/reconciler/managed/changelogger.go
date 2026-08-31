@@ -22,7 +22,6 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"k8s.io/utils/ptr"
 
 	"github.com/crossplane/crossplane-runtime/v2/apis/changelogs/proto/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -87,7 +86,7 @@ func (g *GRPCChangeLogger) Log(ctx context.Context, managed resource.Managed, op
 	// get an error message from the error if it exists
 	var changeErrMessage *string
 	if changeErr != nil {
-		changeErrMessage = ptr.To(changeErr.Error())
+		changeErrMessage = new(changeErr.Error())
 	}
 
 	// capture the full state of the managed resource from before we performed the change
