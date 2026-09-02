@@ -43,28 +43,82 @@ import (
 
 var _ reconcile.Reconciler = &Reconciler{}
 
-func TestNewReconcilerRequiresProviderConfigUsageCleaner(t *testing.T) {
-	defer func() {
-		got := recover()
-		if got == nil {
-			t.Fatal("NewReconciler(...): expected a panic when the ProviderConfigUsageCleaner is nil")
-		}
+// TestProviderConfigUsageProtectedByReconciler ensures the Reconciler protects a
+// managed resource's usage itself, through the cleaner it was given, once it has
+// connected. Track never writes the finalizer, so a provider that builds a fresh
+// tracker per connection - the shape upjet generates - cannot silently end up
+// creating usages that nothing protects.
+func TestProviderConfigUsageProtectedByReconciler(t *testing.T) {
+	cases := map[string]struct {
+		reason string
+		wire   bool
+		want   bool
+	}{
+		"NotWired": {
+			reason: "A Reconciler with no cleaner must not protect the usage.",
+			wire:   false,
+			want:   false,
+		},
+		"Wired": {
+			reason: "A Reconciler given a cleaner must protect the usage once it has connected.",
+			wire:   true,
+			want:   true,
+		},
+	}
 
-		want := "managed reconciler requires a ProviderConfigUsageCleaner"
-		if diff := cmp.Diff(want, fmt.Sprint(got)); diff != "" {
-			t.Errorf("NewReconciler(...): -want panic, +got panic:\n%s", diff)
-		}
-	}()
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			var protected bool
 
-	NewReconciler(nil, resource.ManagedKind{}, nil)
+			o := []ReconcilerOption{
+				WithInitializers(),
+				WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+				WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
+					return &ExternalClientFns{
+						ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+							return ExternalObservation{ResourceExists: true, ResourceUpToDate: true}, nil
+						},
+						DisconnectFn: func(_ context.Context) error { return nil },
+					}, nil
+				})),
+			}
+
+			if tc.wire {
+				o = append(o, WithProviderConfigUsageCleaner(resource.ProviderConfigUsageCleanerFns{
+					ProtectFn: func(_ context.Context, _ resource.Managed) error {
+						protected = true
+						return nil
+					},
+					UntrackFn: func(_ context.Context, _ resource.Managed) error { return nil },
+				}))
+			}
+
+			m := &fake.Manager{
+				Client: &test.MockClient{
+					MockGet:          test.NewMockGetFn(nil),
+					MockUpdate:       test.NewMockUpdateFn(nil),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+				},
+				Scheme: fake.SchemeWith(&fake.ModernManaged{}),
+			}
+
+			r := NewReconciler(m, resource.ManagedKind(fake.GVK(&fake.ModernManaged{})), o...)
+			if _, err := r.Reconcile(context.Background(), reconcile.Request{}); err != nil {
+				t.Fatalf("%s\nr.Reconcile(...): unexpected error: %v", tc.reason, err)
+			}
+
+			if diff := cmp.Diff(tc.want, protected); diff != "" {
+				t.Errorf("%s\nProviderConfigUsage protected: -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
 }
 
 func TestModernReconciler(t *testing.T) {
 	type args struct {
-		m     manager.Manager
-		mg    resource.ManagedKind
-		usage resource.ProviderConfigUsageCleaner
-		o     []ReconcilerOption
+		m  manager.Manager
+		mg resource.ManagedKind
+		o  []ReconcilerOption
 	}
 
 	type want struct {
@@ -198,14 +252,17 @@ func TestModernReconciler(t *testing.T) {
 						Scheme: fake.SchemeWith(&fake.ModernManaged{}),
 					},
 					mg: resource.ManagedKind(fake.GVK(&fake.ModernManaged{})),
-					usage: resource.ProviderConfigUsageCleanerFn(func(_ context.Context, _ resource.Managed) error {
-						if !finalizerRemoved {
-							t.Error("ProviderConfigUsage released before managed resource finalizer was removed")
-						}
-						return nil
-					}),
 					o: []ReconcilerOption{
 						WithManagementPolicies(),
+						WithProviderConfigUsageCleaner(resource.ProviderConfigUsageCleanerFns{
+							ProtectFn: func(_ context.Context, _ resource.Managed) error { return nil },
+							UntrackFn: func(_ context.Context, _ resource.Managed) error {
+								if !finalizerRemoved {
+									t.Error("ProviderConfigUsage released before managed resource finalizer was removed")
+								}
+								return nil
+							},
+						}),
 						WithFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error {
 							finalizerRemoved = true
 							return nil
@@ -231,12 +288,15 @@ func TestModernReconciler(t *testing.T) {
 					Scheme: fake.SchemeWith(&fake.ModernManaged{}),
 				},
 				mg: resource.ManagedKind(fake.GVK(&fake.ModernManaged{})),
-				usage: resource.ProviderConfigUsageCleanerFn(func(_ context.Context, _ resource.Managed) error {
-					return errBoom
-				}),
 				o: []ReconcilerOption{
 					WithManagementPolicies(),
 					WithFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+					WithProviderConfigUsageCleaner(resource.ProviderConfigUsageCleanerFns{
+						ProtectFn: func(_ context.Context, _ resource.Managed) error { return nil },
+						UntrackFn: func(_ context.Context, _ resource.Managed) error {
+							return errBoom
+						},
+					}),
 				},
 			},
 			want: want{result: reconcile.Result{Requeue: true}, err: errors.Wrap(errBoom, errUntrackProviderConfig)},
@@ -763,10 +823,13 @@ func TestModernReconciler(t *testing.T) {
 					Scheme: fake.SchemeWith(&fake.ModernManaged{}),
 				},
 				mg: resource.ManagedKind(fake.GVK(&fake.ModernManaged{})),
-				usage: resource.ProviderConfigUsageCleanerFn(func(_ context.Context, _ resource.Managed) error {
-					return errBoom
-				}),
 				o: []ReconcilerOption{
+					WithProviderConfigUsageCleaner(resource.ProviderConfigUsageCleanerFns{
+						ProtectFn: func(_ context.Context, _ resource.Managed) error { return nil },
+						UntrackFn: func(_ context.Context, _ resource.Managed) error {
+							return errBoom
+						},
+					}),
 					WithInitializers(),
 					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
 					WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
@@ -2258,11 +2321,7 @@ func TestModernReconciler(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			usage := tc.args.usage
-			if usage == nil {
-				usage = resource.NewNopProviderConfigUsageCleaner()
-			}
-			r := NewReconciler(tc.args.m, tc.args.mg, usage, tc.args.o...)
+			r := NewReconciler(tc.args.m, tc.args.mg, tc.args.o...)
 
 			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -2928,7 +2987,7 @@ func TestReconcilerChangeLogs(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			tc.args.o = append(tc.args.o, WithChangeLogger(NewGRPCChangeLogger(tc.args.c, WithProviderVersion("provider-cool:v9.99.999"))))
-			r := NewReconciler(tc.args.m, tc.args.mg, resource.NewNopProviderConfigUsageCleaner(), tc.args.o...)
+			r := NewReconciler(tc.args.m, tc.args.mg, tc.args.o...)
 			r.Reconcile(context.Background(), reconcile.Request{})
 
 			if diff := cmp.Diff(tc.want.callCount, len(tc.args.c.requests)); diff != "" {
@@ -3072,7 +3131,7 @@ func TestReconcilePollIntervalAnnotation(t *testing.T) {
 					}),
 				},
 				Scheme: fake.SchemeWith(&fake.ModernManaged{}),
-			}, resource.ManagedKind(fake.GVK(&fake.ModernManaged{})), resource.NewNopProviderConfigUsageCleaner(),
+			}, resource.ManagedKind(fake.GVK(&fake.ModernManaged{})),
 				WithPollInterval(tc.pollInterval),
 				WithMinPollInterval(tc.minPollInterval),
 				WithInitializers(),
@@ -3161,7 +3220,7 @@ func TestReconcileRequestAnnotation(t *testing.T) {
 					}),
 				},
 				Scheme: fake.SchemeWith(&fake.ModernManaged{}),
-			}, resource.ManagedKind(fake.GVK(&fake.ModernManaged{})), resource.NewNopProviderConfigUsageCleaner(),
+			}, resource.ManagedKind(fake.GVK(&fake.ModernManaged{})),
 				WithInitializers(),
 				WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
 				WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
@@ -3264,7 +3323,7 @@ func TestReconcilePropagationFinalizersDoNotDelayDelete(t *testing.T) {
 				Scheme: fake.SchemeWith(&fake.ModernManaged{}),
 			}
 
-			r := NewReconciler(m, resource.ManagedKind(fake.GVK(&fake.ModernManaged{})), resource.NewNopProviderConfigUsageCleaner(),
+			r := NewReconciler(m, resource.ManagedKind(fake.GVK(&fake.ModernManaged{})),
 				WithInitializers(),
 				WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
 				WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {

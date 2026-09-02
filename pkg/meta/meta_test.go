@@ -605,31 +605,45 @@ func TestFinalizerExists(t *testing.T) {
 	}
 }
 
-func TestFinalizersExcludingPropagation(t *testing.T) {
+func TestNonGCFinalizers(t *testing.T) {
+	type args struct {
+		o metav1.Object
+	}
+
 	cases := map[string]struct {
 		reason string
-		o      metav1.Object
+		args   args
 		want   []string
 	}{
 		"NoFinalizers": {
-			reason: "An object without finalizers has no finalizers after propagation finalizers are excluded.",
-			o:      &corev1.Pod{},
+			reason: "An object without finalizers has no finalizers after garbage collector finalizers are excluded.",
+			args:   args{o: &corev1.Pod{}},
 			want:   []string{},
 		},
-		"OnlyPropagationFinalizers": {
-			reason: "Kubernetes foreground and orphan propagation finalizers must both be excluded.",
-			o: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{
+		"OnlyGCFinalizers": {
+			reason: "The foregroundDeletion and orphan finalizers must both be excluded.",
+			args: args{o: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{
 				metav1.FinalizerDeleteDependents,
 				metav1.FinalizerOrphanDependents,
-			}}},
+			}}}},
 			want: []string{},
+		},
+		"KeepsControllerFinalizers": {
+			reason: "Finalizers that don't belong to the garbage collector must be kept, in order.",
+			args: args{o: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{
+				metav1.FinalizerDeleteDependents,
+				"example.org/first",
+				metav1.FinalizerOrphanDependents,
+				"example.org/second",
+			}}}},
+			want: []string{"example.org/first", "example.org/second"},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			if diff := cmp.Diff(tc.want, FinalizersExcludingPropagation(tc.o)); diff != "" {
-				t.Errorf("%s\nFinalizersExcludingPropagation(...): -want, +got:\n%s", tc.reason, diff)
+			if diff := cmp.Diff(tc.want, NonGCFinalizers(tc.args.o)); diff != "" {
+				t.Errorf("%s\nNonGCFinalizers(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

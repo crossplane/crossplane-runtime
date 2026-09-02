@@ -205,9 +205,11 @@ func FinalizerExists(o metav1.Object, finalizer string) bool {
 	return slices.Contains(f, finalizer)
 }
 
-// FinalizersExcludingPropagation returns the supplied object's finalizers
-// without Kubernetes deletion propagation finalizers.
-func FinalizersExcludingPropagation(o metav1.Object) []string {
+// NonGCFinalizers returns the supplied object's finalizers, excluding the two
+// the Kubernetes garbage collector uses to implement deletion propagation -
+// foregroundDeletion and orphan. Neither belongs to a controller, and neither
+// makes a claim on an external system.
+func NonGCFinalizers(o metav1.Object) []string {
 	f := o.GetFinalizers()
 	out := make([]string, 0, len(f))
 
