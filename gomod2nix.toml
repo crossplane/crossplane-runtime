@@ -662,12 +662,12 @@ schema = 3
     hash = 'sha256-XwBCYWKK47hTvTNUl8HenRcbzU5xIYhRfPfNypUU1Ps='
 
   [mod.'google.golang.org/genproto/googleapis/rpc']
-    version = 'v0.0.0-20260523011958-0a33c5d7ca68'
+    version = 'v0.0.0-20260526163538-3dc84a4a5aaa'
     hash = 'sha256-ldJTTb7hhj1mdmzTn9IEkQVwCoj3KRlENZtUSEKHABU='
 
   [mod.'google.golang.org/grpc']
-    version = 'v1.82.1'
-    hash = 'sha256-5Q85pZWiKulJSGRAjYcVrlBe7y4tfa9gsjCqYiBhLUU='
+    version = 'v1.83.1'
+    hash = 'sha256-FpEi28U8I4/pzzfS+Gv4PySLcxkjVTy1pqtRlEDZJ54='
 
   [mod.'google.golang.org/protobuf']
     version = 'v1.36.11'
