@@ -307,10 +307,7 @@ func TestTrackLegacy(t *testing.T) {
 		"ApplyError": {
 			reason: "Errors applying the ProviderConfigUsage should be returned",
 			fields: fields{
-				c: ApplyFn(func(_ context.Context, o client.Object, _ ...ApplyOption) error {
-					if !meta.FinalizerExists(o.(LegacyProviderConfigUsage), ProviderConfigUsageFinalizer) {
-						t.Error("ProviderConfigUsage finalizer was not added")
-					}
+				c: ApplyFn(func(_ context.Context, _ client.Object, _ ...ApplyOption) error {
 					return errBoom
 				}),
 				of: &fake.LegacyProviderConfigUsage{},
@@ -323,6 +320,26 @@ func TestTrackLegacy(t *testing.T) {
 				},
 			},
 			want: errors.Wrap(errBoom, errApplyPCU),
+		},
+		"NeverAddsFinalizer": {
+			reason: "Track must not write the usage finalizer. The managed reconciler owns it, so a tracker built at a provider's connect site can't get out of step with whatever removes it.",
+			fields: fields{
+				c: ApplyFn(func(_ context.Context, o client.Object, _ ...ApplyOption) error {
+					if meta.FinalizerExists(o.(LegacyProviderConfigUsage), ProviderConfigUsageFinalizer) {
+						t.Error("ProviderConfigUsage finalizer was added by Track")
+					}
+					return nil
+				}),
+				of: &fake.LegacyProviderConfigUsage{},
+			},
+			args: args{
+				mg: &fake.LegacyManaged{
+					LegacyProviderConfigReferencer: fake.LegacyProviderConfigReferencer{
+						Ref: &xpv2.Reference{Name: name},
+					},
+				},
+			},
+			want: nil,
 		},
 	}
 
@@ -406,10 +423,7 @@ func TestTrackModern(t *testing.T) {
 		"ApplyError": {
 			reason: "Errors applying the ProviderConfigUsage should be returned",
 			fields: fields{
-				c: ApplyFn(func(_ context.Context, o client.Object, _ ...ApplyOption) error {
-					if !meta.FinalizerExists(o.(TypedProviderConfigUsage), ProviderConfigUsageFinalizer) {
-						t.Error("ProviderConfigUsage finalizer was not added")
-					}
+				c: ApplyFn(func(_ context.Context, _ client.Object, _ ...ApplyOption) error {
 					return errBoom
 				}),
 				of: &fake.ProviderConfigUsage{},
@@ -423,6 +437,26 @@ func TestTrackModern(t *testing.T) {
 			},
 			want: errors.Wrap(errBoom, errApplyPCU),
 		},
+		"NeverAddsFinalizer": {
+			reason: "Track must not write the usage finalizer. The managed reconciler owns it, so a tracker built at a provider's connect site can't get out of step with whatever removes it.",
+			fields: fields{
+				c: ApplyFn(func(_ context.Context, o client.Object, _ ...ApplyOption) error {
+					if meta.FinalizerExists(o.(TypedProviderConfigUsage), ProviderConfigUsageFinalizer) {
+						t.Error("ProviderConfigUsage finalizer was added by Track")
+					}
+					return nil
+				}),
+				of: &fake.ProviderConfigUsage{},
+			},
+			args: args{
+				mg: &fake.ModernManaged{
+					TypedProviderConfigReferencer: fake.TypedProviderConfigReferencer{
+						Ref: &xpv2.ProviderConfigReference{Name: name, Kind: "ProviderConfig"},
+					},
+				},
+			},
+			want: nil,
+		},
 	}
 
 	for name, tc := range cases {
@@ -432,6 +466,69 @@ func TestTrackModern(t *testing.T) {
 			got := ut.Track(tc.args.ctx, tc.args.mg)
 			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nut.Track(...): -want error, +got error:\n%s\n", tc.reason, diff)
+			}
+		})
+	}
+}
+
+// TestProtect ensures a cleaner adds the usage finalizer to the usage belonging
+// to a managed resource. The cleaner here is built independently of any tracker
+// that called Track, which is the point: the managed reconciler owns the
+// finalizer, so a provider is free to build a fresh tracker per connection.
+func TestProtect(t *testing.T) {
+	uid := types.UID("some-uid")
+	namespace := "some-namespace"
+
+	for name, tc := range map[string]struct {
+		reason  string
+		cleaner func(client.Client) ProviderConfigUsageCleaner
+		mg      func() Managed
+		wantNS  string
+	}{
+		"Legacy": {
+			reason: "The cluster-scoped tracker must protect the usage named for the managed resource UID.",
+			cleaner: func(c client.Client) ProviderConfigUsageCleaner {
+				return NewLegacyProviderConfigUsageTracker(c, &fake.LegacyProviderConfigUsage{})
+			},
+			// The namespace of a cluster-scoped managed resource is ignored.
+			mg: func() Managed { return &fake.LegacyManaged{} },
+		},
+		"Modern": {
+			reason: "The namespaced tracker must protect the usage named for the managed resource UID in its namespace.",
+			cleaner: func(c client.Client) ProviderConfigUsageCleaner {
+				return NewProviderConfigUsageTracker(c, &fake.ProviderConfigUsage{})
+			},
+			mg:     func() Managed { return &fake.ModernManaged{} },
+			wantNS: namespace,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			updated := false
+
+			c := test.NewMockClient()
+			c.MockGet = func(_ context.Context, key client.ObjectKey, _ client.Object) error {
+				if diff := cmp.Diff(client.ObjectKey{Name: string(uid), Namespace: tc.wantNS}, key); diff != "" {
+					t.Errorf("%s\nProtect lookup: -want, +got:\n%s", tc.reason, diff)
+				}
+				return nil
+			}
+			c.MockUpdate = test.NewMockUpdateFn(nil, func(obj client.Object) error {
+				updated = true
+				if !meta.FinalizerExists(obj.(ProviderConfigUsage), ProviderConfigUsageFinalizer) {
+					t.Errorf("%s\nProviderConfigUsage finalizer was not added", tc.reason)
+				}
+				return nil
+			})
+
+			mg := tc.mg()
+			mg.SetUID(uid)
+			mg.SetNamespace(namespace)
+			if err := tc.cleaner(c).Protect(context.Background(), mg); err != nil {
+				t.Fatalf("%s\nProtect returned an unexpected error: %v", tc.reason, err)
+			}
+
+			if !updated {
+				t.Errorf("%s\nProtect did not write the usage finalizer", tc.reason)
 			}
 		})
 	}

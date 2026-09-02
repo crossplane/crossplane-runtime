@@ -42,9 +42,11 @@ const (
 	errMissingPCRefKind      = "managed resource ProviderConfig reference has no Kind"
 	errApplyPCU              = "cannot apply ProviderConfigUsage"
 	errGetPCU                = "cannot get ProviderConfigUsage"
+	errAddPCUFinalizer       = "cannot add ProviderConfigUsage finalizer"
 	errRemovePCUFinalizer    = "cannot remove ProviderConfigUsage finalizer"
-	errFmtPCUNotModern       = "cannot release ProviderConfigUsage: %T is not a namespaced managed resource, so this tracker cannot resolve its usage"
-	errFmtPCUNotLegacy       = "cannot release ProviderConfigUsage: %T is not a cluster-scoped managed resource, so this tracker cannot resolve its usage"
+	// Shared by Protect and Untrack, so the wording names neither.
+	errFmtPCUNotModern = "cannot resolve ProviderConfigUsage: %T is not a namespaced managed resource"
+	errFmtPCUNotLegacy = "cannot resolve ProviderConfigUsage: %T is not a cluster-scoped managed resource"
 )
 
 // ProviderConfigUsageFinalizer keeps a ProviderConfigUsage alive until the
@@ -162,25 +164,70 @@ func (fn ModernTrackerFn) Track(ctx context.Context, mg ModernManaged) error {
 	return fn(ctx, mg)
 }
 
-// A ProviderConfigUsageCleaner releases the ProviderConfigUsage of a managed
-// resource after it no longer needs its ProviderConfig.
+// A ProviderConfigUsageCleaner protects a managed resource's
+// ProviderConfigUsage while the resource still needs its ProviderConfig, and
+// releases it once it doesn't.
+//
+// Both halves belong to the managed reconciler, so the finalizer is written and
+// removed by the same component. A tracker that only creates usages - at a
+// provider's connect site, which may build a fresh one per connection - never
+// needs to know about the finalizer, and cannot get out of step with whatever
+// removes it.
 type ProviderConfigUsageCleaner interface {
+	// Protect the managed resource's ProviderConfigUsage, so the garbage
+	// collector can't take it while the resource still needs its
+	// ProviderConfig.
+	Protect(ctx context.Context, mg Managed) error
+
+	// Untrack releases the managed resource's ProviderConfigUsage.
 	Untrack(ctx context.Context, mg Managed) error
 }
 
-// A ProviderConfigUsageCleanerFn releases a ProviderConfigUsage.
-type ProviderConfigUsageCleanerFn func(ctx context.Context, mg Managed) error
+// ProviderConfigUsageCleanerFns protects and releases ProviderConfigUsages
+// using the supplied functions.
+type ProviderConfigUsageCleanerFns struct {
+	ProtectFn func(ctx context.Context, mg Managed) error
+	UntrackFn func(ctx context.Context, mg Managed) error
+}
+
+// Protect the supplied managed resource's ProviderConfigUsage.
+func (fns ProviderConfigUsageCleanerFns) Protect(ctx context.Context, mg Managed) error {
+	return fns.ProtectFn(ctx, mg)
+}
 
 // Untrack the supplied managed resource.
-func (fn ProviderConfigUsageCleanerFn) Untrack(ctx context.Context, mg Managed) error {
-	return fn(ctx, mg)
+func (fns ProviderConfigUsageCleanerFns) Untrack(ctx context.Context, mg Managed) error {
+	return fns.UntrackFn(ctx, mg)
 }
 
 // NewNopProviderConfigUsageCleaner returns a ProviderConfigUsageCleaner that
 // does nothing. It is intended for managed resources that do not use a
 // ProviderConfigUsage.
 func NewNopProviderConfigUsageCleaner() ProviderConfigUsageCleaner {
-	return ProviderConfigUsageCleanerFn(func(context.Context, Managed) error { return nil })
+	return ProviderConfigUsageCleanerFns{
+		ProtectFn: func(context.Context, Managed) error { return nil },
+		UntrackFn: func(context.Context, Managed) error { return nil },
+	}
+}
+
+// preserveFinalizers copies the current object's finalizers onto the desired
+// one. Apply updates with the desired object, so without this an update - a
+// changed ProviderConfig reference is the only one Track makes - would strip
+// the finalizer the reconciler put there.
+func preserveFinalizers(_ context.Context, current, desired runtime.Object) error {
+	c, ok := current.(metav1.Object)
+	if !ok {
+		return nil
+	}
+
+	d, ok := desired.(metav1.Object)
+	if !ok {
+		return nil
+	}
+
+	d.SetFinalizers(c.GetFinalizers())
+
+	return nil
 }
 
 // A ProviderConfigUsageTracker tracks usages of a ProviderConfig by creating or
@@ -200,8 +247,9 @@ func NewProviderConfigUsageTracker(c client.Client, of TypedProviderConfigUsage)
 // references by creating or updating a ProviderConfigUsage. Track should be
 // called _before_ attempting to use the ProviderConfig. This ensures the
 // managed resource's usage is updated if the managed resource is updated to
-// reference a misconfigured ProviderConfig. Callers must use this tracker as
-// the managed reconciler's ProviderConfigUsageCleaner.
+// reference a misconfigured ProviderConfig. Track doesn't manage the
+// ProviderConfigUsageFinalizer; the managed reconciler does, through Protect
+// and Untrack.
 func (u *ProviderConfigUsageTracker) Track(ctx context.Context, mg ModernManaged) error {
 	//nolint:forcetypeassert // Will always be a PCU.
 	pcu := u.of.DeepCopyObject().(TypedProviderConfigUsage)
@@ -226,18 +274,36 @@ func (u *ProviderConfigUsageTracker) Track(ctx context.Context, mg ModernManaged
 		Kind:       gvk.Kind,
 		Name:       mg.GetName(),
 	})
-	meta.AddFinalizer(pcu, ProviderConfigUsageFinalizer)
-
 	err := u.c.Apply(ctx, pcu,
 		MustBeControllableBy(mg.GetUID()),
+		preserveFinalizers,
 		AllowUpdateIf(func(current, _ runtime.Object) bool {
 			//nolint:forcetypeassert // Will always be a PCU.
-			return current.(TypedProviderConfigUsage).GetProviderConfigReference() != pcu.GetProviderConfigReference() ||
-				!meta.FinalizerExists(current.(TypedProviderConfigUsage), ProviderConfigUsageFinalizer)
+			return current.(TypedProviderConfigUsage).GetProviderConfigReference() != pcu.GetProviderConfigReference()
 		}),
 	)
 
 	return errors.Wrap(Ignore(IsNotAllowed, err), errApplyPCU)
+}
+
+// Protect the supplied managed resource's ProviderConfigUsage, so the garbage
+// collector can't take it while the resource still needs its ProviderConfig.
+// It returns an error if the managed resource is not namespaced.
+func (u *ProviderConfigUsageTracker) Protect(ctx context.Context, mg Managed) error {
+	if _, ok := mg.(ModernManaged); !ok {
+		return errors.Errorf(errFmtPCUNotModern, mg)
+	}
+
+	//nolint:forcetypeassert // Will always be a PCU.
+	pcu := u.of.DeepCopyObject().(TypedProviderConfigUsage)
+	pcu.SetName(string(mg.GetUID()))
+	pcu.SetNamespace(mg.GetNamespace())
+
+	if err := u.client.Get(ctx, client.ObjectKeyFromObject(pcu), pcu); err != nil {
+		return errors.Wrap(IgnoreNotFound(err), errGetPCU)
+	}
+
+	return errors.Wrap(NewAPIFinalizer(u.client, ProviderConfigUsageFinalizer).AddFinalizer(ctx, pcu), errAddPCUFinalizer)
 }
 
 // Untrack releases the ProviderConfigUsage for the supplied managed resource.
@@ -276,8 +342,9 @@ func NewLegacyProviderConfigUsageTracker(c client.Client, of LegacyProviderConfi
 // references by creating or updating a ProviderConfigUsage. Track should be
 // called _before_ attempting to use the ProviderConfig. This ensures the
 // managed resource's usage is updated if the managed resource is updated to
-// reference a misconfigured ProviderConfig. Callers must use this tracker as
-// the managed reconciler's ProviderConfigUsageCleaner.
+// reference a misconfigured ProviderConfig. Track doesn't manage the
+// ProviderConfigUsageFinalizer; the managed reconciler does, through Protect
+// and Untrack.
 func (u *LegacyProviderConfigUsageTracker) Track(ctx context.Context, mg LegacyManaged) error {
 	//nolint:forcetypeassert // Will always be a legacy PCU.
 	pcu := u.of.DeepCopyObject().(LegacyProviderConfigUsage)
@@ -298,18 +365,35 @@ func (u *LegacyProviderConfigUsageTracker) Track(ctx context.Context, mg LegacyM
 		Kind:       gvk.Kind,
 		Name:       mg.GetName(),
 	})
-	meta.AddFinalizer(pcu, ProviderConfigUsageFinalizer)
-
 	err := u.c.Apply(ctx, pcu,
 		MustBeControllableBy(mg.GetUID()),
+		preserveFinalizers,
 		AllowUpdateIf(func(current, _ runtime.Object) bool {
 			//nolint:forcetypeassert // Will always be a PCU.
-			return current.(LegacyProviderConfigUsage).GetProviderConfigReference() != pcu.GetProviderConfigReference() ||
-				!meta.FinalizerExists(current.(LegacyProviderConfigUsage), ProviderConfigUsageFinalizer)
+			return current.(LegacyProviderConfigUsage).GetProviderConfigReference() != pcu.GetProviderConfigReference()
 		}),
 	)
 
 	return errors.Wrap(Ignore(IsNotAllowed, err), errApplyPCU)
+}
+
+// Protect the supplied managed resource's ProviderConfigUsage, so the garbage
+// collector can't take it while the resource still needs its ProviderConfig.
+// It returns an error if the managed resource is not cluster scoped.
+func (u *LegacyProviderConfigUsageTracker) Protect(ctx context.Context, mg Managed) error {
+	if _, ok := mg.(LegacyManaged); !ok {
+		return errors.Errorf(errFmtPCUNotLegacy, mg)
+	}
+
+	//nolint:forcetypeassert // Will always be a legacy PCU.
+	pcu := u.of.DeepCopyObject().(LegacyProviderConfigUsage)
+	pcu.SetName(string(mg.GetUID()))
+
+	if err := u.client.Get(ctx, client.ObjectKeyFromObject(pcu), pcu); err != nil {
+		return errors.Wrap(IgnoreNotFound(err), errGetPCU)
+	}
+
+	return errors.Wrap(NewAPIFinalizer(u.client, ProviderConfigUsageFinalizer).AddFinalizer(ctx, pcu), errAddPCUFinalizer)
 }
 
 // Untrack releases the ProviderConfigUsage for the supplied managed resource.

@@ -494,6 +494,69 @@ func TestReapOrphanedProviderConfigUsage(t *testing.T) {
 	}
 }
 
+// TestReapProviderConfigUsageWithoutController ensures a usage that lost its
+// controller reference has its finalizer released before it's deleted. Nothing
+// else can release it, so deleting it while finalized would leave it
+// terminating forever.
+func TestReapProviderConfigUsageWithoutController(t *testing.T) {
+	released := false
+	deleted := false
+
+	pcu := &fake.ProviderConfigUsage{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "pcu",
+			Finalizers: []string{resource.ProviderConfigUsageFinalizer},
+		},
+	}
+
+	c := &test.MockClient{
+		MockGet: test.NewMockGetFn(nil),
+		MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+			// Test-only; always our list type.
+			obj.(*ProviderConfigUsageList).Items = []resource.ProviderConfigUsage{pcu}
+			return nil
+		}),
+		MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
+			if u, ok := obj.(*fake.ProviderConfigUsage); ok && len(u.GetFinalizers()) == 0 {
+				released = true
+			}
+			return nil
+		}),
+		MockDelete: test.NewMockDeleteFn(nil, func(_ client.Object) error {
+			if !released {
+				t.Error("Reconcile(...): the ProviderConfigUsage was deleted before its finalizer was released")
+			}
+
+			deleted = true
+
+			return nil
+		}),
+		MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
+	}
+
+	m := &fake.Manager{
+		Client: c,
+		Scheme: fake.SchemeWith(&fake.ProviderConfig{}, &fake.ProviderConfigUsage{}, &ProviderConfigUsageList{}),
+	}
+	r := NewReconciler(m, resource.ProviderConfigKinds{
+		Config:    fake.GVK(&fake.ProviderConfig{}),
+		Usage:     fake.GVK(&fake.ProviderConfigUsage{}),
+		UsageList: fake.GVK(&ProviderConfigUsageList{}),
+	})
+
+	if _, err := r.Reconcile(context.Background(), reconcile.Request{NamespacedName: types.NamespacedName{Name: "pc"}}); err != nil {
+		t.Fatalf("Reconcile(...): unexpected error: %v", err)
+	}
+
+	if !released {
+		t.Error("Reconcile(...): expected the ProviderConfigUsage finalizer to be released, but it was not")
+	}
+
+	if !deleted {
+		t.Error("Reconcile(...): expected the ProviderConfigUsage to be deleted, but it was not")
+	}
+}
+
 // TestReapProviderConfigUsageWhoseOwnerFinishedTeardown ensures a usage is
 // released after its deleting owner removes its controller finalizers.
 func TestReapProviderConfigUsageWhoseOwnerFinishedTeardown(t *testing.T) {
