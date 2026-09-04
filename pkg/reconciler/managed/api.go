@@ -106,25 +106,7 @@ func (a *APISecretPublisher) PublishConnection(ctx context.Context, o resource.C
 	s := resource.ConnectionSecretFor(o, resource.MustGetKind(o, a.typer))
 	s.Data = c
 
-	err := a.secret.Apply(ctx, s,
-		resource.ConnectionSecretMustBeControllableBy(o.GetUID()),
-		resource.AllowUpdateIf(func(current, desired runtime.Object) bool {
-			// We consider the update to be a no-op and don't allow it if the
-			// current and existing secret data are identical.
-			//nolint:forcetypeassert // Will always be a secret.
-			return !cmp.Equal(current.(*corev1.Secret).Data, desired.(*corev1.Secret).Data, cmpopts.EquateEmpty())
-		}),
-	)
-	if resource.IsNotAllowed(err) {
-		// The update was not allowed because it was a no-op.
-		return false, nil
-	}
-
-	if err != nil {
-		return false, errors.Wrap(err, errCreateOrUpdateSecret)
-	}
-
-	return true, nil
+	return publishConnectionSecret(ctx, a.secret, s, o.GetUID(), false)
 }
 
 // UnpublishConnection is no-op since PublishConnection only creates resources
@@ -164,26 +146,7 @@ func (a *APILocalSecretPublisher) PublishConnection(ctx context.Context, o resou
 	s := resource.LocalConnectionSecretFor(o, resource.MustGetKind(o, a.typer))
 	s.Data = c
 
-	err := a.secret.Apply(ctx, s,
-		resource.ConnectionSecretMustBeControllableBy(o.GetUID()),
-		resource.AllowUpdateIf(func(current, desired runtime.Object) bool {
-			// We consider the update to be a no-op and don't allow it if the
-			// current and existing secret data are identical.
-			//nolint:forcetypeassert // Will always be a secret.
-			// NOTE(erhancagirici): cmp package is not recommended for production use
-			return !cmp.Equal(current.(*corev1.Secret).Data, desired.(*corev1.Secret).Data, cmpopts.EquateEmpty())
-		}),
-	)
-	if resource.IsNotAllowed(err) {
-		// The update was not allowed because it was a no-op.
-		return false, nil
-	}
-
-	if err != nil {
-		return false, errors.Wrap(err, errCreateOrUpdateSecret)
-	}
-
-	return true, nil
+	return publishConnectionSecret(ctx, a.secret, s, o.GetUID(), o.GetWriteConnectionSecretToReference().Metadata != nil)
 }
 
 // UnpublishConnection is no-op since PublishConnection only creates resources
@@ -191,6 +154,38 @@ func (a *APILocalSecretPublisher) PublishConnection(ctx context.Context, o resou
 // deleted.
 func (a *APILocalSecretPublisher) UnpublishConnection(_ context.Context, _ resource.LocalConnectionSecretOwner, _ ConnectionDetails) error {
 	return nil
+}
+
+func connectionSecretNeedsUpdate(current, desired *corev1.Secret, manageMetadata bool) bool {
+	if !cmp.Equal(current.Data, desired.Data, cmpopts.EquateEmpty()) {
+		return true
+	}
+
+	if !manageMetadata {
+		return false
+	}
+
+	return !cmp.Equal(current.Labels, desired.Labels, cmpopts.EquateEmpty()) ||
+		!cmp.Equal(current.Annotations, desired.Annotations, cmpopts.EquateEmpty())
+}
+
+// publishConnectionSecret applies the desired Secret via the given applicator,
+// returning whether the secret was published (i.e. changed) and any error.
+func publishConnectionSecret(ctx context.Context, applicator resource.Applicator, s *corev1.Secret, uid types.UID, manageMetadata bool) (bool, error) {
+	err := applicator.Apply(ctx, s,
+		resource.ConnectionSecretMustBeControllableBy(uid),
+		resource.AllowUpdateIf(func(current, desired runtime.Object) bool {
+			//nolint:forcetypeassert // Will always be a secret.
+			return connectionSecretNeedsUpdate(current.(*corev1.Secret), desired.(*corev1.Secret), manageMetadata)
+		}),
+	)
+	if resource.IsNotAllowed(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, errors.Wrap(err, errCreateOrUpdateSecret)
+	}
+	return true, nil
 }
 
 // An APISimpleReferenceResolver resolves references from one managed resource

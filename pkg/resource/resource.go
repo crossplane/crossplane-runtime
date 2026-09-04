@@ -19,6 +19,7 @@ package resource
 import (
 	"context"
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 
@@ -94,10 +95,28 @@ type LocalConnectionSecretOwner interface {
 // LocalConnectionSecretFor creates a connection secret in the namespace of the
 // supplied LocalConnectionSecretOwner, assumed to be of the supplied kind.
 func LocalConnectionSecretFor(o LocalConnectionSecretOwner, kind schema.GroupVersionKind) *corev1.Secret {
+	ref := o.GetWriteConnectionSecretToReference()
+
+	var labels, annotations map[string]string
+	if ref.Metadata != nil {
+		if ref.Metadata.Labels != nil {
+			labels = maps.Clone(ref.Metadata.Labels)
+		} else {
+			labels = map[string]string{}
+		}
+		if ref.Metadata.Annotations != nil {
+			annotations = maps.Clone(ref.Metadata.Annotations)
+		} else {
+			annotations = map[string]string{}
+		}
+	}
+
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:       o.GetNamespace(),
-			Name:            o.GetWriteConnectionSecretToReference().Name,
+			Name:            ref.Name,
+			Labels:          labels,
+			Annotations:     annotations,
 			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(o, kind))},
 		},
 		Type: SecretTypeConnection,
@@ -110,10 +129,12 @@ func LocalConnectionSecretFor(o LocalConnectionSecretOwner, kind schema.GroupVer
 // written to 'default' namespace if the ConnectionSecretOwner does not specify
 // a namespace.
 func ConnectionSecretFor(o ConnectionSecretOwner, kind schema.GroupVersionKind) *corev1.Secret {
+	ref := o.GetWriteConnectionSecretToReference()
+
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Namespace:       o.GetWriteConnectionSecretToReference().Namespace,
-			Name:            o.GetWriteConnectionSecretToReference().Name,
+			Namespace:       ref.Namespace,
+			Name:            ref.Name,
 			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(o, kind))},
 		},
 		Type: SecretTypeConnection,
