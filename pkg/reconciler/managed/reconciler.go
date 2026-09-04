@@ -19,12 +19,14 @@ package managed
 import (
 	"context"
 	"math/rand"
+	"reflect"
 	"strings"
 	"time"
 
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -67,6 +69,8 @@ const (
 	errReconcileUpdate          = "update failed"
 	errReconcileDelete          = "delete failed"
 	errRecordChangeLog          = "cannot record change log entry"
+	errProtectProviderConfig    = "cannot protect ProviderConfigUsage"
+	errUntrackProviderConfig    = "cannot release ProviderConfigUsage"
 
 	errExternalResourceNotExist = "external resource does not exist"
 
@@ -82,6 +86,8 @@ const (
 	reasonCannotObserve           event.Reason = "CannotObserveExternalResource"
 	reasonCannotCreate            event.Reason = "CannotCreateExternalResource"
 	reasonCannotDelete            event.Reason = "CannotDeleteExternalResource"
+	reasonCannotProtect           event.Reason = "CannotProtectProviderConfigUsage"
+	reasonCannotUntrack           event.Reason = "CannotReleaseProviderConfigUsage"
 	reasonCannotPublish           event.Reason = "CannotPublishConnectionDetails"
 	reasonCannotUnpublish         event.Reason = "CannotUnpublishConnectionDetails"
 	reasonCannotUpdate            event.Reason = "CannotUpdateExternalResource"
@@ -615,17 +621,71 @@ type mrManaged struct {
 	Initializer
 	ReferenceResolver
 	LocalConnectionPublisher
+	resource.ProviderConfigUsageCleaner
 }
 
-func defaultMRManaged(m manager.Manager) mrManaged {
+func defaultMRManaged(m manager.Manager, mg resource.Managed) mrManaged {
 	return mrManaged{
-		CriticalAnnotationUpdater: NewRetryingCriticalAnnotationUpdater(m.GetClient()),
-		Finalizer:                 resource.NewAPIFinalizer(m.GetClient(), FinalizerName),
-		Initializer:               NewNameAsExternalName(m.GetClient()),
-		ReferenceResolver:         NewAPISimpleReferenceResolver(m.GetClient()),
-		ConnectionPublisher:       NewAPISecretPublisher(m.GetClient(), m.GetScheme()),
-		LocalConnectionPublisher:  NewAPILocalSecretPublisher(m.GetClient(), m.GetScheme()),
+		CriticalAnnotationUpdater:  NewRetryingCriticalAnnotationUpdater(m.GetClient()),
+		Finalizer:                  resource.NewAPIFinalizer(m.GetClient(), FinalizerName),
+		Initializer:                NewNameAsExternalName(m.GetClient()),
+		ReferenceResolver:          NewAPISimpleReferenceResolver(m.GetClient()),
+		ConnectionPublisher:        NewAPISecretPublisher(m.GetClient(), m.GetScheme()),
+		LocalConnectionPublisher:   NewAPILocalSecretPublisher(m.GetClient(), m.GetScheme()),
+		ProviderConfigUsageCleaner: defaultProviderConfigUsageCleaner(m, mg),
 	}
+}
+
+// defaultProviderConfigUsageCleaner returns the cleaner that protects and
+// releases the ProviderConfigUsages of the supplied managed resource. The
+// tracker family follows the managed resource's scope, and the usage kind is
+// the only ProviderConfigUsage of that scope registered with the manager's
+// scheme - the same kind the provider's connector records usages with. A
+// managed resource that is neither cluster scoped nor namespaced, or whose
+// scheme registers no or several usage kinds of its scope, gets a cleaner that
+// does nothing; WithProviderConfigUsageCleaner overrides the choice.
+func defaultProviderConfigUsageCleaner(m manager.Manager, mg resource.Managed) resource.ProviderConfigUsageCleaner {
+	switch mg.(type) {
+	case resource.LegacyManaged:
+		if u, ok := onlyUsageKind[resource.LegacyProviderConfigUsage](m.GetScheme()); ok {
+			return resource.NewLegacyProviderConfigUsageTracker(m.GetClient(), u)
+		}
+	case resource.ModernManaged:
+		if u, ok := onlyUsageKind[resource.TypedProviderConfigUsage](m.GetScheme()); ok {
+			return resource.NewProviderConfigUsageTracker(m.GetClient(), u)
+		}
+	}
+
+	return resource.NewNopProviderConfigUsageCleaner()
+}
+
+// onlyUsageKind returns the single ProviderConfigUsage kind implementing U that
+// is registered with the supplied scheme. It returns false if the scheme
+// registers no such kind, or more than one.
+func onlyUsageKind[U resource.ProviderConfigUsage](s *runtime.Scheme) (U, bool) {
+	var found []U
+
+	seen := map[reflect.Type]bool{}
+
+	for _, t := range s.AllKnownTypes() {
+		if seen[t] {
+			continue
+		}
+
+		seen[t] = true
+
+		if u, ok := reflect.New(t).Interface().(U); ok {
+			found = append(found, u)
+		}
+	}
+
+	if len(found) != 1 {
+		var zero U
+
+		return zero, false
+	}
+
+	return found[0], true
 }
 
 func (m mrManaged) PublishConnection(ctx context.Context, managed resource.Managed, c ConnectionDetails) (bool, error) {
@@ -803,6 +863,26 @@ func WithFinalizer(f resource.Finalizer) ReconcilerOption {
 	}
 }
 
+// WithProviderConfigUsageCleaner specifies how the Reconciler should protect
+// and release the managed resource's ProviderConfigUsage. The Reconciler adds
+// the usage's finalizer once it has connected, and removes it once the managed
+// resource no longer needs its ProviderConfig.
+//
+// By default the Reconciler derives a cleaner from the managed resource's scope
+// and the ProviderConfigUsage kind registered with the manager's scheme, so
+// most providers need not supply one. Supply one when the scheme registers no
+// or several usage kinds of the managed resource's scope, or supply
+// resource.NewNopProviderConfigUsageCleaner() to turn protection off.
+//
+// The cleaner need not be the tracker the provider records usages with. It's
+// only used to find the usage belonging to a managed resource, so a separately
+// constructed one with the same client and usage type behaves identically.
+func WithProviderConfigUsageCleaner(c resource.ProviderConfigUsageCleaner) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.managed.ProviderConfigUsageCleaner = c
+	}
+}
+
 // WithReferenceResolver specifies how the Reconciler should resolve any
 // inter-resource references it encounters while reconciling managed resources.
 func WithReferenceResolver(rr ReferenceResolver) ReconcilerOption {
@@ -898,7 +978,7 @@ func NewReconciler(m manager.Manager, of resource.ManagedKind, o ...ReconcilerOp
 		pollIntervalHook:            defaultPollIntervalHook,
 		creationGracePeriod:         defaultGracePeriod,
 		timeout:                     reconcileTimeout,
-		managed:                     defaultMRManaged(m),
+		managed:                     defaultMRManaged(m, nm()),
 		external:                    defaultMRExternal(),
 		supportedManagementPolicies: defaultSupportedManagementPolicies(),
 		log:                         logging.NewNopLogger(),
@@ -1070,6 +1150,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 			return reconcile.Result{Requeue: true}, errors.Wrap(updateStatus(), errUpdateManagedStatus)
 		}
 
+		// Release the usage after removing the managed resource finalizer so the
+		// ProviderConfig remains available throughout deletion.
+		if err := r.managed.Untrack(ctx, managed); err != nil {
+			log.Debug("Cannot release ProviderConfigUsage", "error", err)
+			uerr := errors.Wrap(err, errUntrackProviderConfig)
+			record.Event(managed, event.Warning(reasonCannotUntrack, uerr))
+			status.MarkConditions(xpv2.Deleting(), xpv2.ReconcileError(uerr))
+			if err := updateStatus(); err != nil {
+				return reconcile.Result{Requeue: true}, errors.Wrap(err, errUpdateManagedStatus)
+			}
+			return reconcile.Result{Requeue: true}, uerr
+		}
+
 		// We've successfully unpublished our managed resource's connection
 		// details and removed our finalizer. If we assume we were the only
 		// controller that added a finalizer to this resource then it should no
@@ -1175,6 +1268,24 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		}
 	}()
 
+	// We've connected, so the managed resource is using its ProviderConfig and
+	// its usage must outlive that need. The Reconciler owns both ends of the
+	// usage finalizer - added here, removed by Untrack below - so a provider's
+	// tracker never has to, and can't get out of step with us.
+	if err := r.managed.Protect(ctx, managed); err != nil {
+		log.Debug("Cannot protect ProviderConfigUsage", "error", err)
+
+		if kerrors.IsConflict(err) {
+			return reconcile.Result{Requeue: true}, nil
+		}
+
+		perr := errors.Wrap(err, errProtectProviderConfig)
+		record.Event(managed, event.Warning(reasonCannotProtect, perr))
+		status.MarkConditions(xpv2.ReconcileError(perr))
+
+		return reconcile.Result{Requeue: true}, errors.Wrap(updateStatus(), errUpdateManagedStatus)
+	}
+
 	observation, err := external.Observe(externalCtx, managed)
 	if err != nil {
 		// We'll usually hit this case if our Provider credentials are invalid
@@ -1231,7 +1342,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 	if meta.WasDeleted(managed) {
 		log = log.WithValues("deletion-timestamp", managed.GetDeletionTimestamp())
 
-		if len(managed.GetFinalizers()) > 1 {
+		if len(meta.NonGCFinalizers(managed)) > 1 {
 			// There are other controllers monitoring this resource so preserve the external instance
 			// until all other finalizers have been removed
 			log.Debug("Delay external deletion until all finalizers have been removed")
@@ -1309,6 +1420,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 			status.MarkConditions(xpv2.Deleting(), xpv2.ReconcileError(err))
 
 			return reconcile.Result{Requeue: true}, errors.Wrap(updateStatus(), errUpdateManagedStatus)
+		}
+
+		// Release the usage after removing the managed resource finalizer so the
+		// ProviderConfig remains available throughout deletion.
+		if err := r.managed.Untrack(ctx, managed); err != nil {
+			log.Debug("Cannot release ProviderConfigUsage", "error", err)
+			uerr := errors.Wrap(err, errUntrackProviderConfig)
+			record.Event(managed, event.Warning(reasonCannotUntrack, uerr))
+			status.MarkConditions(xpv2.Deleting(), xpv2.ReconcileError(uerr))
+			if err := updateStatus(); err != nil {
+				return reconcile.Result{Requeue: true}, errors.Wrap(err, errUpdateManagedStatus)
+			}
+			return reconcile.Result{Requeue: true}, uerr
 		}
 
 		// We've successfully deleted our external resource (if necessary) and
