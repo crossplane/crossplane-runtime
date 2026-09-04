@@ -201,8 +201,9 @@ func (fns ProviderConfigUsageCleanerFns) Untrack(ctx context.Context, mg Managed
 }
 
 // NewNopProviderConfigUsageCleaner returns a ProviderConfigUsageCleaner that
-// does nothing. It is intended for managed resources that do not use a
-// ProviderConfigUsage.
+// does nothing. It is the default for managed resources whose scheme registers
+// no usable ProviderConfigUsage kind, and turns ProviderConfig deletion
+// protection off when supplied to a managed reconciler explicitly.
 func NewNopProviderConfigUsageCleaner() ProviderConfigUsageCleaner {
 	return ProviderConfigUsageCleanerFns{
 		ProtectFn: func(context.Context, Managed) error { return nil },
@@ -303,6 +304,13 @@ func (u *ProviderConfigUsageTracker) Protect(ctx context.Context, mg Managed) er
 		return errors.Wrap(IgnoreNotFound(err), errGetPCU)
 	}
 
+	// The API server refuses new finalizers on an object that is being
+	// deleted. The usage will be recreated, and protected, on the next
+	// reconcile once it's gone.
+	if meta.WasDeleted(pcu) {
+		return nil
+	}
+
 	return errors.Wrap(NewAPIFinalizer(u.client, ProviderConfigUsageFinalizer).AddFinalizer(ctx, pcu), errAddPCUFinalizer)
 }
 
@@ -391,6 +399,13 @@ func (u *LegacyProviderConfigUsageTracker) Protect(ctx context.Context, mg Manag
 
 	if err := u.client.Get(ctx, client.ObjectKeyFromObject(pcu), pcu); err != nil {
 		return errors.Wrap(IgnoreNotFound(err), errGetPCU)
+	}
+
+	// The API server refuses new finalizers on an object that is being
+	// deleted. The usage will be recreated, and protected, on the next
+	// reconcile once it's gone.
+	if meta.WasDeleted(pcu) {
+		return nil
 	}
 
 	return errors.Wrap(NewAPIFinalizer(u.client, ProviderConfigUsageFinalizer).AddFinalizer(ctx, pcu), errAddPCUFinalizer)
