@@ -24,6 +24,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -480,10 +481,12 @@ func TestProtect(t *testing.T) {
 	namespace := "some-namespace"
 
 	for name, tc := range map[string]struct {
-		reason  string
-		cleaner func(client.Client) ProviderConfigUsageCleaner
-		mg      func() Managed
-		wantNS  string
+		reason     string
+		cleaner    func(client.Client) ProviderConfigUsageCleaner
+		mg         func() Managed
+		wantNS     string
+		deleting   bool
+		wantUpdate bool
 	}{
 		"Legacy": {
 			reason: "The cluster-scoped tracker must protect the usage named for the managed resource UID.",
@@ -491,24 +494,47 @@ func TestProtect(t *testing.T) {
 				return NewLegacyProviderConfigUsageTracker(c, &fake.LegacyProviderConfigUsage{})
 			},
 			// The namespace of a cluster-scoped managed resource is ignored.
-			mg: func() Managed { return &fake.LegacyManaged{} },
+			mg:         func() Managed { return &fake.LegacyManaged{} },
+			wantUpdate: true,
 		},
 		"Modern": {
 			reason: "The namespaced tracker must protect the usage named for the managed resource UID in its namespace.",
 			cleaner: func(c client.Client) ProviderConfigUsageCleaner {
 				return NewProviderConfigUsageTracker(c, &fake.ProviderConfigUsage{})
 			},
-			mg:     func() Managed { return &fake.ModernManaged{} },
-			wantNS: namespace,
+			mg:         func() Managed { return &fake.ModernManaged{} },
+			wantNS:     namespace,
+			wantUpdate: true,
+		},
+		"LegacyUsageBeingDeleted": {
+			reason: "The API server refuses finalizers on a terminating object, so a cluster-scoped usage that is being deleted must be left alone without error.",
+			cleaner: func(c client.Client) ProviderConfigUsageCleaner {
+				return NewLegacyProviderConfigUsageTracker(c, &fake.LegacyProviderConfigUsage{})
+			},
+			mg:       func() Managed { return &fake.LegacyManaged{} },
+			deleting: true,
+		},
+		"ModernUsageBeingDeleted": {
+			reason: "The API server refuses finalizers on a terminating object, so a namespaced usage that is being deleted must be left alone without error.",
+			cleaner: func(c client.Client) ProviderConfigUsageCleaner {
+				return NewProviderConfigUsageTracker(c, &fake.ProviderConfigUsage{})
+			},
+			mg:       func() Managed { return &fake.ModernManaged{} },
+			wantNS:   namespace,
+			deleting: true,
 		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			updated := false
 
 			c := test.NewMockClient()
-			c.MockGet = func(_ context.Context, key client.ObjectKey, _ client.Object) error {
+			c.MockGet = func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 				if diff := cmp.Diff(client.ObjectKey{Name: string(uid), Namespace: tc.wantNS}, key); diff != "" {
 					t.Errorf("%s\nProtect lookup: -want, +got:\n%s", tc.reason, diff)
+				}
+				if tc.deleting {
+					now := metav1.Now()
+					obj.SetDeletionTimestamp(&now)
 				}
 				return nil
 			}
@@ -527,8 +553,8 @@ func TestProtect(t *testing.T) {
 				t.Fatalf("%s\nProtect returned an unexpected error: %v", tc.reason, err)
 			}
 
-			if !updated {
-				t.Errorf("%s\nProtect did not write the usage finalizer", tc.reason)
+			if diff := cmp.Diff(tc.wantUpdate, updated); diff != "" {
+				t.Errorf("%s\nProtect wrote the usage: -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
