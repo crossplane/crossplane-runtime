@@ -23,12 +23,14 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/crossplane/crossplane/apis/v2/pkg/v1beta1"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -79,6 +81,10 @@ func (m *MockCache) Store(key string, rc io.ReadCloser) error {
 }
 
 func (m *MockCache) Delete(key string) error {
+	if m.MockDelete == nil {
+		return nil
+	}
+
 	return m.MockDelete(key)
 }
 
@@ -201,6 +207,62 @@ func NewTestPackage(t *testing.T, metaJSON string, objectsJSON ...string) *parse
 	}
 
 	return pkg
+}
+
+func NewTestClientForPackage(t *testing.T, packageYAML string) *CachedClient {
+	t.Helper()
+
+	tarContent := CreateTarWithPackageYAML(packageYAML)
+	return &CachedClient{
+		fetcher: &MockFetcher{
+			MockHead: func(_ context.Context, _ name.Reference, _ ...string) (*v1.Descriptor, error) {
+				return &v1.Descriptor{
+					Digest: v1.Hash{
+						Algorithm: "sha256",
+						Hex:       "abc123def456789012345678901234567890123456789012345678901234abcd",
+					},
+				}, nil
+			},
+			MockFetch: func(_ context.Context, _ name.Reference, _ ...string) (v1.Image, error) {
+				return &MockImage{
+					MockManifest: func() (*v1.Manifest, error) {
+						return &v1.Manifest{
+							Layers: []v1.Descriptor{
+								{
+									Annotations: map[string]string{AnnotationKey: PackageAnnotation},
+									Digest:      v1.Hash{Algorithm: "sha256", Hex: "layer123"},
+								},
+							},
+						}, nil
+					},
+					MockLayerByDigest: func(_ v1.Hash) (v1.Layer, error) {
+						return NewMockLayer(tarContent), nil
+					},
+				}, nil
+			},
+		},
+		parser: NewTestParser(t),
+		cache: &MockCache{
+			MockGet: func(_ string) (io.ReadCloser, error) {
+				return nil, errors.New("not in cache")
+			},
+			MockStore: func(_ string, rc io.ReadCloser) error {
+				_, _ = io.Copy(io.Discard, rc)
+				return nil
+			},
+		},
+		config: &MockConfigStore{
+			MockRewritePath: func(_ context.Context, _ string) (string, string, error) {
+				return "", "", nil
+			},
+			MockPullSecretFor: func(_ context.Context, _ string) (string, string, error) {
+				return "", "", nil
+			},
+			MockImageVerificationConfigFor: func(_ context.Context, _ string) (string, *v1beta1.ImageVerification, error) {
+				return "", nil, nil
+			},
+		},
+	}
 }
 
 func PackageComparer() cmp.Option {
@@ -1054,6 +1116,187 @@ func TestClientGet(t *testing.T) {
 				t.Errorf("\n%s\nGet(...): -want Package, +got Package:\n%s", tc.reason, diff)
 			}
 		})
+	}
+}
+
+func TestClientGetWaitsForCacheStore(t *testing.T) {
+	providerMeta := `{"apiVersion":"meta.pkg.crossplane.io/v1","kind":"Provider","metadata":{"name":"provider-aws"}}`
+	client := NewTestClientForPackage(t, providerMeta)
+	stored := make(chan struct{})
+	release := make(chan struct{})
+	client.cache = &MockCache{
+		MockGet: func(_ string) (io.ReadCloser, error) {
+			return nil, errors.New("not in cache")
+		},
+		MockStore: func(_ string, rc io.ReadCloser) error {
+			_, _ = io.Copy(io.Discard, rc)
+			close(stored)
+			<-release
+			return nil
+		},
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := client.Get(context.Background(), testSource+":"+testTag)
+		done <- err
+	}()
+	<-stored
+
+	select {
+	case err := <-done:
+		t.Fatalf("Get(...) returned before cache Store(...) completed: %v", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	close(release)
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Get(...): unexpected error: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Get(...) did not return after cache Store(...) completed")
+	}
+}
+
+func TestClientGetIgnoresCacheStoreFailure(t *testing.T) {
+	providerMeta := `{"apiVersion":"meta.pkg.crossplane.io/v1","kind":"Provider","metadata":{"name":"provider-aws"}}`
+	client := NewTestClientForPackage(t, providerMeta)
+	deleted := 0
+	client.cache = &MockCache{
+		MockGet: func(_ string) (io.ReadCloser, error) {
+			return nil, errors.New("not in cache")
+		},
+		MockStore: func(_ string, _ io.ReadCloser) error {
+			return errors.New("cache full")
+		},
+		MockDelete: func(_ string) error {
+			deleted++
+			return nil
+		},
+	}
+
+	pkg, err := client.Get(context.Background(), testSource+":"+testTag)
+	if err != nil {
+		t.Fatalf("Get(...): unexpected error: %v", err)
+	}
+	if pkg == nil {
+		t.Fatal("Get(...): expected a package")
+	}
+	if deleted != 1 {
+		t.Errorf("Delete(...): want 1 call, got %d", deleted)
+	}
+}
+
+func TestClientGetRefetchesCorruptCache(t *testing.T) {
+	providerMeta := `{"apiVersion":"meta.pkg.crossplane.io/v1","kind":"Provider","metadata":{"name":"provider-aws"}}`
+	client := NewTestClientForPackage(t, providerMeta)
+	deleted := 0
+	client.cache = &MockCache{
+		MockGet: func(_ string) (io.ReadCloser, error) {
+			return io.NopCloser(strings.NewReader("invalid yaml content {{{")), nil
+		},
+		MockStore: func(_ string, rc io.ReadCloser) error {
+			_, _ = io.Copy(io.Discard, rc)
+			return nil
+		},
+		MockDelete: func(_ string) error {
+			deleted++
+			return nil
+		},
+	}
+
+	pkg, err := client.Get(context.Background(), testSource+":"+testTag, WithPullPolicy(corev1.PullIfNotPresent))
+	if err != nil {
+		t.Fatalf("Get(...): unexpected error: %v", err)
+	}
+	if pkg == nil {
+		t.Fatal("Get(...): expected a package")
+	}
+	if deleted != 1 {
+		t.Errorf("Delete(...): want 1 call, got %d", deleted)
+	}
+}
+
+func TestClientGetPreservesCorruptCacheWithPullNever(t *testing.T) {
+	providerMeta := `{"apiVersion":"meta.pkg.crossplane.io/v1","kind":"Provider","metadata":{"name":"provider-aws"}}`
+	client := NewTestClientForPackage(t, providerMeta)
+	head := false
+	client.fetcher.(*MockFetcher).MockHead = func(_ context.Context, _ name.Reference, _ ...string) (*v1.Descriptor, error) {
+		head = true
+		return &v1.Descriptor{Digest: v1.Hash{Algorithm: "sha256", Hex: strings.TrimPrefix(testDigest, "sha256:")}}, nil
+	}
+	fetched := false
+	client.fetcher.(*MockFetcher).MockFetch = func(_ context.Context, _ name.Reference, _ ...string) (v1.Image, error) {
+		fetched = true
+		return nil, errors.New("Fetch should not be called with PullNever")
+	}
+	deleted := false
+	client.cache = &MockCache{
+		MockGet: func(_ string) (io.ReadCloser, error) {
+			return io.NopCloser(strings.NewReader("invalid yaml content {{{")), nil
+		},
+		MockDelete: func(_ string) error {
+			deleted = true
+			return nil
+		},
+	}
+
+	_, err := client.Get(context.Background(), testSource+":"+testTag, WithPullPolicy(corev1.PullNever))
+	if err == nil || !strings.Contains(err.Error(), "cannot use cached package") {
+		t.Fatalf("Get(...): expected cached package parse error, got %v", err)
+	}
+	if deleted {
+		t.Error("Delete(...): corrupt PullNever cache entry was deleted")
+	}
+	if fetched {
+		t.Error("Fetch(...): registry was called with PullNever")
+	}
+	if !head {
+		t.Error("Head(...): tag reference was not resolved")
+	}
+}
+
+func TestClientGetDigestWithPullNeverDoesNotUseRegistry(t *testing.T) {
+	providerMeta := `{"apiVersion":"meta.pkg.crossplane.io/v1","kind":"Provider","metadata":{"name":"provider-aws"}}`
+	client := NewTestClientForPackage(t, providerMeta)
+	client.fetcher = &MockFetcher{
+		MockHead: func(_ context.Context, _ name.Reference, _ ...string) (*v1.Descriptor, error) {
+			return nil, errors.New("Head should not be called for digest refs")
+		},
+		MockFetch: func(_ context.Context, _ name.Reference, _ ...string) (v1.Image, error) {
+			return nil, errors.New("Fetch should not be called with PullNever")
+		},
+	}
+	client.cache = &MockCache{
+		MockGet: func(_ string) (io.ReadCloser, error) {
+			return io.NopCloser(strings.NewReader(providerMeta)), nil
+		},
+	}
+
+	pkg, err := client.Get(context.Background(), testSource+"@"+testDigest, WithPullPolicy(corev1.PullNever))
+	if err != nil {
+		t.Fatalf("Get(...): unexpected error: %v", err)
+	}
+	if pkg == nil {
+		t.Fatal("Get(...): expected a package")
+	}
+}
+
+func TestClientGetParseFailureDoesNotRemainCached(t *testing.T) {
+	fs := afero.NewMemMapFs()
+	cache := NewFsPackageCache("/cache", fs)
+	client := NewTestClientForPackage(t, "invalid yaml content {{{")
+	client.cache = cache
+
+	_, err := client.Get(context.Background(), testSource+":"+testTag)
+	if err == nil {
+		t.Fatal("Get(...): expected an error")
+	}
+	cacheKey := FriendlyID(testSource, testDigest)
+	if cache.Has(cacheKey) {
+		t.Fatal("Get(...): failed package content remained in cache")
 	}
 }
 
