@@ -22,6 +22,8 @@ import (
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/controller"
@@ -38,9 +40,29 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		log:  o.Logger,
 		gate: o.Gate,
 	}
-
-	return ctrl.NewControllerManagedBy(mgr).
+	b := ctrl.NewControllerManagedBy(mgr).
 		For(&apiextensionsv1.CustomResourceDefinition{}).
-		Named("crd-gate").
-		Complete(reconcile.AsReconciler[*apiextensionsv1.CustomResourceDefinition](mgr.GetClient(), r))
+		Named("crd-gate")
+
+	if len(o.Groups) > 0 {
+		b = b.WithEventFilter(GroupPredicate(o.Groups...))
+	}
+
+	return b.Complete(reconcile.AsReconciler[*apiextensionsv1.CustomResourceDefinition](mgr.GetClient(), r))
+}
+
+// GroupPredicate returns a predicate that filters CustomResourceDefinitions by group.
+func GroupPredicate(groups ...string) predicate.Predicate {
+	groupSet := make(map[string]struct{})
+	for _, g := range groups {
+		groupSet[g] = struct{}{}
+	}
+	return predicate.NewPredicateFuncs(func(obj client.Object) bool {
+		crd, ok := obj.(*apiextensionsv1.CustomResourceDefinition)
+		if !ok {
+			return false
+		}
+		_, ok = groupSet[crd.Spec.Group]
+		return ok
+	})
 }
