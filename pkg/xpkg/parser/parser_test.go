@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"testing"
 
@@ -227,42 +228,72 @@ func TestParserRejectsIncompleteDocument(t *testing.T) {
 	metaScheme := runtime.NewScheme()
 	_ = apiextensions.AddToScheme(objScheme)
 	_ = appsv1.AddToScheme(metaScheme)
+	errUnexpectedEOF := errors.New("unexpected EOF")
 
 	cases := map[string]struct {
+		reason string
 		reader io.ReadCloser
+		want   error
 	}{
 		"MalformedYAML": {
+			reason: "should reject malformed YAML",
 			reader: io.NopCloser(bytes.NewReader([]byte(`apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: "test`))),
 		},
-		"UnexpectedEOF": {
-			reader: &errorReadCloser{reader: bytes.NewReader([]byte(`apiVersion: apps/v1
+		"AnnotatedUnexpectedEOF": {
+			reason: "should preserve the reader annotation on stream errors",
+			reader: &annotatedReadCloser{
+				ReadCloser: &errorReadCloser{
+					reader: bytes.NewReader([]byte(`apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: test`))},
+  name: test`)),
+					err: errUnexpectedEOF,
+				},
+				annotation: "package.yaml",
+			},
+			want: fmt.Errorf("package.yaml: %w", errUnexpectedEOF),
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			_, err := New(metaScheme, objScheme).Parse(context.Background(), tc.reader)
-			if err == nil {
-				t.Fatal("Parse(...): expected error")
+			if tc.want == nil {
+				if err == nil {
+					t.Errorf("%s: Parse(...): expected error, got nil", tc.reason)
+				}
+				return
+			}
+
+			if diff := cmp.Diff(errUnexpectedEOF, errors.Unwrap(err), cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("%s: Parse(...): -want cause, +got cause:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.Error(), err.Error()); diff != "" {
+				t.Errorf("%s: Parse(...): -want err, +got err:\n%s", tc.reason, diff)
 			}
 		})
 	}
 }
 
+type annotatedReadCloser struct {
+	io.ReadCloser
+	annotation any
+}
+
+func (r *annotatedReadCloser) Annotate() any { return r.annotation }
+
 type errorReadCloser struct {
 	reader *bytes.Reader
+	err    error
 }
 
 func (r *errorReadCloser) Read(p []byte) (int, error) {
 	n, err := r.reader.Read(p)
 	if err == io.EOF {
-		return n, errors.New("unexpected EOF")
+		return n, r.err
 	}
 	return n, err
 }
