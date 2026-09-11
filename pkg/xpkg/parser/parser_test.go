@@ -19,6 +19,8 @@ package parser
 import (
 	"bytes"
 	"context"
+	"errors"
+	"io"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -219,6 +221,53 @@ func TestParser(t *testing.T) {
 		})
 	}
 }
+
+func TestParserRejectsIncompleteDocument(t *testing.T) {
+	objScheme := runtime.NewScheme()
+	metaScheme := runtime.NewScheme()
+	_ = apiextensions.AddToScheme(objScheme)
+	_ = appsv1.AddToScheme(metaScheme)
+
+	cases := map[string]struct {
+		reader io.ReadCloser
+	}{
+		"MalformedYAML": {
+			reader: io.NopCloser(bytes.NewReader([]byte(`apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "test`))),
+		},
+		"UnexpectedEOF": {
+			reader: &errorReadCloser{reader: bytes.NewReader([]byte(`apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test`))},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			_, err := New(metaScheme, objScheme).Parse(context.Background(), tc.reader)
+			if err == nil {
+				t.Fatal("Parse(...): expected error")
+			}
+		})
+	}
+}
+
+type errorReadCloser struct {
+	reader *bytes.Reader
+}
+
+func (r *errorReadCloser) Read(p []byte) (int, error) {
+	n, err := r.reader.Read(p)
+	if err == io.EOF {
+		return n, errors.New("unexpected EOF")
+	}
+	return n, err
+}
+
+func (r *errorReadCloser) Close() error { return nil }
 
 func TestCleanYAML(t *testing.T) {
 	type args struct {
