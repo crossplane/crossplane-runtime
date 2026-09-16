@@ -605,6 +605,50 @@ func TestFinalizerExists(t *testing.T) {
 	}
 }
 
+func TestNonGCFinalizers(t *testing.T) {
+	type args struct {
+		o metav1.Object
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   []string
+	}{
+		"NoFinalizers": {
+			reason: "An object without finalizers has no finalizers after garbage collector finalizers are excluded.",
+			args:   args{o: &corev1.Pod{}},
+			want:   []string{},
+		},
+		"OnlyGCFinalizers": {
+			reason: "The foregroundDeletion and orphan finalizers must both be excluded.",
+			args: args{o: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{
+				metav1.FinalizerDeleteDependents,
+				metav1.FinalizerOrphanDependents,
+			}}}},
+			want: []string{},
+		},
+		"KeepsControllerFinalizers": {
+			reason: "Finalizers that don't belong to the garbage collector must be kept, in order.",
+			args: args{o: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Finalizers: []string{
+				metav1.FinalizerDeleteDependents,
+				"example.org/first",
+				metav1.FinalizerOrphanDependents,
+				"example.org/second",
+			}}}},
+			want: []string{"example.org/first", "example.org/second"},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			if diff := cmp.Diff(tc.want, NonGCFinalizers(tc.args.o)); diff != "" {
+				t.Errorf("%s\nNonGCFinalizers(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
 func TestAddLabels(t *testing.T) {
 	key, value := "key", "value"
 	existingKey, existingValue := "ekey", "evalue"
