@@ -247,29 +247,75 @@ func (c *Unstructured) SetClaimReference(ref *reference.Claim) {
 	_ = fieldpath.Pave(c.Object).SetValue("spec.claimRef", ref)
 }
 
-// GetResourceReferences of this composite resource.
-func (c *Unstructured) GetResourceReferences() []corev1.ObjectReference {
-	path := "spec.crossplane.resourceRefs"
+// resourceRefsPath is where this composite resource keeps its composed
+// resource references.
+func (c *Unstructured) resourceRefsPath() string {
 	if c.Schema == SchemaLegacy {
-		path = "spec.resourceRefs"
+		return "spec.resourceRefs"
 	}
 
-	out := &[]corev1.ObjectReference{}
-	_ = fieldpath.Pave(c.Object).GetValueInto(path, out)
+	return "spec.crossplane.resourceRefs"
+}
+
+// GetComposedResourceReferences of this composite resource. Unlike
+// GetResourceReferences these carry the composition resource name and the
+// ordering constraints declared over each resource.
+func (c *Unstructured) GetComposedResourceReferences() []reference.Composed {
+	out := &[]reference.Composed{}
+	_ = fieldpath.Pave(c.Object).GetValueInto(c.resourceRefsPath(), out)
 
 	return *out
 }
 
-// SetResourceReferences of this composite resource.
-func (c *Unstructured) SetResourceReferences(refs []corev1.ObjectReference) {
-	path := "spec.crossplane.resourceRefs"
-	if c.Schema == SchemaLegacy {
-		path = "spec.resourceRefs"
+// SetComposedResourceReferences of this composite resource.
+func (c *Unstructured) SetComposedResourceReferences(refs []reference.Composed) {
+	filtered := make([]reference.Composed, 0, len(refs))
+
+	for _, ref := range refs {
+		// TODO(negz): Ask muvaf to explain what this is working around. :)
+		// TODO(muvaf): temporary workaround.
+		if ref.APIVersion == "" && ref.Kind == "" && ref.Name == "" && ref.Namespace == "" &&
+			ref.ResourceName == "" && len(ref.DependsOn) == 0 {
+			continue
+		}
+
+		filtered = append(filtered, ref)
 	}
 
+	_ = fieldpath.Pave(c.Object).SetValue(c.resourceRefsPath(), filtered)
+}
+
+// GetResourceReferences of this composite resource.
+func (c *Unstructured) GetResourceReferences() []corev1.ObjectReference {
+	refs := c.GetComposedResourceReferences()
+
+	out := make([]corev1.ObjectReference, len(refs))
+	for i, ref := range refs {
+		out[i] = corev1.ObjectReference{
+			APIVersion: ref.APIVersion,
+			Kind:       ref.Kind,
+			Name:       ref.Name,
+			Namespace:  ref.Namespace,
+		}
+	}
+
+	return out
+}
+
+// SetResourceReferences of this composite resource. Ordering fields already
+// recorded for a referenced resource are preserved, so a caller that doesn't
+// know about them can't erase them.
+func (c *Unstructured) SetResourceReferences(refs []corev1.ObjectReference) {
 	empty := corev1.ObjectReference{}
 
-	filtered := make([]corev1.ObjectReference, 0, len(refs))
+	existing := map[corev1.ObjectReference]reference.Composed{}
+	for _, ref := range c.GetComposedResourceReferences() {
+		k := corev1.ObjectReference{APIVersion: ref.APIVersion, Kind: ref.Kind, Name: ref.Name, Namespace: ref.Namespace}
+		existing[k] = ref
+	}
+
+	filtered := make([]reference.Composed, 0, len(refs))
+
 	for _, ref := range refs {
 		// TODO(negz): Ask muvaf to explain what this is working around. :)
 		// TODO(muvaf): temporary workaround.
@@ -277,10 +323,17 @@ func (c *Unstructured) SetResourceReferences(refs []corev1.ObjectReference) {
 			continue
 		}
 
-		filtered = append(filtered, ref)
+		filtered = append(filtered, reference.Composed{
+			APIVersion:   ref.APIVersion,
+			Kind:         ref.Kind,
+			Name:         ref.Name,
+			Namespace:    ref.Namespace,
+			ResourceName: existing[ref].ResourceName,
+			DependsOn:    existing[ref].DependsOn,
+		})
 	}
 
-	_ = fieldpath.Pave(c.Object).SetValue(path, filtered)
+	c.SetComposedResourceReferences(filtered)
 }
 
 // GetReference returns reference to this composite.
