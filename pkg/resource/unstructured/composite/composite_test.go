@@ -445,34 +445,100 @@ func TestComposedResourceReferences(t *testing.T) {
 }
 
 func TestSetResourceReferencesPreservesOrdering(t *testing.T) {
-	// A caller that only knows about ObjectReferences must not erase the
-	// ordering fields recorded for a resource it is re-setting.
-	u := New()
-	u.SetComposedResourceReferences([]reference.Composed{{
-		APIVersion:   "example.org/v1",
-		Kind:         "Thing",
-		Name:         "cool",
-		ResourceName: "subnet",
-		DependsOn:    []string{"vpc"},
-	}})
+	type args struct {
+		recorded []reference.Composed
+		set      []corev1.ObjectReference
+	}
 
-	u.SetResourceReferences([]corev1.ObjectReference{{
-		APIVersion: "example.org/v1",
-		Kind:       "Thing",
-		Name:       "cool",
-	}})
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   []reference.Composed
+	}{
+		"PreserveOrderingOfIdentifiedReference": {
+			reason: "A caller that only knows about ObjectReferences should not erase the ordering fields recorded for a resource it is re-setting.",
+			args: args{
+				recorded: []reference.Composed{{
+					APIVersion:   "example.org/v1",
+					Kind:         "Thing",
+					Name:         "cool",
+					ResourceName: "subnet",
+					DependsOn:    []string{"vpc"},
+				}},
+				set: []corev1.ObjectReference{{
+					APIVersion: "example.org/v1",
+					Kind:       "Thing",
+					Name:       "cool",
+				}},
+			},
+			want: []reference.Composed{{
+				APIVersion:   "example.org/v1",
+				Kind:         "Thing",
+				Name:         "cool",
+				ResourceName: "subnet",
+				DependsOn:    []string{"vpc"},
+			}},
+		},
+		"PreserveOrderingWithoutObjectIdentity": {
+			reason: "A recorded reference that carries only ordering has no ObjectReference to arrive on, so it should be carried over rather than replaced away.",
+			args: args{
+				recorded: []reference.Composed{{
+					ResourceName: "subnet",
+					DependsOn:    []string{"vpc"},
+				}},
+				set: []corev1.ObjectReference{{
+					APIVersion: "example.org/v1",
+					Kind:       "Thing",
+					Name:       "cool",
+				}},
+			},
+			want: []reference.Composed{
+				{
+					APIVersion: "example.org/v1",
+					Kind:       "Thing",
+					Name:       "cool",
+				},
+				{
+					ResourceName: "subnet",
+					DependsOn:    []string{"vpc"},
+				},
+			},
+		},
+		"DropOrderingOfUnreferencedResource": {
+			reason: "Ordering recorded for a resource the caller no longer references should go with it.",
+			args: args{
+				recorded: []reference.Composed{{
+					APIVersion:   "example.org/v1",
+					Kind:         "Thing",
+					Name:         "gone",
+					ResourceName: "subnet",
+					DependsOn:    []string{"vpc"},
+				}},
+				set: []corev1.ObjectReference{{
+					APIVersion: "example.org/v1",
+					Kind:       "Thing",
+					Name:       "cool",
+				}},
+			},
+			want: []reference.Composed{{
+				APIVersion: "example.org/v1",
+				Kind:       "Thing",
+				Name:       "cool",
+			}},
+		},
+	}
 
-	want := []reference.Composed{{
-		APIVersion:   "example.org/v1",
-		Kind:         "Thing",
-		Name:         "cool",
-		ResourceName: "subnet",
-		DependsOn:    []string{"vpc"},
-	}}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			u := New()
+			u.SetComposedResourceReferences(tc.args.recorded)
+			u.SetResourceReferences(tc.args.set)
 
-	got := u.GetComposedResourceReferences()
-	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("\nu.GetComposedResourceReferences(): -want, +got:\n%s", diff)
+			got := u.GetComposedResourceReferences()
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\n%s\nu.GetComposedResourceReferences(): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
 	}
 }
 

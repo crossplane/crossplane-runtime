@@ -308,13 +308,26 @@ func (c *Unstructured) GetResourceReferences() []corev1.ObjectReference {
 func (c *Unstructured) SetResourceReferences(refs []corev1.ObjectReference) {
 	empty := corev1.ObjectReference{}
 
+	// A recorded reference is matched to the supplied one by object identity.
+	// A reference that has no identity - one that carries only a composition
+	// resource name, or only the resources it depends on - cannot be matched,
+	// because there is no ObjectReference for it to arrive on. Carrying those
+	// over wholesale is what stops this method erasing ordering that its
+	// caller has no way to supply.
 	existing := map[corev1.ObjectReference]reference.Composed{}
+	unidentified := []reference.Composed{}
+
 	for _, ref := range c.GetComposedResourceReferences() {
 		k := corev1.ObjectReference{APIVersion: ref.APIVersion, Kind: ref.Kind, Name: ref.Name, Namespace: ref.Namespace}
+		if k == empty {
+			unidentified = append(unidentified, ref)
+			continue
+		}
+
 		existing[k] = ref
 	}
 
-	filtered := make([]reference.Composed, 0, len(refs))
+	filtered := make([]reference.Composed, 0, len(refs)+len(unidentified))
 
 	for _, ref := range refs {
 		// TODO(negz): Ask muvaf to explain what this is working around. :)
@@ -333,7 +346,7 @@ func (c *Unstructured) SetResourceReferences(refs []corev1.ObjectReference) {
 		})
 	}
 
-	c.SetComposedResourceReferences(filtered)
+	c.SetComposedResourceReferences(append(filtered, unidentified...))
 }
 
 // GetReference returns reference to this composite.
