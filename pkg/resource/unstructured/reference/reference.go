@@ -51,6 +51,43 @@ type Composite struct {
 	Namespace *string `json:"namespace,omitempty"`
 }
 
+// A Composed is a reference to a resource a composite resource composes. It
+// carries the Crossplane machinery an ObjectReference has no room for: the
+// composition resource name the entry corresponds to, and the ordering
+// constraints declared over it.
+type Composed struct {
+	// APIVersion of the referenced composed resource.
+	APIVersion string `json:"apiVersion"`
+
+	// Kind of the referenced composed resource.
+	Kind string `json:"kind"`
+
+	// Name of the referenced composed resource.
+	Name string `json:"name,omitempty"`
+
+	// Namespace of the referenced composed resource. Always empty for a
+	// composed resource of a namespaced composite, which may only compose
+	// resources in its own namespace.
+	Namespace string `json:"namespace,omitempty"`
+
+	// ResourceName is the composition resource name of the referenced
+	// resource - the key a function uses for it. It is otherwise recorded only
+	// in an annotation on the composed resource itself, so persisting it here
+	// is what lets DependsOn be resolved without reading every composed
+	// resource.
+	ResourceName string `json:"resourceName,omitempty"`
+
+	// DependsOn is the composition resource names this resource depends on.
+	// Crossplane creates a resource only once everything it depends on is
+	// ready, and deletes it only once nothing depends on it any more.
+	DependsOn []string `json:"dependsOn,omitempty"`
+}
+
+// GroupVersionKind returns the GroupVersionKind of the composed reference.
+func (c *Composed) GroupVersionKind() schema.GroupVersionKind {
+	return schema.FromAPIVersionAndKind(c.APIVersion, c.Kind)
+}
+
 // GroupVersionKind returns the GroupVersionKind of the claim reference.
 func (c *Claim) GroupVersionKind() schema.GroupVersionKind {
 	return schema.FromAPIVersionAndKind(c.APIVersion, c.Kind)
