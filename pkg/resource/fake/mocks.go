@@ -259,13 +259,73 @@ func (m *CompositeResourceReferencer) SetResourceReference(p *reference.Composit
 func (m *CompositeResourceReferencer) GetResourceReference() *reference.Composite { return m.Ref }
 
 // ComposedResourcesReferencer is a mock that implements ComposedResourcesReferencer interface.
-type ComposedResourcesReferencer struct{ Refs []corev1.ObjectReference }
+type ComposedResourcesReferencer struct {
+	Refs         []corev1.ObjectReference
+	ComposedRefs []reference.Composed
+}
 
-// SetResourceReferences sets the composed references.
-func (m *ComposedResourcesReferencer) SetResourceReferences(r []corev1.ObjectReference) { m.Refs = r }
+// SetResourceReferences sets the composed references. Both views are kept in
+// sync, as they are on a real composite resource, where they read and write the
+// same underlying field.
+func (m *ComposedResourcesReferencer) SetResourceReferences(r []corev1.ObjectReference) {
+	m.Refs = r
+
+	if r == nil {
+		m.ComposedRefs = nil
+		return
+	}
+
+	// Preserve the ordering fields already recorded for a resource, the way
+	// the real accessor does.
+	existing := map[corev1.ObjectReference]reference.Composed{}
+	for _, ref := range m.ComposedRefs {
+		existing[corev1.ObjectReference{APIVersion: ref.APIVersion, Kind: ref.Kind, Name: ref.Name, Namespace: ref.Namespace}] = ref
+	}
+
+	cr := make([]reference.Composed, len(r))
+	for i, ref := range r {
+		cr[i] = reference.Composed{
+			APIVersion:   ref.APIVersion,
+			Kind:         ref.Kind,
+			Name:         ref.Name,
+			Namespace:    ref.Namespace,
+			ResourceName: existing[ref].ResourceName,
+			DependsOn:    existing[ref].DependsOn,
+		}
+	}
+
+	m.ComposedRefs = cr
+}
 
 // GetResourceReferences gets the composed references.
 func (m *ComposedResourcesReferencer) GetResourceReferences() []corev1.ObjectReference { return m.Refs }
+
+// SetComposedResourceReferences sets the composed references.
+func (m *ComposedResourcesReferencer) SetComposedResourceReferences(r []reference.Composed) {
+	m.ComposedRefs = r
+
+	if r == nil {
+		m.Refs = nil
+		return
+	}
+
+	or := make([]corev1.ObjectReference, len(r))
+	for i, ref := range r {
+		or[i] = corev1.ObjectReference{
+			APIVersion: ref.APIVersion,
+			Kind:       ref.Kind,
+			Name:       ref.Name,
+			Namespace:  ref.Namespace,
+		}
+	}
+
+	m.Refs = or
+}
+
+// GetComposedResourceReferences gets the composed references.
+func (m *ComposedResourcesReferencer) GetComposedResourceReferences() []reference.Composed {
+	return m.ComposedRefs
+}
 
 // An EnvironmentConfigReferencer is a mock that implements the
 // EnvironmentConfigReferencer interface.
