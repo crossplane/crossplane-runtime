@@ -470,20 +470,20 @@ schema = 3
     hash = 'sha256-XA4Oj1gdmdV/F/+8kMI+DBxKPthZ768hbKsO3d9Gx90='
 
   [mod.'github.com/prometheus/client_golang']
-    version = 'v1.23.2'
-    hash = 'sha256-3GD4fBFa1tJu8MS4TNP6r2re2eViUE+kWUaieIOQXCg='
+    version = 'v1.24.1'
+    hash = 'sha256-HAOFVYyPiU7hVS1XXMMjkbGgTT7/UN0zVHXYOnjr7is='
 
   [mod.'github.com/prometheus/client_model']
     version = 'v0.6.2'
     hash = 'sha256-q6Fh6v8iNJN9ypD47LjWmx66YITa3FyRjZMRsuRTFeQ='
 
   [mod.'github.com/prometheus/common']
-    version = 'v0.67.5'
-    hash = 'sha256-pDzmYsAANsaIf3W9HxpbgRnZ4BkPhJBBwzKq2E58FRw='
+    version = 'v0.70.1'
+    hash = 'sha256-xlhVEswCWaBnAXn53KOUzquoDEnZVd/NcTbj52EJ6rE='
 
   [mod.'github.com/prometheus/procfs']
-    version = 'v0.20.1'
-    hash = 'sha256-L6RuVGYgdBCCke8BibA7cXgfwizGE2pA0gNo9dGJ8WQ='
+    version = 'v0.21.1'
+    hash = 'sha256-5SpWprdX29oVntHJyadiICOk9UAP+hu+xJM51/A8Ig4='
 
   [mod.'github.com/sassoftware/relic']
     version = 'v7.2.1+incompatible'
