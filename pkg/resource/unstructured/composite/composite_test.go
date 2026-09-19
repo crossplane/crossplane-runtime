@@ -396,6 +396,152 @@ func TestResourceReferences(t *testing.T) {
 	}
 }
 
+func TestComposedResourceReferences(t *testing.T) {
+	full := reference.Composed{
+		APIVersion:   "example.org/v1",
+		Kind:         "Thing",
+		Name:         "cool",
+		Namespace:    "ns",
+		ResourceName: "subnet",
+		DependsOn:    []string{"vpc"},
+	}
+
+	cases := map[string]struct {
+		reason string
+		u      *Unstructured
+		set    []reference.Composed
+		want   []reference.Composed
+	}{
+		"RoundTrip": {
+			reason: "A reference should survive a set and get unchanged.",
+			u:      New(),
+			set:    []reference.Composed{full},
+			want:   []reference.Composed{full},
+		},
+		"DropsEmpty": {
+			reason: "A reference with nothing in it at all is dropped.",
+			u:      New(),
+			set:    []reference.Composed{{}, full},
+			want:   []reference.Composed{full},
+		},
+		"KeepsOrderingOnlyRef": {
+			reason: "A reference carrying only ordering fields is not empty, and must not be dropped.",
+			u:      New(),
+			set:    []reference.Composed{{ResourceName: "vpc"}, {DependsOn: []string{"vpc"}}},
+			want:   []reference.Composed{{ResourceName: "vpc"}, {DependsOn: []string{"vpc"}}},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			tc.u.SetComposedResourceReferences(tc.set)
+
+			got := tc.u.GetComposedResourceReferences()
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\n%s\nu.GetComposedResourceReferences(): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestSetResourceReferencesPreservesOrdering(t *testing.T) {
+	type args struct {
+		recorded []reference.Composed
+		set      []corev1.ObjectReference
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   []reference.Composed
+	}{
+		"PreserveOrderingOfIdentifiedReference": {
+			reason: "A caller that only knows about ObjectReferences should not erase the ordering fields recorded for a resource it is re-setting.",
+			args: args{
+				recorded: []reference.Composed{{
+					APIVersion:   "example.org/v1",
+					Kind:         "Thing",
+					Name:         "cool",
+					ResourceName: "subnet",
+					DependsOn:    []string{"vpc"},
+				}},
+				set: []corev1.ObjectReference{{
+					APIVersion: "example.org/v1",
+					Kind:       "Thing",
+					Name:       "cool",
+				}},
+			},
+			want: []reference.Composed{{
+				APIVersion:   "example.org/v1",
+				Kind:         "Thing",
+				Name:         "cool",
+				ResourceName: "subnet",
+				DependsOn:    []string{"vpc"},
+			}},
+		},
+		"PreserveOrderingWithoutObjectIdentity": {
+			reason: "A recorded reference that carries only ordering has no ObjectReference to arrive on, so it should be carried over rather than replaced away.",
+			args: args{
+				recorded: []reference.Composed{{
+					ResourceName: "subnet",
+					DependsOn:    []string{"vpc"},
+				}},
+				set: []corev1.ObjectReference{{
+					APIVersion: "example.org/v1",
+					Kind:       "Thing",
+					Name:       "cool",
+				}},
+			},
+			want: []reference.Composed{
+				{
+					APIVersion: "example.org/v1",
+					Kind:       "Thing",
+					Name:       "cool",
+				},
+				{
+					ResourceName: "subnet",
+					DependsOn:    []string{"vpc"},
+				},
+			},
+		},
+		"DropOrderingOfUnreferencedResource": {
+			reason: "Ordering recorded for a resource the caller no longer references should go with it.",
+			args: args{
+				recorded: []reference.Composed{{
+					APIVersion:   "example.org/v1",
+					Kind:         "Thing",
+					Name:         "gone",
+					ResourceName: "subnet",
+					DependsOn:    []string{"vpc"},
+				}},
+				set: []corev1.ObjectReference{{
+					APIVersion: "example.org/v1",
+					Kind:       "Thing",
+					Name:       "cool",
+				}},
+			},
+			want: []reference.Composed{{
+				APIVersion: "example.org/v1",
+				Kind:       "Thing",
+				Name:       "cool",
+			}},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			u := New()
+			u.SetComposedResourceReferences(tc.args.recorded)
+			u.SetResourceReferences(tc.args.set)
+
+			got := u.GetComposedResourceReferences()
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\n%s\nu.GetComposedResourceReferences(): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
 func TestWriteConnectionSecretToReference(t *testing.T) {
 	ref := &xpv2.SecretReference{Namespace: "ns", Name: "cool"}
 	cases := map[string]struct {
