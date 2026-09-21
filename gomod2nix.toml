@@ -182,8 +182,8 @@ schema = 3
     hash = 'sha256-w8KEprK54zJkMat78T6zldjDwvhbc/O8s6pVFzfmg1I='
 
   [mod.'github.com/docker/cli']
-    version = 'v29.6.2+incompatible'
-    hash = 'sha256-xEZJxyYudJL7Js7rt2DqzLXAxJIGX+CbmhEFe8PBgBo='
+    version = 'v29.7.2+incompatible'
+    hash = 'sha256-OMcAhxCt+LtgBU/UNkmXFJZP4aJx4vrL/UaoEc7TjBE='
 
   [mod.'github.com/docker/docker-credential-helpers']
     version = 'v0.9.5'
@@ -358,8 +358,8 @@ schema = 3
     hash = 'sha256-JbxZFBFGCh/Rj5XZ1vG94V2x7c18L8XKB0N9ZD5F2rM='
 
   [mod.'github.com/google/go-containerregistry']
-    version = 'v0.21.9'
-    hash = 'sha256-BY9E1Gd4eKSEZn256+MWbYvnYJQzDGijr0f6PECBi5I='
+    version = 'v0.22.1'
+    hash = 'sha256-uo7PstupArFJ7LVXRS9xrLV4c/TkQVQnIxSSZPaz2D4='
 
   [mod.'github.com/google/go-containerregistry/pkg/authn/k8schain']
     version = 'v0.0.0-20260312205200-e9163014982e'
@@ -406,8 +406,8 @@ schema = 3
     hash = 'sha256-To8A0h+lbfZ/6zM+2PpRpY3+L6725OPC66lffq6fUoM='
 
   [mod.'github.com/klauspost/compress']
-    version = 'v1.19.1'
-    hash = 'sha256-7aDl/b+nSvtpJDsi69itGEut75PiYekrkVxz1IqnzPk='
+    version = 'v1.19.2'
+    hash = 'sha256-Q7taaWYa+O5MkhiGESFs4UdMba8cDGEROXU/Y+3M5vE='
 
   [mod.'github.com/letsencrypt/boulder']
     version = 'v0.20260309.0'
