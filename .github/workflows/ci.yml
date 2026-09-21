@@ -15,7 +15,7 @@ env:
 
 jobs:
   check-diff:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Checkout
@@ -34,7 +34,7 @@ jobs:
         run: nix build .#checks.x86_64-linux.generate --print-build-logs
 
   validate-renovate-config:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Checkout
@@ -54,7 +54,7 @@ jobs:
         run: npx --yes --package renovate -- renovate-config-validator
 
   lint:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Checkout
@@ -73,7 +73,7 @@ jobs:
         run: nix build .#checks.x86_64-linux.go-lint --print-build-logs
 
   codeql:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       security-events: write
@@ -103,7 +103,7 @@ jobs:
         uses: github/codeql-action/analyze@1c5b675653bb5c22dbe9b12b556ec555138e09fd # v4
 
   unit-tests:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Checkout
@@ -129,7 +129,7 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
 
   protobuf-schemas:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Checkout
