@@ -593,10 +593,6 @@ schema = 3
     version = 'v1.45.0'
     hash = 'sha256-VoyRt1cLW8apITGla1K1fqbSyJyRPr53+R3iisreE+4='
 
-  [mod.'go.opentelemetry.io/otel/sdk/metric']
-    version = 'v1.45.0'
-    hash = 'sha256-sjqCSECo+FNQ6IplnRrh2rFdCbYdS9/B6LgoxVjCNIo='
-
   [mod.'go.opentelemetry.io/otel/trace']
     version = 'v1.45.0'
     hash = 'sha256-LKrsYVdfPEzxXPEFSapjGIiw2e1C4Yq5HXtoYrN4FIY='
@@ -670,8 +666,8 @@ schema = 3
     hash = 'sha256-ldJTTb7hhj1mdmzTn9IEkQVwCoj3KRlENZtUSEKHABU='
 
   [mod.'google.golang.org/grpc']
-    version = 'v1.83.2'
-    hash = 'sha256-q5VtdeJvWM7kbIvui8ncNV/+Rm+d0y/b6XkNN0/u1is='
+    version = 'v1.84.0'
+    hash = 'sha256-gUDleBLGxwuzhA0emDRNAr1GnPlMfjgpkOX9u/0WsOk='
 
   [mod.'google.golang.org/protobuf']
     version = 'v1.36.12'
