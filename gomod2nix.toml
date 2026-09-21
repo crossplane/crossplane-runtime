@@ -134,8 +134,8 @@ schema = 3
     hash = 'sha256-7hRlwSR+fos1kx4VZmJ/7snR7zHh8ZFKX+qqqqGcQpY='
 
   [mod.'github.com/coreos/go-oidc/v3']
-    version = 'v3.18.0'
-    hash = 'sha256-5vd00/GgjGZfpu+0qZdWUHRhnIHBnHccwkksuU50D9s='
+    version = 'v3.20.0'
+    hash = 'sha256-mlYeWQ7OKatN8ag+q+DjipcPSXwQJ+V5dOYswjcE76w='
 
   [mod.'github.com/crossplane/crossplane/apis/v2']
     version = 'v2.3.4'
@@ -202,8 +202,8 @@ schema = 3
     hash = 'sha256-ufvApHNHP7n7Hhcu1ocTl0D+KiMFd7y98Kx1IZ4aHXc='
 
   [mod.'github.com/go-jose/go-jose/v4']
-    version = 'v4.1.4'
-    hash = 'sha256-MKoJKXup1jfwOyN8mHXu1CQ8fvFJTaEf3K2LVtNSRhc='
+    version = 'v4.1.5'
+    hash = 'sha256-GnRt1sMlr4qn9yJ3RCtZSezN+C9DXR+v5smzAKmi26M='
 
   [mod.'github.com/go-logr/logr']
     version = 'v1.4.4'
@@ -318,8 +318,8 @@ schema = 3
     hash = 'sha256-h7AszH+3YWL3IV0+miY9vbtU0gM/2RpuASSGAYAgWcA='
 
   [mod.'github.com/golang/snappy']
-    version = 'v0.0.4'
-    hash = 'sha256-Umx+5xHAQCN/Gi4HbtMhnDCSPFAXSsjVbXd8n5LhjAA='
+    version = 'v1.0.0'
+    hash = 'sha256-o/S91mX4ysjuG/oRHLs8qSyfb1Risf/YzMuW5u7d3U4='
 
   [mod.'github.com/google/cel-go']
     version = 'v0.30.0'
@@ -392,10 +392,6 @@ schema = 3
   [mod.'github.com/kylelemons/godebug']
     version = 'v1.1.0'
     hash = 'sha256-DJ0re9mGqZb6PROQI8NPC0JVyDHdZ/y4uehNH7MbczY='
-
-  [mod.'github.com/letsencrypt/boulder']
-    version = 'v0.20260309.0'
-    hash = 'sha256-uqkYtnaoghoqVv4QbInTLZBCD6uS95pQM0Q0fm5Kgm4='
 
   [mod.'github.com/mattn/go-colorable']
     version = 'v0.1.14'
@@ -474,8 +470,8 @@ schema = 3
     hash = 'sha256-vHyTdLRh6OlfoGzVgvx7I0+E6tpE7V43lCQaHD/e8J4='
 
   [mod.'github.com/secure-systems-lab/go-securesystemslib']
-    version = 'v0.11.0'
-    hash = 'sha256-cE+nOWw3PrwtRIRHgs5qpwn6rFGwRSe/j57mGkbbA4w='
+    version = 'v0.11.1'
+    hash = 'sha256-/7qLvFaS3nScaAhMs/Ev0B2Hl30PdMQtzztuAnp8GAo='
 
   [mod.'github.com/shibumi/go-pathspec']
     version = 'v1.3.0'
@@ -486,8 +482,8 @@ schema = 3
     hash = 'sha256-f81oEYRAxi98g0HXGS8yuEdSmvApIegOI7ugRoPSex0='
 
   [mod.'github.com/sigstore/protobuf-specs']
-    version = 'v0.5.1'
-    hash = 'sha256-blaq58oRQUpdNKrmlt1lY/HNxXteZFIN7haQIeskVg0='
+    version = 'v0.5.2'
+    hash = 'sha256-AU3e/42OQH5CKQo7UuaE/hwHrkPrJuOJYLeyt41f884='
 
   [mod.'github.com/sigstore/rekor']
     version = 'v1.5.3'
@@ -498,8 +494,8 @@ schema = 3
     hash = 'sha256-OeG7/XRwCFL1sh5O2EPePakoJK9Qe5AZgdIktEn+owU='
 
   [mod.'github.com/sigstore/sigstore']
-    version = 'v1.10.8'
-    hash = 'sha256-9dK8uADbWpxL6ZE+zMQk5I16SMmhKYHfuRAfBquhZlw='
+    version = 'v1.11.0'
+    hash = 'sha256-n86IwrPAhWcW4Aac04kEVsk1nK0aSpH+XuVr0O6oOk0='
 
   [mod.'github.com/sigstore/sigstore-go']
     version = 'v1.2.2'
@@ -536,10 +532,6 @@ schema = 3
   [mod.'github.com/theupdateframework/go-tuf/v2']
     version = 'v2.4.2'
     hash = 'sha256-sPKa8JyYuluaG8qhlXxWgBsOC5zrbmK/Z0QlSsXuXqM='
-
-  [mod.'github.com/titanous/rocacheck']
-    version = 'v0.0.0-20171023193734-afe73141d399'
-    hash = 'sha256-r5XUB1A/doHNd5pu1cL0J8Jwy5IBtc8gQtG5NmKEYPU='
 
   [mod.'github.com/transparency-dev/formats']
     version = 'v0.1.1'
