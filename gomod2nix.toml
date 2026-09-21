@@ -510,8 +510,8 @@ schema = 3
     hash = 'sha256-U4pk8+goAE6rqMJlwqt8QknknewX1J0nS2ccVzYE0xY='
 
   [mod.'github.com/sirupsen/logrus']
-    version = 'v1.9.4'
-    hash = 'sha256-ltRvmtM3XTCAFwY0IesfRqYIivyXPPuvkFjL4ARh1wg='
+    version = 'v1.10.2'
+    hash = 'sha256-1BKin1NpY1kFawnHkY0FxQ152aeB82RRKIDWJLctZB4='
 
   [mod.'github.com/spf13/afero']
     version = 'v1.15.0'
