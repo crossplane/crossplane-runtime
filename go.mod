@@ -17,7 +17,7 @@ require (
 	github.com/prometheus/client_golang v1.24.1
 	github.com/sigstore/cosign/v3 v3.1.3
 	github.com/sigstore/sigstore v1.10.8
-	github.com/sirupsen/logrus v1.9.4
+	github.com/sirupsen/logrus v1.10.2
 	github.com/spf13/afero v1.15.0
 	golang.org/x/time v0.16.0
 	google.golang.org/grpc v1.84.0
