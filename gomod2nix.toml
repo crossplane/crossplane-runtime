@@ -182,8 +182,8 @@ schema = 3
     hash = 'sha256-DaWzRi5dIr3U7kJlV3Qm1DWoKh5W+FI2BW/ATXT40J4='
 
   [mod.'github.com/fatih/color']
-    version = 'v1.18.0'
-    hash = 'sha256-pP5y72FSbi4j/BjyVq/XbAOFjzNjMxZt2R/lFFxGWvY='
+    version = 'v1.19.0'
+    hash = 'sha256-YgMm1nid8yigNLG6aHfuMbsvMI1UYVf/Rkg44pp/NTU='
 
   [mod.'github.com/fsnotify/fsnotify']
     version = 'v1.10.1'
@@ -594,8 +594,8 @@ schema = 3
     hash = 'sha256-ecT2ZXw7iT+63J4210xA6sMz0fUFXmDzLwZe2FzaNFU='
 
   [mod.'go.yaml.in/yaml/v3']
-    version = 'v3.0.4'
-    hash = 'sha256-NkGFiDPoCxbr3LFsI6OCygjjkY0rdmg5ggvVVwpyDQ4='
+    version = 'v3.0.5'
+    hash = 'sha256-ygho+GU5kE7vPMx+dZYyNfCaeMjNxj66XmrcVf3afFE='
 
   [mod.'golang.org/x/crypto']
     version = 'v0.56.0'
@@ -665,14 +665,6 @@ schema = 3
     version = 'v0.9.1'
     hash = 'sha256-z84XlyeWLcoYOvWLxPkPFgLkpjyb2Y4pdeGMyySOZQI='
 
-  [mod.'gopkg.in/yaml.v2']
-    version = 'v2.4.0'
-    hash = 'sha256-uVEGglIedjOIGZzHW4YwN1VoRSTK8o0eGZqzd+TNdd0='
-
-  [mod.'gopkg.in/yaml.v3']
-    version = 'v3.0.1'
-    hash = 'sha256-FqL9TKYJ0XkNwJFnq9j0VvJ5ZUU1RvH/52h/f5bkYAU='
-
   [mod.'k8s.io/api']
     version = 'v0.37.0'
     hash = 'sha256-OXz/uKhejAYG+OfBgWP3V0OKVZ9s5oguNk028voAHw0='
@@ -718,8 +710,8 @@ schema = 3
     hash = 'sha256-0yKogqrZbCD0vonR5lhsa8Fy09SBVcgv+5Lf7aefmYA='
 
   [mod.'sigs.k8s.io/controller-tools']
-    version = 'v0.20.0'
-    hash = 'sha256-1/v8hCCykTDMjhx4jM84/v+WJlQ8M1whdgpGfgmSRRU='
+    version = 'v0.22.0'
+    hash = 'sha256-xFbrF8SoQoMgMw3oP1XlYP1X2YmaAfJDXUFXJIejuz4='
 
   [mod.'sigs.k8s.io/json']
     version = 'v0.0.0-20250730193827-2d320260d730'
