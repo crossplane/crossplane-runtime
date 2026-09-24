@@ -666,28 +666,28 @@ schema = 3
     hash = 'sha256-z84XlyeWLcoYOvWLxPkPFgLkpjyb2Y4pdeGMyySOZQI='
 
   [mod.'k8s.io/api']
-    version = 'v0.37.0'
-    hash = 'sha256-OXz/uKhejAYG+OfBgWP3V0OKVZ9s5oguNk028voAHw0='
+    version = 'v0.37.1'
+    hash = 'sha256-T7DJwuBM8gGHWslVG++OZLrz6hNVmgITFZq9eaFeiT4='
 
   [mod.'k8s.io/apiextensions-apiserver']
-    version = 'v0.37.0'
-    hash = 'sha256-iVcWkP7gxkKLfZdwy3Me8WPCnKzJHjXl7VfEdhTRwjk='
+    version = 'v0.37.1'
+    hash = 'sha256-CSXK3fqUu4QzZ4yLK/+1MqP9/ttwOlB6yGFv28OFxxw='
 
   [mod.'k8s.io/apimachinery']
-    version = 'v0.37.0'
-    hash = 'sha256-au0DAFcup83qIhR9fxXEnrJoi+li2/FgJl1hfCTMpnU='
+    version = 'v0.37.1'
+    hash = 'sha256-FTwhtzno2HVYqVCLsmTyoGyA7BSR3igJw5mES4hT7rM='
 
   [mod.'k8s.io/client-go']
-    version = 'v0.37.0'
-    hash = 'sha256-caWTODvvChyJ0qrCaRB+Ds6l99Tghe0eZBnSuOS3xlI='
+    version = 'v0.37.1'
+    hash = 'sha256-6gMR34//xpdjMDAz169Kj2xb4leP/MzqT1BM48n6eq4='
 
   [mod.'k8s.io/code-generator']
-    version = 'v0.37.0'
-    hash = 'sha256-0kZmKp9iXOzEuhGLPGE7abpvmpWN8Ril9lixBVno6/s='
+    version = 'v0.37.1'
+    hash = 'sha256-j9QklP9r/9j5bzipoJpBmdzDIfVuay2kcNpqdEytDoY='
 
   [mod.'k8s.io/component-base']
-    version = 'v0.37.0'
-    hash = 'sha256-jYFfI9gfgoyR9MA/rBxJV6w0zeWIEV617N5QF/UqqZ0='
+    version = 'v0.37.1'
+    hash = 'sha256-FwHV3NLqh3g+UtlSZ33HmiHJwtk4haINN7UEKashPa4='
 
   [mod.'k8s.io/gengo/v2']
     version = 'v2.0.0-20260408192533-25e2208e0dc3'
