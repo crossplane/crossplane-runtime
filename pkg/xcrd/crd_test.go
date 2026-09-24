@@ -432,7 +432,13 @@ func TestForCompositeResource(t *testing.T) {
 														},
 													},
 												},
-												"pendingResources": pendingResourcesProps(true),
+												"crossplane": {
+													Type:        "object",
+													Description: "Crossplane machinery this composite resource reports",
+													Properties: map[string]extv1.JSONSchemaProps{
+														"pendingResources": pendingResourcesProps(true),
+													},
+												},
 											},
 											XValidations: extv1.ValidationRules{
 												{
@@ -2295,7 +2301,13 @@ func TestForCompositeResource(t *testing.T) {
 														},
 													},
 												},
-												"pendingResources": pendingResourcesProps(true),
+												"crossplane": {
+													Type:        "object",
+													Description: "Crossplane machinery this composite resource reports",
+													Properties: map[string]extv1.JSONSchemaProps{
+														"pendingResources": pendingResourcesProps(true),
+													},
+												},
 											},
 											XValidations: extv1.ValidationRules{
 												{
@@ -2565,7 +2577,13 @@ func TestForCompositeResource(t *testing.T) {
 														},
 													},
 												},
-												"pendingResources": pendingResourcesProps(true),
+												"crossplane": {
+													Type:        "object",
+													Description: "Crossplane machinery this composite resource reports",
+													Properties: map[string]extv1.JSONSchemaProps{
+														"pendingResources": pendingResourcesProps(true),
+													},
+												},
 											},
 											XValidations: extv1.ValidationRules{
 												{
