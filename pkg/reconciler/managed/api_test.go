@@ -24,6 +24,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -503,6 +504,39 @@ func TestPrepareJSONMerge(t *testing.T) {
 		err   error
 	}
 
+	newManagedFieldsObj := func() *unstructured.Unstructured {
+		u := &unstructured.Unstructured{}
+		u.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   "example.com",
+			Version: "v1",
+			Kind:    "TestResource",
+		})
+		u.SetName("test-resource")
+		_ = unstructured.SetNestedField(u.Object, "new-ref-id", "spec", "forProvider", "someRefId")
+		u.SetManagedFields([]metav1.ManagedFieldsEntry{
+			{
+				Manager:    fieldOwnerAPISimpleRefResolver,
+				Operation:  metav1.ManagedFieldsOperationApply,
+				FieldsType: "FieldsV1",
+				FieldsV1: &metav1.FieldsV1{
+					Raw: []byte(`{"f:spec":{"f:forProvider":{"f:otherRefId":{}}}}`),
+				},
+			},
+		})
+		return u
+	}
+
+	withoutManagedFields := func() *unstructured.Unstructured {
+		u := &unstructured.Unstructured{}
+		u.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   "example.com",
+			Version: "v1",
+			Kind:    "TestResource",
+		})
+		u.SetName("test-resource")
+		return u
+	}
+
 	cases := map[string]struct {
 		reason string
 		args   args
@@ -522,6 +556,43 @@ func TestPrepareJSONMerge(t *testing.T) {
 				patch: `{"name":"resolved"}`,
 			},
 		},
+		"PatchWithNoChanges": {
+			reason: "Should return empty patch when existing and resolved are the same.",
+			args: args{
+				existing: &fake.LegacyManaged{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "same",
+					},
+				},
+				resolved: &fake.LegacyManaged{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "same",
+					},
+				},
+			},
+			want: want{
+				patch: `{}`,
+			},
+		},
+		"PatchWithManagedFieldsMerged": {
+			// Verifies that managed fields referencing fields not in the current patch
+			// are still included in the final patch to maintain SSA field ownership.
+			// Note: The expected patch includes managedFields metadata because existing
+			// has none while resolved does - this is a test artifact. In production,
+			// both objects would have identical managedFields so the diff wouldn't include them.
+			reason: "Should merge previously managed fields into the patch to maintain SSA field ownership.",
+			args: args{
+				existing: withoutManagedFields(),
+				resolved: newManagedFieldsObj(),
+			},
+			want: want{
+				patch: `{"apiVersion":"example.com/v1","kind":"TestResource",` +
+					`"metadata":{"managedFields":[{"fieldsType":"FieldsV1",` +
+					`"fieldsV1":{"f:spec":{"f:forProvider":{"f:otherRefId":{}}}},` +
+					`"manager":"managed.crossplane.io/api-simple-reference-resolver",` +
+					`"operation":"Apply"}]},"spec":{"forProvider":{"someRefId":"new-ref-id"}}}`,
+			},
+		},
 	}
 
 	for name, tc := range cases {
@@ -533,6 +604,127 @@ func TestPrepareJSONMerge(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want.patch, string(patch)); diff != "" {
 				t.Errorf("\n%s\nprepareJSONMerge(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestMergeWithManagedFields(t *testing.T) {
+	type args struct {
+		patch        []byte
+		obj          runtime.Object
+		fieldManager string
+	}
+
+	type want struct {
+		patch string
+		err   error
+	}
+
+	withManagedFields := func() *unstructured.Unstructured {
+		u := &unstructured.Unstructured{}
+		u.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   "example.com",
+			Version: "v1",
+			Kind:    "TestResource",
+		})
+		u.SetName("test-resource")
+		_ = unstructured.SetNestedField(u.Object, "old-ref-value", "spec", "forProvider", "someRefId")
+		u.SetManagedFields([]metav1.ManagedFieldsEntry{
+			{
+				Manager:    fieldOwnerAPISimpleRefResolver,
+				Operation:  metav1.ManagedFieldsOperationApply,
+				FieldsType: "FieldsV1",
+				FieldsV1: &metav1.FieldsV1{
+					Raw: []byte(`{"f:spec":{"f:forProvider":{"f:someRefId":{}}}}`),
+				},
+			},
+		})
+		return u
+	}
+
+	withDifferentManager := func() *unstructured.Unstructured {
+		u := &unstructured.Unstructured{}
+		u.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   "example.com",
+			Version: "v1",
+			Kind:    "TestResource",
+		})
+		u.SetName("test-resource")
+		_ = unstructured.SetNestedField(u.Object, "other-ref-value", "spec", "forProvider", "otherRefId")
+		u.SetManagedFields([]metav1.ManagedFieldsEntry{
+			{
+				Manager:    "different-manager",
+				Operation:  metav1.ManagedFieldsOperationApply,
+				FieldsType: "FieldsV1",
+				FieldsV1: &metav1.FieldsV1{
+					Raw: []byte(`{"f:spec":{"f:forProvider":{"f:otherRefId":{}}}}`),
+				},
+			},
+		})
+		return u
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"NoManagedFields": {
+			reason: "Should return the original patch when there are no managed fields.",
+			args: args{
+				patch:        []byte(`{"metadata":{"name":"resolved"}}`),
+				obj:          &fake.LegacyManaged{},
+				fieldManager: fieldOwnerAPISimpleRefResolver,
+			},
+			want: want{
+				patch: `{"metadata":{"name":"resolved"}}`,
+			},
+		},
+		"EmptyPatch": {
+			reason: "Should return empty patch when patch is empty and no managed fields.",
+			args: args{
+				patch:        []byte(`{}`),
+				obj:          &fake.LegacyManaged{},
+				fieldManager: fieldOwnerAPISimpleRefResolver,
+			},
+			want: want{
+				patch: `{}`,
+			},
+		},
+		"WithManagedFields": {
+			reason: "Should merge previously managed fields into the patch to maintain field ownership.",
+			args: args{
+				patch:        []byte(`{"spec":{"forProvider":{"newRefId":"new-value"}}}`),
+				obj:          withManagedFields(),
+				fieldManager: fieldOwnerAPISimpleRefResolver,
+			},
+			want: want{
+				patch: `{"apiVersion":"example.com/v1","kind":"TestResource","spec":{"forProvider":{"newRefId":"new-value","someRefId":"old-ref-value"}}}`,
+			},
+		},
+		"DifferentFieldManager": {
+			reason: "Should not include managed fields from a different field manager.",
+			args: args{
+				patch:        []byte(`{"metadata":{"name":"resolved"}}`),
+				obj:          withDifferentManager(),
+				fieldManager: fieldOwnerAPISimpleRefResolver,
+			},
+			want: want{
+				patch: `{"metadata":{"name":"resolved"}}`,
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			patch, err := mergeWithManagedFields(tc.args.patch, tc.args.obj, tc.args.fieldManager)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nmergeWithManagedFields(...): -wantErr, +gotErr:\n%s", tc.reason, diff)
+			}
+
+			if diff := cmp.Diff(tc.want.patch, string(patch)); diff != "" {
+				t.Errorf("\n%s\nmergeWithManagedFields(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
