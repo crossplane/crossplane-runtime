@@ -285,6 +285,33 @@ func (c *Unstructured) SetComposedResourceReferences(refs []reference.Composed) 
 	_ = fieldpath.Pave(c.Object).SetValue(c.resourceRefsPath(), filtered)
 }
 
+// pendingResourcesPath is where this composite resource records what the
+// ordering graph is holding back. The same path for every schema: status
+// isn't shared with fields the user writes, so there's nothing for a
+// crossplane stanza to keep it apart from.
+const pendingResourcesPath = "status.pendingResources"
+
+// GetPendingResources of this composite resource: the composed resources
+// ordering will not create or delete yet, and why.
+func (c *Unstructured) GetPendingResources() []reference.Pending {
+	out := &[]reference.Pending{}
+	_ = fieldpath.Pave(c.Object).GetValueInto(pendingResourcesPath, out)
+
+	return *out
+}
+
+// SetPendingResources of this composite resource. Setting an empty slice
+// removes the field, so a composite that is no longer waiting for anything
+// doesn't carry an empty array saying so.
+func (c *Unstructured) SetPendingResources(pending []reference.Pending) {
+	if len(pending) == 0 {
+		_ = fieldpath.Pave(c.Object).DeleteField(pendingResourcesPath)
+		return
+	}
+
+	_ = fieldpath.Pave(c.Object).SetValue(pendingResourcesPath, pending)
+}
+
 // GetResourceReferences of this composite resource.
 func (c *Unstructured) GetResourceReferences() []corev1.ObjectReference {
 	refs := c.GetComposedResourceReferences()

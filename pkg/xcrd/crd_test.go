@@ -432,6 +432,7 @@ func TestForCompositeResource(t *testing.T) {
 														},
 													},
 												},
+												"pendingResources": pendingResourcesProps(true),
 											},
 											XValidations: extv1.ValidationRules{
 												{
@@ -683,6 +684,7 @@ func TestForCompositeResource(t *testing.T) {
 														},
 													},
 												},
+												"pendingResources": pendingResourcesProps(false),
 												"claimConditionTypes": {
 													Type:      "array",
 													XListType: ptr.To("set"),
@@ -973,6 +975,7 @@ func TestForCompositeResource(t *testing.T) {
 														},
 													},
 												},
+												"pendingResources": pendingResourcesProps(false),
 												"claimConditionTypes": {
 													Type:      "array",
 													XListType: ptr.To("set"),
@@ -1213,6 +1216,7 @@ func TestForCompositeResource(t *testing.T) {
 														},
 													},
 												},
+												"pendingResources": pendingResourcesProps(false),
 												"claimConditionTypes": {
 													Type:      "array",
 													XListType: ptr.To("set"),
@@ -1469,6 +1473,7 @@ func TestForCompositeResource(t *testing.T) {
 														},
 													},
 												},
+												"pendingResources": pendingResourcesProps(false),
 												"claimConditionTypes": {
 													Type:      "array",
 													XListType: ptr.To("set"),
@@ -1735,6 +1740,7 @@ func TestForCompositeResource(t *testing.T) {
 														},
 													},
 												},
+												"pendingResources": pendingResourcesProps(false),
 												"claimConditionTypes": {
 													Type:      "array",
 													XListType: ptr.To("set"),
@@ -2012,6 +2018,7 @@ func TestForCompositeResource(t *testing.T) {
 														},
 													},
 												},
+												"pendingResources": pendingResourcesProps(false),
 												"claimConditionTypes": {
 													Type:      "array",
 													XListType: ptr.To("set"),
@@ -2288,6 +2295,7 @@ func TestForCompositeResource(t *testing.T) {
 														},
 													},
 												},
+												"pendingResources": pendingResourcesProps(true),
 											},
 											XValidations: extv1.ValidationRules{
 												{
@@ -2557,6 +2565,7 @@ func TestForCompositeResource(t *testing.T) {
 														},
 													},
 												},
+												"pendingResources": pendingResourcesProps(true),
 											},
 											XValidations: extv1.ValidationRules{
 												{
