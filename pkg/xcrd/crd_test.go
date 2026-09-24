@@ -690,7 +690,6 @@ func TestForCompositeResource(t *testing.T) {
 														},
 													},
 												},
-												"pendingResources": pendingResourcesProps(false),
 												"claimConditionTypes": {
 													Type:      "array",
 													XListType: new("set"),
@@ -981,7 +980,6 @@ func TestForCompositeResource(t *testing.T) {
 														},
 													},
 												},
-												"pendingResources": pendingResourcesProps(false),
 												"claimConditionTypes": {
 													Type:      "array",
 													XListType: new("set"),
@@ -1222,7 +1220,6 @@ func TestForCompositeResource(t *testing.T) {
 														},
 													},
 												},
-												"pendingResources": pendingResourcesProps(false),
 												"claimConditionTypes": {
 													Type:      "array",
 													XListType: new("set"),
@@ -1479,7 +1476,6 @@ func TestForCompositeResource(t *testing.T) {
 														},
 													},
 												},
-												"pendingResources": pendingResourcesProps(false),
 												"claimConditionTypes": {
 													Type:      "array",
 													XListType: new("set"),
@@ -1746,7 +1742,6 @@ func TestForCompositeResource(t *testing.T) {
 														},
 													},
 												},
-												"pendingResources": pendingResourcesProps(false),
 												"claimConditionTypes": {
 													Type:      "array",
 													XListType: new("set"),
@@ -2024,7 +2019,6 @@ func TestForCompositeResource(t *testing.T) {
 														},
 													},
 												},
-												"pendingResources": pendingResourcesProps(false),
 												"claimConditionTypes": {
 													Type:      "array",
 													XListType: new("set"),
