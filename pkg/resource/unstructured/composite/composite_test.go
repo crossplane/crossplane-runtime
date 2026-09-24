@@ -19,6 +19,7 @@ package composite
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -696,7 +697,7 @@ func TestPendingResources(t *testing.T) {
 			schema: SchemaModern,
 		},
 		"Legacy": {
-			reason: "So does a legacy one - status isn't shared with user fields, so the path is the same.",
+			reason: "A legacy one keeps it at the top of status, as it keeps its machinery at the top of spec.",
 			schema: SchemaLegacy,
 		},
 	}
@@ -719,8 +720,13 @@ func TestPendingResources(t *testing.T) {
 				t.Errorf("\n%s\nGetPendingResources() after clearing: want none, got %v", tc.reason, got)
 			}
 
-			if _, found, _ := unstructured.NestedFieldNoCopy(u.Object, "status", "pendingResources"); found {
-				t.Errorf("\n%s\nclearing should remove status.pendingResources, not empty it", tc.reason)
+			path := []string{"status", "crossplane", "pendingResources"}
+			if tc.schema == SchemaLegacy {
+				path = []string{"status", "pendingResources"}
+			}
+
+			if _, found, _ := unstructured.NestedFieldNoCopy(u.Object, path...); found {
+				t.Errorf("\n%s\nclearing should remove %s, not empty it", tc.reason, strings.Join(path, "."))
 			}
 		})
 	}

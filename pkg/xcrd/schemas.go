@@ -393,17 +393,24 @@ func CompositeResourceStatusProps(s v1.CompositeResourceScope) map[string]extv1.
 		},
 	}
 
-	// What ordering is holding back, for every scope. Unlike spec, status
-	// isn't shared with fields the user writes, so there is nothing for a
-	// crossplane stanza to keep this apart from - conditions, the machinery
-	// field that is already here, sits at the top of status too.
-	props["pendingResources"] = pendingResourcesProps(s == v1.CompositeResourceScopeNamespaced)
-
 	switch s {
 	case v1.CompositeResourceScopeNamespaced, v1.CompositeResourceScopeCluster:
-		// Modern XRs don't have connection details or support claims, so
-		// there's nothing else to put in the status for them
+		// Modern XRs report their Crossplane machinery under
+		// status.crossplane, the way they configure it under spec.crossplane.
+		// They have no connection details and support no claims, so what
+		// ordering is holding back is all that goes in there.
+		props["crossplane"] = extv1.JSONSchemaProps{
+			Type:        "object",
+			Description: "Crossplane machinery this composite resource reports",
+			Properties: map[string]extv1.JSONSchemaProps{
+				"pendingResources": pendingResourcesProps(s == v1.CompositeResourceScopeNamespaced),
+			},
+		}
 	case v1.CompositeResourceScopeLegacyCluster:
+		// Legacy XRs keep their machinery at the top of status, as they do in
+		// spec.
+		props["pendingResources"] = pendingResourcesProps(false)
+
 		// Legacy XRs don't use status.crossplane, and support claims.
 		props["connectionDetails"] = extv1.JSONSchemaProps{
 			Type: "object",

@@ -286,16 +286,22 @@ func (c *Unstructured) SetComposedResourceReferences(refs []reference.Composed) 
 }
 
 // pendingResourcesPath is where this composite resource records what the
-// ordering graph is holding back. The same path for every schema: status
-// isn't shared with fields the user writes, so there's nothing for a
-// crossplane stanza to keep it apart from.
-const pendingResourcesPath = "status.pendingResources"
+// ordering graph is holding back. Modern XRs nest it under status.crossplane,
+// the way they nest their machinery under spec.crossplane; legacy XRs keep
+// theirs at the top of status, as they do in spec.
+func (c *Unstructured) pendingResourcesPath() string {
+	if c.Schema == SchemaLegacy {
+		return "status.pendingResources"
+	}
+
+	return "status.crossplane.pendingResources"
+}
 
 // GetPendingResources of this composite resource: the composed resources
 // ordering will not create or delete yet, and why.
 func (c *Unstructured) GetPendingResources() []reference.Pending {
 	out := &[]reference.Pending{}
-	_ = fieldpath.Pave(c.Object).GetValueInto(pendingResourcesPath, out)
+	_ = fieldpath.Pave(c.Object).GetValueInto(c.pendingResourcesPath(), out)
 
 	return *out
 }
@@ -305,11 +311,11 @@ func (c *Unstructured) GetPendingResources() []reference.Pending {
 // doesn't carry an empty array saying so.
 func (c *Unstructured) SetPendingResources(pending []reference.Pending) {
 	if len(pending) == 0 {
-		_ = fieldpath.Pave(c.Object).DeleteField(pendingResourcesPath)
+		_ = fieldpath.Pave(c.Object).DeleteField(c.pendingResourcesPath())
 		return
 	}
 
-	_ = fieldpath.Pave(c.Object).SetValue(pendingResourcesPath, pending)
+	_ = fieldpath.Pave(c.Object).SetValue(c.pendingResourcesPath(), pending)
 }
 
 // GetResourceReferences of this composite resource.
