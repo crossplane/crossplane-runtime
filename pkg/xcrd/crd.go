@@ -147,6 +147,13 @@ func ForCompositeResourceClaim(xrd *v1.CompositeResourceDefinition) (*extv1.Cust
 		// TODO(negz): This means claims will have status.claimConditionTypes.
 		// I think that's a bug - only XRs should have that field.
 		props = CompositeResourceStatusProps(v1.CompositeResourceScopeLegacyCluster)
+
+		// A claim composes nothing - it references the composite that does -
+		// so there is nothing ordering could hold back on one. Removed rather
+		// than added conditionally, so that the XR schema stays the one
+		// definition of what an XR status holds.
+		delete(props, "pendingResources")
+
 		maps.Copy(crdv.Schema.OpenAPIV3Schema.Properties["status"].Properties, props)
 
 		crd.Spec.Versions[i] = *crdv

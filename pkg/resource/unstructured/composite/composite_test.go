@@ -659,3 +659,69 @@ func TestLastHandledReconcileAt(t *testing.T) {
 		})
 	}
 }
+
+func TestPendingResources(t *testing.T) {
+	pending := []reference.Pending{
+		{
+			APIVersion:   "example.org/v1",
+			Kind:         "Thing",
+			ResourceName: "subnet",
+			Operation:    reference.OperationCreate,
+			DependsOn: []reference.Dependency{
+				{Name: "vpc"},
+				{
+					Type:        reference.DependencyTypeRequiredResource,
+					Requirement: &reference.RequirementDependency{Name: "kubeconfig"},
+				},
+			},
+			Reason: "waiting for vpc to be ready",
+		},
+		{
+			APIVersion:   "example.org/v1",
+			Kind:         "Thing",
+			Name:         "cool-xr-vpc",
+			ResourceName: "vpc",
+			Operation:    reference.OperationDelete,
+			Reason:       "subnet still depends on it",
+			Deadlocked:   true,
+		},
+	}
+
+	cases := map[string]struct {
+		reason string
+		schema Schema
+	}{
+		"Modern": {
+			reason: "A modern XR round trips what ordering is holding back.",
+			schema: SchemaModern,
+		},
+		"Legacy": {
+			reason: "So does a legacy one - status isn't shared with user fields, so the path is the same.",
+			schema: SchemaLegacy,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			u := New(WithSchema(tc.schema))
+
+			u.SetPendingResources(pending)
+
+			if diff := cmp.Diff(pending, u.GetPendingResources()); diff != "" {
+				t.Errorf("\n%s\nGetPendingResources(): -want, +got:\n%s", tc.reason, diff)
+			}
+
+			// Nothing pending should leave no trace, rather than an empty
+			// array that reads as "we looked and there was nothing".
+			u.SetPendingResources(nil)
+
+			if got := u.GetPendingResources(); len(got) != 0 {
+				t.Errorf("\n%s\nGetPendingResources() after clearing: want none, got %v", tc.reason, got)
+			}
+
+			if _, found, _ := unstructured.NestedFieldNoCopy(u.Object, "status", "pendingResources"); found {
+				t.Errorf("\n%s\nclearing should remove status.pendingResources, not empty it", tc.reason)
+			}
+		})
+	}
+}

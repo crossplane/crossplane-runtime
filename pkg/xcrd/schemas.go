@@ -304,6 +304,67 @@ func CompositeResourceClaimSpecProps(defaultPol *xpv2.CompositeDeletePolicy) map
 	}
 }
 
+// pendingResourcesProps is the schema for what the ordering graph is holding
+// back: composed resources Crossplane will not create or delete yet, and why.
+//
+// A resource held back from creation has no entry in resourceRefs - a
+// reference to an object that does not exist reads as an error rather than as
+// waiting - so this is the only place it appears at all.
+func pendingResourcesProps(namespaced bool) extv1.JSONSchemaProps {
+	props := map[string]extv1.JSONSchemaProps{
+		"apiVersion":   {Type: "string"},
+		"kind":         {Type: "string"},
+		"name":         {Type: "string"},
+		"resourceName": {Type: "string"},
+		"operation":    {Type: "string", Enum: []extv1.JSON{{Raw: []byte(`"Create"`)}, {Raw: []byte(`"Delete"`)}}},
+		"reason":       {Type: "string"},
+		"deadlocked":   {Type: "boolean"},
+		"dependsOn": {
+			Type:      "array",
+			XListType: ptr.To("atomic"),
+			Items: &extv1.JSONSchemaPropsOrArray{
+				Schema: &extv1.JSONSchemaProps{
+					Type: "object",
+					Properties: map[string]extv1.JSONSchemaProps{
+						"type": {Type: "string", Enum: []extv1.JSON{
+							{Raw: []byte(`"ComposedResource"`)},
+							{Raw: []byte(`"RequiredResource"`)},
+						}},
+						"name": {Type: "string"},
+						"requirement": {
+							Type: "object",
+							Properties: map[string]extv1.JSONSchemaProps{
+								"name":         {Type: "string"},
+								"resourceName": {Type: "string"},
+								"namespace":    {Type: "string"},
+							},
+							Required: []string{"name"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// A namespaced composite can only compose resources in its own namespace,
+	// so there is no namespace to record.
+	if !namespaced {
+		props["namespace"] = extv1.JSONSchemaProps{Type: "string"}
+	}
+
+	return extv1.JSONSchemaProps{
+		Type:      "array",
+		XListType: ptr.To("atomic"),
+		Items: &extv1.JSONSchemaPropsOrArray{
+			Schema: &extv1.JSONSchemaProps{
+				Type:       "object",
+				Properties: props,
+				Required:   []string{"apiVersion", "kind", "resourceName", "operation"},
+			},
+		},
+	}
+}
+
 // CompositeResourceStatusProps is a partial OpenAPIV3Schema for the status
 // fields that Crossplane expects to be present for all composite resources.
 func CompositeResourceStatusProps(s v1.CompositeResourceScope) map[string]extv1.JSONSchemaProps {
@@ -331,6 +392,12 @@ func CompositeResourceStatusProps(s v1.CompositeResourceScope) map[string]extv1.
 			},
 		},
 	}
+
+	// What ordering is holding back, for every scope. Unlike spec, status
+	// isn't shared with fields the user writes, so there is nothing for a
+	// crossplane stanza to keep this apart from - conditions, the machinery
+	// field that is already here, sits at the top of status too.
+	props["pendingResources"] = pendingResourcesProps(s == v1.CompositeResourceScopeNamespaced)
 
 	switch s {
 	case v1.CompositeResourceScopeNamespaced, v1.CompositeResourceScopeCluster:
