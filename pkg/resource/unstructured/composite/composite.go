@@ -285,23 +285,20 @@ func (c *Unstructured) SetComposedResourceReferences(refs []reference.Composed) 
 	_ = fieldpath.Pave(c.Object).SetValue(c.resourceRefsPath(), filtered)
 }
 
-// pendingResourcesPath is where this composite resource records what the
-// ordering graph is holding back. Modern XRs nest it under status.crossplane,
-// the way they nest their machinery under spec.crossplane; legacy XRs keep
-// theirs at the top of status, as they do in spec.
-func (c *Unstructured) pendingResourcesPath() string {
-	if c.Schema == SchemaLegacy {
-		return "status.pendingResources"
-	}
-
-	return "status.crossplane.pendingResources"
-}
+// pendingResourcesPath is where a composite resource records what the ordering
+// graph is holding back: under status.crossplane, the way modern XRs configure
+// their machinery under spec.crossplane.
+//
+// One path, with no legacy variant, because ordering is a v2 feature and
+// legacy XRs don't report it. Their schema has no such field, so a write would
+// be pruned.
+const pendingResourcesPath = "status.crossplane.pendingResources"
 
 // GetPendingResources of this composite resource: the composed resources
 // ordering will not create or delete yet, and why.
 func (c *Unstructured) GetPendingResources() []reference.Pending {
 	out := &[]reference.Pending{}
-	_ = fieldpath.Pave(c.Object).GetValueInto(c.pendingResourcesPath(), out)
+	_ = fieldpath.Pave(c.Object).GetValueInto(pendingResourcesPath, out)
 
 	return *out
 }
@@ -311,11 +308,11 @@ func (c *Unstructured) GetPendingResources() []reference.Pending {
 // doesn't carry an empty array saying so.
 func (c *Unstructured) SetPendingResources(pending []reference.Pending) {
 	if len(pending) == 0 {
-		_ = fieldpath.Pave(c.Object).DeleteField(c.pendingResourcesPath())
+		_ = fieldpath.Pave(c.Object).DeleteField(pendingResourcesPath)
 		return
 	}
 
-	_ = fieldpath.Pave(c.Object).SetValue(c.pendingResourcesPath(), pending)
+	_ = fieldpath.Pave(c.Object).SetValue(pendingResourcesPath, pending)
 }
 
 // GetResourceReferences of this composite resource.
