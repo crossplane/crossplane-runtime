@@ -407,11 +407,9 @@ func CompositeResourceStatusProps(s v1.CompositeResourceScope) map[string]extv1.
 			},
 		}
 	case v1.CompositeResourceScopeLegacyCluster:
-		// Legacy XRs keep their machinery at the top of status, as they do in
-		// spec.
-		props["pendingResources"] = pendingResourcesProps(false)
-
-		// Legacy XRs don't use status.crossplane, and support claims.
+		// Legacy XRs don't use status.crossplane, and support claims. They
+		// don't report what ordering is holding back either: ordering is a v2
+		// feature.
 		props["connectionDetails"] = extv1.JSONSchemaProps{
 			Type: "object",
 			Properties: map[string]extv1.JSONSchemaProps{
