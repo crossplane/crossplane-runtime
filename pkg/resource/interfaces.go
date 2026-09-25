@@ -332,3 +332,40 @@ type CompositeClaim interface { //nolint:interfacebloat // This interface has to
 
 // A Claim of a composite resource (XR).
 type Claim = CompositeClaim
+
+// ExternalListResult is returned by ExternalLister.List.
+type ExternalListResult struct {
+	// ExternalNames is a list of external resource identifiers discovered.
+	// Providers must ensure these identifiers match the format expected by
+	// ExternalClient.Observe when used as crossplane.io/external-name.
+	ExternalNames []string
+
+	// NextPageToken, if non-empty, indicates there are more results.
+	// Callers should invoke List again with this token.
+	NextPageToken string
+}
+
+// ExternalLister enumerates external resources of a kind that exist in the
+// provider's external system. It is an optional interface; providers that do
+// not wish to support discovery may leave it unimplemented.
+//
+// Typical usage:
+//
+//	if lister, ok := externalClient.(ExternalLister); ok {
+//		result, err := lister.List(ctx, providerConfig, "")
+//		// process result.ExternalNames
+//		// if result.NextPageToken != "", call again with that token
+//	}
+type ExternalLister interface {
+	// List enumerates external resources of the kind represented by the managed
+	// resource definition. The ProviderConfig scopes the search to a specific
+	// cloud account, project, credentials, or similar context.
+	//
+	// Callers must check NextPageToken and invoke List again until it is empty.
+	// Implementations should respect reasonable rate limiting and timeouts
+	// to avoid overwhelming the external API.
+	//
+	// pageToken is empty on the first call, and contains the value from the
+	// previous call's result.NextPageToken on subsequent calls.
+	List(ctx context.Context, pc ProviderConfig, pageToken string) (ExternalListResult, error)
+}
