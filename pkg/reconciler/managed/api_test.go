@@ -689,6 +689,64 @@ func TestWithOwnedFields(t *testing.T) {
 			},
 			want: want{patch: `{"annotations":{"b":"2"},"finalizers":["a","b"]}`},
 		},
+		"OwnedKeyedListItem": {
+			reason: "Should carry only the associative list item the resolver owns, with its key fields, leaving the other items to their owners.",
+			args: args{
+				existing: &fake.LegacyManaged{ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{
+						{APIVersion: "v1", Kind: "A", Name: "a", UID: "1"},
+						{APIVersion: "v1", Kind: "B", Name: "b", UID: "2"},
+					},
+					ManagedFields: ownedBy(fieldOwnerAPISimpleRefResolver, metav1.ManagedFieldsOperationApply, `{"f:ownerReferences":{"k:{\"uid\":\"1\"}":{".":{},"f:name":{}}}}`),
+				}},
+				patch: `{"annotations":{"b":"2"}}`,
+			},
+			want: want{patch: `{"annotations":{"b":"2"},"ownerReferences":[{"name":"a","uid":"1"}]}`},
+		},
+		"OwnedKeyedListItemGone": {
+			reason: "Should skip an associative list item the resolver owns but the object no longer has.",
+			args: args{
+				existing: &fake.LegacyManaged{ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{{APIVersion: "v1", Kind: "A", Name: "a", UID: "1"}},
+					ManagedFields:   ownedBy(fieldOwnerAPISimpleRefResolver, metav1.ManagedFieldsOperationApply, `{"f:ownerReferences":{"k:{\"uid\":\"9\"}":{".":{},"f:name":{}}}}`),
+				}},
+				patch: `{"annotations":{"b":"2"}}`,
+			},
+			want: want{patch: `{"annotations":{"b":"2"}}`},
+		},
+		"OwnedSetListItem": {
+			reason: "Should carry only the set list item the resolver owns.",
+			args: args{
+				existing: &fake.LegacyManaged{ObjectMeta: metav1.ObjectMeta{
+					Finalizers:    []string{"a", "b"},
+					ManagedFields: ownedBy(fieldOwnerAPISimpleRefResolver, metav1.ManagedFieldsOperationApply, `{"f:finalizers":{"v:\"b\"":{}}}`),
+				}},
+				patch: `{}`,
+			},
+			want: want{patch: `{"finalizers":["b"]}`},
+		},
+		"OwnedIndexedListItem": {
+			reason: "Should carry only the list item at the index the resolver owns.",
+			args: args{
+				existing: &fake.LegacyManaged{ObjectMeta: metav1.ObjectMeta{
+					Finalizers:    []string{"a", "b"},
+					ManagedFields: ownedBy(fieldOwnerAPISimpleRefResolver, metav1.ManagedFieldsOperationApply, `{"f:finalizers":{"i:0":{}}}`),
+				}},
+				patch: `{}`,
+			},
+			want: want{patch: `{"finalizers":["a"]}`},
+		},
+		"OwnedMapItself": {
+			reason: "Should carry a map as a whole when the resolver owns the map itself and nothing beneath it.",
+			args: args{
+				existing: &fake.LegacyManaged{ObjectMeta: metav1.ObjectMeta{
+					Annotations:   map[string]string{"a": "1"},
+					ManagedFields: ownedBy(fieldOwnerAPISimpleRefResolver, metav1.ManagedFieldsOperationApply, `{"f:annotations":{".":{}}}`),
+				}},
+				patch: `{}`,
+			},
+			want: want{patch: `{"annotations":{"a":"1"}}`},
+		},
 		"OwnedFieldMissingFromObject": {
 			reason: "Should tolerate ownership of a field the object no longer has.",
 			args: args{

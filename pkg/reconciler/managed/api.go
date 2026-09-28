@@ -17,21 +17,25 @@ limitations under the License.
 package managed
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"maps"
+	"slices"
+	"strings"
 
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	kmeta "k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/structured-merge-diff/v6/typed"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
@@ -53,6 +57,7 @@ const (
 	errMarshalResolved           = "cannot marshal the object with the resolved references into JSON"
 	errPreparePatch              = "cannot prepare the JSON merge patch for the resolved object"
 	errExtractOwnedFields        = "cannot extract the fields owned by the reference resolver"
+	errUnmarshalOwnedFields      = "cannot unmarshal the managedFields entry of the reference resolver"
 	errMarshalOwnedFields        = "cannot marshal the fields owned by the reference resolver into JSON"
 	errMergeOwnedFields          = "cannot merge the resolved references into the fields owned by the reference resolver"
 	errUpdateManagedStatus       = "cannot update managed resource status"
@@ -249,12 +254,23 @@ func prepareJSONMerge(existing, resolved runtime.Object) ([]byte, error) {
 // Carrying the owned fields along keeps the request complete. Fields changed by
 // this resolution take precedence over the values recorded on the object.
 func withOwnedFields(existing runtime.Object, patch []byte) ([]byte, error) {
-	owned := map[string]any{}
-	if err := managedfields.ExtractInto(existing, typed.DeducedParseableType, fieldOwnerAPISimpleRefResolver, &owned, ""); err != nil {
+	entry, ok := ownedFieldsEntry(existing)
+	if !ok {
+		return patch, nil
+	}
+
+	fields := map[string]any{}
+	if err := json.Unmarshal(entry.FieldsV1.GetRawBytes(), &fields); err != nil {
+		return nil, errors.Wrap(err, errUnmarshalOwnedFields)
+	}
+
+	u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(existing)
+	if err != nil {
 		return nil, errors.Wrap(err, errExtractOwnedFields)
 	}
 
-	if len(owned) == 0 {
+	owned, ok := pickOwned(fields, u)
+	if !ok {
 		return patch, nil
 	}
 
@@ -266,6 +282,196 @@ func withOwnedFields(existing runtime.Object, patch []byte) ([]byte, error) {
 	merged, err := jsonpatch.MergePatch(oBuff, patch)
 
 	return merged, errors.Wrap(err, errMergeOwnedFields)
+}
+
+// ownedFieldsEntry returns the managedFields entry recorded for the reference
+// resolver's server-side apply operations, if any.
+func ownedFieldsEntry(obj runtime.Object) (metav1.ManagedFieldsEntry, bool) {
+	accessor, err := kmeta.Accessor(obj)
+	if err != nil {
+		return metav1.ManagedFieldsEntry{}, false
+	}
+
+	for _, e := range accessor.GetManagedFields() {
+		if e.Manager == fieldOwnerAPISimpleRefResolver && e.Operation == metav1.ManagedFieldsOperationApply && e.Subresource == "" && e.FieldsV1 != nil {
+			return e, true
+		}
+	}
+
+	return metav1.ManagedFieldsEntry{}, false
+}
+
+// pickOwned returns the part of the supplied unstructured value that the
+// supplied FieldsV1 set covers. It follows the FieldsV1 encoding: "f:name"
+// descends into a field, "k:{...}" selects an associative list item by its key
+// fields, "v:..." selects a set list item by value, "i:n" selects a list item by
+// index, "." marks the node itself and an empty set covers the whole value.
+//
+// Ownership of a list item is carried as that item alone, together with its key
+// fields, so that the apply document neither claims nor resurrects items owned
+// by other field managers. Paths the value no longer has are skipped.
+func pickOwned(fields map[string]any, value any) (any, bool) {
+	if isLeaf(fields) {
+		return value, true
+	}
+
+	switch v := value.(type) {
+	case map[string]any:
+		return pickOwnedMap(fields, v)
+	case []any:
+		return pickOwnedList(fields, v)
+	default:
+		return value, true
+	}
+}
+
+func isLeaf(fields map[string]any) bool {
+	for k := range fields {
+		if k != "." {
+			return false
+		}
+	}
+
+	return true
+}
+
+func pickOwnedMap(fields map[string]any, value map[string]any) (any, bool) {
+	out := map[string]any{}
+
+	for k, sub := range fields {
+		name, ok := strings.CutPrefix(k, "f:")
+		if !ok {
+			continue
+		}
+
+		child, ok := value[name]
+		if !ok {
+			continue
+		}
+
+		subFields, _ := sub.(map[string]any)
+
+		picked, ok := pickOwned(subFields, child)
+		if ok {
+			out[name] = picked
+		}
+	}
+
+	return out, len(out) > 0
+}
+
+func pickOwnedList(fields map[string]any, value []any) (any, bool) {
+	out := []any{}
+
+	// Walk the set in a stable order so that equal ownership always yields
+	// the same apply document.
+	for _, k := range slices.Sorted(maps.Keys(fields)) {
+		subFields, _ := fields[k].(map[string]any)
+
+		switch {
+		case strings.HasPrefix(k, "k:"):
+			out = append(out, pickKeyedItems(k[2:], subFields, value)...)
+		case strings.HasPrefix(k, "v:"):
+			out = append(out, pickSetItems(k[2:], value)...)
+		case strings.HasPrefix(k, "i:"):
+			out = append(out, pickIndexedItem(k[2:], subFields, value)...)
+		}
+	}
+
+	return out, len(out) > 0
+}
+
+// pickKeyedItems returns the owned parts of the associative list items whose
+// key fields match the supplied JSON key, each carrying its key fields.
+func pickKeyedItems(rawKey string, fields map[string]any, value []any) []any {
+	key := map[string]any{}
+	if err := json.Unmarshal([]byte(rawKey), &key); err != nil {
+		return nil
+	}
+
+	out := []any{}
+
+	for _, item := range value {
+		m, ok := item.(map[string]any)
+		if !ok || !hasKeyFields(m, key) {
+			continue
+		}
+
+		picked, ok := pickOwned(fields, m)
+		if !ok {
+			continue
+		}
+
+		if pm, ok := picked.(map[string]any); ok {
+			maps.Copy(pm, key)
+		}
+
+		out = append(out, picked)
+	}
+
+	return out
+}
+
+// pickSetItems returns the set list items equal to the supplied JSON value.
+func pickSetItems(rawValue string, value []any) []any {
+	var want any
+	if err := json.Unmarshal([]byte(rawValue), &want); err != nil {
+		return nil
+	}
+
+	out := []any{}
+
+	for _, item := range value {
+		if sameJSON(item, want) {
+			out = append(out, item)
+		}
+	}
+
+	return out
+}
+
+// pickIndexedItem returns the owned part of the list item at the supplied
+// index, if the list still has one.
+func pickIndexedItem(rawIndex string, fields map[string]any, value []any) []any {
+	var i int
+	if err := json.Unmarshal([]byte(rawIndex), &i); err != nil || i < 0 || i >= len(value) {
+		return nil
+	}
+
+	picked, ok := pickOwned(fields, value[i])
+	if !ok {
+		return nil
+	}
+
+	return []any{picked}
+}
+
+func hasKeyFields(item, key map[string]any) bool {
+	for k, want := range key {
+		got, ok := item[k]
+		if !ok || !sameJSON(got, want) {
+			return false
+		}
+	}
+
+	return true
+}
+
+// sameJSON compares two values by their JSON encoding, so that numbers decoded
+// from FieldsV1 compare equal to the numbers held by the unstructured object
+// regardless of their Go type.
+func sameJSON(a, b any) bool {
+	ab, err := json.Marshal(a)
+	if err != nil {
+		return false
+	}
+
+	bb, err := json.Marshal(b)
+	if err != nil {
+		return false
+	}
+
+	return bytes.Equal(ab, bb)
 }
 
 // ResolveReferences of the supplied managed resource by calling its
