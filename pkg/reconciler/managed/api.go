@@ -28,8 +28,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/structured-merge-diff/v6/typed"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
@@ -50,6 +52,9 @@ const (
 	errMarshalExisting           = "cannot marshal the existing object into JSON"
 	errMarshalResolved           = "cannot marshal the object with the resolved references into JSON"
 	errPreparePatch              = "cannot prepare the JSON merge patch for the resolved object"
+	errExtractOwnedFields        = "cannot extract the fields owned by the reference resolver"
+	errMarshalOwnedFields        = "cannot marshal the fields owned by the reference resolver into JSON"
+	errMergeOwnedFields          = "cannot merge the resolved references into the fields owned by the reference resolver"
 	errUpdateManagedStatus       = "cannot update managed resource status"
 	errResolveReferences         = "cannot resolve references"
 	errUpdateCriticalAnnotations = "cannot update critical annotations"
@@ -232,6 +237,37 @@ func prepareJSONMerge(existing, resolved runtime.Object) ([]byte, error) {
 	return patch, errors.Wrap(err, errPreparePatch)
 }
 
+// withOwnedFields returns the supplied server-side apply document extended with
+// every field the reference resolver already owns on the existing object.
+//
+// A server-side apply request is the complete list of fields its field manager
+// wants to own: a field the manager owned before but leaves out of the request
+// is removed from the object. prepareJSONMerge only yields the fields that
+// changed during this resolution, so applying it as is on an object with two or
+// more resolved references makes the API server drop the references resolved
+// earlier, and the next reconcile resolves those again while dropping this one.
+// Carrying the owned fields along keeps the request complete. Fields changed by
+// this resolution take precedence over the values recorded on the object.
+func withOwnedFields(existing runtime.Object, patch []byte) ([]byte, error) {
+	owned := map[string]any{}
+	if err := managedfields.ExtractInto(existing, typed.DeducedParseableType, fieldOwnerAPISimpleRefResolver, &owned, ""); err != nil {
+		return nil, errors.Wrap(err, errExtractOwnedFields)
+	}
+
+	if len(owned) == 0 {
+		return patch, nil
+	}
+
+	oBuff, err := json.Marshal(owned)
+	if err != nil {
+		return nil, errors.Wrap(err, errMarshalOwnedFields)
+	}
+
+	merged, err := jsonpatch.MergePatch(oBuff, patch)
+
+	return merged, errors.Wrap(err, errMergeOwnedFields)
+}
+
 // ResolveReferences of the supplied managed resource by calling its
 // ResolveReferences method, if any.
 func (a *APISimpleReferenceResolver) ResolveReferences(ctx context.Context, mg resource.Managed) error {
@@ -255,6 +291,11 @@ func (a *APISimpleReferenceResolver) ResolveReferences(ctx context.Context, mg r
 	}
 
 	patch, err := prepareJSONMerge(existing, mg)
+	if err != nil {
+		return err
+	}
+
+	patch, err = withOwnedFields(existing, patch)
 	if err != nil {
 		return err
 	}
