@@ -115,7 +115,7 @@ func (p *PackageParser) Parse(_ context.Context, reader io.ReadCloser) (*Package
 	for {
 		content, err := yr.Read()
 		if err != nil && !errors.Is(err, io.EOF) {
-			return pkg, err
+			return pkg, annotateErr(err, reader)
 		}
 
 		if errors.Is(err, io.EOF) {
