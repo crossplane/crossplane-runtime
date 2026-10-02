@@ -217,6 +217,24 @@ func NewCachedClient(f Fetcher, p parser.Parser, c PackageCache, s ConfigStore, 
 	}
 }
 
+func (c *CachedClient) getCachedPackage(ctx context.Context, key string) (*parser.Package, bool, error) {
+	rc, err := c.cache.Get(key)
+	if err != nil {
+		return nil, false, err
+	}
+
+	pkg, err := c.parser.Parse(ctx, struct {
+		io.Reader
+		io.Closer
+	}{
+		Reader: io.LimitReader(rc, maxPackageSize),
+		Closer: rc,
+	})
+	_ = rc.Close()
+
+	return pkg, true, err
+}
+
 // Get fetches and parses a complete package.
 func (c *CachedClient) Get(ctx context.Context, ref string, opts ...GetOption) (*Package, error) {
 	cfg := &GetConfig{
@@ -275,32 +293,26 @@ func (c *CachedClient) Get(ctx context.Context, ref string, opts ...GetOption) (
 	cacheKey := FriendlyID(ParsePackageSourceFromReference(parsedOriginalRef), digest)
 
 	if cfg.pullPolicy != corev1.PullAlways {
-		rc, err := c.cache.Get(cacheKey)
+		pkg, found, err := c.getCachedPackage(ctx, cacheKey)
 		if err == nil {
-			pkg, err := c.parser.Parse(ctx, struct {
-				io.Reader
-				io.Closer
-			}{
-				Reader: io.LimitReader(rc, maxPackageSize),
-				Closer: rc,
-			})
-			rc.Close() //nolint:errcheck // Only open for reading.
-			if err == nil {
-				return &Package{
-					Package:             pkg,
-					Digest:              digest,
-					Version:             parsedOriginalRef.Identifier(),
-					Source:              ParsePackageSourceFromReference(parsedOriginalRef),
-					ResolvedVersion:     parsedResolvedRef.Identifier(),
-					ResolvedSource:      ParsePackageSourceFromReference(parsedResolvedRef),
-					AppliedImageConfigs: applied,
-				}, nil
-			}
+			return &Package{
+				Package:             pkg,
+				Digest:              digest,
+				Version:             parsedOriginalRef.Identifier(),
+				Source:              ParsePackageSourceFromReference(parsedOriginalRef),
+				ResolvedVersion:     parsedResolvedRef.Identifier(),
+				ResolvedSource:      ParsePackageSourceFromReference(parsedResolvedRef),
+				AppliedImageConfigs: applied,
+			}, nil
 		}
-	}
 
-	if cfg.pullPolicy == corev1.PullNever {
-		return nil, errors.New("package not in cache and pull policy is Never")
+		if cfg.pullPolicy == corev1.PullNever {
+			return nil, errors.Wrapf(err, "cannot use cached package %s and pull policy is Never", resolvedRef)
+		}
+
+		if found {
+			_ = c.cache.Delete(cacheKey)
+		}
 	}
 
 	// Verification only happens if we don't get a cache hit. This means we
@@ -342,23 +354,35 @@ func (c *CachedClient) Get(ctx context.Context, ref string, opts ...GetOption) (
 	}
 
 	pipeR, pipeW := io.Pipe()
-	teeRC := TeeReadCloser(rc, pipeW)
-	defer teeRC.Close() //nolint:errcheck // Would only error if we called pipeW.CloseWithError()
+	cacheWrite := make(chan error, 1)
 
 	go func() {
 		defer pipeR.Close() //nolint:errcheck // Only open for reading.
-		_ = c.cache.Store(cacheKey, pipeR)
+		err := c.cache.Store(cacheKey, pipeR)
+		_, _ = io.Copy(io.Discard, pipeR)
+		cacheWrite <- err
 	}()
 
 	pkg, err := c.parser.Parse(ctx, struct {
 		io.Reader
 		io.Closer
 	}{
-		Reader: io.LimitReader(teeRC, maxPackageSize),
-		Closer: teeRC,
+		Reader: io.LimitReader(io.TeeReader(rc, pipeW), maxPackageSize),
+		Closer: rc,
 	})
 	if err != nil {
+		_ = pipeW.CloseWithError(err)
+	} else {
+		_ = pipeW.Close()
+	}
+
+	cacheErr := <-cacheWrite
+	if err != nil {
+		_ = c.cache.Delete(cacheKey)
 		return nil, errors.Wrapf(err, "cannot parse package %s", resolvedRef)
+	}
+	if cacheErr != nil {
+		_ = c.cache.Delete(cacheKey)
 	}
 
 	return &Package{
