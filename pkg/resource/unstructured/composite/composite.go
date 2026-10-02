@@ -246,29 +246,118 @@ func (c *Unstructured) SetClaimReference(ref *reference.Claim) {
 	_ = fieldpath.Pave(c.Object).SetValue("spec.claimRef", ref)
 }
 
-// GetResourceReferences of this composite resource.
-func (c *Unstructured) GetResourceReferences() []corev1.ObjectReference {
-	path := "spec.crossplane.resourceRefs"
+// resourceRefsPath is where this composite resource keeps its composed
+// resource references.
+func (c *Unstructured) resourceRefsPath() string {
 	if c.Schema == SchemaLegacy {
-		path = "spec.resourceRefs"
+		return "spec.resourceRefs"
 	}
 
-	out := &[]corev1.ObjectReference{}
-	_ = fieldpath.Pave(c.Object).GetValueInto(path, out)
+	return "spec.crossplane.resourceRefs"
+}
+
+// GetComposedResourceReferences of this composite resource. Unlike
+// GetResourceReferences these carry the composition resource name and the
+// ordering constraints declared over each resource.
+func (c *Unstructured) GetComposedResourceReferences() []reference.Composed {
+	out := &[]reference.Composed{}
+	_ = fieldpath.Pave(c.Object).GetValueInto(c.resourceRefsPath(), out)
 
 	return *out
 }
 
-// SetResourceReferences of this composite resource.
-func (c *Unstructured) SetResourceReferences(refs []corev1.ObjectReference) {
-	path := "spec.crossplane.resourceRefs"
-	if c.Schema == SchemaLegacy {
-		path = "spec.resourceRefs"
+// SetComposedResourceReferences of this composite resource.
+func (c *Unstructured) SetComposedResourceReferences(refs []reference.Composed) {
+	filtered := make([]reference.Composed, 0, len(refs))
+
+	for _, ref := range refs {
+		// TODO(negz): Ask muvaf to explain what this is working around. :)
+		// TODO(muvaf): temporary workaround.
+		if ref.APIVersion == "" && ref.Kind == "" && ref.Name == "" && ref.Namespace == "" &&
+			ref.ResourceName == "" && len(ref.DependsOn) == 0 {
+			continue
+		}
+
+		filtered = append(filtered, ref)
 	}
 
+	_ = fieldpath.Pave(c.Object).SetValue(c.resourceRefsPath(), filtered)
+}
+
+// pendingResourcesPath is where a composite resource records what the ordering
+// graph is holding back: under status.crossplane, the way modern XRs configure
+// their machinery under spec.crossplane.
+//
+// One path, with no legacy variant, because ordering is a v2 feature and
+// legacy XRs don't report it. Their schema has no such field, so a write would
+// be pruned.
+const pendingResourcesPath = "status.crossplane.pendingResources"
+
+// GetPendingResources of this composite resource: the composed resources
+// ordering will not create or delete yet, and why.
+func (c *Unstructured) GetPendingResources() []reference.Pending {
+	out := &[]reference.Pending{}
+	_ = fieldpath.Pave(c.Object).GetValueInto(pendingResourcesPath, out)
+
+	return *out
+}
+
+// SetPendingResources of this composite resource. Setting an empty slice
+// removes the field, so a composite that is no longer waiting for anything
+// doesn't carry an empty array saying so.
+func (c *Unstructured) SetPendingResources(pending []reference.Pending) {
+	if len(pending) == 0 {
+		_ = fieldpath.Pave(c.Object).DeleteField(pendingResourcesPath)
+		return
+	}
+
+	_ = fieldpath.Pave(c.Object).SetValue(pendingResourcesPath, pending)
+}
+
+// GetResourceReferences of this composite resource.
+func (c *Unstructured) GetResourceReferences() []corev1.ObjectReference {
+	refs := c.GetComposedResourceReferences()
+
+	out := make([]corev1.ObjectReference, len(refs))
+	for i, ref := range refs {
+		out[i] = corev1.ObjectReference{
+			APIVersion: ref.APIVersion,
+			Kind:       ref.Kind,
+			Name:       ref.Name,
+			Namespace:  ref.Namespace,
+		}
+	}
+
+	return out
+}
+
+// SetResourceReferences of this composite resource. Ordering fields already
+// recorded for a referenced resource are preserved, so a caller that doesn't
+// know about them can't erase them.
+func (c *Unstructured) SetResourceReferences(refs []corev1.ObjectReference) {
 	empty := corev1.ObjectReference{}
 
-	filtered := make([]corev1.ObjectReference, 0, len(refs))
+	// A recorded reference is matched to the supplied one by object identity.
+	// A reference that has no identity - one that carries only a composition
+	// resource name, or only the resources it depends on - cannot be matched,
+	// because there is no ObjectReference for it to arrive on. Carrying those
+	// over wholesale is what stops this method erasing ordering that its
+	// caller has no way to supply.
+	existing := map[corev1.ObjectReference]reference.Composed{}
+	unidentified := []reference.Composed{}
+
+	for _, ref := range c.GetComposedResourceReferences() {
+		k := corev1.ObjectReference{APIVersion: ref.APIVersion, Kind: ref.Kind, Name: ref.Name, Namespace: ref.Namespace}
+		if k == empty {
+			unidentified = append(unidentified, ref)
+			continue
+		}
+
+		existing[k] = ref
+	}
+
+	filtered := make([]reference.Composed, 0, len(refs)+len(unidentified))
+
 	for _, ref := range refs {
 		// TODO(negz): Ask muvaf to explain what this is working around. :)
 		// TODO(muvaf): temporary workaround.
@@ -276,10 +365,17 @@ func (c *Unstructured) SetResourceReferences(refs []corev1.ObjectReference) {
 			continue
 		}
 
-		filtered = append(filtered, ref)
+		filtered = append(filtered, reference.Composed{
+			APIVersion:   ref.APIVersion,
+			Kind:         ref.Kind,
+			Name:         ref.Name,
+			Namespace:    ref.Namespace,
+			ResourceName: existing[ref].ResourceName,
+			DependsOn:    existing[ref].DependsOn,
+		})
 	}
 
-	_ = fieldpath.Pave(c.Object).SetValue(path, filtered)
+	c.SetComposedResourceReferences(append(filtered, unidentified...))
 }
 
 // GetReference returns reference to this composite.

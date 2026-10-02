@@ -374,9 +374,17 @@ func TestForCompositeResource(t *testing.T) {
 																Schema: &extv1.JSONSchemaProps{
 																	Type: "object",
 																	Properties: map[string]extv1.JSONSchemaProps{
-																		"apiVersion": {Type: "string"},
-																		"name":       {Type: "string"},
-																		"kind":       {Type: "string"},
+																		"apiVersion":   {Type: "string"},
+																		"name":         {Type: "string"},
+																		"kind":         {Type: "string"},
+																		"resourceName": {Type: "string"},
+																		"dependsOn": {
+																			Type:      "array",
+																			XListType: ptr.To("set"),
+																			Items: &extv1.JSONSchemaPropsOrArray{
+																				Schema: &extv1.JSONSchemaProps{Type: "string"},
+																			},
+																		},
 																	},
 																	Required: []string{"apiVersion", "kind"},
 																},
@@ -422,6 +430,13 @@ func TestForCompositeResource(t *testing.T) {
 																"observedGeneration": {Type: "integer", Format: "int64"},
 															},
 														},
+													},
+												},
+												"crossplane": {
+													Type:        "object",
+													Description: "Crossplane machinery this composite resource reports",
+													Properties: map[string]extv1.JSONSchemaProps{
+														"pendingResources": pendingResourcesProps(true),
 													},
 												},
 											},
@@ -609,10 +624,18 @@ func TestForCompositeResource(t *testing.T) {
 														Schema: &extv1.JSONSchemaProps{
 															Type: "object",
 															Properties: map[string]extv1.JSONSchemaProps{
-																"apiVersion": {Type: "string"},
-																"name":       {Type: "string"},
-																"namespace":  {Type: "string"},
-																"kind":       {Type: "string"},
+																"apiVersion":   {Type: "string"},
+																"name":         {Type: "string"},
+																"namespace":    {Type: "string"},
+																"kind":         {Type: "string"},
+																"resourceName": {Type: "string"},
+																"dependsOn": {
+																	Type:      "array",
+																	XListType: ptr.To("set"),
+																	Items: &extv1.JSONSchemaPropsOrArray{
+																		Schema: &extv1.JSONSchemaProps{Type: "string"},
+																	},
+																},
 															},
 															Required: []string{"apiVersion", "kind"},
 														},
@@ -891,10 +914,18 @@ func TestForCompositeResource(t *testing.T) {
 														Schema: &extv1.JSONSchemaProps{
 															Type: "object",
 															Properties: map[string]extv1.JSONSchemaProps{
-																"apiVersion": {Type: "string"},
-																"name":       {Type: "string"},
-																"namespace":  {Type: "string"},
-																"kind":       {Type: "string"},
+																"apiVersion":   {Type: "string"},
+																"name":         {Type: "string"},
+																"namespace":    {Type: "string"},
+																"kind":         {Type: "string"},
+																"resourceName": {Type: "string"},
+																"dependsOn": {
+																	Type:      "array",
+																	XListType: ptr.To("set"),
+																	Items: &extv1.JSONSchemaPropsOrArray{
+																		Schema: &extv1.JSONSchemaProps{Type: "string"},
+																	},
+																},
 															},
 															Required: []string{"apiVersion", "kind"},
 														},
@@ -1136,10 +1167,18 @@ func TestForCompositeResource(t *testing.T) {
 														Schema: &extv1.JSONSchemaProps{
 															Type: "object",
 															Properties: map[string]extv1.JSONSchemaProps{
-																"apiVersion": {Type: "string"},
-																"name":       {Type: "string"},
-																"namespace":  {Type: "string"},
-																"kind":       {Type: "string"},
+																"apiVersion":   {Type: "string"},
+																"name":         {Type: "string"},
+																"namespace":    {Type: "string"},
+																"kind":         {Type: "string"},
+																"resourceName": {Type: "string"},
+																"dependsOn": {
+																	Type:      "array",
+																	XListType: ptr.To("set"),
+																	Items: &extv1.JSONSchemaPropsOrArray{
+																		Schema: &extv1.JSONSchemaProps{Type: "string"},
+																	},
+																},
 															},
 															Required: []string{"apiVersion", "kind"},
 														},
@@ -1371,10 +1410,18 @@ func TestForCompositeResource(t *testing.T) {
 														Schema: &extv1.JSONSchemaProps{
 															Type: "object",
 															Properties: map[string]extv1.JSONSchemaProps{
-																"apiVersion": {Type: "string"},
-																"name":       {Type: "string"},
-																"namespace":  {Type: "string"},
-																"kind":       {Type: "string"},
+																"apiVersion":   {Type: "string"},
+																"name":         {Type: "string"},
+																"namespace":    {Type: "string"},
+																"kind":         {Type: "string"},
+																"resourceName": {Type: "string"},
+																"dependsOn": {
+																	Type:      "array",
+																	XListType: ptr.To("set"),
+																	Items: &extv1.JSONSchemaPropsOrArray{
+																		Schema: &extv1.JSONSchemaProps{Type: "string"},
+																	},
+																},
 															},
 															Required: []string{"apiVersion", "kind"},
 														},
@@ -1629,10 +1676,18 @@ func TestForCompositeResource(t *testing.T) {
 														Schema: &extv1.JSONSchemaProps{
 															Type: "object",
 															Properties: map[string]extv1.JSONSchemaProps{
-																"apiVersion": {Type: "string"},
-																"name":       {Type: "string"},
-																"namespace":  {Type: "string"},
-																"kind":       {Type: "string"},
+																"apiVersion":   {Type: "string"},
+																"name":         {Type: "string"},
+																"namespace":    {Type: "string"},
+																"kind":         {Type: "string"},
+																"resourceName": {Type: "string"},
+																"dependsOn": {
+																	Type:      "array",
+																	XListType: ptr.To("set"),
+																	Items: &extv1.JSONSchemaPropsOrArray{
+																		Schema: &extv1.JSONSchemaProps{Type: "string"},
+																	},
+																},
 															},
 															Required: []string{"apiVersion", "kind"},
 														},
@@ -1898,10 +1953,18 @@ func TestForCompositeResource(t *testing.T) {
 														Schema: &extv1.JSONSchemaProps{
 															Type: "object",
 															Properties: map[string]extv1.JSONSchemaProps{
-																"apiVersion": {Type: "string"},
-																"name":       {Type: "string"},
-																"namespace":  {Type: "string"},
-																"kind":       {Type: "string"},
+																"apiVersion":   {Type: "string"},
+																"name":         {Type: "string"},
+																"namespace":    {Type: "string"},
+																"kind":         {Type: "string"},
+																"resourceName": {Type: "string"},
+																"dependsOn": {
+																	Type:      "array",
+																	XListType: ptr.To("set"),
+																	Items: &extv1.JSONSchemaPropsOrArray{
+																		Schema: &extv1.JSONSchemaProps{Type: "string"},
+																	},
+																},
 															},
 															Required: []string{"apiVersion", "kind"},
 														},
@@ -2174,9 +2237,17 @@ func TestForCompositeResource(t *testing.T) {
 																Schema: &extv1.JSONSchemaProps{
 																	Type: "object",
 																	Properties: map[string]extv1.JSONSchemaProps{
-																		"apiVersion": {Type: "string"},
-																		"name":       {Type: "string"},
-																		"kind":       {Type: "string"},
+																		"apiVersion":   {Type: "string"},
+																		"name":         {Type: "string"},
+																		"kind":         {Type: "string"},
+																		"resourceName": {Type: "string"},
+																		"dependsOn": {
+																			Type:      "array",
+																			XListType: ptr.To("set"),
+																			Items: &extv1.JSONSchemaPropsOrArray{
+																				Schema: &extv1.JSONSchemaProps{Type: "string"},
+																			},
+																		},
 																	},
 																	Required: []string{"apiVersion", "kind"},
 																},
@@ -2222,6 +2293,13 @@ func TestForCompositeResource(t *testing.T) {
 																"observedGeneration": {Type: "integer", Format: "int64"},
 															},
 														},
+													},
+												},
+												"crossplane": {
+													Type:        "object",
+													Description: "Crossplane machinery this composite resource reports",
+													Properties: map[string]extv1.JSONSchemaProps{
+														"pendingResources": pendingResourcesProps(true),
 													},
 												},
 											},
@@ -2435,9 +2513,17 @@ func TestForCompositeResource(t *testing.T) {
 																Schema: &extv1.JSONSchemaProps{
 																	Type: "object",
 																	Properties: map[string]extv1.JSONSchemaProps{
-																		"apiVersion": {Type: "string"},
-																		"name":       {Type: "string"},
-																		"kind":       {Type: "string"},
+																		"apiVersion":   {Type: "string"},
+																		"name":         {Type: "string"},
+																		"kind":         {Type: "string"},
+																		"resourceName": {Type: "string"},
+																		"dependsOn": {
+																			Type:      "array",
+																			XListType: ptr.To("set"),
+																			Items: &extv1.JSONSchemaPropsOrArray{
+																				Schema: &extv1.JSONSchemaProps{Type: "string"},
+																			},
+																		},
 																	},
 																	Required: []string{"apiVersion", "kind"},
 																},
@@ -2483,6 +2569,13 @@ func TestForCompositeResource(t *testing.T) {
 																"observedGeneration": {Type: "integer", Format: "int64"},
 															},
 														},
+													},
+												},
+												"crossplane": {
+													Type:        "object",
+													Description: "Crossplane machinery this composite resource reports",
+													Properties: map[string]extv1.JSONSchemaProps{
+														"pendingResources": pendingResourcesProps(true),
 													},
 												},
 											},
