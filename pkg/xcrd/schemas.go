@@ -356,6 +356,11 @@ func CompositeResourcePrinterColumns(s v1.CompositeResourceScope) []extv1.Custom
 			JSONPath: ".status.conditions[?(@.type=='Ready')].status",
 		},
 		{
+			Name:     "RESPONSIVE",
+			Type:     "string",
+			JSONPath: ".status.conditions[?(@.type=='Responsive')].status",
+		},
+		{
 			Name:     "COMPOSITION",
 			Type:     "string",
 			JSONPath: ".spec.crossplane.compositionRef.name",
