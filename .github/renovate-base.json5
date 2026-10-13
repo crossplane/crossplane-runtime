@@ -1,6 +1,8 @@
 {
   $schema: 'https://docs.renovatebot.com/renovate-schema.json',
   extends: [
+    // Must come before config:recommended - see renovate-go.json5.
+    'local>crossplane/crossplane-runtime//.github/renovate-go.json5',
     'config:recommended',
     'helpers:pinGitHubActionDigests',
     ':semanticCommits',

@@ -1,0 +1,23 @@
+{
+  // Go module grouping. This preset must be extended BEFORE config:recommended
+  // in renovate-base.json5. Renovate applies packageRules in order and the
+  // last groupName wins, so putting this rule first lets the built-in groups
+  // (e.g. group:kubernetes, group:monorepos) and vulnerability alerts override
+  // it for their packages.
+  packageRules: [
+    {
+      // Every Go dependency PR rewrites go.mod/go.sum/gomod2nix.toml, so
+      // separate PRs always conflict with each other. Group them so there's
+      // one PR to merge.
+      description: 'Group all minor and patch Go module updates',
+      matchDatasources: [
+        'go',
+      ],
+      matchUpdateTypes: [
+        'minor',
+        'patch',
+      ],
+      groupName: 'go dependencies',
+    },
+  ],
+}
