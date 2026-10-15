@@ -386,8 +386,8 @@ schema = 3
     hash = 'sha256-To8A0h+lbfZ/6zM+2PpRpY3+L6725OPC66lffq6fUoM='
 
   [mod.'github.com/klauspost/compress']
-    version = 'v1.20.0'
-    hash = 'sha256-M7FmkBv1S66kAjg9yjkzY/PtCb/RTsRABSDLYYQ9itM='
+    version = 'v1.20.1'
+    hash = 'sha256-saWVNlxTAS7/lNaGght51onyIDaAFV1Kx11g3+vPuX4='
 
   [mod.'github.com/kylelemons/godebug']
     version = 'v1.1.0'
@@ -454,20 +454,20 @@ schema = 3
     hash = 'sha256-XA4Oj1gdmdV/F/+8kMI+DBxKPthZ768hbKsO3d9Gx90='
 
   [mod.'github.com/prometheus/client_golang']
-    version = 'v1.24.1'
-    hash = 'sha256-HAOFVYyPiU7hVS1XXMMjkbGgTT7/UN0zVHXYOnjr7is='
+    version = 'v1.25.0'
+    hash = 'sha256-PYAzSxsdlfkHDeLWtwTQriE43R1rZrHIl5nWJ9zeD9M='
 
   [mod.'github.com/prometheus/client_model']
-    version = 'v0.6.2'
-    hash = 'sha256-q6Fh6v8iNJN9ypD47LjWmx66YITa3FyRjZMRsuRTFeQ='
+    version = 'v0.6.3'
+    hash = 'sha256-uYXpFkXMT4AXWJShrCRnu51vhGQAuAU3LFQhhGVJ+74='
 
   [mod.'github.com/prometheus/common']
-    version = 'v0.70.1'
-    hash = 'sha256-xlhVEswCWaBnAXn53KOUzquoDEnZVd/NcTbj52EJ6rE='
+    version = 'v0.72.0'
+    hash = 'sha256-OXi+GGzrV31yeKtel2bImkF7PW4tKWyOcyTZB5WbkDI='
 
   [mod.'github.com/prometheus/procfs']
-    version = 'v0.21.1'
-    hash = 'sha256-5SpWprdX29oVntHJyadiICOk9UAP+hu+xJM51/A8Ig4='
+    version = 'v0.22.0'
+    hash = 'sha256-TRwVHKgW4NnPuC6Me38OD57ccM8AfnS7IxtcAx2TAH4='
 
   [mod.'github.com/sassoftware/relic']
     version = 'v7.2.1+incompatible'
