@@ -22,7 +22,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/utils/ptr"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/v2/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -292,7 +291,7 @@ func (c *Unstructured) GetReference() *reference.Composite {
 	}
 
 	if c.GetNamespace() != "" {
-		ref.Namespace = ptr.To(c.GetNamespace())
+		ref.Namespace = new(c.GetNamespace())
 	}
 
 	return ref

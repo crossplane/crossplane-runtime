@@ -663,7 +663,7 @@ func onlyUsageKind[U resource.ProviderConfigUsage](s *runtime.Scheme) (U, bool) 
 
 		seen[t] = true
 
-		if u, ok := reflect.New(t).Interface().(U); ok {
+		if u, ok := reflect.TypeAssert[U](reflect.New(t)); ok {
 			found = append(found, u)
 		}
 	}
