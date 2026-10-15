@@ -30,7 +30,6 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 
 	"github.com/crossplane/crossplane-runtime/v2/apis/changelogs/proto/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -103,7 +102,7 @@ func TestChangeLogger(t *testing.T) {
 								Name:        "cool-managed",
 								Annotations: map[string]string{meta.AnnotationKeyExternalName: "cool-managed"},
 							}}),
-							ErrorMessage:      ptr.To("boom"),
+							ErrorMessage:      new("boom"),
 							AdditionalDetails: AdditionalDetails{"key": "value", "key2": "value2"},
 						},
 					},
