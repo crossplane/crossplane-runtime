@@ -706,8 +706,8 @@ schema = 3
     hash = 'sha256-oxvZoQ4Z/v/OYbkllb6pTJTRW18PCuBg6WxE5o6L3Jc='
 
   [mod.'sigs.k8s.io/controller-runtime']
-    version = 'v0.25.1'
-    hash = 'sha256-0yKogqrZbCD0vonR5lhsa8Fy09SBVcgv+5Lf7aefmYA='
+    version = 'v0.25.2'
+    hash = 'sha256-k44S1i8QZTTqd1vkhFPKCSAu7jnr/5vHytUnsz3fBKA='
 
   [mod.'sigs.k8s.io/controller-tools']
     version = 'v0.22.0'
