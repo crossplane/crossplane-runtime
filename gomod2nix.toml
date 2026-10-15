@@ -634,8 +634,8 @@ schema = 3
     hash = 'sha256-OvekWcaTHMs5n3Img4EmYaORRgSmybBS+tObSnPqftY='
 
   [mod.'golang.org/x/tools']
-    version = 'v0.49.0'
-    hash = 'sha256-3oaXp2PlfuIn6/UTarnYD279YqJKTyaCWT/KD7ABjD4='
+    version = 'v0.51.0'
+    hash = 'sha256-WeEH4D7+d5RHq5oSb4cCxxYOtKooq+JTNlEYz2Y4YrA='
 
   [mod.'gomodules.xyz/jsonpatch/v2']
     version = 'v2.5.0'
@@ -710,8 +710,8 @@ schema = 3
     hash = 'sha256-k44S1i8QZTTqd1vkhFPKCSAu7jnr/5vHytUnsz3fBKA='
 
   [mod.'sigs.k8s.io/controller-tools']
-    version = 'v0.22.0'
-    hash = 'sha256-xFbrF8SoQoMgMw3oP1XlYP1X2YmaAfJDXUFXJIejuz4='
+    version = 'v0.23.0'
+    hash = 'sha256-vTIBX5V5qZ9nkwPVNyWvqRSFqKzgX50rFFrivno1Tcc='
 
   [mod.'sigs.k8s.io/json']
     version = 'v0.0.0-20250730193827-2d320260d730'
