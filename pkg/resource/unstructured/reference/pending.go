@@ -43,15 +43,19 @@ const (
 )
 
 // A Dependency is one ordering constraint declared over a composed resource.
+//
+// Field names follow one rule across resourceRefs and pendingResources:
+// resourceName is always a composition resource name, and name is always an
+// object's name.
 type Dependency struct {
 	// Type of thing this depends on. Defaults to ComposedResource.
 	// +optional
 	Type DependencyType `json:"type,omitempty"`
 
-	// Name is the composition resource name depended on. Set when Type is
-	// ComposedResource.
+	// ResourceName is the composition resource name depended on. Set when
+	// Type is ComposedResource.
 	// +optional
-	Name string `json:"name,omitempty"`
+	ResourceName string `json:"resourceName,omitempty"`
 
 	// Requirement identifies a resource the pipeline required. Set when Type
 	// is RequiredResource.
@@ -62,16 +66,17 @@ type Dependency struct {
 // A RequirementDependency identifies a resource the pipeline required, or one
 // resource within the set a requirement matched.
 type RequirementDependency struct {
-	// Name of the requirement - the key into the pipeline's requirements.
-	Name string `json:"name"`
+	// RequirementName is the name of the requirement - the key into the
+	// pipeline's requirements.
+	RequirementName string `json:"requirementName"`
 
-	// ResourceName optionally narrows the dependency to a single resource
-	// within the set the requirement matched. If unset, every match must be
-	// ready.
+	// Name optionally narrows the dependency to a single resource, by object
+	// name, within the set the requirement matched. If unset, every match must
+	// be ready.
 	// +optional
-	ResourceName string `json:"resourceName,omitempty"`
+	Name string `json:"name,omitempty"`
 
-	// Namespace of ResourceName, for a namespaced resource.
+	// Namespace of Name, for a namespaced resource.
 	// +optional
 	Namespace string `json:"namespace,omitempty"`
 }

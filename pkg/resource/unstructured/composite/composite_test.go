@@ -668,10 +668,10 @@ func TestPendingResources(t *testing.T) {
 			ResourceName: "subnet",
 			Operation:    reference.OperationCreate,
 			DependsOn: []reference.Dependency{
-				{Name: "vpc"},
+				{ResourceName: "vpc"},
 				{
 					Type:        reference.DependencyTypeRequiredResource,
-					Requirement: &reference.RequirementDependency{Name: "kubeconfig"},
+					Requirement: &reference.RequirementDependency{RequirementName: "kubeconfig"},
 				},
 			},
 			Reason: "waiting for vpc to be ready",
