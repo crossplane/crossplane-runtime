@@ -156,6 +156,12 @@ type CompositeResourceDeleter interface {
 type ComposedResourcesReferencer interface {
 	SetResourceReferences(refs []corev1.ObjectReference)
 	GetResourceReferences() []corev1.ObjectReference
+
+	// The Composed variants carry the composition resource name and the
+	// ordering constraints declared over each resource, which an
+	// ObjectReference has no room for.
+	SetComposedResourceReferences(refs []reference.Composed)
+	GetComposedResourceReferences() []reference.Composed
 }
 
 // A CompositeResourceReferencer can reference a composite resource.
