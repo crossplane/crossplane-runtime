@@ -42,8 +42,8 @@
             overlays = [
               gomod2nix.overlays.default
               (_final: _prev: {
-                go = nixpkgs-unstable.legacyPackages.${system}.go_1_25;
-                inherit (nixpkgs-unstable.legacyPackages.${system}) go_1_25;
+                go = nixpkgs-unstable.legacyPackages.${system}.go_1_26;
+                inherit (nixpkgs-unstable.legacyPackages.${system}) go_1_26;
               })
             ];
           };
