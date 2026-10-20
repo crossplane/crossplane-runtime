@@ -979,6 +979,14 @@ func TestExpandWildcards(t *testing.T) {
 				err: errors.Wrap(errors.New("unexpected ']' at position 5"), "cannot parse path \"spec[]\""),
 			},
 		},
+		"LiteralWildcardKey": {
+			reason: "Expanding over an object that has a field literally named * should fail rather than recurse forever",
+			path:   "spec[*]",
+			data:   []byte(`{"spec":{"*":"star","other":"value"}}`),
+			want: want{
+				err: errors.Wrapf(errors.Errorf("%q: object has a field named %q, which cannot be distinguished from a wildcard", "spec", "*"), "cannot expand wildcards for segments: %q", "spec[*]"),
+			},
+		},
 		"NilValue": {
 			reason: "Requesting a wildcard for an object that has nil value",
 			path:   "spec.containers[*].name",
