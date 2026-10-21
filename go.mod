@@ -2,7 +2,7 @@ module github.com/crossplane/crossplane-runtime
 
 go 1.26.0
 
-toolchain go1.26.9
+toolchain go1.26.10
 
 require (
 	dario.cat/mergo v1.0.1
