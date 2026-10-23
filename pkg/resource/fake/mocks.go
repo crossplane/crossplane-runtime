@@ -550,6 +550,9 @@ func (m *Manager) GetCache() cache.Cache { return m.Cache }
 // GetClient returns the client.
 func (m *Manager) GetClient() client.Client { return m.Client }
 
+// GetAPIReader returns the client, acting as a (non-caching) API reader.
+func (m *Manager) GetAPIReader() client.Reader { return m.Client }
+
 // GetScheme returns the scheme.
 func (m *Manager) GetScheme() *runtime.Scheme { return m.Scheme }
 
