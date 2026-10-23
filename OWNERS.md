@@ -19,12 +19,16 @@ See [CODEOWNERS](CODEOWNERS) for automatic PR assignment.
 * Jared Watts <jared@upbound.io> ([jbw976](https://github.com/jbw976))
 * Adam Wolfe Gordon <adam.wolfegordon@upbound.io> ([adamwg](https://github.com/adamwg))
 * Christopher Haar <christopher.haar@upbound.io> ([haarchri](https://github.com/haarchri))
+* Alper Ulucinar <alper@upbound.io> ([ulucinar](https://github.com/ulucinar))
+* Erhan Cagirici <erhan@upbound.io> ([erhancagirici](https://github.com/erhancagirici))
 
 ## Reviewers
 
 * Yury Tsarev <yury@upbound.io> ([ytsarev](https://github.com/ytsarev))
 * Ezgi Demirel <ezgi@upbound.io> ([ezgidemirel](https://github.com/ezgidemirel))
 * Max Blatt ([MisterMX](https://github.com/MisterMX))
+* Sergen Yalcin <sergen@upbound.io> ([sergenyalcin](https://github.com/sergenyalcin))
+* Jonasz Lasut-Balcerzak <jonasz@upbound.io> ([jonasz-lasut](https://github.com/jonasz-lasut))
 
 ## Emeritus maintainers
 
