@@ -3,6 +3,7 @@
   // It extends base config and build-tool-specific configs.
   //
   // - renovate-base.json5: Common configuration for all branches
+  // - renovate-go.json5: Go module grouping (extended by renovate-base.json5)
   // - renovate-earthly.json5: Earthly-specific config for release branches
   // - renovate-nix.json5: Nix-specific config for main branch
   //
