@@ -246,6 +246,35 @@ func (c *Unstructured) SetClaimReference(ref *reference.Claim) {
 	_ = fieldpath.Pave(c.Object).SetValue("spec.claimRef", ref)
 }
 
+// GetDeletionPolicy of this composite resource, as recorded from its
+// Composition. It returns an empty string if no policy is recorded.
+func (c *Unstructured) GetDeletionPolicy() string {
+	// Only modern XRs record a deletion policy.
+	if c.Schema == SchemaLegacy {
+		return ""
+	}
+
+	p, _ := fieldpath.Pave(c.Object).GetString("status.crossplane.deletionPolicy")
+
+	return p
+}
+
+// SetDeletionPolicy of this composite resource. Setting an empty policy removes
+// the recorded policy.
+func (c *Unstructured) SetDeletionPolicy(p string) {
+	// Only modern XRs record a deletion policy.
+	if c.Schema == SchemaLegacy {
+		return
+	}
+
+	if p == "" {
+		_ = fieldpath.Pave(c.Object).DeleteField("status.crossplane.deletionPolicy")
+		return
+	}
+
+	_ = fieldpath.Pave(c.Object).SetValue("status.crossplane.deletionPolicy", p)
+}
+
 // GetResourceReferences of this composite resource.
 func (c *Unstructured) GetResourceReferences() []corev1.ObjectReference {
 	path := "spec.crossplane.resourceRefs"

@@ -513,3 +513,48 @@ func TestLastHandledReconcileAt(t *testing.T) {
 		})
 	}
 }
+
+func TestDeletionPolicy(t *testing.T) {
+	cases := map[string]struct {
+		u          *Unstructured
+		set        string
+		want       string
+		wantObject map[string]any
+	}{
+		"Set": {
+			u:          New(),
+			set:        "Pipeline",
+			want:       "Pipeline",
+			wantObject: map[string]any{"status": map[string]any{"crossplane": map[string]any{"deletionPolicy": "Pipeline"}}},
+		},
+		"Remove": {
+			u: New(func(u *Unstructured) {
+				u.SetDeletionPolicy("Foreground")
+			}),
+			set:        "",
+			want:       "",
+			wantObject: map[string]any{"status": map[string]any{"crossplane": map[string]any{}}},
+		},
+		"Legacy": {
+			u:          New(WithSchema(SchemaLegacy)),
+			set:        "Pipeline",
+			want:       "",               // legacy schema doesn't record a deletion policy
+			wantObject: map[string]any{}, // so nothing is written
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			tc.u.SetDeletionPolicy(tc.set)
+
+			got := tc.u.GetDeletionPolicy()
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\nu.GetDeletionPolicy(): -want, +got:\n%s", diff)
+			}
+
+			if diff := cmp.Diff(tc.wantObject, tc.u.Object); diff != "" {
+				t.Errorf("\nu.SetDeletionPolicy(%q): -want, +got:\n%s", tc.set, diff)
+			}
+		})
+	}
+}

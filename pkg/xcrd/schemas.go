@@ -287,6 +287,26 @@ func CompositeResourceClaimSpecProps(defaultPol *xpv2.CompositeDeletePolicy) map
 	}
 }
 
+// crossplaneStatusProps is the schema for the Crossplane machinery a modern
+// composite resource reports under status.crossplane.
+func crossplaneStatusProps() extv1.JSONSchemaProps {
+	return extv1.JSONSchemaProps{
+		Type:        "object",
+		Description: "Crossplane machinery state of this composite resource.",
+		Properties: map[string]extv1.JSONSchemaProps{
+			"deletionPolicy": {
+				Type:        "string",
+				Description: "The deletion policy Crossplane follows when this composite resource is deleted. Crossplane records it from the resource's Composition.",
+				Enum: []extv1.JSON{
+					{Raw: []byte(`"Background"`)},
+					{Raw: []byte(`"Foreground"`)},
+					{Raw: []byte(`"Pipeline"`)},
+				},
+			},
+		},
+	}
+}
+
 // CompositeResourceStatusProps is a partial OpenAPIV3Schema for the status
 // fields that Crossplane expects to be present for all composite resources.
 func CompositeResourceStatusProps(s v1.CompositeResourceScope) map[string]extv1.JSONSchemaProps {
@@ -317,8 +337,9 @@ func CompositeResourceStatusProps(s v1.CompositeResourceScope) map[string]extv1.
 
 	switch s {
 	case v1.CompositeResourceScopeNamespaced, v1.CompositeResourceScopeCluster:
-		// Modern XRs don't have connection details or support claims, so
-		// there's nothing else to put in the status for them
+		// Modern XRs don't have connection details or support claims. They
+		// report Crossplane machinery under status.crossplane.
+		props["crossplane"] = crossplaneStatusProps()
 	case v1.CompositeResourceScopeLegacyCluster:
 		// Legacy XRs don't use status.crossplane, and support claims.
 		props["connectionDetails"] = extv1.JSONSchemaProps{

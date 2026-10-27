@@ -401,8 +401,9 @@ func TestForCompositeResource(t *testing.T) {
 											Type:        "object",
 											Description: "Status of the resource.",
 											Properties: map[string]extv1.JSONSchemaProps{
-												"phase":     {Type: "string"},
-												"something": {Type: "string"},
+												"crossplane": crossplaneStatusProps(),
+												"phase":      {Type: "string"},
+												"something":  {Type: "string"},
 
 												"conditions": {
 													Description:  "Conditions of the resource.",
@@ -2201,8 +2202,9 @@ func TestForCompositeResource(t *testing.T) {
 											Type:        "object",
 											Description: "Status of the resource.",
 											Properties: map[string]extv1.JSONSchemaProps{
-												"phase":     {Type: "string"},
-												"something": {Type: "string"},
+												"crossplane": crossplaneStatusProps(),
+												"phase":      {Type: "string"},
+												"something":  {Type: "string"},
 
 												"conditions": {
 													Description:  "Conditions of the resource.",
@@ -2462,8 +2464,9 @@ func TestForCompositeResource(t *testing.T) {
 											Type:        "object",
 											Description: "Status of the resource.",
 											Properties: map[string]extv1.JSONSchemaProps{
-												"phase":     {Type: "string"},
-												"something": {Type: "string"},
+												"crossplane": crossplaneStatusProps(),
+												"phase":      {Type: "string"},
+												"something":  {Type: "string"},
 
 												"conditions": {
 													Description:  "Conditions of the resource.",
