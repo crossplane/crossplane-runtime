@@ -3684,3 +3684,67 @@ func TestSetCrdMetadata(t *testing.T) {
 		})
 	}
 }
+
+func TestMergeCrossplaneStatusProps(t *testing.T) {
+	deletionPolicy := extv1.JSONSchemaProps{
+		Type: "string",
+		Enum: []extv1.JSON{{Raw: []byte(`"Background"`)}, {Raw: []byte(`"Foreground"`)}, {Raw: []byte(`"Pipeline"`)}},
+	}
+
+	type args struct {
+		xrd map[string]extv1.JSONSchemaProps
+		xp  map[string]extv1.JSONSchemaProps
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   map[string]extv1.JSONSchemaProps
+	}{
+		"XRDDoesntDeclareCrossplane": {
+			reason: "Crossplane's status.crossplane fields should be unchanged if the XRD doesn't declare status.crossplane.",
+			args: args{
+				xrd: map[string]extv1.JSONSchemaProps{"phase": {Type: "string"}},
+				xp:  map[string]extv1.JSONSchemaProps{"crossplane": {Type: "object", Properties: map[string]extv1.JSONSchemaProps{"deletionPolicy": deletionPolicy}}},
+			},
+			want: map[string]extv1.JSONSchemaProps{"crossplane": {Type: "object", Properties: map[string]extv1.JSONSchemaProps{"deletionPolicy": deletionPolicy}}},
+		},
+		"XRDDeclaresCrossplane": {
+			reason: "Fields the XRD declares under status.crossplane should be kept alongside Crossplane's.",
+			args: args{
+				xrd: map[string]extv1.JSONSchemaProps{"crossplane": {Type: "object", Properties: map[string]extv1.JSONSchemaProps{"mine": {Type: "string"}}}},
+				xp:  map[string]extv1.JSONSchemaProps{"crossplane": {Type: "object", Properties: map[string]extv1.JSONSchemaProps{"deletionPolicy": deletionPolicy}}},
+			},
+			want: map[string]extv1.JSONSchemaProps{"crossplane": {Type: "object", Properties: map[string]extv1.JSONSchemaProps{
+				"mine":           {Type: "string"},
+				"deletionPolicy": deletionPolicy,
+			}}},
+		},
+		"CrossplaneWins": {
+			reason: "Crossplane's definition of a status.crossplane field should win if the XRD declares the same field.",
+			args: args{
+				xrd: map[string]extv1.JSONSchemaProps{"crossplane": {Type: "object", Properties: map[string]extv1.JSONSchemaProps{"deletionPolicy": {Type: "integer"}}}},
+				xp:  map[string]extv1.JSONSchemaProps{"crossplane": {Type: "object", Properties: map[string]extv1.JSONSchemaProps{"deletionPolicy": deletionPolicy}}},
+			},
+			want: map[string]extv1.JSONSchemaProps{"crossplane": {Type: "object", Properties: map[string]extv1.JSONSchemaProps{"deletionPolicy": deletionPolicy}}},
+		},
+		"LegacyHasNoCrossplane": {
+			reason: "Nothing should be merged for a legacy XR, which has no status.crossplane.",
+			args: args{
+				xrd: map[string]extv1.JSONSchemaProps{"crossplane": {Type: "object", Properties: map[string]extv1.JSONSchemaProps{"mine": {Type: "string"}}}},
+				xp:  map[string]extv1.JSONSchemaProps{"connectionDetails": {Type: "object"}},
+			},
+			want: map[string]extv1.JSONSchemaProps{"connectionDetails": {Type: "object"}},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			mergeCrossplaneStatusProps(tc.args.xrd, tc.args.xp)
+
+			if diff := cmp.Diff(tc.want, tc.args.xp); diff != "" {
+				t.Errorf("\n%s\nmergeCrossplaneStatusProps(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}

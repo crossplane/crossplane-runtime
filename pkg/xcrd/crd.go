@@ -95,13 +95,38 @@ func ForCompositeResource(xrd *v1.CompositeResourceDefinition) (*extv1.CustomRes
 		props := CompositeResourceSpecProps(scope, xrd.Spec.DefaultCompositionUpdatePolicy)
 		maps.Copy(crdv.Schema.OpenAPIV3Schema.Properties["spec"].Properties, props)
 
+		status := crdv.Schema.OpenAPIV3Schema.Properties["status"].Properties
 		props = CompositeResourceStatusProps(scope)
-		maps.Copy(crdv.Schema.OpenAPIV3Schema.Properties["status"].Properties, props)
+		mergeCrossplaneStatusProps(status, props)
+		maps.Copy(status, props)
 
 		crd.Spec.Versions[i] = *crdv
 	}
 
 	return crd, nil
+}
+
+// mergeCrossplaneStatusProps keeps any status.crossplane fields the XRD's own
+// schema declares alongside the ones Crossplane adds, so that adding a field
+// under status.crossplane doesn't prune fields XRs may already have. Crossplane's
+// fields win if both declare the same field.
+func mergeCrossplaneStatusProps(xrd, xp map[string]extv1.JSONSchemaProps) {
+	ours, ok := xp["crossplane"]
+	if !ok {
+		return
+	}
+
+	theirs, ok := xrd["crossplane"]
+	if !ok || len(theirs.Properties) == 0 {
+		return
+	}
+
+	merged := make(map[string]extv1.JSONSchemaProps, len(theirs.Properties)+len(ours.Properties))
+	maps.Copy(merged, theirs.Properties)
+	maps.Copy(merged, ours.Properties)
+
+	ours.Properties = merged
+	xp["crossplane"] = ours
 }
 
 // ForCompositeResourceClaim derives the CustomResourceDefinition for a
