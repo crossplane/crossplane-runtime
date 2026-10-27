@@ -106,10 +106,12 @@ func ForCompositeResource(xrd *v1.CompositeResourceDefinition) (*extv1.CustomRes
 	return crd, nil
 }
 
-// mergeCrossplaneStatusProps keeps any status.crossplane fields the XRD's own
-// schema declares alongside the ones Crossplane adds, so that adding a field
-// under status.crossplane doesn't prune fields XRs may already have. Crossplane's
-// fields win if both declare the same field.
+// mergeCrossplaneStatusProps adds the status.crossplane fields Crossplane
+// needs to any status.crossplane schema the XRD's own schema declares, so that
+// adding a field under status.crossplane doesn't prune fields XRs may already
+// have. The rest of the XRD's schema, like x-kubernetes-preserve-unknown-fields
+// or validations, is kept. Crossplane's fields win if both declare the same
+// field.
 func mergeCrossplaneStatusProps(xrd, xp map[string]extv1.JSONSchemaProps) {
 	ours, ok := xp["crossplane"]
 	if !ok {
@@ -117,16 +119,21 @@ func mergeCrossplaneStatusProps(xrd, xp map[string]extv1.JSONSchemaProps) {
 	}
 
 	theirs, ok := xrd["crossplane"]
-	if !ok || len(theirs.Properties) == 0 {
+	if !ok {
 		return
 	}
 
-	merged := make(map[string]extv1.JSONSchemaProps, len(theirs.Properties)+len(ours.Properties))
-	maps.Copy(merged, theirs.Properties)
-	maps.Copy(merged, ours.Properties)
+	merged := *theirs.DeepCopy()
+	merged.Type = ours.Type
+	if merged.Description == "" {
+		merged.Description = ours.Description
+	}
+	if merged.Properties == nil {
+		merged.Properties = make(map[string]extv1.JSONSchemaProps, len(ours.Properties))
+	}
+	maps.Copy(merged.Properties, ours.Properties)
 
-	ours.Properties = merged
-	xp["crossplane"] = ours
+	xp["crossplane"] = merged
 }
 
 // ForCompositeResourceClaim derives the CustomResourceDefinition for a

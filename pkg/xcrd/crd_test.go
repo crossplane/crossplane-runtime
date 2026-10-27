@@ -3728,6 +3728,42 @@ func TestMergeCrossplaneStatusProps(t *testing.T) {
 			},
 			want: map[string]extv1.JSONSchemaProps{"crossplane": {Type: "object", Properties: map[string]extv1.JSONSchemaProps{"deletionPolicy": deletionPolicy}}},
 		},
+		"XRDPreservesUnknownFields": {
+			reason: "An XRD's status.crossplane schema settings, like x-kubernetes-preserve-unknown-fields, should be kept even if it declares no properties.",
+			args: args{
+				xrd: map[string]extv1.JSONSchemaProps{"crossplane": {Type: "object", XPreserveUnknownFields: new(true)}},
+				xp:  map[string]extv1.JSONSchemaProps{"crossplane": {Type: "object", Description: "Crossplane machinery.", Properties: map[string]extv1.JSONSchemaProps{"deletionPolicy": deletionPolicy}}},
+			},
+			want: map[string]extv1.JSONSchemaProps{"crossplane": {
+				Type:                   "object",
+				Description:            "Crossplane machinery.",
+				XPreserveUnknownFields: new(true),
+				Properties:             map[string]extv1.JSONSchemaProps{"deletionPolicy": deletionPolicy},
+			}},
+		},
+		"XRDDeclaresValidations": {
+			reason: "Validations and required fields the XRD declares on status.crossplane should be kept.",
+			args: args{
+				xrd: map[string]extv1.JSONSchemaProps{"crossplane": {
+					Type:         "object",
+					Description:  "Mine.",
+					Required:     []string{"mine"},
+					XValidations: extv1.ValidationRules{{Rule: "self.mine != ''"}},
+					Properties:   map[string]extv1.JSONSchemaProps{"mine": {Type: "string"}},
+				}},
+				xp: map[string]extv1.JSONSchemaProps{"crossplane": {Type: "object", Description: "Crossplane machinery.", Properties: map[string]extv1.JSONSchemaProps{"deletionPolicy": deletionPolicy}}},
+			},
+			want: map[string]extv1.JSONSchemaProps{"crossplane": {
+				Type:         "object",
+				Description:  "Mine.",
+				Required:     []string{"mine"},
+				XValidations: extv1.ValidationRules{{Rule: "self.mine != ''"}},
+				Properties: map[string]extv1.JSONSchemaProps{
+					"mine":           {Type: "string"},
+					"deletionPolicy": deletionPolicy,
+				},
+			}},
+		},
 		"LegacyHasNoCrossplane": {
 			reason: "Nothing should be merged for a legacy XR, which has no status.crossplane.",
 			args: args{
