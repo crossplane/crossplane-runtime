@@ -515,45 +515,68 @@ func TestLastHandledReconcileAt(t *testing.T) {
 }
 
 func TestDeletionPolicy(t *testing.T) {
+	type args struct {
+		u   *Unstructured
+		set string
+	}
+	type want struct {
+		policy string
+		object map[string]any
+	}
+
 	cases := map[string]struct {
-		u          *Unstructured
-		set        string
-		want       string
-		wantObject map[string]any
+		reason string
+		args   args
+		want   want
 	}{
 		"Set": {
-			u:          New(),
-			set:        "Pipeline",
-			want:       "Pipeline",
-			wantObject: map[string]any{"status": map[string]any{"crossplane": map[string]any{"deletionPolicy": "Pipeline"}}},
+			reason: "Setting a deletion policy should record it under status.crossplane.",
+			args: args{
+				u:   New(),
+				set: "Pipeline",
+			},
+			want: want{
+				policy: "Pipeline",
+				object: map[string]any{"status": map[string]any{"crossplane": map[string]any{"deletionPolicy": "Pipeline"}}},
+			},
 		},
 		"Remove": {
-			u: New(func(u *Unstructured) {
-				u.SetDeletionPolicy("Foreground")
-			}),
-			set:        "",
-			want:       "",
-			wantObject: map[string]any{"status": map[string]any{"crossplane": map[string]any{}}},
+			reason: "Setting an empty deletion policy should remove the recorded policy.",
+			args: args{
+				u: New(func(u *Unstructured) {
+					u.SetDeletionPolicy("Foreground")
+				}),
+				set: "",
+			},
+			want: want{
+				policy: "",
+				object: map[string]any{"status": map[string]any{"crossplane": map[string]any{}}},
+			},
 		},
 		"Legacy": {
-			u:          New(WithSchema(SchemaLegacy)),
-			set:        "Pipeline",
-			want:       "",               // legacy schema doesn't record a deletion policy
-			wantObject: map[string]any{}, // so nothing is written
+			reason: "A legacy composite resource shouldn't record a deletion policy.",
+			args: args{
+				u:   New(WithSchema(SchemaLegacy)),
+				set: "Pipeline",
+			},
+			want: want{
+				policy: "",
+				object: map[string]any{},
+			},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			tc.u.SetDeletionPolicy(tc.set)
+			tc.args.u.SetDeletionPolicy(tc.args.set)
 
-			got := tc.u.GetDeletionPolicy()
-			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("\nu.GetDeletionPolicy(): -want, +got:\n%s", diff)
+			got := tc.args.u.GetDeletionPolicy()
+			if diff := cmp.Diff(tc.want.policy, got); diff != "" {
+				t.Errorf("\n%s\nu.GetDeletionPolicy(): -want, +got:\n%s", tc.reason, diff)
 			}
 
-			if diff := cmp.Diff(tc.wantObject, tc.u.Object); diff != "" {
-				t.Errorf("\nu.SetDeletionPolicy(%q): -want, +got:\n%s", tc.set, diff)
+			if diff := cmp.Diff(tc.want.object, tc.args.u.Object); diff != "" {
+				t.Errorf("\n%s\nu.SetDeletionPolicy(%q): -want, +got:\n%s", tc.reason, tc.args.set, diff)
 			}
 		})
 	}
