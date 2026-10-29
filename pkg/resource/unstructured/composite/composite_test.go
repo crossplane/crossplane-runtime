@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
@@ -517,10 +518,10 @@ func TestLastHandledReconcileAt(t *testing.T) {
 func TestDeletionPolicy(t *testing.T) {
 	type args struct {
 		u   *Unstructured
-		set string
+		set v1.CompositionDeletionPolicy
 	}
 	type want struct {
-		policy string
+		policy v1.CompositionDeletionPolicy
 		object map[string]any
 	}
 
@@ -533,10 +534,10 @@ func TestDeletionPolicy(t *testing.T) {
 			reason: "Setting a deletion policy should record it under status.crossplane.",
 			args: args{
 				u:   New(),
-				set: "Pipeline",
+				set: v1.CompositionDeletionPolicyPipeline,
 			},
 			want: want{
-				policy: "Pipeline",
+				policy: v1.CompositionDeletionPolicyPipeline,
 				object: map[string]any{"status": map[string]any{"crossplane": map[string]any{"deletionPolicy": "Pipeline"}}},
 			},
 		},
@@ -544,7 +545,7 @@ func TestDeletionPolicy(t *testing.T) {
 			reason: "Setting an empty deletion policy should remove the recorded policy.",
 			args: args{
 				u: New(func(u *Unstructured) {
-					u.SetDeletionPolicy("Foreground")
+					u.SetDeletionPolicy(v1.CompositionDeletionPolicyForeground)
 				}),
 				set: "",
 			},
@@ -557,7 +558,7 @@ func TestDeletionPolicy(t *testing.T) {
 			reason: "A legacy composite resource shouldn't record a deletion policy.",
 			args: args{
 				u:   New(WithSchema(SchemaLegacy)),
-				set: "Pipeline",
+				set: v1.CompositionDeletionPolicyPipeline,
 			},
 			want: want{
 				policy: "",

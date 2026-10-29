@@ -18,6 +18,7 @@ limitations under the License.
 package composite
 
 import (
+	v1 "github.com/crossplane/crossplane/apis/v2/apiextensions/v1"
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -247,8 +248,8 @@ func (c *Unstructured) SetClaimReference(ref *reference.Claim) {
 }
 
 // GetDeletionPolicy of this composite resource, as recorded from its
-// Composition. It returns an empty string if no policy is recorded.
-func (c *Unstructured) GetDeletionPolicy() string {
+// Composition. It returns an empty policy if none is recorded.
+func (c *Unstructured) GetDeletionPolicy() v1.CompositionDeletionPolicy {
 	// Only modern XRs record a deletion policy.
 	if c.Schema == SchemaLegacy {
 		return ""
@@ -256,12 +257,12 @@ func (c *Unstructured) GetDeletionPolicy() string {
 
 	p, _ := fieldpath.Pave(c.Object).GetString("status.crossplane.deletionPolicy")
 
-	return p
+	return v1.CompositionDeletionPolicy(p)
 }
 
 // SetDeletionPolicy of this composite resource. Setting an empty policy removes
 // the recorded policy.
-func (c *Unstructured) SetDeletionPolicy(p string) {
+func (c *Unstructured) SetDeletionPolicy(p v1.CompositionDeletionPolicy) {
 	// Only modern XRs record a deletion policy.
 	if c.Schema == SchemaLegacy {
 		return
@@ -272,7 +273,7 @@ func (c *Unstructured) SetDeletionPolicy(p string) {
 		return
 	}
 
-	_ = fieldpath.Pave(c.Object).SetValue("status.crossplane.deletionPolicy", p)
+	_ = fieldpath.Pave(c.Object).SetValue("status.crossplane.deletionPolicy", string(p))
 }
 
 // GetResourceReferences of this composite resource.
