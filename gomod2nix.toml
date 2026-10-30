@@ -138,8 +138,8 @@ schema = 3
     hash = 'sha256-5vd00/GgjGZfpu+0qZdWUHRhnIHBnHccwkksuU50D9s='
 
   [mod.'github.com/crossplane/crossplane/apis/v2']
-    version = 'v2.4.2'
-    hash = 'sha256-f4i5sDM5iVt1iHoNFNpI2rTJtiZALaxhpmj3LJA51wk='
+    version = 'v2.5.0-rc.0.0.20261029180807-76a72bee8a19'
+    hash = 'sha256-xn7Q74+9UB94RI9JPEqMFAiBgDfJK4jwpji4JHeIzPI='
 
   [mod.'github.com/cyberphone/json-canonicalization']
     version = 'v0.0.0-20241213102144-19d51d7fe467'
