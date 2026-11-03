@@ -108,7 +108,7 @@ func (r *APIRecorder) Event(obj runtime.Object, e Event) {
 // WithAnnotations returns a new *APIRecorder that includes the supplied
 // annotations with all recorded events.
 func (r *APIRecorder) WithAnnotations(keysAndValues ...string) Recorder {
-	ar := NewAPIRecorder(r.kube)
+	ar := NewAPIRecorder(r.kube, r.filterFns...)
 	maps.Copy(ar.annotations, r.annotations)
 
 	sliceMap(keysAndValues, ar.annotations)
