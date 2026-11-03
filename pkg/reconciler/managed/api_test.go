@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
@@ -388,10 +389,55 @@ func (r *mockSimpleReferencer) Equal(s *mockSimpleReferencer) bool {
 	return cmp.Equal(r.Managed, s.Managed)
 }
 
+// mockStructuredReferencer embeds the fake managed resource instead of wrapping
+// it, so that it marshals to the managed resource's own JSON shape. The field
+// ownership tests rely on that shape to address fields from managedFields.
+type mockStructuredReferencer struct {
+	fake.LegacyManaged
+
+	MockResolveReferences func(context.Context, client.Reader) error `json:"-"`
+}
+
+func (r *mockStructuredReferencer) ResolveReferences(ctx context.Context, c client.Reader) error {
+	return r.MockResolveReferences(ctx, c)
+}
+
+func (r *mockStructuredReferencer) DeepCopyObject() runtime.Object {
+	out := *r
+	out.LegacyManaged = *r.LegacyManaged.DeepCopyObject().(*fake.LegacyManaged)
+
+	return &out
+}
+
+func (r *mockStructuredReferencer) Equal(s *mockStructuredReferencer) bool {
+	return cmp.Equal(r.LegacyManaged, s.LegacyManaged)
+}
+
+func ownedBy(manager string, op metav1.ManagedFieldsOperationType, fieldsV1 string) []metav1.ManagedFieldsEntry {
+	return []metav1.ManagedFieldsEntry{{
+		Manager:    manager,
+		Operation:  op,
+		FieldsType: "FieldsV1",
+		FieldsV1:   &metav1.FieldsV1{Raw: []byte(fieldsV1)},
+	}}
+}
+
 func TestResolveReferences(t *testing.T) {
 	errBoom := errors.New("boom")
 
 	different := &fake.LegacyManaged{}
+
+	owned := &mockStructuredReferencer{
+		LegacyManaged: fake.LegacyManaged{ObjectMeta: metav1.ObjectMeta{
+			Name:          "owned",
+			Annotations:   map[string]string{"resolved-a": "1"},
+			ManagedFields: ownedBy(fieldOwnerAPISimpleRefResolver, metav1.ManagedFieldsOperationApply, `{"f:annotations":{"f:resolved-a":{}}}`),
+		}},
+	}
+	owned.MockResolveReferences = func(context.Context, client.Reader) error {
+		owned.Annotations["resolved-b"] = "2"
+		return nil
+	}
 
 	type args struct {
 		ctx context.Context
@@ -458,6 +504,32 @@ func TestResolveReferences(t *testing.T) {
 						return nil
 					},
 				},
+			},
+			want: nil,
+		},
+		"PatchKeepsOwnedFields": {
+			reason: "Should keep the fields the resolver already owns in the server-side apply document next to the newly resolved ones.",
+			c: &test.MockClient{
+				MockPatch: func(_ context.Context, obj client.Object, patch client.Patch, _ ...client.PatchOption) error {
+					if patch.Type() != types.ApplyPatchType {
+						return errors.Errorf("unexpected patch type %q", patch.Type())
+					}
+
+					got, err := patch.Data(obj)
+					if err != nil {
+						return err
+					}
+
+					if diff := cmp.Diff(`{"annotations":{"resolved-a":"1","resolved-b":"2"}}`, string(got)); diff != "" {
+						return errors.Errorf("unexpected patch: -want, +got:\n%s", diff)
+					}
+
+					return nil
+				},
+			},
+			args: args{
+				ctx: context.Background(),
+				mg:  owned,
 			},
 			want: nil,
 		},
@@ -533,6 +605,170 @@ func TestPrepareJSONMerge(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want.patch, string(patch)); diff != "" {
 				t.Errorf("\n%s\nprepareJSONMerge(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestWithOwnedFields(t *testing.T) {
+	type args struct {
+		existing runtime.Object
+		patch    string
+	}
+
+	type want struct {
+		patch string
+		err   error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"NoManagedFields": {
+			reason: "Should return the patch unchanged when the object records no field ownership.",
+			args: args{
+				existing: &fake.LegacyManaged{},
+				patch:    `{"annotations":{"b":"2"}}`,
+			},
+			want: want{patch: `{"annotations":{"b":"2"}}`},
+		},
+		"OtherManager": {
+			reason: "Should ignore fields owned by other field managers.",
+			args: args{
+				existing: &fake.LegacyManaged{ObjectMeta: metav1.ObjectMeta{
+					Annotations:   map[string]string{"a": "1"},
+					ManagedFields: ownedBy("someone-else", metav1.ManagedFieldsOperationApply, `{"f:annotations":{"f:a":{}}}`),
+				}},
+				patch: `{"annotations":{"b":"2"}}`,
+			},
+			want: want{patch: `{"annotations":{"b":"2"}}`},
+		},
+		"UpdateOperationIgnored": {
+			reason: "Should only consider fields the resolver owns through an apply operation.",
+			args: args{
+				existing: &fake.LegacyManaged{ObjectMeta: metav1.ObjectMeta{
+					Annotations:   map[string]string{"a": "1"},
+					ManagedFields: ownedBy(fieldOwnerAPISimpleRefResolver, metav1.ManagedFieldsOperationUpdate, `{"f:annotations":{"f:a":{}}}`),
+				}},
+				patch: `{"annotations":{"b":"2"}}`,
+			},
+			want: want{patch: `{"annotations":{"b":"2"}}`},
+		},
+		"OwnedFieldsKept": {
+			reason: "Should carry the fields the resolver already owns along with the newly resolved ones.",
+			args: args{
+				existing: &fake.LegacyManaged{ObjectMeta: metav1.ObjectMeta{
+					Annotations:   map[string]string{"a": "1", "unowned": "x"},
+					ManagedFields: ownedBy(fieldOwnerAPISimpleRefResolver, metav1.ManagedFieldsOperationApply, `{"f:annotations":{"f:a":{}}}`),
+				}},
+				patch: `{"annotations":{"b":"2"}}`,
+			},
+			want: want{patch: `{"annotations":{"a":"1","b":"2"}}`},
+		},
+		"ResolvedValueWins": {
+			reason: "Should prefer the value resolved now over the value recorded on the object for a field the resolver owns.",
+			args: args{
+				existing: &fake.LegacyManaged{ObjectMeta: metav1.ObjectMeta{
+					Annotations:   map[string]string{"a": "1"},
+					ManagedFields: ownedBy(fieldOwnerAPISimpleRefResolver, metav1.ManagedFieldsOperationApply, `{"f:annotations":{"f:a":{}}}`),
+				}},
+				patch: `{"annotations":{"a":"9"}}`,
+			},
+			want: want{patch: `{"annotations":{"a":"9"}}`},
+		},
+		"OwnedListKept": {
+			reason: "Should carry a list the resolver owns as a whole.",
+			args: args{
+				existing: &fake.LegacyManaged{ObjectMeta: metav1.ObjectMeta{
+					Finalizers:    []string{"a", "b"},
+					ManagedFields: ownedBy(fieldOwnerAPISimpleRefResolver, metav1.ManagedFieldsOperationApply, `{"f:finalizers":{}}`),
+				}},
+				patch: `{"annotations":{"b":"2"}}`,
+			},
+			want: want{patch: `{"annotations":{"b":"2"},"finalizers":["a","b"]}`},
+		},
+		"OwnedKeyedListItem": {
+			reason: "Should carry only the associative list item the resolver owns, with its key fields, leaving the other items to their owners.",
+			args: args{
+				existing: &fake.LegacyManaged{ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{
+						{APIVersion: "v1", Kind: "A", Name: "a", UID: "1"},
+						{APIVersion: "v1", Kind: "B", Name: "b", UID: "2"},
+					},
+					ManagedFields: ownedBy(fieldOwnerAPISimpleRefResolver, metav1.ManagedFieldsOperationApply, `{"f:ownerReferences":{"k:{\"uid\":\"1\"}":{".":{},"f:name":{}}}}`),
+				}},
+				patch: `{"annotations":{"b":"2"}}`,
+			},
+			want: want{patch: `{"annotations":{"b":"2"},"ownerReferences":[{"name":"a","uid":"1"}]}`},
+		},
+		"OwnedKeyedListItemGone": {
+			reason: "Should skip an associative list item the resolver owns but the object no longer has.",
+			args: args{
+				existing: &fake.LegacyManaged{ObjectMeta: metav1.ObjectMeta{
+					OwnerReferences: []metav1.OwnerReference{{APIVersion: "v1", Kind: "A", Name: "a", UID: "1"}},
+					ManagedFields:   ownedBy(fieldOwnerAPISimpleRefResolver, metav1.ManagedFieldsOperationApply, `{"f:ownerReferences":{"k:{\"uid\":\"9\"}":{".":{},"f:name":{}}}}`),
+				}},
+				patch: `{"annotations":{"b":"2"}}`,
+			},
+			want: want{patch: `{"annotations":{"b":"2"}}`},
+		},
+		"OwnedSetListItem": {
+			reason: "Should carry only the set list item the resolver owns.",
+			args: args{
+				existing: &fake.LegacyManaged{ObjectMeta: metav1.ObjectMeta{
+					Finalizers:    []string{"a", "b"},
+					ManagedFields: ownedBy(fieldOwnerAPISimpleRefResolver, metav1.ManagedFieldsOperationApply, `{"f:finalizers":{"v:\"b\"":{}}}`),
+				}},
+				patch: `{}`,
+			},
+			want: want{patch: `{"finalizers":["b"]}`},
+		},
+		"OwnedIndexedListItem": {
+			reason: "Should carry only the list item at the index the resolver owns.",
+			args: args{
+				existing: &fake.LegacyManaged{ObjectMeta: metav1.ObjectMeta{
+					Finalizers:    []string{"a", "b"},
+					ManagedFields: ownedBy(fieldOwnerAPISimpleRefResolver, metav1.ManagedFieldsOperationApply, `{"f:finalizers":{"i:0":{}}}`),
+				}},
+				patch: `{}`,
+			},
+			want: want{patch: `{"finalizers":["a"]}`},
+		},
+		"OwnedMapItself": {
+			reason: "Should carry a map as a whole when the resolver owns the map itself and nothing beneath it.",
+			args: args{
+				existing: &fake.LegacyManaged{ObjectMeta: metav1.ObjectMeta{
+					Annotations:   map[string]string{"a": "1"},
+					ManagedFields: ownedBy(fieldOwnerAPISimpleRefResolver, metav1.ManagedFieldsOperationApply, `{"f:annotations":{".":{}}}`),
+				}},
+				patch: `{}`,
+			},
+			want: want{patch: `{"annotations":{"a":"1"}}`},
+		},
+		"OwnedFieldMissingFromObject": {
+			reason: "Should tolerate ownership of a field the object no longer has.",
+			args: args{
+				existing: &fake.LegacyManaged{ObjectMeta: metav1.ObjectMeta{
+					Annotations:   map[string]string{"a": "1"},
+					ManagedFields: ownedBy(fieldOwnerAPISimpleRefResolver, metav1.ManagedFieldsOperationApply, `{"f:annotations":{"f:gone":{}},"f:labels":{"f:gone":{}}}`),
+				}},
+				patch: `{"annotations":{"b":"2"}}`,
+			},
+			want: want{patch: `{"annotations":{"b":"2"}}`},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			patch, err := withOwnedFields(tc.args.existing, []byte(tc.args.patch))
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nwithOwnedFields(...): -wantErr, +gotErr:\n%s", tc.reason, diff)
+			}
+
+			if diff := cmp.Diff(tc.want.patch, string(patch)); diff != "" {
+				t.Errorf("\n%s\nwithOwnedFields(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
