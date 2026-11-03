@@ -25,11 +25,14 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/structured-merge-diff/v6/typed"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
@@ -53,6 +56,8 @@ const (
 	errUpdateManagedStatus       = "cannot update managed resource status"
 	errResolveReferences         = "cannot resolve references"
 	errUpdateCriticalAnnotations = "cannot update critical annotations"
+	errMarshalManagedFields      = "cannot marshal previously managed fields"
+	errMergePatches              = "cannot merge patches"
 )
 
 // NameAsExternalName writes the name of the managed resource to
@@ -228,8 +233,47 @@ func prepareJSONMerge(existing, resolved runtime.Object) ([]byte, error) {
 	}
 
 	patch, err := jsonpatch.CreateMergePatch(eBuff, rBuff)
+	if err != nil {
+		return nil, errors.Wrap(err, errPreparePatch)
+	}
 
-	return patch, errors.Wrap(err, errPreparePatch)
+	// Merge with previously managed fields to maintain ownership.
+	return mergeWithManagedFields(patch, resolved, fieldOwnerAPISimpleRefResolver)
+}
+
+// mergeWithManagedFields merges the patch with fields previously managed by the
+// specified field manager. This ensures that SSA patches include all fields the
+// manager owns, preventing the API server from interpreting missing fields as
+// intentional deletions which would cause an infinite reconciliation loop.
+func mergeWithManagedFields(patch []byte, obj runtime.Object, fieldManager string) ([]byte, error) {
+	// ExtractInto requires an unstructured representation of the object.
+	u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+	if err != nil {
+		return patch, nil //nolint:nilerr // Conversion errors are non-fatal; return the original patch.
+	}
+
+	managed := &unstructured.Unstructured{}
+	if err := managedfields.ExtractInto(&unstructured.Unstructured{Object: u}, typed.DeducedParseableType, fieldManager, managed, ""); err != nil {
+		// ExtractInto can fail for edge cases like managedFields references fields that don't exist on the observed object.
+		// See https://github.com/crossplane-contrib/provider-kubernetes/issues/420
+		return patch, nil //nolint:nilerr // Extraction errors are non-fatal; return the original patch.
+	}
+
+	if len(managed.Object) == 0 {
+		return patch, nil
+	}
+
+	b, err := json.Marshal(managed.Object)
+	if err != nil {
+		return nil, errors.Wrap(err, errMarshalManagedFields)
+	}
+
+	merged, err := jsonpatch.MergePatch(b, patch)
+	if err != nil {
+		return nil, errors.Wrap(err, errMergePatches)
+	}
+
+	return merged, nil
 }
 
 // ResolveReferences of the supplied managed resource by calling its
