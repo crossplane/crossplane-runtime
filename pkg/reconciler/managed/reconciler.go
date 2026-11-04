@@ -1082,7 +1082,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 				tracker.SetLastHandledReconcileAt(reconcileRequestToken)
 			}
 		}
-		return r.client.Status().Update(ctx, managed)
+
+		// An external client that ignores its context can overrun the
+		// reconcile deadline. Persist the status anyway, with a context of its
+		// own, so the user can see what happened instead of a resource with no
+		// conditions.
+		statusCtx := ctx
+		if ctx.Err() != nil {
+			var cancelStatus context.CancelFunc
+
+			statusCtx, cancelStatus = context.WithTimeout(context.WithoutCancel(ctx), reconcileGracePeriod)
+			defer cancelStatus()
+		}
+
+		return r.client.Status().Update(statusCtx, managed)
 	}
 
 	// Check if the ManagementPolicies is set to a non-default value while the
