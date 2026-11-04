@@ -3405,57 +3405,87 @@ func TestReconcilePropagationFinalizersDoNotDelayDelete(t *testing.T) {
 	}
 }
 
-func TestModernReconcilerWritesStatusAfterContextEnds(t *testing.T) {
+func TestModernReconcilerWritesStatus(t *testing.T) {
 	errBoom := errors.New("boom")
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	type args struct {
+		// cancel ends the reconcile context while the external client is
+		// observing, like an external client that overruns the deadline.
+		cancel bool
+	}
 
-	var got resource.Managed
+	type want struct {
+		err error
+		mg  resource.Managed
+	}
 
-	m := &fake.Manager{
-		Client: &test.MockClient{
-			MockGet: modernManagedMockGetFn(nil, 42),
-			MockStatusUpdate: test.MockSubResourceUpdateFn(func(ctx context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
-				// A real client fails the request when its context has ended.
-				if err := ctx.Err(); err != nil {
-					return err
-				}
+	wantManaged := newModernManaged(42)
+	wantManaged.SetConditions(xpv2.ReconcileError(errors.Wrap(errBoom, errReconcileObserve)).WithObservedGeneration(42))
 
-				got = obj.(resource.Managed)
-
-				return nil
-			}),
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"ContextActive": {
+			reason: "The status of the managed resource should be written when the reconcile context is active.",
+			want:   want{mg: wantManaged},
 		},
-		Scheme: fake.SchemeWith(&fake.ModernManaged{}),
+		"ContextEnded": {
+			reason: "The status of the managed resource should still be written after the reconcile context ended.",
+			args:   args{cancel: true},
+			want:   want{mg: wantManaged},
+		},
 	}
 
-	r := NewReconciler(m, resource.ManagedKind(fake.GVK(&fake.ModernManaged{})),
-		WithInitializers(),
-		WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
-			return &ExternalClientFns{
-				// An external client that overruns the reconcile deadline.
-				ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
-					cancel()
-					return ExternalObservation{}, errBoom
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			var got resource.Managed
+
+			m := &fake.Manager{
+				Client: &test.MockClient{
+					MockGet: modernManagedMockGetFn(nil, 42),
+					MockStatusUpdate: test.MockSubResourceUpdateFn(func(ctx context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
+						// A real client fails the request when its context has ended.
+						if err := ctx.Err(); err != nil {
+							return err
+						}
+
+						got = obj.(resource.Managed)
+
+						return nil
+					}),
 				},
-				DisconnectFn: func(_ context.Context) error { return nil },
-			}, nil
-		})),
-	)
+				Scheme: fake.SchemeWith(&fake.ModernManaged{}),
+			}
 
-	if _, err := r.Reconcile(ctx, reconcile.Request{}); err != nil {
-		t.Fatalf("r.Reconcile(...): want nil error, got %v", err)
-	}
+			r := NewReconciler(m, resource.ManagedKind(fake.GVK(&fake.ModernManaged{})),
+				WithInitializers(),
+				WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
+					return &ExternalClientFns{
+						ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+							if tc.args.cancel {
+								cancel()
+							}
 
-	if got == nil {
-		t.Fatal("the status of the managed resource was not written after the reconcile context ended")
-	}
+							return ExternalObservation{}, errBoom
+						},
+						DisconnectFn: func(_ context.Context) error { return nil },
+					}, nil
+				})),
+			)
 
-	want := newModernManaged(42)
-	want.SetConditions(xpv2.ReconcileError(errors.Wrap(errBoom, errReconcileObserve)).WithObservedGeneration(42))
+			_, err := r.Reconcile(ctx, reconcile.Request{})
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\nReason: %s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
 
-	if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
-		t.Errorf("\n-want, +got:\n%s", diff)
+			if diff := cmp.Diff(tc.want.mg, got, test.EquateConditions()); diff != "" {
+				t.Errorf("\nReason: %s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
 	}
 }
