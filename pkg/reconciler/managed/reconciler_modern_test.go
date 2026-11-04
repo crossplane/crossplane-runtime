@@ -3404,3 +3404,58 @@ func TestReconcilePropagationFinalizersDoNotDelayDelete(t *testing.T) {
 		})
 	}
 }
+
+func TestModernReconcilerWritesStatusAfterContextEnds(t *testing.T) {
+	errBoom := errors.New("boom")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var got resource.Managed
+
+	m := &fake.Manager{
+		Client: &test.MockClient{
+			MockGet: modernManagedMockGetFn(nil, 42),
+			MockStatusUpdate: test.MockSubResourceUpdateFn(func(ctx context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
+				// A real client fails the request when its context has ended.
+				if err := ctx.Err(); err != nil {
+					return err
+				}
+
+				got = obj.(resource.Managed)
+
+				return nil
+			}),
+		},
+		Scheme: fake.SchemeWith(&fake.ModernManaged{}),
+	}
+
+	r := NewReconciler(m, resource.ManagedKind(fake.GVK(&fake.ModernManaged{})),
+		WithInitializers(),
+		WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
+			return &ExternalClientFns{
+				// An external client that overruns the reconcile deadline.
+				ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+					cancel()
+					return ExternalObservation{}, errBoom
+				},
+				DisconnectFn: func(_ context.Context) error { return nil },
+			}, nil
+		})),
+	)
+
+	if _, err := r.Reconcile(ctx, reconcile.Request{}); err != nil {
+		t.Fatalf("r.Reconcile(...): want nil error, got %v", err)
+	}
+
+	if got == nil {
+		t.Fatal("the status of the managed resource was not written after the reconcile context ended")
+	}
+
+	want := newModernManaged(42)
+	want.SetConditions(xpv2.ReconcileError(errors.Wrap(errBoom, errReconcileObserve)).WithObservedGeneration(42))
+
+	if diff := cmp.Diff(want, got, test.EquateConditions()); diff != "" {
+		t.Errorf("\n-want, +got:\n%s", diff)
+	}
+}
