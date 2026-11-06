@@ -386,8 +386,8 @@ schema = 3
     hash = 'sha256-To8A0h+lbfZ/6zM+2PpRpY3+L6725OPC66lffq6fUoM='
 
   [mod.'github.com/klauspost/compress']
-    version = 'v1.20.1'
-    hash = 'sha256-saWVNlxTAS7/lNaGght51onyIDaAFV1Kx11g3+vPuX4='
+    version = 'v1.20.2'
+    hash = 'sha256-orccoWJf9iHg2y3NdiMDB90VLYXUk1GQwyJ9xz99jMs='
 
   [mod.'github.com/kylelemons/godebug']
     version = 'v1.1.0'
