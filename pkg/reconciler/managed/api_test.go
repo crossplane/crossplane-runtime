@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/v2/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/v2/pkg/event"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource/fake"
@@ -642,6 +643,43 @@ func TestRetryingCriticalAnnotationUpdater(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want.o, tc.args.o); diff != "" {
 				t.Errorf("\n%s\nu.UpdateCriticalAnnotations(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+type recordedEvents struct {
+	events []event.Event
+}
+
+func (r *recordedEvents) Event(_ runtime.Object, e event.Event) { r.events = append(r.events, e) }
+
+func TestExternalNameRecorder(t *testing.T) {
+	cases := map[string]struct {
+		reason       string
+		externalName string
+		want         string
+	}{
+		"WithExternalName": {
+			reason:       "The external name should be appended to the event message.",
+			externalName: "my-bucket",
+			want:         "Successfully requested creation of external resource (external-name: my-bucket)",
+		},
+		"WithoutExternalName": {
+			reason:       "The event message should be unchanged when no external name is set.",
+			externalName: "",
+			want:         "Successfully requested creation of external resource",
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			rec := &recordedEvents{events: nil}
+			r := externalNameRecorder{Recorder: rec, externalName: tc.externalName}
+			r.Event(nil, event.Normal(reasonCreated, "Successfully requested creation of external resource"))
+
+			if diff := cmp.Diff(tc.want, rec.events[0].Message); diff != "" {
+				t.Errorf("\n%s\nexternalNameRecorder.Event(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

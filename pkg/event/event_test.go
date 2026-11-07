@@ -52,19 +52,19 @@ func (m *mockObj) DeepCopyObject() runtime.Object {
 }
 
 func TestAPIRecorderEvent(t *testing.T) {
-	mr := &mockKubeRecorder{}
+	mr := &mockKubeRecorder{events: nil}
 	rec := NewAPIRecorder(mr)
 
 	rec.Event(&mockObj{}, Normal("testReason", "test message"))
 
-	want := mockEvent{typeStr: "Normal", reason: "testReason", action: "testReason", msg: "test message"}
-	if diff := cmp.Diff(want, mr.events[0], cmp.AllowUnexported(mockEvent{}), cmpopts.IgnoreFields(mockEvent{}, "obj")); diff != "" {
+	want := mockEvent{obj: nil, typeStr: "Normal", reason: "testReason", action: "testReason", msg: "test message"}
+	if diff := cmp.Diff(want, mr.events[0], cmp.AllowUnexported(mockEvent{obj: nil, typeStr: "", reason: "", action: "", msg: ""}), cmpopts.IgnoreFields(mockEvent{obj: nil, typeStr: "", reason: "", action: "", msg: ""}, "obj")); diff != "" {
 		t.Errorf("unexpected event: -want, +got:\n%s", diff)
 	}
 }
 
 func TestAPIRecorderFilter(t *testing.T) {
-	mr := &mockKubeRecorder{}
+	mr := &mockKubeRecorder{events: nil}
 	filter := func(_ runtime.Object, _ Event) bool { return true }
 	rec := NewAPIRecorder(mr, filter)
 
