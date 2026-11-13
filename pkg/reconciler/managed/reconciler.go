@@ -996,6 +996,23 @@ func NewReconciler(m manager.Manager, of resource.ManagedKind, o ...ReconcilerOp
 }
 
 // Reconcile a managed resource with an external resource.
+// externalNameRecorder records events with the managed resource's external name
+// appended to the message. The events.k8s.io API does not support per-event
+// annotations, so the external name is carried in the message instead.
+type externalNameRecorder struct {
+	event.Recorder
+
+	externalName string
+}
+
+// Event records the supplied event, appending the external name if one is set.
+func (r externalNameRecorder) Event(obj runtime.Object, e event.Event) {
+	if r.externalName != "" {
+		e.Message = e.Message + " (external-name: " + r.externalName + ")"
+	}
+	r.Recorder.Event(obj, e)
+}
+
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (result reconcile.Result, err error) { //nolint:gocognit // See note below.
 	// NOTE(negz): This method is a well over our cyclomatic complexity goal.
 	// Be wary of adding additional complexity.
@@ -1021,7 +1038,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 	r.metricRecorder.recordFirstTimeReconciled(managed)
 	status := r.conditions.For(managed)
 
-	record := r.record.WithAnnotations("external-name", meta.GetExternalName(managed))
+	record := externalNameRecorder{Recorder: r.record, externalName: meta.GetExternalName(managed)}
 	log = log.WithValues(
 		"uid", managed.GetUID(),
 		"version", managed.GetResourceVersion(),
@@ -1050,8 +1067,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 	// Log, publish an event and update the SYNC status condition.
 	if meta.IsPaused(managed) || policy.IsPaused() {
 		log.Debug("Reconciliation is paused either through the `spec.managementPolicies` or the pause annotation", "annotation", meta.AnnotationKeyReconciliationPaused)
-		record.Event(managed, event.Normal(reasonReconciliationPaused, "Reconciliation is paused either through the `spec.managementPolicies` or the pause annotation",
-			"annotation", meta.AnnotationKeyReconciliationPaused))
+		record.Event(managed, event.Normal(reasonReconciliationPaused, "Reconciliation is paused either through the `spec.managementPolicies` or the pause annotation"))
 		status.MarkConditions(xpv2.ReconcilePaused())
 		// if the pause annotation is removed or the management policies changed, we will have a chance to reconcile
 		// again and resume and if status update fails, we will reconcile again to retry to update the status
@@ -1067,7 +1083,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		if tracker, ok := managed.(reconcileRequestTracker); ok {
 			if tracker.GetLastHandledReconcileAt() != token {
 				log.Debug("Processing reconcile request", "token", token)
-				record.Event(managed, event.Normal(reasonReconcileRequestHandled, "Handling reconcile request", "token", token))
+				record.Event(managed, event.Normal(reasonReconcileRequestHandled, "Handling reconcile request"))
 				reconcileRequestToken = token
 			}
 		}
@@ -1542,7 +1558,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 
 		// In some cases our external-name may be set by Create above.
 		log = log.WithValues("external-name", meta.GetExternalName(managed))
-		record = r.record.WithAnnotations("external-name", meta.GetExternalName(managed))
+		record = externalNameRecorder{Recorder: r.record, externalName: meta.GetExternalName(managed)}
 
 		if err := r.change.Log(ctx, managedPreOp, v1alpha1.OperationType_OPERATION_TYPE_CREATE, nil, creation.AdditionalDetails); err != nil {
 			log.Info(errRecordChangeLog, "error", err)
