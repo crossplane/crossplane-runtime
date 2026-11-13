@@ -311,6 +311,10 @@ func crossplaneStatusProps() extv1.JSONSchemaProps {
 // fields that Crossplane expects to be present for all composite resources.
 func CompositeResourceStatusProps(s v1.CompositeResourceScope) map[string]extv1.JSONSchemaProps {
 	props := map[string]extv1.JSONSchemaProps{
+		"lastHandledReconcileAt": {
+			Type:        "string",
+			Description: "The most recent reconcile request token, from the crossplane.io/reconcile-requested-at annotation, that Crossplane handled.",
+		},
 		"conditions": {
 			Description: "Conditions of the resource.",
 			Type:        "array",
