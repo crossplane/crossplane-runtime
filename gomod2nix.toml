@@ -434,23 +434,26 @@ schema = 3
     version = "v1.2.1"
     hash = "sha256-73bFYhnxNf4SfeQ52ebnwOWywdQbqc9lWawCcSgofvE="
   [mod."go.opentelemetry.io/otel"]
-    version = "v1.45.0"
-    hash = "sha256-ORef6E6hxMrpVU8b+4vh311bMbv2zGbYAIJ9ZE8gXvc="
+    version = "v1.47.0"
+    hash = "sha256-D4dSqVH4J9tKmnQWZFANTZ3+frHUjFIgcsvJWPSwuU4="
   [mod."go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"]
     version = "v1.45.0"
     hash = "sha256-fqrhkxeR2Go6sA9W9xKRYpXQfHBZ78/7MVWnyuRpWSU="
+  [mod."go.opentelemetry.io/otel/log"]
+    version = "v1.47.0"
+    hash = "sha256-hYCHFuMmSSrMlyChIOEZMLuGYubF8IKkFLPC9yuVXdw="
   [mod."go.opentelemetry.io/otel/metric"]
-    version = "v1.45.0"
-    hash = "sha256-Ec/v1Ghb8Ohb1NsdYQ6juggl/wJMrVA6ktPRPczGWMQ="
+    version = "v1.47.0"
+    hash = "sha256-ZKgYAoUSGUrI/u2qctou/GVlgJ0Kd9aMEVxudopPfFQ="
   [mod."go.opentelemetry.io/otel/sdk"]
-    version = "v1.45.0"
-    hash = "sha256-VoyRt1cLW8apITGla1K1fqbSyJyRPr53+R3iisreE+4="
+    version = "v1.47.0"
+    hash = "sha256-f9JqSocWeQUExdeAcTvoGuJ9GeQ9KGyeDsLcsYRRu54="
   [mod."go.opentelemetry.io/otel/sdk/metric"]
-    version = "v1.45.0"
-    hash = "sha256-sjqCSECo+FNQ6IplnRrh2rFdCbYdS9/B6LgoxVjCNIo="
+    version = "v1.47.0"
+    hash = "sha256-DOrHpQS/i8JmbK6NbfK9bjyYsq5AQ9cGfiQmSpBqV4A="
   [mod."go.opentelemetry.io/otel/trace"]
-    version = "v1.45.0"
-    hash = "sha256-LKrsYVdfPEzxXPEFSapjGIiw2e1C4Yq5HXtoYrN4FIY="
+    version = "v1.47.0"
+    hash = "sha256-W0eb1RPyxX7WUXrQIg9+da00P46fRUlL2S1kgFOvAM0="
   [mod."go.uber.org/multierr"]
     version = "v1.11.0"
     hash = "sha256-Lb6rHHfR62Ozg2j2JZy3MKOMKdsfzd1IYTR57r3Mhp0="
@@ -461,8 +464,8 @@ schema = 3
     version = "v2.4.4"
     hash = "sha256-ecT2ZXw7iT+63J4210xA6sMz0fUFXmDzLwZe2FzaNFU="
   [mod."go.yaml.in/yaml/v3"]
-    version = "v3.0.4"
-    hash = "sha256-NkGFiDPoCxbr3LFsI6OCygjjkY0rdmg5ggvVVwpyDQ4="
+    version = "v3.0.5"
+    hash = "sha256-ygho+GU5kE7vPMx+dZYyNfCaeMjNxj66XmrcVf3afFE="
   [mod."golang.org/x/crypto"]
     version = "v0.59.0"
     hash = "sha256-fV67qsYNvsuqUtB92wKlWxrmcKOcZBehfEtAX0k3JTQ="
