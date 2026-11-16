@@ -245,8 +245,8 @@ func NewApplicatorWithRetry(applicator Applicator, shouldRetry shouldRetryFunc, 
 	return result
 }
 
-// A ClientApplicator may be used to build a single 'client' that satisfies both
-// client.Client and Applicator.
+// A ClientApplicator groups a Kubernetes client with Crossplane's legacy applicator.
+// Access Client or Applicator explicitly when their Apply methods have different signatures.
 type ClientApplicator struct {
 	client.Client
 	Applicator

@@ -131,7 +131,7 @@ func (ss *SecretStore) WriteKeyValues(ctx context.Context, s *store.Secret, wo .
 		return !cmp.Equal(current.(*corev1.Secret).Data, desired.(*corev1.Secret).Data, cmpopts.EquateEmpty()) //nolint:forcetypeassert // Will always be a secret.
 	}))
 
-	err := ss.client.Apply(ctx, ks, ao...)
+	err := ss.client.Applicator.Apply(ctx, ks, ao...)
 	if resource.IsNotAllowed(err) {
 		// The update was not allowed because it was a no-op.
 		return false, nil

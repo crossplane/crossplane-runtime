@@ -20,7 +20,26 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/record"
 )
+
+func TestAPIRecorderPreservesLiteralMessage(t *testing.T) {
+	for _, message := range []string{"100% ready", "literal %s and %d"} {
+		t.Run(message, func(t *testing.T) {
+			recorder := record.NewFakeRecorder(1)
+			NewAPIRecorder(recorder).Event(&corev1.Pod{}, Normal("Ready", message))
+			select {
+			case got := <-recorder.Events:
+				if diff := cmp.Diff("Normal Ready "+message, got); diff != "" {
+					t.Errorf("recorded event (-want +got):\n%s", diff)
+				}
+			default:
+				t.Fatal("no event recorded")
+			}
+		})
+	}
+}
 
 func TestSliceMap(t *testing.T) {
 	type args struct {

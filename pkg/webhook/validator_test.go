@@ -23,16 +23,15 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
-// Validator has to satisfy CustomValidator interface so that it can be used by
+// Validator has to satisfy the admission Validator interface so that it can be used by
 // controller-runtime Manager.
-var _ webhook.CustomValidator = &Validator{}
+var _ admission.Validator[runtime.Object] = &Validator{}
 
 var (
 	errBoom  = errors.New("boom")
