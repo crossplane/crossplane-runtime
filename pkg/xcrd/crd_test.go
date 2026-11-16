@@ -532,6 +532,11 @@ func TestForCompositeResource(t *testing.T) {
 									JSONPath: ".status.conditions[?(@.type=='Ready')].status",
 								},
 								{
+									Name:     "RESPONSIVE",
+									Type:     "string",
+									JSONPath: ".status.conditions[?(@.type=='Responsive')].status",
+								},
+								{
 									Name:     "COMPOSITION",
 									Type:     "string",
 									JSONPath: ".spec.crossplane.compositionRef.name",
@@ -795,6 +800,11 @@ func TestForCompositeResource(t *testing.T) {
 									Name:     "READY",
 									Type:     "string",
 									JSONPath: ".status.conditions[?(@.type=='Ready')].status",
+								},
+								{
+									Name:     "RESPONSIVE",
+									Type:     "string",
+									JSONPath: ".status.conditions[?(@.type=='Responsive')].status",
 								},
 								{
 									Name:     "COMPOSITION",
