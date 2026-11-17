@@ -899,6 +899,36 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{Requeue: true}},
 		},
+		"CreateRetryNotAfterLastResultDeterministicName": {
+			reason: "We should not wait for the second of the last create result to pass when the external name is deterministic, because we can find what we created by name.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							mg := asLegacyManaged(obj, 42)
+							meta.SetExternalCreatePending(mg, time.Now().Add(time.Minute))
+							meta.SetExternalCreateFailed(mg, time.Now().Add(time.Minute))
+
+							return nil
+						}),
+						// We get as far as updating our status after Create.
+						MockUpdate:       test.NewMockUpdateFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(errBoom),
+					},
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+					WithExternalConnector(&NopConnector{}),
+					WithCriticalAnnotationUpdater(CriticalAnnotationUpdateFn(func(_ context.Context, _ client.Object) error { return nil })),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+					WithDeterministicExternalName(true),
+				},
+			},
+			want: want{result: reconcile.Result{Requeue: true}, err: errors.Wrap(errBoom, errUpdateManagedStatus)},
+		},
 		"UpdateCriticalAnnotationsError": {
 			reason: "Errors updating critical annotations after creation should trigger a requeue after a short wait.",
 			args: args{
