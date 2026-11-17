@@ -852,6 +852,53 @@ func TestReconciler(t *testing.T) {
 			},
 			want: want{result: reconcile.Result{Requeue: true}},
 		},
+		"CreateRetryNotAfterLastResult": {
+			reason: "We should requeue, without updating the managed resource or calling Create, until the current second is later than the one in which the last create result was recorded.",
+			args: args{
+				m: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							mg := asLegacyManaged(obj, 42)
+
+							// A result from the current second is handled the
+							// same way. One from the future makes this case
+							// independent of the wall clock.
+							meta.SetExternalCreatePending(mg, time.Now().Add(time.Minute))
+							meta.SetExternalCreateFailed(mg, time.Now().Add(time.Minute))
+
+							return nil
+						}),
+						// Neither should be called in this scenario.
+						MockUpdate:       test.NewMockUpdateFn(errBoom),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(errBoom),
+					},
+					Scheme: fake.SchemeWith(&fake.LegacyManaged{}),
+				},
+				mg: resource.ManagedKind(fake.GVK(&fake.LegacyManaged{})),
+				o: []ReconcilerOption{
+					WithInitializers(),
+					WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
+					WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
+						c := &ExternalClientFns{
+							ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
+								return ExternalObservation{ResourceExists: false}, nil
+							},
+							CreateFn: func(_ context.Context, _ resource.Managed) (ExternalCreation, error) {
+								// Create should not be called in this scenario.
+								return ExternalCreation{}, errBoom
+							},
+							DisconnectFn: func(_ context.Context) error {
+								return nil
+							},
+						}
+
+						return c, nil
+					})),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
+				},
+			},
+			want: want{result: reconcile.Result{Requeue: true}},
+		},
 		"UpdateCriticalAnnotationsError": {
 			reason: "Errors updating critical annotations after creation should trigger a requeue after a short wait.",
 			args: args{
