@@ -678,8 +678,6 @@ type recorder struct{ events []event.Event }
 
 func (r *recorder) Event(_ runtime.Object, e event.Event) { r.events = append(r.events, e) }
 
-func (r *recorder) WithAnnotations(_ ...string) event.Recorder { return r }
-
 // terminatingUsage returns a usage that is being deleted, and that is waiting
 // for its owner to release it.
 func terminatingUsage(name, owner string, uid types.UID, deleted *metav1.Time) *fake.ProviderConfigUsage {
