@@ -1633,7 +1633,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		// because no drift was detected. We call this so late in the reconcile
 		// because all the cases above could contribute (for different reasons)
 		// that the external object would not have been updated.
-		r.metricRecorder.recordUnchanged(managed.GetName())
+		r.metricRecorder.recordUnchanged(managed)
 
 		return reconcile.Result{RequeueAfter: reconcileAfter}, errors.Wrap(updateStatus(), errUpdateManagedStatus)
 	}
