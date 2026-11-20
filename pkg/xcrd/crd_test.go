@@ -424,6 +424,10 @@ func TestForCompositeResource(t *testing.T) {
 												"phase":     {Type: "string"},
 												"something": {Type: "string"},
 
+												"lastHandledReconcileAt": {
+													Type:        "string",
+													Description: "The most recent reconcile request token, from the crossplane.io/reconcile-requested-at annotation, that Crossplane handled.",
+												},
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
@@ -694,6 +698,10 @@ func TestForCompositeResource(t *testing.T) {
 												"phase":     {Type: "string"},
 												"something": {Type: "string"},
 
+												"lastHandledReconcileAt": {
+													Type:        "string",
+													Description: "The most recent reconcile request token, from the crossplane.io/reconcile-requested-at annotation, that Crossplane handled.",
+												},
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
@@ -963,6 +971,10 @@ func TestForCompositeResource(t *testing.T) {
 												"phase":     {Type: "string"},
 												"something": {Type: "string"},
 
+												"lastHandledReconcileAt": {
+													Type:        "string",
+													Description: "The most recent reconcile request token, from the crossplane.io/reconcile-requested-at annotation, that Crossplane handled.",
+												},
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
@@ -1211,6 +1223,10 @@ func TestForCompositeResource(t *testing.T) {
 												"something": {Type: "string"},
 
 												// From CompositeResourceStatusProps()
+												"lastHandledReconcileAt": {
+													Type:        "string",
+													Description: "The most recent reconcile request token, from the crossplane.io/reconcile-requested-at annotation, that Crossplane handled.",
+												},
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
@@ -1498,6 +1514,10 @@ func TestForCompositeResource(t *testing.T) {
 												"something": {Type: "string"},
 
 												// From CompositeResourceStatusProps()
+												"lastHandledReconcileAt": {
+													Type:        "string",
+													Description: "The most recent reconcile request token, from the crossplane.io/reconcile-requested-at annotation, that Crossplane handled.",
+												},
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
@@ -1735,6 +1755,10 @@ func TestForCompositeResource(t *testing.T) {
 											Description: "",
 											Properties: map[string]extv1.JSONSchemaProps{
 												// From CompositeResourceStatusProps()
+												"lastHandledReconcileAt": {
+													Type:        "string",
+													Description: "The most recent reconcile request token, from the crossplane.io/reconcile-requested-at annotation, that Crossplane handled.",
+												},
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
@@ -1988,6 +2012,10 @@ func TestForCompositeResource(t *testing.T) {
 												"something": {Type: "string"},
 
 												// From CompositeResourceStatusProps()
+												"lastHandledReconcileAt": {
+													Type:        "string",
+													Description: "The most recent reconcile request token, from the crossplane.io/reconcile-requested-at annotation, that Crossplane handled.",
+												},
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
@@ -2251,6 +2279,10 @@ func TestForCompositeResource(t *testing.T) {
 												"something": {Type: "string"},
 
 												// From CompositeResourceStatusProps()
+												"lastHandledReconcileAt": {
+													Type:        "string",
+													Description: "The most recent reconcile request token, from the crossplane.io/reconcile-requested-at annotation, that Crossplane handled.",
+												},
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
@@ -2525,6 +2557,10 @@ func TestForCompositeResource(t *testing.T) {
 												"something": {Type: "string"},
 
 												// From CompositeResourceStatusProps()
+												"lastHandledReconcileAt": {
+													Type:        "string",
+													Description: "The most recent reconcile request token, from the crossplane.io/reconcile-requested-at annotation, that Crossplane handled.",
+												},
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
@@ -2813,6 +2849,10 @@ func TestForCompositeResource(t *testing.T) {
 												"phase":     {Type: "string"},
 												"something": {Type: "string"},
 
+												"lastHandledReconcileAt": {
+													Type:        "string",
+													Description: "The most recent reconcile request token, from the crossplane.io/reconcile-requested-at annotation, that Crossplane handled.",
+												},
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
@@ -3094,6 +3134,10 @@ func TestForCompositeResource(t *testing.T) {
 												"phase":     {Type: "string"},
 												"something": {Type: "string"},
 
+												"lastHandledReconcileAt": {
+													Type:        "string",
+													Description: "The most recent reconcile request token, from the crossplane.io/reconcile-requested-at annotation, that Crossplane handled.",
+												},
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
@@ -3539,6 +3583,10 @@ func TestForCompositeResourceClaim(t *testing.T) {
 												"phase": {Type: "string"},
 
 												// From CompositeResourceStatusProps()
+												"lastHandledReconcileAt": {
+													Type:        "string",
+													Description: "The most recent reconcile request token, from the crossplane.io/reconcile-requested-at annotation, that Crossplane handled.",
+												},
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
@@ -3797,6 +3845,10 @@ func TestForCompositeResourceClaim(t *testing.T) {
 												"phase": {Type: "string"},
 
 												// From CompositeResourceStatusProps()
+												"lastHandledReconcileAt": {
+													Type:        "string",
+													Description: "The most recent reconcile request token, from the crossplane.io/reconcile-requested-at annotation, that Crossplane handled.",
+												},
 												"conditions": {
 													Description:  "Conditions of the resource.",
 													Type:         "array",
@@ -4069,6 +4121,10 @@ func TestForCompositeResourceClaimEmptyXrd(t *testing.T) {
 									Description: "",
 									Properties: map[string]extv1.JSONSchemaProps{
 										// From CompositeResourceStatusProps()
+										"lastHandledReconcileAt": {
+											Type:        "string",
+											Description: "The most recent reconcile request token, from the crossplane.io/reconcile-requested-at annotation, that Crossplane handled.",
+										},
 										"conditions": {
 											Description:  "Conditions of the resource.",
 											Type:         "array",
