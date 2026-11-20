@@ -3412,6 +3412,8 @@ func TestModernReconcilerWritesStatus(t *testing.T) {
 		// cancel ends the reconcile context while the external client is
 		// observing, like an external client that overruns the deadline.
 		cancel bool
+		obs    ExternalObservation
+		err    error
 	}
 
 	type want struct {
@@ -3419,8 +3421,12 @@ func TestModernReconcilerWritesStatus(t *testing.T) {
 		mg  resource.Managed
 	}
 
-	wantManaged := newModernManaged(42)
-	wantManaged.SetConditions(xpv2.ReconcileError(errors.Wrap(errBoom, errReconcileObserve)).WithObservedGeneration(42))
+	withCondition := func(c xpv2.Condition) resource.Managed {
+		mg := newModernManaged(42)
+		mg.SetConditions(c.WithObservedGeneration(42))
+
+		return mg
+	}
 
 	cases := map[string]struct {
 		reason string
@@ -3429,12 +3435,18 @@ func TestModernReconcilerWritesStatus(t *testing.T) {
 	}{
 		"ContextActive": {
 			reason: "The status of the managed resource should be written when the reconcile context is active.",
-			want:   want{mg: wantManaged},
+			args:   args{err: errBoom},
+			want:   want{mg: withCondition(xpv2.ReconcileError(errors.Wrap(errBoom, errReconcileObserve)))},
 		},
 		"ContextEnded": {
-			reason: "The status of the managed resource should still be written after the reconcile context ended.",
-			args:   args{cancel: true},
-			want:   want{mg: wantManaged},
+			reason: "The status of the managed resource should still be written after the reconcile context ended, keeping the observe error.",
+			args:   args{cancel: true, err: errBoom},
+			want:   want{mg: withCondition(xpv2.ReconcileError(errors.Wrap(errBoom, errReconcileObserve)))},
+		},
+		"ContextEndedAfterSuccessfulObserve": {
+			reason: "An external client that overran the reconcile deadline should be reported even if the reconcile would otherwise succeed.",
+			args:   args{cancel: true, obs: ExternalObservation{ResourceExists: true, ResourceUpToDate: true}},
+			want:   want{mg: withCondition(xpv2.ReconcileError(errors.Wrap(context.Canceled, errReconcileDeadline)))},
 		},
 	}
 
@@ -3464,6 +3476,7 @@ func TestModernReconcilerWritesStatus(t *testing.T) {
 
 			r := NewReconciler(m, resource.ManagedKind(fake.GVK(&fake.ModernManaged{})),
 				WithInitializers(),
+				WithReferenceResolver(ReferenceResolverFn(func(_ context.Context, _ resource.Managed) error { return nil })),
 				WithExternalConnector(ExternalConnectorFn(func(_ context.Context, _ resource.Managed) (ExternalClient, error) {
 					return &ExternalClientFns{
 						ObserveFn: func(_ context.Context, _ resource.Managed) (ExternalObservation, error) {
@@ -3471,11 +3484,12 @@ func TestModernReconcilerWritesStatus(t *testing.T) {
 								cancel()
 							}
 
-							return ExternalObservation{}, errBoom
+							return tc.args.obs, tc.args.err
 						},
 						DisconnectFn: func(_ context.Context) error { return nil },
 					}, nil
 				})),
+				WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error { return nil }}),
 			)
 
 			_, err := r.Reconcile(ctx, reconcile.Request{})
