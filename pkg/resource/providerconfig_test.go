@@ -24,7 +24,9 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -305,6 +307,24 @@ func TestTrackLegacy(t *testing.T) {
 			},
 			want: nil,
 		},
+		"AlreadyExists": {
+			reason: "No error should be returned if the ProviderConfigUsage was created after a stale read reported it as not found",
+			fields: fields{
+				c: NewAPIUpdatingApplicator(&test.MockClient{
+					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockCreate: test.NewMockCreateFn(kerrors.NewAlreadyExists(schema.GroupResource{}, "")),
+				}),
+				of: &fake.LegacyProviderConfigUsage{},
+			},
+			args: args{
+				mg: &fake.LegacyManaged{
+					LegacyProviderConfigReferencer: fake.LegacyProviderConfigReferencer{
+						Ref: &xpv2.Reference{Name: name},
+					},
+				},
+			},
+			want: nil,
+		},
 		"ApplyError": {
 			reason: "Errors applying the ProviderConfigUsage should be returned",
 			fields: fields{
@@ -409,6 +429,24 @@ func TestTrackModern(t *testing.T) {
 					}
 
 					return errBoom
+				}),
+				of: &fake.ProviderConfigUsage{},
+			},
+			args: args{
+				mg: &fake.ModernManaged{
+					TypedProviderConfigReferencer: fake.TypedProviderConfigReferencer{
+						Ref: &xpv2.ProviderConfigReference{Name: name, Kind: "ProviderConfig"},
+					},
+				},
+			},
+			want: nil,
+		},
+		"AlreadyExists": {
+			reason: "No error should be returned if the ProviderConfigUsage was created after a stale read reported it as not found",
+			fields: fields{
+				c: NewAPIUpdatingApplicator(&test.MockClient{
+					MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockCreate: test.NewMockCreateFn(kerrors.NewAlreadyExists(schema.GroupResource{}, "")),
 				}),
 				of: &fake.ProviderConfigUsage{},
 			},

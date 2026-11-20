@@ -23,6 +23,7 @@ import (
 	xpv2 "github.com/crossplane/crossplane/apis/v2/core/v2"
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -250,7 +251,10 @@ func NewProviderConfigUsageTracker(c client.Client, of TypedProviderConfigUsage)
 // managed resource's usage is updated if the managed resource is updated to
 // reference a misconfigured ProviderConfig. Track doesn't manage the
 // ProviderConfigUsageFinalizer; the managed reconciler does, through Protect
-// and Untrack.
+// and Untrack. A ProviderConfigUsage that already exists when Track tries to
+// create it isn't an error: a cached client can report a usage that was just
+// created as not found. A later Track updates such a usage if it references a
+// different ProviderConfig.
 func (u *ProviderConfigUsageTracker) Track(ctx context.Context, mg ModernManaged) error {
 	//nolint:forcetypeassert // Will always be a PCU.
 	pcu := u.of.DeepCopyObject().(TypedProviderConfigUsage)
@@ -284,7 +288,7 @@ func (u *ProviderConfigUsageTracker) Track(ctx context.Context, mg ModernManaged
 		}),
 	)
 
-	return errors.Wrap(Ignore(IsNotAllowed, err), errApplyPCU)
+	return errors.Wrap(IgnoreAny(err, IsNotAllowed, kerrors.IsAlreadyExists), errApplyPCU)
 }
 
 // Protect the supplied managed resource's ProviderConfigUsage, so the garbage
@@ -352,7 +356,10 @@ func NewLegacyProviderConfigUsageTracker(c client.Client, of LegacyProviderConfi
 // managed resource's usage is updated if the managed resource is updated to
 // reference a misconfigured ProviderConfig. Track doesn't manage the
 // ProviderConfigUsageFinalizer; the managed reconciler does, through Protect
-// and Untrack.
+// and Untrack. A ProviderConfigUsage that already exists when Track tries to
+// create it isn't an error: a cached client can report a usage that was just
+// created as not found. A later Track updates such a usage if it references a
+// different ProviderConfig.
 func (u *LegacyProviderConfigUsageTracker) Track(ctx context.Context, mg LegacyManaged) error {
 	//nolint:forcetypeassert // Will always be a legacy PCU.
 	pcu := u.of.DeepCopyObject().(LegacyProviderConfigUsage)
@@ -382,7 +389,7 @@ func (u *LegacyProviderConfigUsageTracker) Track(ctx context.Context, mg LegacyM
 		}),
 	)
 
-	return errors.Wrap(Ignore(IsNotAllowed, err), errApplyPCU)
+	return errors.Wrap(IgnoreAny(err, IsNotAllowed, kerrors.IsAlreadyExists), errApplyPCU)
 }
 
 // Protect the supplied managed resource's ProviderConfigUsage, so the garbage
