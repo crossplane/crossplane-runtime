@@ -954,6 +954,18 @@ func (r *Reconciler) effectivePollInterval(o metav1.Object) time.Duration {
 	return r.pollInterval
 }
 
+// afterLastCreateResult returns true if the supplied time is in a later second
+// than the supplied resource's most recent create result, successful or failed,
+// or if the resource has no create result.
+func afterLastCreateResult(o metav1.Object, t time.Time) bool {
+	last := meta.GetExternalCreateFailed(o)
+	if s := meta.GetExternalCreateSucceeded(o); s.After(last) {
+		last = s
+	}
+
+	return t.Truncate(time.Second).After(last.Truncate(time.Second))
+}
+
 // NewReconciler returns a Reconciler that reconciles managed resources of the
 // supplied ManagedKind with resources in an external system such as a cloud
 // provider API. It panics if asked to reconcile a managed resource kind that is
@@ -1477,6 +1489,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 	}
 
 	if !observation.ResourceExists && policy.ShouldCreate() {
+		// The create annotations have one second resolution. Unless we can
+		// find the external resource by name, wait until a pending annotation
+		// would be newer than the last create result. Otherwise an interrupted
+		// attempt would look complete and we'd create the resource again.
+		if !r.deterministicExternalName && !afterLastCreateResult(managed, time.Now()) {
+			log.Debug("Waiting to retry creation of external resource")
+
+			return reconcile.Result{Requeue: true}, nil
+		}
+
 		// We write this annotation for two reasons. Firstly, it helps
 		// us to detect the case in which we fail to persist critical
 		// information (like the external name) that may be set by the
