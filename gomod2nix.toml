@@ -674,28 +674,28 @@ schema = 3
     hash = 'sha256-z84XlyeWLcoYOvWLxPkPFgLkpjyb2Y4pdeGMyySOZQI='
 
   [mod.'k8s.io/api']
-    version = 'v0.37.2'
-    hash = 'sha256-i6yUt2ea/tA4RgYBOM7LZXtuoDhOyk//iIsRJfTOWh8='
+    version = 'v0.37.3'
+    hash = 'sha256-gzWe9t3hZ/geJk9/FQ3ejcLGzCmHr7VsN6F7WudFnE4='
 
   [mod.'k8s.io/apiextensions-apiserver']
-    version = 'v0.37.2'
-    hash = 'sha256-r8gJx7uCXkj4XrwYfv+SWrGOm9YyiQNB/NvrcFX1j44='
+    version = 'v0.37.3'
+    hash = 'sha256-kyC7qnIsiMhuoUcF5fdSElwjJ3/9oNcWkBY6cGGEh+o='
 
   [mod.'k8s.io/apimachinery']
-    version = 'v0.37.2'
-    hash = 'sha256-EU424OtsjCflnxuUCHAKsGFJyjfV5J9H4mvVAP7z95I='
+    version = 'v0.37.3'
+    hash = 'sha256-yQSo4cXMLoQpyApQqbZOyvp905KEYwJbQ62ARlKjj0U='
 
   [mod.'k8s.io/client-go']
-    version = 'v0.37.2'
-    hash = 'sha256-IxzLsEgGilnqzn+WTR9z/r96V/RLhXTQkJLC3Oa59IM='
+    version = 'v0.37.3'
+    hash = 'sha256-V1L9m7nOWQBbsz0HTTGOWdo7GWIPMq1lOZAxmtsPJJ8='
 
   [mod.'k8s.io/code-generator']
-    version = 'v0.37.2'
-    hash = 'sha256-KQbcQTV67e8Pb19htTBTHNVO4tMWEMvKUNUY/k47mIY='
+    version = 'v0.37.3'
+    hash = 'sha256-0w3o8HrHRYJroSAGBfoXXEG2V+l+LnNng7IwS5YVQYo='
 
   [mod.'k8s.io/component-base']
-    version = 'v0.37.2'
-    hash = 'sha256-0mjJ+OPt8OprUiAkvIulWY52DrRyYzMVdArZMk1GzAE='
+    version = 'v0.37.3'
+    hash = 'sha256-T/wgE1VxLlrRqFNIpVgB1teWAaZmYjDyCp1lEfYrTNo='
 
   [mod.'k8s.io/gengo/v2']
     version = 'v2.0.0-20260408192533-25e2208e0dc3'
