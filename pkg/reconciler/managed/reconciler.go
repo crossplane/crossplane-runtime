@@ -73,6 +73,7 @@ const (
 	errUntrackProviderConfig    = "cannot release ProviderConfigUsage"
 
 	errExternalResourceNotExist = "external resource does not exist"
+	errReconcileDeadline        = "reconcile did not finish within its deadline, an external call may have ignored its context"
 
 	errManagedNotImplemented = "managed resource does not implement connection details"
 )
@@ -101,6 +102,7 @@ const (
 
 	reasonReconciliationPaused    event.Reason = "ReconciliationPaused"
 	reasonReconcileRequestHandled event.Reason = "ReconcileRequestHandled"
+	reasonReconcileDeadline       event.Reason = "ReconcileDeadlineExceeded"
 )
 
 // ControllerName returns the recommended name for controllers that use this
@@ -1082,7 +1084,30 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 				tracker.SetLastHandledReconcileAt(reconcileRequestToken)
 			}
 		}
-		return r.client.Status().Update(ctx, managed)
+
+		// An external client that ignores its context can overrun the
+		// reconcile deadline. Persist the status anyway, with a context of its
+		// own, so the user can see what happened instead of a resource with no
+		// conditions. The overrun is a provider bug, so we surface it rather
+		// than let the fresh context hide it behind a successful reconcile.
+		statusCtx := ctx
+		if err := ctx.Err(); err != nil {
+			deadlineErr := errors.Wrap(err, errReconcileDeadline)
+			log.Debug("Reconcile context ended before the status update", "error", err)
+			record.Event(managed, event.Warning(reasonReconcileDeadline, deadlineErr))
+
+			// Keep a more specific error condition if one was already set.
+			if managed.GetCondition(xpv2.TypeSynced).Reason != xpv2.ReasonReconcileError {
+				status.MarkConditions(xpv2.ReconcileError(deadlineErr))
+			}
+
+			var cancelStatus context.CancelFunc
+
+			statusCtx, cancelStatus = context.WithTimeout(context.WithoutCancel(ctx), reconcileGracePeriod)
+			defer cancelStatus()
+		}
+
+		return r.client.Status().Update(statusCtx, managed)
 	}
 
 	// Check if the ManagementPolicies is set to a non-default value while the
